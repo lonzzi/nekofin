@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["StrokeTextModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.stroketext.StrokeTextModule"]
+  }
+}

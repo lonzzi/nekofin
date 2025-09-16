@@ -1,0 +1,118 @@
+package expo.modules.stroketext
+
+import android.graphics.Typeface
+import android.util.TypedValue
+import android.view.View
+import expo.modules.kotlin.modules.Module
+import expo.modules.kotlin.modules.ModuleDefinition
+import android.graphics.Color as AndroidColor
+
+class StrokeTextModule : Module() {
+  // Each module class must implement the definition function. The definition consists of components
+  // that describes the module's functionality and behavior.
+  // See https://docs.expo.dev/modules/module-api for more details about available components.
+  override fun definition() = ModuleDefinition {
+    // Sets the name of the module that JavaScript code will use to refer to the module. Takes a string as an argument.
+    // Can be inferred from module's class name, but it's recommended to set it explicitly for clarity.
+    // The module will be accessible from `requireNativeModule('StrokeText')` in JavaScript.
+    Name("StrokeText")
+
+    // Defines constant property on the module.
+    Constant("PI") {
+      Math.PI
+    }
+
+    // Defines event names that the module can send to JavaScript.
+    Events("onChange")
+
+    // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
+    Function("hello") {
+      "Hello world! 👋"
+    }
+
+    // Defines a JavaScript function that always returns a Promise and whose native code
+    // is by default dispatched on the different thread than the JavaScript runtime runs on.
+    AsyncFunction("setValueAsync") { value: String ->
+      // Send an event to JavaScript.
+      sendEvent(
+        "onChange", mapOf(
+          "value" to value
+        )
+      )
+    }
+
+    // Enables the module to be used as a native view with props for stroke text rendering
+    View(StrokeTextView::class) {
+      Prop("text") { view: StrokeTextView, text: String ->
+        view.textView.text = text
+      }
+      Prop("color") { view: StrokeTextView, value: Any? ->
+        val intColor = when (value) {
+          is String -> try {
+            AndroidColor.parseColor(value)
+          } catch (e: Exception) {
+            view.textView.currentTextColor
+          }
+
+          is Double -> value.toInt()
+          is Int -> value
+          else -> view.textView.currentTextColor
+        }
+        view.textView.setTextColor(intColor)
+      }
+      Prop("strokeColor") { view: StrokeTextView, value: Any? ->
+        val intColor = when (value) {
+          is String -> try {
+            AndroidColor.parseColor(value)
+          } catch (e: Exception) {
+            AndroidColor.BLACK
+          }
+
+          is Double -> value.toInt()
+          is Int -> value
+          else -> AndroidColor.BLACK
+        }
+        view.textView.strokeColor = intColor
+        view.textView.invalidate()
+      }
+      Prop("strokeWidth") { view: StrokeTextView, width: Double ->
+        view.textView.strokeWidthPx = width.toFloat()
+        view.textView.invalidate()
+      }
+      Prop("fontSize") { view: StrokeTextView, size: Double ->
+        view.textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, size.toFloat())
+      }
+      Prop("fontWeight") { view: StrokeTextView, weight: String ->
+        val isBold = weight.equals("bold", ignoreCase = true) || weight == "700" || weight == "800" || weight == "900"
+        view.textView.setTypeface(view.textView.typeface, if (isBold) Typeface.BOLD else Typeface.NORMAL)
+      }
+      Prop("fontFamily") { view: StrokeTextView, family: String ->
+        val tf = try {
+          Typeface.create(family, view.textView.typeface?.style ?: Typeface.NORMAL)
+        } catch (e: Exception) {
+          null
+        }
+        if (tf != null) view.textView.typeface = tf
+      }
+      Prop("letterSpacing") { view: StrokeTextView, spacing: Double ->
+        view.textView.letterSpacing = spacing.toFloat()
+      }
+      Prop("lineHeight") { view: StrokeTextView, height: Double ->
+        val textSizePx = view.textView.textSize
+        val desiredPx = height.toFloat()
+        val extra = (desiredPx - textSizePx).coerceAtLeast(0f)
+        view.textView.setLineSpacing(extra, 1f)
+      }
+      Prop("textAlign") { view: StrokeTextView, align: String ->
+        when (align) {
+          "center" -> view.textView.textAlignment = View.TEXT_ALIGNMENT_CENTER
+          "right", "end" -> view.textView.textAlignment = View.TEXT_ALIGNMENT_VIEW_END
+          else -> view.textView.textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+        }
+      }
+      Prop("numberOfLines") { view: StrokeTextView, lines: Int ->
+        view.textView.maxLines = if (lines > 0) lines else Integer.MAX_VALUE
+      }
+    }
+  }
+}

@@ -47,4 +47,4 @@ app-example
 build*.apk
 build*.sh
 
-modules/vlc-player/android/build
+modules/*/android/build
