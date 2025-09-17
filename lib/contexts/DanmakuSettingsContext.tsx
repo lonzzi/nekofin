@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { TextStyle } from 'react-native';
 
 import { storage } from '../storage';
 
@@ -12,7 +13,7 @@ export type DanmakuSettingsType = {
   danmakuDensityLimit: number;
   curEpOffset: number;
   fontFamily: string;
-  fontOptions: string;
+  fontWeight: TextStyle['fontWeight'];
 };
 
 type DanmakuSettingsContextValue = {
@@ -30,7 +31,7 @@ export const defaultSettings: DanmakuSettingsType = {
   danmakuDensityLimit: 0,
   curEpOffset: 0,
   fontFamily: '"Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif',
-  fontOptions: 'bold',
+  fontWeight: '600',
 };
 
 const DanmakuSettingsContext = createContext<DanmakuSettingsContextValue | null>(null);

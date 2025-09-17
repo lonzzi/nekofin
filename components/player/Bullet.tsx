@@ -1,7 +1,7 @@
 import { StrokeTextView } from '@/modules/stroke-text';
 import { DANDAN_COMMENT_MODE } from '@/services/dandanplay';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, StyleSheet } from 'react-native';
+import { Animated, Easing, StyleSheet, TextStyle } from 'react-native';
 
 import { ActiveBullet } from './DanmakuTypes';
 
@@ -14,7 +14,7 @@ export function Bullet({
   onExpire,
   fontSize,
   fontFamily,
-  fontOptions,
+  fontWeight,
   isPlaying,
   playbackRate,
 }: {
@@ -23,7 +23,7 @@ export function Bullet({
   onExpire: (id: number) => void;
   fontSize: number;
   fontFamily: string;
-  fontOptions: string;
+  fontWeight: TextStyle['fontWeight'];
   isPlaying: boolean;
   playbackRate: number;
 }) {
@@ -215,7 +215,7 @@ export function Bullet({
         strokeColor={STROKE_COLOR}
         strokeWidth={STROKE_WIDTH}
         fontSize={fontSize}
-        fontWeight={fontOptions?.includes('bold') ? 'bold' : '600'}
+        fontWeight={fontWeight}
         fontFamily={fontFamily}
         textAlign={isTopOrBottom ? 'center' : 'left'}
       />

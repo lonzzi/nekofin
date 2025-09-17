@@ -34,7 +34,7 @@ export function DanmakuLayer({
   danmakuDensityLimit = defaultSettings.danmakuDensityLimit,
   curEpOffset = defaultSettings.curEpOffset,
   fontFamily = defaultSettings.fontFamily,
-  fontOptions = defaultSettings.fontOptions,
+  fontWeight = defaultSettings.fontWeight,
 }: DanmakuLayerProps) {
   const { time: currentTimeMs, sync } = usePreciseTimer({
     interval: 100,
@@ -752,7 +752,7 @@ export function DanmakuLayer({
           onExpire={handleExpire}
           fontSize={fontSize}
           fontFamily={fontFamily}
-          fontOptions={fontOptions}
+          fontWeight={fontWeight}
           isPlaying={isPlaying}
           playbackRate={playbackRate}
         />

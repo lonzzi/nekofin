@@ -1,4 +1,5 @@
 import { DandanCommentMode } from '@/services/dandanplay';
+import { TextStyle } from 'react-native';
 
 export type ActiveBullet = {
   id: number;
@@ -22,5 +23,5 @@ export type DanmakuSettingsType = {
   danmakuDensityLimit: number;
   curEpOffset: number;
   fontFamily: string;
-  fontOptions: string;
+  fontWeight: TextStyle['fontWeight'];
 };
