@@ -1,4 +1,5 @@
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
+import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { generateDeviceProfile } from '@/lib/profiles/native';
 import { getCommentsByItem, getDeviceId, ticksToMilliseconds, ticksToSeconds } from '@/lib/utils';
@@ -26,6 +27,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   const { currentServer } = useMediaServers();
   const router = useRouter();
   const mediaAdapter = useMediaAdapter();
+  const { settings } = useDanmakuSettings();
 
   const [mediaInfo, setMediaInfo] = useState<{
     duration: number;
@@ -347,6 +349,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
           comments={comments}
           seekTime={seekTime}
           playbackRate={rate}
+          {...settings}
         />
       )}
 

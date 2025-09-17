@@ -51,7 +51,12 @@ class StrokeTextModule : Module() {
         view.textView.invalidate()
       }
       Prop("strokeWidth") { view: StrokeTextView, width: Double ->
-        view.textView.strokeWidthPx = width.toFloat()
+        val px = TypedValue.applyDimension(
+          TypedValue.COMPLEX_UNIT_DIP,
+          width.toFloat(),
+          view.textView.resources.displayMetrics
+        )
+        view.textView.strokeWidthPx = px
         view.textView.invalidate()
       }
       Prop("fontSize") { view: StrokeTextView, size: Double ->

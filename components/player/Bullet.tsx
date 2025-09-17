@@ -1,7 +1,7 @@
 import { StrokeTextView } from '@/modules/stroke-text';
 import { DANDAN_COMMENT_MODE } from '@/services/dandanplay';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, StyleSheet, TextStyle } from 'react-native';
+import { Animated, Easing, TextStyle } from 'react-native';
 
 import { ActiveBullet } from './DanmakuTypes';
 
@@ -204,11 +204,7 @@ export function Bullet({
     data.mode === DANDAN_COMMENT_MODE.Top || data.mode === DANDAN_COMMENT_MODE.Bottom;
 
   return (
-    <Animated.View
-      style={[style, { width: '100%' }]}
-      renderToHardwareTextureAndroid
-      needsOffscreenAlphaCompositing={false}
-    >
+    <Animated.View style={[style, { width: '100%' }]} renderToHardwareTextureAndroid>
       <StrokeTextView
         text={data.text}
         color={data.colorHex}
