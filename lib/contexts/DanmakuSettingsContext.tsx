@@ -24,14 +24,14 @@ type DanmakuSettingsContextValue = {
 export const defaultSettings: DanmakuSettingsType = {
   opacity: 0.8,
   speed: 140,
-  fontSize: 20,
+  fontSize: 18,
   heightRatio: 0.9,
   danmakuFilter: 0,
   danmakuModeFilter: 0,
   danmakuDensityLimit: 0,
   curEpOffset: 0,
   fontFamily: '"Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif',
-  fontWeight: '600',
+  fontWeight: '700',
 };
 
 const DanmakuSettingsContext = createContext<DanmakuSettingsContextValue | null>(null);

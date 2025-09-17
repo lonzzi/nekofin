@@ -6,7 +6,7 @@ import { Animated, Easing, StyleSheet, TextStyle } from 'react-native';
 import { ActiveBullet } from './DanmakuTypes';
 
 const STROKE_COLOR = '#000';
-const STROKE_WIDTH = 1.6;
+const STROKE_WIDTH = 1.8;
 
 export function Bullet({
   width,
@@ -205,7 +205,7 @@ export function Bullet({
 
   return (
     <Animated.View
-      style={[style, isTopOrBottom ? styles.centerRow : { width: '500%' }]}
+      style={[style, { width: '100%' }]}
       renderToHardwareTextureAndroid
       needsOffscreenAlphaCompositing={false}
     >
@@ -222,14 +222,3 @@ export function Bullet({
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  centerRow: {
-    left: 0,
-    width: '100%',
-    alignItems: 'center',
-  },
-  textContainer: {
-    alignItems: 'center',
-  },
-});
