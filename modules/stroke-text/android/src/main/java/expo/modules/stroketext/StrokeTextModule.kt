@@ -17,31 +17,6 @@ class StrokeTextModule : Module() {
     // The module will be accessible from `requireNativeModule('StrokeText')` in JavaScript.
     Name("StrokeText")
 
-    // Defines constant property on the module.
-    Constant("PI") {
-      Math.PI
-    }
-
-    // Defines event names that the module can send to JavaScript.
-    Events("onChange")
-
-    // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
-    Function("hello") {
-      "Hello world! 👋"
-    }
-
-    // Defines a JavaScript function that always returns a Promise and whose native code
-    // is by default dispatched on the different thread than the JavaScript runtime runs on.
-    AsyncFunction("setValueAsync") { value: String ->
-      // Send an event to JavaScript.
-      sendEvent(
-        "onChange", mapOf(
-          "value" to value
-        )
-      )
-    }
-
-    // Enables the module to be used as a native view with props for stroke text rendering
     View(StrokeTextView::class) {
       Prop("text") { view: StrokeTextView, text: String ->
         view.textView.text = text

@@ -30,7 +30,7 @@ export const defaultSettings: DanmakuSettingsType = {
   danmakuDensityLimit: 0,
   curEpOffset: 0,
   fontFamily: '"Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif',
-  fontOptions: '',
+  fontOptions: 'bold',
 };
 
 const DanmakuSettingsContext = createContext<DanmakuSettingsContextValue | null>(null);
