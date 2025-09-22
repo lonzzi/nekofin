@@ -1,7 +1,7 @@
 import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { formatTimeWorklet } from '@/lib/utils';
 import Entypo from '@expo/vector-icons/Entypo';
-import { BlurView } from 'expo-blur';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useCallback } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Slider } from 'react-native-awesome-slider';
@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { usePlayer } from './PlayerContext';
+import { SettingsButtons } from './SettingsButtons';
 
 export function BottomControls() {
   const {
@@ -84,106 +85,127 @@ export function BottomControls() {
 
   return (
     <Animated.View
-      style={[styles.floatingControls, fadeAnimatedStyle]}
+      style={[styles.container, fadeAnimatedStyle]}
       pointerEvents={showControls ? 'auto' : 'none'}
     >
-      <BlurView
-        tint="dark"
-        intensity={100}
-        style={[StyleSheet.absoluteFill, styles.floatingControlsBlur]}
-      />
-      <View style={styles.progressContainer}>
-        <View style={styles.controlsRow}>
+      {/* 进度区域（右上角悬浮设置按钮组） */}
+      <View style={styles.progressSection}>
+        <View style={styles.progressRow}>
+          <Text style={styles.timeText}>{formatTimeWorklet(currentTimeMs)}</Text>
+          <View style={styles.sliderContainer}>
+            <Slider
+              style={styles.slider}
+              containerStyle={{ overflow: 'hidden', borderRadius: 999 }}
+              progress={progressValue}
+              bubble={(percent) => formatTimeWorklet(percent * duration)}
+              bubbleTextStyle={{ fontFamily: 'Roboto' }}
+              minimumValue={minimumValue}
+              maximumValue={maximumValue}
+              onValueChange={handleSliderChange}
+              onSlidingStart={handleSliderSlidingStart}
+              onSlidingComplete={handleSliderSlidingComplete}
+              theme={{
+                minimumTrackTintColor: '#fff',
+                maximumTrackTintColor: 'rgba(255,255,255,0.3)',
+              }}
+              disableTapEvent={false}
+            />
+          </View>
+          <Text style={styles.timeText}>{formatTimeWorklet(duration)}</Text>
+        </View>
+        <View style={styles.progressOverlayRight}>
+          <SettingsButtons />
+        </View>
+      </View>
+
+      <View style={styles.bottomRow}>
+        <TouchableOpacity style={styles.cornerButton}>
+          <MaterialCommunityIcons name="lock-outline" size={18} color="#fff" />
+        </TouchableOpacity>
+
+        <View style={styles.controlsCluster}>
           <TouchableOpacity
-            style={[styles.episodeButton, !hasPreviousEpisode && styles.disabledButton]}
+            style={[styles.circleButton, !hasPreviousEpisode && styles.disabledButton]}
             onPress={hasPreviousEpisode ? onPreviousEpisode : undefined}
             disabled={!hasPreviousEpisode}
           >
             <Entypo
               name="controller-jump-to-start"
-              size={24}
+              size={20}
               color={hasPreviousEpisode ? 'white' : 'rgba(255,255,255,0.3)'}
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.episodeButton} onPress={handlePlayPause}>
+          <TouchableOpacity style={styles.playButton} onPress={handlePlayPause}>
             {isLoading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <Entypo
                 name={isPlaying ? 'controller-paus' : 'controller-play'}
-                size={24}
+                size={28}
                 color="white"
               />
             )}
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.episodeButton, !hasNextEpisode && styles.disabledButton]}
+            style={[styles.circleButton, !hasNextEpisode && styles.disabledButton]}
             onPress={hasNextEpisode ? onNextEpisode : undefined}
             disabled={!hasNextEpisode}
           >
             <Entypo
               name="controller-next"
-              size={24}
+              size={20}
               color={hasNextEpisode ? 'white' : 'rgba(255,255,255,0.3)'}
             />
           </TouchableOpacity>
         </View>
-        <View style={styles.timeContainer}>
-          <Text style={styles.timeText}>{formatTimeWorklet(currentTimeMs)}</Text>
-        </View>
-        <View style={styles.sliderContainer}>
-          <Slider
-            style={styles.slider}
-            containerStyle={{
-              overflow: 'hidden',
-              borderRadius: 999,
-            }}
-            progress={progressValue}
-            bubble={(percent) => formatTimeWorklet(percent * duration)}
-            bubbleTextStyle={{
-              fontFamily: 'Roboto',
-            }}
-            minimumValue={minimumValue}
-            maximumValue={maximumValue}
-            onValueChange={handleSliderChange}
-            onSlidingStart={handleSliderSlidingStart}
-            onSlidingComplete={handleSliderSlidingComplete}
-            theme={{
-              minimumTrackTintColor: '#fff',
-              maximumTrackTintColor: 'rgba(255, 255, 255, 0.3)',
-            }}
-            disableTapEvent={false}
-          />
-        </View>
-        <View style={styles.timeContainer}>
-          <Text style={styles.timeText}>{formatTimeWorklet(duration)}</Text>
-        </View>
+
+        <TouchableOpacity style={styles.cornerButton}>
+          <MaterialCommunityIcons name="playlist-play" size={18} color="#fff" />
+        </TouchableOpacity>
       </View>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  floatingControls: {
+  container: {
     position: 'absolute',
     bottom: 30,
     left: 100,
     right: 100,
     zIndex: 10,
-    padding: 8,
+    gap: 10,
   },
-  floatingControlsBlur: {
-    borderRadius: 20,
-    overflow: 'hidden',
+  progressSection: {
+    position: 'relative',
   },
-  progressContainer: {
+  playButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  circleButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  progressRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     gap: 10,
-    paddingRight: 16,
+  },
+  progressOverlayRight: {
+    position: 'absolute',
+    right: 0,
+    top: -50,
   },
   sliderContainer: {
     flex: 1,
@@ -194,29 +216,38 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 40,
   },
-  controlsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-    paddingLeft: 16,
-  },
-  timeContainer: {
-    minWidth: 60,
-    alignItems: 'center',
-  },
   timeText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '500',
-  },
-  episodeButton: {
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
+    minWidth: 60,
+    textAlign: 'center',
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  settingsRow: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cornerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  controlsCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
   },
 });
