@@ -88,7 +88,6 @@ export function BottomControls() {
       style={[styles.container, fadeAnimatedStyle]}
       pointerEvents={showControls ? 'auto' : 'none'}
     >
-      {/* 进度区域（右上角悬浮设置按钮组） */}
       <View style={styles.progressSection}>
         <View style={styles.progressRow}>
           <Text style={styles.timeText}>{formatTimeWorklet(currentTimeMs)}</Text>

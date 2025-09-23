@@ -194,7 +194,8 @@ export function GestureHandler() {
     .activeOffsetX([-15, 15])
     .failOffsetY([-8, 8])
     .maxPointers(1)
-    .onBegin(() => {
+    .onStart(() => {
+      scheduleOnRN(handleGestureSeekStart);
       gestureSeekStartTime.value = currentTime.value;
       gestureSeekOffset.value = 0;
       gestureSeekPreview.value = currentTime.value;
@@ -241,13 +242,11 @@ export function GestureHandler() {
     .onEnd(() => {
       if (!duration) return;
 
-      if (isGestureSeekingActive.value) {
-        const finalTime = gestureSeekPreview.value;
-        scheduleOnRN(handleGestureSeekEnd, finalTime);
-      }
+      const finalTime = gestureSeekPreview.value;
+      scheduleOnRN(handleGestureSeekEnd, finalTime);
     });
 
-  const sliderGesture = Gesture.Pan()
+  const verticalSliderGesture = Gesture.Pan()
     .minDistance(8)
     .activeOffsetY([-10, 10])
     .failOffsetX([-8, 8])
@@ -383,8 +382,8 @@ export function GestureHandler() {
     });
 
   const tapGestures = Gesture.Exclusive(doubleTapGesture, tapGesture);
-  const panGestures = Gesture.Exclusive(panGesture, sliderGesture);
-  const composed = Gesture.Race(longPressGesture, Gesture.Simultaneous(panGestures, tapGestures));
+  const panGestures = Gesture.Exclusive(panGesture, verticalSliderGesture);
+  const composed = Gesture.Race(longPressGesture, Gesture.Exclusive(panGestures, tapGestures));
 
   return (
     <Fragment>
