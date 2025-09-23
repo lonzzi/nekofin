@@ -13,8 +13,10 @@ import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import { DanmakuSearchModal, DanmakuSearchModalRef } from './DanmakuSearchModal';
 import { usePlayer } from './PlayerContext';
+import { useOverlayInsets } from './useOverlayInsets';
 
 export function TopControls() {
+  const { side, topExtra } = useOverlayInsets();
   const {
     title,
     showControls,
@@ -76,7 +78,10 @@ export function TopControls() {
   return (
     <>
       <Animated.View
-        style={[styles.backButton, fadeAnimatedStyle]}
+        style={[
+          { top: 50 + topExtra, left: side, position: 'absolute', zIndex: 10 },
+          fadeAnimatedStyle,
+        ]}
         pointerEvents={showControls ? 'auto' : 'none'}
       >
         <BlurView tint="dark" intensity={100} style={styles.backButtonBlur}>
@@ -86,7 +91,13 @@ export function TopControls() {
         </BlurView>
       </Animated.View>
 
-      <Animated.View style={[styles.netSpeedContainer, fadeAnimatedStyle]} pointerEvents="none">
+      <Animated.View
+        style={[
+          { position: 'absolute', top: 10 + topExtra, left: side, zIndex: 10 },
+          fadeAnimatedStyle,
+        ]}
+        pointerEvents="none"
+      >
         <Animated.View style={styles.netRow}>
           {networkType === Network.NetworkStateType.WIFI && (
             <MaterialIcons name="wifi" size={14} color="#fff" />
@@ -109,7 +120,22 @@ export function TopControls() {
         </Animated.View>
       </Animated.View>
 
-      <Animated.View style={[styles.danmakuInfoContainer, fadeAnimatedStyle]} pointerEvents="none">
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            top: 32 + topExtra,
+            left: side,
+            zIndex: 10,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            marginBottom: 2,
+          },
+          fadeAnimatedStyle,
+        ]}
+        pointerEvents="none"
+      >
         {danmakuEpisodeInfo && (
           <View style={styles.danmakuInfoRow}>
             <MaterialIcons name="chat" size={12} color="#fff" />
@@ -125,12 +151,31 @@ export function TopControls() {
         )}
       </Animated.View>
 
-      <Animated.View style={[styles.clockContainer, fadeAnimatedStyle]} pointerEvents="none">
+      <Animated.View
+        style={[
+          { position: 'absolute', top: 10 + topExtra, right: side, zIndex: 10 },
+          fadeAnimatedStyle,
+        ]}
+        pointerEvents="none"
+      >
         {!!now && <Text style={[styles.textShadow, styles.clockText]}>{now}</Text>}
       </Animated.View>
 
       {!!title && (
-        <Animated.View style={[styles.titleContainer, fadeAnimatedStyle]} pointerEvents="none">
+        <Animated.View
+          style={[
+            {
+              position: 'absolute',
+              top: 10 + topExtra,
+              left: side,
+              right: side,
+              alignItems: 'center',
+              zIndex: 10,
+            },
+            fadeAnimatedStyle,
+          ]}
+          pointerEvents="none"
+        >
           <Text style={[styles.textShadow, styles.title]} numberOfLines={1} ellipsizeMode="tail">
             {title}
           </Text>
@@ -150,12 +195,6 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  netSpeedContainer: {
-    position: 'absolute',
-    top: 10,
-    left: 100,
-    zIndex: 10,
-  },
   netRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -167,25 +206,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'left',
   },
-  titleContainer: {
-    position: 'absolute',
-    top: 10,
-    left: 100,
-    right: 100,
-    alignItems: 'center',
-    zIndex: 10,
-  },
   title: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
-  },
-  backButton: {
-    position: 'absolute',
-    top: 50,
-    left: 100,
-    zIndex: 10,
   },
   backButtonBlur: {
     width: 44,
@@ -200,27 +225,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  clockContainer: {
-    position: 'absolute',
-    top: 10,
-    right: 100,
-    zIndex: 10,
-  },
   clockText: {
     color: '#fff',
     fontSize: 12,
     fontWeight: '500',
     textAlign: 'right',
-  },
-  danmakuInfoContainer: {
-    position: 'absolute',
-    top: 32,
-    left: 100,
-    zIndex: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 2,
   },
   danmakuInfoRow: {
     flexDirection: 'row',

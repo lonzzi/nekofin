@@ -20,7 +20,7 @@ export function VerticalSlider({
   style,
 }: VerticalSliderProps) {
   return (
-    <Animated.View style={[styles.container, style]}>
+    <Animated.View style={[styles.container, style]} pointerEvents="none">
       <BlurView tint="dark" intensity={100} style={styles.blur}>
         <Ionicons name={iconName} size={20} color="#fff" style={styles.sliderIcon} />
         <Slider

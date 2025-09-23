@@ -13,8 +13,10 @@ import Animated, {
 
 import { usePlayer } from './PlayerContext';
 import { SettingsButtons } from './SettingsButtons';
+import { useOverlayInsets } from './useOverlayInsets';
 
 export function BottomControls() {
+  const { side, bottomExtra } = useOverlayInsets();
   const {
     isPlaying,
     isLoading,
@@ -85,7 +87,11 @@ export function BottomControls() {
 
   return (
     <Animated.View
-      style={[styles.container, fadeAnimatedStyle]}
+      style={[
+        styles.container,
+        { left: side, right: side, bottom: 30 + bottomExtra },
+        fadeAnimatedStyle,
+      ]}
       pointerEvents={showControls ? 'auto' : 'none'}
     >
       <View style={styles.progressSection}>
@@ -172,13 +178,12 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 30,
-    left: 100,
-    right: 100,
     zIndex: 10,
     gap: 10,
   },
   progressSection: {
     position: 'relative',
+    paddingTop: 50,
   },
   playButton: {
     width: 56,
@@ -204,7 +209,7 @@ const styles = StyleSheet.create({
   progressOverlayRight: {
     position: 'absolute',
     right: 0,
-    top: -50,
+    top: 0,
   },
   sliderContainer: {
     flex: 1,
