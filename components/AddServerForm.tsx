@@ -22,7 +22,7 @@ const addServerSchema = z.object({
   serverType: z.enum(['jellyfin', 'emby']),
   address: z.url('请输入有效的URL').min(1, '请输入服务器地址'),
   username: z.string().min(1, '请输入用户名'),
-  password: z.string().min(1, '请输入密码'),
+  password: z.string().optional(),
 });
 
 type AddServerFormData = z.infer<typeof addServerSchema>;
@@ -54,7 +54,7 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
       await authenticateAndAddServer({
         address: data.address.trim(),
         username: data.username.trim(),
-        password: data.password.trim(),
+        password: (data.password || '').trim(),
         type: data.serverType,
       });
 
@@ -62,7 +62,10 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
       reset();
     } catch (error) {
       console.error('Authentication error:', error);
-      Alert.alert('错误', '服务器认证失败，请检查地址、用户名和密码');
+      Alert.alert(
+        '错误',
+        error instanceof Error ? error.message : '服务器认证失败，请检查地址、用户名和密码',
+      );
     } finally {
       setIsLoading(false);
     }

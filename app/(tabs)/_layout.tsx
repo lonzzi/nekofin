@@ -14,11 +14,11 @@ export default function TabLayout() {
           title: '首页',
         }}
       >
-        <Icon
-          {...(Platform.OS === 'android' && { src: require('@/assets/icons/film.png') })}
-          sf={{ default: 'film', selected: 'film.fill' }}
-          selectedColor={accentColor}
-        />
+        {Platform.OS === 'android' ? (
+          <Icon src={require('@/assets/icons/film.png')} selectedColor={accentColor} />
+        ) : (
+          <Icon sf={{ default: 'film', selected: 'film.fill' }} selectedColor={accentColor} />
+        )}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger
         name="(search)"
@@ -27,11 +27,14 @@ export default function TabLayout() {
           role: 'search',
         }}
       >
-        <Icon
-          {...(Platform.OS === 'android' && { src: require('@/assets/icons/search.png') })}
-          sf={{ default: 'magnifyingglass', selected: 'magnifyingglass' }}
-          selectedColor={accentColor}
-        />
+        {Platform.OS === 'android' ? (
+          <Icon src={require('@/assets/icons/search.png')} selectedColor={accentColor} />
+        ) : (
+          <Icon
+            sf={{ default: 'magnifyingglass', selected: 'magnifyingglass' }}
+            selectedColor={accentColor}
+          />
+        )}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger
         name="(favorites)"
@@ -39,11 +42,11 @@ export default function TabLayout() {
           title: '收藏',
         }}
       >
-        <Icon
-          {...(Platform.OS === 'android' && { src: require('@/assets/icons/heart.png') })}
-          sf={{ default: 'heart', selected: 'heart.fill' }}
-          selectedColor={accentColor}
-        />
+        {Platform.OS === 'android' ? (
+          <Icon src={require('@/assets/icons/heart.png')} selectedColor={accentColor} />
+        ) : (
+          <Icon sf={{ default: 'heart', selected: 'heart.fill' }} selectedColor={accentColor} />
+        )}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger
         name="(settings)"
@@ -51,11 +54,14 @@ export default function TabLayout() {
           title: '设置',
         }}
       >
-        <Icon
-          {...(Platform.OS === 'android' && { src: require('@/assets/icons/settings.png') })}
-          sf={{ default: 'gearshape', selected: 'gearshape.fill' }}
-          selectedColor={accentColor}
-        />
+        {Platform.OS === 'android' ? (
+          <Icon src={require('@/assets/icons/settings.png')} selectedColor={accentColor} />
+        ) : (
+          <Icon
+            sf={{ default: 'gearshape', selected: 'gearshape.fill' }}
+            selectedColor={accentColor}
+          />
+        )}
       </NativeTabs.Trigger>
     </NativeTabs>
   );
