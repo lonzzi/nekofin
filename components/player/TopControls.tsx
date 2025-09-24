@@ -1,5 +1,4 @@
-import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
-import { formatBitrate } from '@/lib/utils';
+import { formatBitrate, sleep } from '@/lib/utils';
 import { DandanComment } from '@/services/dandanplay';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -8,7 +7,7 @@ import * as Network from 'expo-network';
 import { useNetworkState } from 'expo-network';
 import { useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import { DanmakuSearchModal, DanmakuSearchModalRef } from './DanmakuSearchModal';
@@ -17,6 +16,7 @@ import { useOverlayInsets } from './useOverlayInsets';
 
 export function TopControls() {
   const { side, topExtra } = useOverlayInsets();
+
   const {
     title,
     showControls,
@@ -27,11 +27,11 @@ export function TopControls() {
     danmakuEpisodeInfo,
     danmakuComments,
   } = usePlayer();
+
   const router = useRouter();
   const navigation = useNavigation();
   const [now, setNow] = useState<string>('');
   const { type: networkType } = useNetworkState();
-  const { settings: danmakuSettings } = useDanmakuSettings();
   const danmakuSearchModalRef = useRef<DanmakuSearchModalRef>(null);
 
   const fadeAnimatedStyle = useAnimatedStyle(() => {
@@ -48,7 +48,7 @@ export function TopControls() {
       setNow(`${h}:${m}`);
     };
     update();
-    const id = setInterval(update, 60_000);
+    const id = setInterval(update, 30_000);
     return () => {
       clearInterval(id);
     };
@@ -59,14 +59,9 @@ export function TopControls() {
     navigation.setOptions({
       orientation: 'portrait',
     });
-    setTimeout(() => {
-      router.back();
-    }, 100);
+    await sleep(Platform.OS === 'ios' ? 100 : 0);
+    router.back();
   };
-
-  const handleDanmakuSearch = useCallback(() => {
-    danmakuSearchModalRef.current?.present();
-  }, []);
 
   const handleCommentsLoaded = useCallback(
     (comments: DandanComment[], episodeInfo?: { animeTitle: string; episodeTitle: string }) => {
