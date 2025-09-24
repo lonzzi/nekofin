@@ -2,11 +2,28 @@ import 'tsx/cjs';
 
 import { ExpoConfig } from '@expo/config';
 
+import packageJson from './package.json';
+
+const IS_DEV = process.env.APP_VARIANT === 'development';
+const IS_PREVIEW = process.env.APP_VARIANT === 'preview';
+
+const getUniqueIdentifier = () => {
+  if (IS_DEV) {
+    return 'com.lonzzi.nekofin.dev';
+  }
+
+  if (IS_PREVIEW) {
+    return 'com.lonzzi.nekofin.preview';
+  }
+
+  return 'com.lonzzi.nekofin';
+};
+
 export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
   return {
     name: 'nekofin',
     slug: 'nekofin',
-    version: '1.0.0',
+    version: packageJson.version,
     orientation: 'default',
     icon: './assets/images/icon.png',
     scheme: 'nekofin',
@@ -15,7 +32,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
     ios: {
       icon: './assets/images/nekofin.icon',
       supportsTablet: true,
-      bundleIdentifier: 'com.lonzzi.nekofin',
+      bundleIdentifier: getUniqueIdentifier(),
       infoPlist: {
         NSAppTransportSecurity: {
           NSAllowsArbitraryLoads: true,
@@ -25,7 +42,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
       },
     },
     android: {
-      package: 'com.lonzzi.nekofin',
+      package: getUniqueIdentifier(),
       adaptiveIcon: {
         foregroundImage: './assets/images/adaptive-icon.png',
         backgroundColor: '#1e1e1e',
@@ -86,6 +103,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
           android: {
             reactNativeReleaseLevel: 'experimental',
             useAndroidX: true,
+            usesCleartextTraffic: true,
           },
         },
       ],
