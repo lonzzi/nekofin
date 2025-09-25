@@ -26,7 +26,7 @@ import { useSharedValue } from 'react-native-reanimated';
 
 import { usePlaybackSync } from '../../hooks/usePlaybackSync';
 import { Controls } from './Controls';
-import { DanmakuLayer } from './DanmakuLayer';
+import { DanmakuLayer, DanmakuLayerRef } from './DanmakuLayer';
 
 const LoadingIndicator = ({ title }: { title?: string }) => {
   return (
@@ -51,7 +51,6 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   const [isBuffering, setIsBuffering] = useState(true);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
-  const [seekTime, setSeekTime] = useState(0);
   const [initialTime, setInitialTime] = useState<number>(-1);
   const [tracks, setTracks] = useState<MediaTracks | undefined>(undefined);
   const [selectedTracks, setSelectedTracks] = useState<MediaTrack | undefined>(undefined);
@@ -63,6 +62,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   >(undefined);
 
   const player = useRef<VlcPlayerViewRef>(null);
+  const danmakuLayer = useRef<DanmakuLayerRef>(null);
   const currentTime = useSharedValue(0);
 
   const { data: itemDetail } = useQuery({
@@ -263,10 +263,10 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     (position: number) => {
       currentTime.value = position * duration;
       player.current?.seekTo(position * duration);
-      setSeekTime(position * duration);
+      danmakuLayer.current?.seek(position * duration);
       setIsBuffering(false);
     },
-    [currentTime, duration],
+    [currentTime, duration, danmakuLayer],
   );
 
   const handleAudioTrackChange = useCallback(
@@ -387,10 +387,10 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
 
       {comments.length > 0 && initialTime >= 0 && (
         <DanmakuLayer
+          ref={danmakuLayer}
           currentTime={currentTime}
           isPlaying={!showLoading && !isStopped && isPlaying}
           comments={comments}
-          seekTime={seekTime}
           playbackRate={rate}
           {...settings}
         />

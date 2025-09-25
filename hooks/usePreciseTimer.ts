@@ -89,9 +89,14 @@ export function usePreciseTimer({
     }
   }, []);
 
-  const sync = useCallback((newTime: number) => {
-    setTime(newTime);
-  }, []);
+  const sync = useCallback(
+    (newTime: number) => {
+      stop();
+      setTime(newTime);
+      start();
+    },
+    [start, stop],
+  );
 
   return {
     time,

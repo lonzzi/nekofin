@@ -34,28 +34,31 @@ export function Bullet({
   isPlaying: boolean;
   playbackRate: number;
 }) {
+  const isScroll = useMemo(
+    () =>
+      data.mode === DANDAN_COMMENT_MODE.Scroll || data.mode === DANDAN_COMMENT_MODE.ScrollBottom,
+    [data.mode],
+  );
+
   const initTranslateX = useMemo(() => {
-    if (data.mode === DANDAN_COMMENT_MODE.Scroll) {
+    if (isScroll) {
       const clampedOffset = Math.max(0, Math.min(data.startOffsetMs || 0, data.durationMs));
-      const startX = width;
-      const endX = -(data.textWidth || 0) - 300;
-      const totalDistance = endX - startX;
       const progressed = Math.max(0, Math.min(1, clampedOffset / data.durationMs));
-      return startX + totalDistance * progressed;
-    } else if (data.mode === DANDAN_COMMENT_MODE.ScrollBottom) {
-      const clampedOffset = Math.max(0, Math.min(data.startOffsetMs || 0, data.durationMs));
-      const startX = -100;
-      const endX = width + (data.textWidth || 0) + 300;
+
+      const startX = data.mode === DANDAN_COMMENT_MODE.Scroll ? width : -100;
+      const endX =
+        data.mode === DANDAN_COMMENT_MODE.Scroll
+          ? -(data.textWidth || 0) - 300
+          : width + (data.textWidth || 0) + 300;
+
       const totalDistance = endX - startX;
-      const progressed = Math.max(0, Math.min(1, clampedOffset / data.durationMs));
       return startX + totalDistance * progressed;
     } else {
       return 0;
     }
-  }, [data.mode, data.startOffsetMs, data.durationMs, width, data.textWidth]);
+  }, [isScroll, data.startOffsetMs, data.durationMs, data.textWidth, width, data.mode]);
 
   const translateX = useSharedValue(initTranslateX);
-  const isAnimationPlaying = useSharedValue(false);
 
   const originalDurationRef = useRef<number>(data.durationMs);
   const remainingDurationRef = useRef<number>(data.durationMs);
@@ -74,7 +77,7 @@ export function Bullet({
       translateX.value = initTranslateX;
       isInitializedRef.current = true;
     }
-  }, [data.durationMs, data.startOffsetMs, data.mode, width, translateX, initTranslateX]);
+  }, [data.durationMs, data.startOffsetMs, width, translateX, initTranslateX]);
 
   const handleExpire = useCallback(() => {
     onExpire(data.id);
@@ -97,10 +100,7 @@ export function Bullet({
     runStartedAtRef.current = Date.now();
     scheduleFadeAndRemoval();
 
-    if (
-      data.mode === DANDAN_COMMENT_MODE.Scroll ||
-      data.mode === DANDAN_COMMENT_MODE.ScrollBottom
-    ) {
+    if (isScroll) {
       const totalDistance =
         data.mode === DANDAN_COMMENT_MODE.Scroll
           ? -(data.textWidth || 0) - 300
@@ -112,8 +112,6 @@ export function Bullet({
         return;
       }
 
-      isAnimationPlaying.value = true;
-
       translateX.value = withTiming(totalDistance, {
         duration: Math.max(100, remaining),
         easing: Easing.linear,
@@ -121,11 +119,11 @@ export function Bullet({
     }
   }, [
     scheduleFadeAndRemoval,
+    isScroll,
     data.mode,
     data.textWidth,
     width,
     translateX,
-    isAnimationPlaying,
     handleExpire,
   ]);
 
@@ -138,9 +136,8 @@ export function Bullet({
 
     remainingDurationRef.current = Math.max(0, remainingDurationRef.current - elapsed);
 
-    isAnimationPlaying.value = false;
     cancelAnimation(translateX);
-  }, [translateX, isAnimationPlaying]);
+  }, [translateX]);
 
   useEffect(() => {
     if (isPlaying) {
@@ -170,10 +167,7 @@ export function Bullet({
 
     remainingDurationRef.current = Math.max(0, Math.round(remainingDurationRef.current * scale));
 
-    if (
-      data.mode === DANDAN_COMMENT_MODE.Scroll ||
-      data.mode === DANDAN_COMMENT_MODE.ScrollBottom
-    ) {
+    if (isScroll) {
       const totalDistance =
         data.mode === DANDAN_COMMENT_MODE.Scroll
           ? -(data.textWidth || 0) - 300
@@ -190,7 +184,6 @@ export function Bullet({
       runStartedAtRef.current = Date.now();
       scheduleFadeAndRemoval();
 
-      isAnimationPlaying.value = true;
       translateX.value = withTiming(totalDistance, {
         duration: Math.max(100, remaining),
         easing: Easing.linear,
@@ -203,18 +196,17 @@ export function Bullet({
     prevRateRef.current = newRate;
   }, [
     playbackRate,
-    data.mode,
+    isScroll,
     data.textWidth,
     width,
     translateX,
-    isAnimationPlaying,
     handleExpire,
     scheduleFadeAndRemoval,
+    data.mode,
   ]);
 
   const animatedStyle = useAnimatedStyle(() => {
-    const shouldTranslate =
-      data.mode === DANDAN_COMMENT_MODE.Scroll || data.mode === DANDAN_COMMENT_MODE.ScrollBottom;
+    const shouldTranslate = isScroll;
 
     if (shouldTranslate) {
       return {
@@ -231,7 +223,7 @@ export function Bullet({
         transform: [],
       };
     }
-  }, [data.top, data.mode]);
+  }, [data.top, isScroll]);
 
   const isTopOrBottom =
     data.mode === DANDAN_COMMENT_MODE.Top || data.mode === DANDAN_COMMENT_MODE.Bottom;

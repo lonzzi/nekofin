@@ -1,28 +1,41 @@
 import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { usePreciseTimer } from '@/hooks/usePreciseTimer';
 import { defaultSettings } from '@/lib/contexts/DanmakuSettingsContext';
+import { sleep } from '@/lib/utils';
 import { DANDAN_COMMENT_MODE, DandanComment } from '@/services/dandanplay';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SharedValue } from 'react-native-reanimated';
 
 import { Bullet } from './Bullet';
 import { ActiveBullet, DanmakuSettingsType } from './DanmakuTypes';
 
+export type DanmakuLayerRef = {
+  seek: (timeMs: number) => void;
+  cleanup: () => void;
+};
+
 type DanmakuLayerProps = {
+  ref?: React.RefObject<DanmakuLayerRef | null>;
   currentTime: SharedValue<number>;
   isPlaying: boolean;
   comments: DandanComment[];
-  seekTime?: number;
   density?: number;
   playbackRate?: number;
 } & Partial<DanmakuSettingsType>;
 
 export function DanmakuLayer({
+  ref,
   currentTime,
   isPlaying,
   comments,
-  seekTime,
   density = 1,
   playbackRate = 1,
   opacity = defaultSettings.opacity,
@@ -77,6 +90,44 @@ export function DanmakuLayer({
       bottomLaneNextAvailableRef.current = new Array(layout.bottomRows).fill(0);
     }
   }, [layout.scrollRows, layout.topRows, layout.bottomRows]);
+
+  const handleCleanup = useCallback(() => {
+    setActive([]);
+    processedCommentsRef.current.clear();
+    ensureLanes();
+    for (let i = 0; i < scrollLaneNextAvailableRef.current.length; i++) {
+      scrollLaneNextAvailableRef.current[i] = 0;
+    }
+    for (let i = 0; i < topLaneNextAvailableRef.current.length; i++) {
+      topLaneNextAvailableRef.current[i] = 0;
+    }
+    for (let i = 0; i < bottomLaneNextAvailableRef.current.length; i++) {
+      bottomLaneNextAvailableRef.current[i] = 0;
+    }
+    lastTimeMsRef.current = -1;
+  }, [ensureLanes]);
+
+  const handleSeek = useCallback(
+    async (timeMs: number) => {
+      sync(timeMs);
+      await sleep(100);
+      handleCleanup();
+    },
+    [handleCleanup, sync],
+  );
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      seek: (timeMs: number) => {
+        handleSeek(timeMs);
+      },
+      cleanup: () => {
+        handleCleanup();
+      },
+    }),
+    [handleCleanup, handleSeek],
+  );
 
   const estimateTextWidth = useCallback(
     (text: string): number => {
@@ -536,29 +587,6 @@ export function DanmakuLayer({
   useEffect(() => {
     sync(videoTime);
   }, [sync, videoTime]);
-
-  useEffect(() => {
-    if (seekTime !== undefined) {
-      setActive([]);
-
-      processedCommentsRef.current.clear();
-
-      ensureLanes();
-      for (let i = 0; i < scrollLaneNextAvailableRef.current.length; i++) {
-        scrollLaneNextAvailableRef.current[i] = 0;
-      }
-      for (let i = 0; i < topLaneNextAvailableRef.current.length; i++) {
-        topLaneNextAvailableRef.current[i] = 0;
-      }
-      for (let i = 0; i < bottomLaneNextAvailableRef.current.length; i++) {
-        bottomLaneNextAvailableRef.current[i] = 0;
-      }
-
-      lastTimeMsRef.current = -1;
-
-      sync(seekTime);
-    }
-  }, [seekTime, ensureLanes, sync]);
 
   useEffect(() => {
     if (!isPlaying) return;
