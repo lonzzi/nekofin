@@ -204,8 +204,8 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   useEffect(() => {
     if (itemDetail?.userData?.playbackPositionTicks !== undefined) {
       const startTimeMs = Math.round(itemDetail.userData.playbackPositionTicks! / 10000);
-      setInitialTime(ticksToSeconds(itemDetail.userData.playbackPositionTicks!));
       currentTime.value = startTimeMs;
+      setInitialTime(ticksToSeconds(itemDetail.userData.playbackPositionTicks!));
     }
   }, [itemDetail, currentTime]);
 

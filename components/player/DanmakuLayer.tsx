@@ -49,7 +49,12 @@ export function DanmakuLayer({
   fontFamily = defaultSettings.fontFamily,
   fontWeight = defaultSettings.fontWeight,
 }: DanmakuLayerProps) {
-  const { time: currentTimeMs, sync } = usePreciseTimer({
+  const {
+    time: currentTimeMs,
+    sync,
+    stop,
+    start,
+  } = usePreciseTimer({
     interval: 100,
     isRunning: isPlaying,
     playbackRate,
@@ -109,11 +114,13 @@ export function DanmakuLayer({
 
   const handleSeek = useCallback(
     async (timeMs: number) => {
+      stop();
       sync(timeMs);
+      start();
       await sleep(100);
       handleCleanup();
     },
-    [handleCleanup, sync],
+    [handleCleanup, start, stop, sync],
   );
 
   useImperativeHandle(
