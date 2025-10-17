@@ -237,6 +237,23 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     val initOptions = source["initOptions"] as? MutableList<String> ?: mutableListOf()
     initOptions.add("--start-time=$startPosition")
 
+    // Configure freetype for proper subtitle rendering, especially for CJK characters
+    // Try common Android font paths for CJK support
+    val fontPaths = listOf(
+      "/system/fonts/NotoSansCJK-Regular.ttc",
+      "/system/fonts/NotoSansHans-Regular.otf",
+      "/system/fonts/DroidSansFallback.ttf",
+      "/system/fonts/Roboto-Regular.ttf"
+    )
+    
+    for (fontPath in fontPaths) {
+      val fontFile = java.io.File(fontPath)
+      if (fontFile.exists()) {
+        log.debug("Using font for subtitles: $fontPath")
+        initOptions.add("--freetype-font=$fontPath")
+        break
+      }
+    }
 
     val uri = source["uri"] as? String
 

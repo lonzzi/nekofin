@@ -123,6 +123,22 @@ class VlcPlayerView: ExpoView {
             if !self.isTranscoding, self.startPosition > 0 {
                 initOptions.append("--start-time=\(self.startPosition)")
             }
+            
+            // Configure freetype for proper subtitle rendering, especially for CJK characters
+            // iOS typically has good CJK font support through system fonts
+            let fontPaths = [
+                "/System/Library/Fonts/PingFang.ttc",
+                "/System/Library/Fonts/STHeiti Medium.ttc",
+                "/System/Library/Fonts/Helvetica.ttc"
+            ]
+            
+            for fontPath in fontPaths {
+                if FileManager.default.fileExists(atPath: fontPath) {
+                    print("Using font for subtitles: \(fontPath)")
+                    initOptions.append("--freetype-font=\(fontPath)")
+                    break
+                }
+            }
 
             let autoplay = source["autoplay"] as? Bool ?? false
             let isNetwork = source["isNetwork"] as? Bool ?? false
