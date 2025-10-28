@@ -9,10 +9,10 @@
 ## 📸 预览
 
 <div align="center">
-  <img src="docs/screenshots/home.png" width="200" alt="首页" />
-  <img src="docs/screenshots/detail.png" width="200" alt="详情" />
-  <img src="docs/screenshots/player.png" width="200" alt="播放器" />
-  <img src="docs/screenshots/search.png" width="200" alt="搜索" />
+  <img src="docs/screenshots/home.webp" width="200" alt="首页" />
+  <img src="docs/screenshots/detail.webp" width="200" alt="详情" />
+  <img src="docs/screenshots/player.webp" width="200" alt="播放器" />
+  <img src="docs/screenshots/search.webp" width="200" alt="搜索" />
 </div>
 
 ## ✨ 功能特色
