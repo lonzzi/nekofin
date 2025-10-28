@@ -48,3 +48,7 @@ build*.apk
 build*.sh
 
 modules/*/android/build
+
+
+#idea
+/.idea
