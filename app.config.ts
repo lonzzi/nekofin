@@ -40,7 +40,6 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
     icon: './assets/images/icon.png',
     scheme: 'nekofin',
     userInterfaceStyle: 'automatic',
-    newArchEnabled: true,
     ios: {
       icon: './assets/images/nekofin.icon',
       supportsTablet: true,
@@ -59,7 +58,6 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
         foregroundImage: './assets/images/adaptive-icon.png',
         backgroundColor: '#1e1e1e',
       },
-      edgeToEdgeEnabled: true,
       permissions: [
         'android.permission.FOREGROUND_SERVICE',
         'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
@@ -76,6 +74,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
           backgroundColor: '#1e1e1e',
         },
       ],
+      'expo-image',
       [
         'react-native-video',
         {
