@@ -49,7 +49,9 @@ export default function RootLayout() {
   const segments = useSegments();
 
   useEffect(() => {
-    if (!segments.includes('player' as never)) {
+    if (segments.includes('player' as never)) {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+    } else {
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
     }
   }, [segments]);

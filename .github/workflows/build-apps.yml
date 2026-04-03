@@ -109,7 +109,7 @@ jobs:
 
   build-ios:
     name: Build iOS
-    runs-on: macos-15
+    runs-on: macos-26
     if: ${{ github.event_name == 'push' || inputs.platform == 'ios' || inputs.platform == 'both' }}
     env:
       EXPO_PUBLIC_DANDANPLAY_API_URL: ${{ secrets.EXPO_PUBLIC_DANDANPLAY_API_URL }}
@@ -145,18 +145,18 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Run Expo Prebuild
-        run: bunx expo prebuild -p ios --clean
-
-      - name: Cache Xcode DerivedData
+      - name: Cache CocoaPods
         uses: actions/cache@v4
         with:
           path: |
-            ~/Library/Developer/Xcode/DerivedData
-            ios/build
-          key: ${{ runner.os }}-xcode-${{ hashFiles('**/ios/**/*.pbxproj', '**/ios/**/*.xcconfig') }}
+            ios/Pods
+            ~/.cocoapods
+          key: ${{ runner.os }}-pods-${{ hashFiles('**/Podfile.lock') }}
           restore-keys: |
-            ${{ runner.os }}-xcode-
+            ${{ runner.os }}-pods-
+
+      - name: Run Expo Prebuild
+        run: bunx expo prebuild -p ios --clean
 
       - name: Build Unsigned Archive
         run: |
