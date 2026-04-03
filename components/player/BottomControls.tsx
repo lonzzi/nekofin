@@ -53,6 +53,7 @@ export function BottomControls() {
 
   useDerivedValue(() => {
     if (!isDragging && duration > 0) {
+      // currentTime.value and duration are both in milliseconds
       const progress = currentTime.value / duration;
       progressValue.value = progress;
     }

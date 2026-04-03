@@ -1,10 +1,48 @@
-import { MediaStats, MediaTrack, MediaTracks } from '@/modules/vlc-player';
 import { DandanComment } from '@/services/dandanplay';
 import { MediaItem } from '@/services/media/types';
 import { createContext, useContext } from 'react';
 import { SharedValue } from 'react-native-reanimated';
 
 import { EpisodeListDrawerRef } from './EpisodeListDrawer';
+
+export type TrackInfo = {
+  name: string;
+  index: number;
+  language?: string;
+};
+
+export type VlcTrack = {
+  id: number;
+  name: string;
+};
+
+export type MediaTrack = {
+  audio?: TrackInfo;
+  subtitle?: TrackInfo;
+};
+
+export type MediaTracks = {
+  audio?: TrackInfo[];
+  subtitle?: TrackInfo[];
+};
+
+export type MediaStats = {
+  readBytes: number;
+  inputBitrate: number;
+  demuxReadBytes: number;
+  demuxBitrate: number;
+  demuxCorrupted: number;
+  demuxDiscontinuity: number;
+  decodedVideo: number;
+  decodedAudio: number;
+  displayedPictures: number;
+  lostPictures: number;
+  playedAudioBuffers: number;
+  lostAudioBuffers: number;
+  sentPackets: number;
+  sentBytes: number;
+  sendBitrate: number;
+};
 
 export type PlayerContextValue = {
   title: string;

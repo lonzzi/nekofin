@@ -1,6 +1,6 @@
 import { storage } from '@/lib/storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Appearance, ColorSchemeName } from 'react-native';
+import { Appearance } from 'react-native';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 
@@ -15,8 +15,7 @@ const DEFAULT_THEME: ThemePreference = 'dark';
 const ThemePreferenceContext = createContext<ThemePreferenceContextValue | undefined>(undefined);
 
 function applyTheme(preference: ThemePreference) {
-  const colorScheme: ColorSchemeName = preference === 'system' ? null : preference;
-  Appearance.setColorScheme(colorScheme);
+  Appearance.setColorScheme(preference === 'system' ? 'unspecified' : preference);
 }
 
 export function ThemePreferenceProvider({ children }: { children: React.ReactNode }) {

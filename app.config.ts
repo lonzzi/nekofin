@@ -128,6 +128,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
         },
       ],
       './plugins/withAndroidPip',
+      './plugins/withMinDeploymentTarget',
       ['./plugins/withDrawableAssets', './assets/drawables'],
     ],
     experiments: {

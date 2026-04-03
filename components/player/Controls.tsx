@@ -1,4 +1,3 @@
-import { MediaStats, MediaTrack, MediaTracks } from '@/modules/vlc-player';
 import { DandanComment } from '@/services/dandanplay';
 import { MediaItem } from '@/services/media/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -9,7 +8,7 @@ import { BottomControls } from './BottomControls';
 import { EpisodeListDrawer, EpisodeListDrawerRef } from './EpisodeListDrawer';
 import { GestureHandler } from './GestureHandler';
 import { BottomOverlayGradient, TopOverlayGradient } from './OverlayGradients';
-import { PlayerContext } from './PlayerContext';
+import { MediaStats, MediaTrack, MediaTracks, PlayerContext } from './PlayerContext';
 import { TopControls } from './TopControls';
 
 type ControlsProps = {

@@ -21,7 +21,7 @@ import { VerticalSlider } from './VerticalSlider';
 const throttleWorklet = (callback: () => void, delay: number) => {
   'worklet';
 
-  let timeoutId: number | null = null;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   return () => {
     if (timeoutId !== null) {

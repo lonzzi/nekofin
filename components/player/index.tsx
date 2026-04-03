@@ -3,24 +3,11 @@ import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { generateDeviceProfile } from '@/lib/profiles/native';
 import { storage } from '@/lib/storage';
-import {
-  formatBitrate,
-  getCommentsByItem,
-  getDeviceId,
-  ticksToMilliseconds,
-  ticksToSeconds,
-} from '@/lib/utils';
-import {
-  MediaStats,
-  MediaTrack,
-  MediaTracks,
-  VlcPlayerView,
-  VlcPlayerViewRef,
-} from '@/modules/vlc-player';
+import { getCommentsByItem, getDeviceId, ticksToMilliseconds, ticksToSeconds } from '@/lib/utils';
 import { DandanComment } from '@/services/dandanplay';
-import { SubtitleDeliveryMethod } from '@jellyfin/sdk/lib/generated-client/models';
 import { useQuery } from '@tanstack/react-query';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import { LibVlcPlayerView, type MediaTracks, type Track } from 'expo-libvlc-player';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
@@ -29,6 +16,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import { usePlaybackSync } from '../../hooks/usePlaybackSync';
 import { Controls } from './Controls';
 import { DanmakuLayer, DanmakuLayerRef } from './DanmakuLayer';
+import type { MediaStats } from './PlayerContext';
 
 const LoadingIndicator = ({ title }: { title?: string }) => {
   return (
@@ -38,6 +26,8 @@ const LoadingIndicator = ({ title }: { title?: string }) => {
     </View>
   );
 };
+
+type LibVlcPlayerViewRef = React.ComponentRef<typeof LibVlcPlayerView>;
 
 export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   const { currentServer, currentApi } = useMediaServers();
@@ -54,11 +44,16 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
   const [initialTime, setInitialTime] = useState<number>(-1);
-  const [tracks, setTracks] = useState<MediaTracks | undefined>(undefined);
-  const [selectedTracks, setSelectedTracks] = useState<MediaTrack | undefined>(undefined);
   const [rate, setRate] = useState(1);
   const prevRateRef = useRef<number>(1);
-  const [mediaStats, setMediaStats] = useState<MediaStats | null>(null);
+
+  // Track management for the new VLC library
+  const [availableTracks, setAvailableTracks] = useState<MediaTracks | null>(null);
+  const [currentTracks, setCurrentTracks] = useState<{ audio?: number; subtitle?: number }>({});
+  const [selectedTracks, setSelectedTracks] = useState<{
+    audio?: Track;
+    subtitle?: Track;
+  }>({});
 
   const enableTranscoding = storage.getBoolean('enableTranscoding') ?? false;
   const enableSubtitleBurnIn = storage.getBoolean('enableSubtitleBurnIn') ?? false;
@@ -69,7 +64,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     { animeTitle: string; episodeTitle: string } | undefined
   >(undefined);
 
-  const player = useRef<VlcPlayerViewRef>(null);
+  const player = useRef<LibVlcPlayerViewRef>(null);
   const danmakuLayer = useRef<DanmakuLayerRef>(null);
   const currentTime = useSharedValue(0);
 
@@ -181,7 +176,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
       .filter((sub) => sub.DeliveryMethod === 'External')
       .map((sub) => ({
         name: sub.DisplayTitle ?? '',
-        DeliveryUrl: `${currentApi?.basePath}${sub.DeliveryUrl ?? ''}`,
+        url: `${currentApi?.basePath}${sub.DeliveryUrl ?? ''}`,
       }));
     return subs;
   }, [allSubs, currentApi?.basePath]);
@@ -272,46 +267,6 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     })();
   }, [isPlaying]);
 
-  useEffect(() => {
-    if (!player.current) return;
-
-    (async () => {
-      try {
-        const audioTracks = await player.current?.getAudioTracks();
-        let subtitleTracks = await player.current?.getSubtitleTracks();
-
-        if (
-          streamInfo?.mediaSource?.TranscodingUrl &&
-          subtitleTracks &&
-          subtitleTracks.length > 1
-        ) {
-          subtitleTracks = [subtitleTracks[0], ...subtitleTracks.slice(1).reverse()];
-        }
-
-        let embedSubIndex = 1;
-        const processedSubs = allSubs?.map((sub) => {
-          const shouldIncrement =
-            sub.DeliveryMethod === SubtitleDeliveryMethod.Embed ||
-            sub.DeliveryMethod === SubtitleDeliveryMethod.Hls ||
-            sub.DeliveryMethod === SubtitleDeliveryMethod.External;
-          if (shouldIncrement) embedSubIndex++;
-          return {
-            name: sub.DisplayTitle || 'Undefined Subtitle',
-            index: sub.Index ?? -1,
-          };
-        });
-
-        setTracks((prev) => ({
-          ...prev,
-          audio: audioTracks ?? [],
-          subtitle: processedSubs.sort((a, b) => a.index - b.index) ?? [],
-        }));
-      } catch (error) {
-        console.error('Error setting tracks:', error);
-      }
-    })();
-  }, [player, isLoaded, streamInfo?.mediaSource?.TranscodingUrl, allSubs]);
-
   const handlePlayPause = useCallback(() => {
     if (isPlaying) {
       player.current?.pause();
@@ -324,17 +279,14 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     (newRate: number | null, options?: { remember?: boolean }) => {
       if (newRate == null) {
         setRate(prevRateRef.current);
-        player.current?.setRate(prevRateRef.current);
         return;
       }
       if (options?.remember === false) {
         setRate(newRate);
-        player.current?.setRate(newRate);
         return;
       }
       prevRateRef.current = newRate;
       setRate(newRate);
-      player.current?.setRate(newRate);
     },
     [],
   );
@@ -342,7 +294,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   const handleSeek = useCallback(
     (position: number) => {
       currentTime.value = position * duration;
-      player.current?.seekTo(position * duration);
+      player.current?.seek(position * duration, 'time');
       danmakuLayer.current?.seek(position * duration);
       setIsBuffering(false);
     },
@@ -351,24 +303,35 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
 
   const handleAudioTrackChange = useCallback(
     (trackIndex: number) => {
-      setSelectedTracks((prev) => ({
-        ...prev,
-        audio: tracks?.audio?.find((track) => track.index === trackIndex),
-      }));
-      player.current?.setAudioTrack(trackIndex);
+      if (trackIndex === -1) {
+        // Disable audio
+        setCurrentTracks((prev) => ({ ...prev, audio: -1 }));
+        player.current?.seek(0, 'time'); // Force refresh
+        return;
+      }
+      setCurrentTracks((prev) => ({ ...prev, audio: trackIndex }));
+      const track = availableTracks?.audio?.find((t) => t.id === trackIndex);
+      if (track) {
+        setSelectedTracks((prev) => ({ ...prev, audio: track }));
+      }
     },
-    [tracks?.audio],
+    [availableTracks],
   );
 
   const handleSubtitleTrackChange = useCallback(
     (trackIndex: number) => {
-      setSelectedTracks((prev) => ({
-        ...prev,
-        subtitle: tracks?.subtitle?.find((track) => track.index === trackIndex),
-      }));
-      player.current?.setSubtitleTrack(trackIndex);
+      if (trackIndex === -1) {
+        // Disable subtitles
+        setCurrentTracks((prev) => ({ ...prev, subtitle: -1 }));
+        return;
+      }
+      setCurrentTracks((prev) => ({ ...prev, subtitle: trackIndex }));
+      const track = availableTracks?.subtitle?.find((t) => t.id === trackIndex);
+      if (track) {
+        setSelectedTracks((prev) => ({ ...prev, subtitle: track }));
+      }
     },
-    [tracks?.subtitle],
+    [availableTracks],
   );
 
   const handlePreviousEpisode = useCallback(() => {
@@ -405,78 +368,103 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     [router],
   );
 
+  const handleESAdded = useCallback((tracks: MediaTracks) => {
+    setAvailableTracks((prev) => {
+      const base = prev ?? { audio: [], video: [], subtitle: [] };
+      const newTracks = { ...base };
+      if (tracks.audio) {
+        newTracks.audio = [...(newTracks.audio ?? []), ...tracks.audio];
+      }
+      if (tracks.subtitle) {
+        newTracks.subtitle = [...(newTracks.subtitle ?? []), ...tracks.subtitle];
+      }
+      if (tracks.video) {
+        newTracks.video = [...(newTracks.video ?? []), ...tracks.video];
+      }
+      return newTracks;
+    });
+  }, []);
+
+  const tracksForUI = useMemo(() => {
+    if (!availableTracks) return undefined;
+    return {
+      audio: availableTracks.audio?.map((t) => ({ name: t.name, index: t.id })) ?? [],
+      subtitle: availableTracks.subtitle?.map((t) => ({ name: t.name, index: t.id })) ?? [],
+    };
+  }, [availableTracks]);
+
+  const selectedTracksForUI = useMemo(() => {
+    return {
+      audio: selectedTracks.audio
+        ? { name: selectedTracks.audio.name, index: selectedTracks.audio.id }
+        : undefined,
+      subtitle: selectedTracks.subtitle
+        ? { name: selectedTracks.subtitle.name, index: selectedTracks.subtitle.id }
+        : undefined,
+    };
+  }, [selectedTracks]);
+
   return (
     <View style={styles.container}>
       {streamInfo?.url && initialTime >= 0 && (
-        <VlcPlayerView
+        <LibVlcPlayerView
           ref={player}
           style={styles.video}
-          source={{
-            uri: streamInfo.url,
-            isNetwork: true,
-            startPosition: initialTime,
-            autoplay: true,
-            externalSubtitles,
-          }}
-          onVideoProgress={(e) => {
-            const { duration, currentTime: newCurrentTime } = e.nativeEvent;
-
+          source={streamInfo.url}
+          autoplay={true}
+          time={initialTime * 1000}
+          rate={rate}
+          tracks={currentTracks}
+          slaves={externalSubtitles.map((sub) => ({
+            source: sub.url,
+            type: 'subtitle' as const,
+            selected: true,
+          }))}
+          onFirstPlay={(info) => {
             setIsLoaded(true);
-
-            setMediaInfo({
-              duration,
-              currentTime: newCurrentTime,
-            });
-            currentTime.value = newCurrentTime;
-
-            syncPlaybackProgress(newCurrentTime, false);
-
             setIsBuffering(false);
             setIsPlaying(true);
             setIsStopped(false);
           }}
-          onVideoStateChange={async (e) => {
-            const { state } = e.nativeEvent;
-            if (state === 'Playing') {
-              setIsPlaying(true);
-              return;
-            }
-
-            if (state === 'Paused') {
-              setIsPlaying(false);
-              return;
-            }
-
-            if (state === 'Buffering') {
-              setIsBuffering(true);
-              return;
-            }
+          onPlaying={() => {
+            setIsPlaying(true);
+            setIsBuffering(false);
           }}
-          onVideoLoadEnd={() => {
-            setIsLoaded(true);
+          onPaused={() => {
+            setIsPlaying(false);
           }}
-          onVideoError={async (e) => {
-            const { state } = e.nativeEvent;
-            if (state === 'Error') {
-              setIsBuffering(false);
-              setIsPlaying(false);
-              setIsStopped(true);
-
-              Alert.alert('Error', `Error: ${state}`);
-            }
+          onStopped={() => {
+            setIsPlaying(false);
+            setIsStopped(true);
           }}
-          onMediaStatsChange={(e) => {
-            const { stats } = e.nativeEvent;
-            setMediaStats(stats);
+          onBuffering={() => {
+            setIsBuffering(true);
+          }}
+          onTimeChanged={(event) => {
+            const timeInMs = event.time;
+            setMediaInfo((prev) => ({
+              duration: prev?.duration ?? duration,
+              currentTime: timeInMs / 1000,
+            }));
+            currentTime.value = timeInMs;
+            syncPlaybackProgress(timeInMs / 1000, false);
+            // Clear buffering and set playing when time updates (playback is progressing)
+            // This acts as a heartbeat to keep states in sync
+            setIsBuffering(false);
+            setIsPlaying(true);
+            setIsStopped(false);
+          }}
+          onESAdded={handleESAdded}
+          onEncounteredError={() => {
+            setIsBuffering(false);
+            setIsPlaying(false);
+            setIsStopped(true);
+            Alert.alert('Error', 'An error occurred while playing the video.');
           }}
         />
       )}
 
-      {showLoading && (
-        <LoadingIndicator
-          title={mediaStats?.inputBitrate ? formatBitrate(mediaStats.inputBitrate) : undefined}
-        />
-      )}
+      {showLoading && <LoadingIndicator />}
 
       {comments.length > 0 && initialTime >= 0 && (
         <DanmakuLayer
@@ -499,15 +487,15 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
         onPlayPause={handlePlayPause}
         onRateChange={handleRateChange}
         rate={rate}
-        tracks={tracks}
-        selectedTracks={selectedTracks}
+        tracks={tracksForUI}
+        selectedTracks={selectedTracksForUI}
         onAudioTrackChange={handleAudioTrackChange}
         onSubtitleTrackChange={handleSubtitleTrackChange}
         hasPreviousEpisode={hasPreviousEpisode}
         hasNextEpisode={hasNextEpisode}
         onPreviousEpisode={handlePreviousEpisode}
         onNextEpisode={handleNextEpisode}
-        mediaStats={mediaStats}
+        mediaStats={null}
         onCommentsLoaded={handleCommentsLoaded}
         danmakuEpisodeInfo={danmakuEpisodeInfo}
         danmakuComments={comments}

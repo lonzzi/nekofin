@@ -37,5 +37,7 @@ export function getSystemColor(
   name: keyof typeof SystemColors,
   colorScheme: ColorSchemeName,
 ): string {
-  return SystemColors[name][colorScheme ?? 'light'];
+  return SystemColors[name][
+    colorScheme === 'dark' || colorScheme === 'light' ? colorScheme : 'light'
+  ];
 }

@@ -62,20 +62,20 @@ export const SliderSetting: React.FC<SliderSettingProps> = ({
                 onValueChange?.(v);
                 onSlidingComplete?.(v);
               }}
-              color={accentColor}
             />
           </Host>
         ) : (
-          <AndroidSlider
-            style={{ minHeight: 40 }}
-            value={value}
-            onValueChange={(next) => {
-              const v = clampAndStep(next);
-              onValueChange?.(v);
-              onSlidingComplete?.(v);
-            }}
-            color={accentColor}
-          />
+          <View style={{ minHeight: 40, justifyContent: 'center' }}>
+            <AndroidSlider
+              value={value}
+              onValueChange={(next) => {
+                const v = clampAndStep(next);
+                onValueChange?.(v);
+                onSlidingComplete?.(v);
+              }}
+              colors={{ activeTrackColor: accentColor, thumbColor: accentColor }}
+            />
+          </View>
         )}
       </View>
     </View>
