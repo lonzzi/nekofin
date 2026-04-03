@@ -108,7 +108,6 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
         'expo-build-properties',
         {
           ios: {
-            useFrameworks: 'static',
             reactNativeReleaseLevel: 'experimental',
             deploymentTarget: '15.1',
           },
