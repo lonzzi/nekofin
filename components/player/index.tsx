@@ -7,7 +7,7 @@ import { getCommentsByItem, getDeviceId, ticksToMilliseconds, ticksToSeconds } f
 import { DandanComment } from '@/services/dandanplay';
 import { useQuery } from '@tanstack/react-query';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { LibVlcPlayerView, type MediaTracks, type Track } from 'expo-libvlc-player';
+import { ExpoMpvView, type ExpoMpvViewRef } from 'expo-mpv';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
@@ -16,7 +16,6 @@ import { useSharedValue } from 'react-native-reanimated';
 import { usePlaybackSync } from '../../hooks/usePlaybackSync';
 import { Controls } from './Controls';
 import { DanmakuLayer, DanmakuLayerRef } from './DanmakuLayer';
-import type { MediaStats } from './PlayerContext';
 
 const LoadingIndicator = ({ title }: { title?: string }) => {
   return (
@@ -26,8 +25,6 @@ const LoadingIndicator = ({ title }: { title?: string }) => {
     </View>
   );
 };
-
-type LibVlcPlayerViewRef = React.ComponentRef<typeof LibVlcPlayerView>;
 
 export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   const { currentServer, currentApi } = useMediaServers();
@@ -47,13 +44,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   const [rate, setRate] = useState(1);
   const prevRateRef = useRef<number>(1);
 
-  // Track management for the new VLC library
-  const [availableTracks, setAvailableTracks] = useState<MediaTracks | null>(null);
-  const [currentTracks, setCurrentTracks] = useState<{ audio?: number; subtitle?: number }>({});
-  const [selectedTracks, setSelectedTracks] = useState<{
-    audio?: Track;
-    subtitle?: Track;
-  }>({});
+  // Track management (simplified for mpv - external subtitles only)
 
   const enableTranscoding = storage.getBoolean('enableTranscoding') ?? false;
   const enableSubtitleBurnIn = storage.getBoolean('enableSubtitleBurnIn') ?? false;
@@ -64,7 +55,8 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     { animeTitle: string; episodeTitle: string } | undefined
   >(undefined);
 
-  const player = useRef<LibVlcPlayerViewRef>(null);
+  const player = useRef<ExpoMpvViewRef>(null);
+  const hasInitialSeeked = useRef(false);
   const danmakuLayer = useRef<DanmakuLayerRef>(null);
   const currentTime = useSharedValue(0);
 
@@ -163,23 +155,16 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     gcTime: 0,
   });
 
-  const allSubs = useMemo(() => {
-    return (
-      streamInfo?.mediaSource?.MediaStreams?.filter((sub) => sub.Type === 'Subtitle').sort(
-        (a, b) => Number(a.IsExternal) - Number(b.IsExternal),
-      ) || []
-    );
-  }, [streamInfo?.mediaSource?.MediaStreams]);
-
   const externalSubtitles = useMemo(() => {
-    const subs = allSubs
-      .filter((sub) => sub.DeliveryMethod === 'External')
-      .map((sub) => ({
+    return (
+      streamInfo?.mediaSource?.MediaStreams?.filter(
+        (sub) => sub.Type === 'Subtitle' && sub.DeliveryMethod === 'External',
+      ).map((sub) => ({
         name: sub.DisplayTitle ?? '',
         url: `${currentApi?.basePath}${sub.DeliveryUrl ?? ''}`,
-      }));
-    return subs;
-  }, [allSubs, currentApi?.basePath]);
+      })) ?? []
+    );
+  }, [streamInfo?.mediaSource?.MediaStreams, currentApi?.basePath]);
 
   const { syncPlaybackProgress } = usePlaybackSync({
     currentServer,
@@ -268,12 +253,8 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   }, [isPlaying]);
 
   const handlePlayPause = useCallback(() => {
-    if (isPlaying) {
-      player.current?.pause();
-    } else {
-      player.current?.play();
-    }
-  }, [isPlaying, player]);
+    player.current?.togglePlay();
+  }, [player]);
 
   const handleRateChange = useCallback(
     (newRate: number | null, options?: { remember?: boolean }) => {
@@ -293,46 +274,25 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
 
   const handleSeek = useCallback(
     (position: number) => {
-      currentTime.value = position * duration;
-      player.current?.seek(position * duration, 'time');
-      danmakuLayer.current?.seek(position * duration);
+      const targetTime = position * duration;
+      const currentPosition = mediaInfo?.currentTime ?? 0;
+      const diff = targetTime - currentPosition;
+      player.current?.seekBy(diff / 1000);
+      danmakuLayer.current?.seek(targetTime);
       setIsBuffering(false);
     },
-    [currentTime, duration, danmakuLayer],
+    [duration, danmakuLayer, mediaInfo],
   );
 
-  const handleAudioTrackChange = useCallback(
-    (trackIndex: number) => {
-      if (trackIndex === -1) {
-        // Disable audio
-        setCurrentTracks((prev) => ({ ...prev, audio: -1 }));
-        player.current?.seek(0, 'time'); // Force refresh
-        return;
-      }
-      setCurrentTracks((prev) => ({ ...prev, audio: trackIndex }));
-      const track = availableTracks?.audio?.find((t) => t.id === trackIndex);
-      if (track) {
-        setSelectedTracks((prev) => ({ ...prev, audio: track }));
-      }
-    },
-    [availableTracks],
-  );
+  const handleAudioTrackChange = useCallback((_trackIndex: number) => {
+    // MPV handles audio tracks internally - external subtitles are supported
+    // Built-in track selection is handled by the player
+  }, []);
 
-  const handleSubtitleTrackChange = useCallback(
-    (trackIndex: number) => {
-      if (trackIndex === -1) {
-        // Disable subtitles
-        setCurrentTracks((prev) => ({ ...prev, subtitle: -1 }));
-        return;
-      }
-      setCurrentTracks((prev) => ({ ...prev, subtitle: trackIndex }));
-      const track = availableTracks?.subtitle?.find((t) => t.id === trackIndex);
-      if (track) {
-        setSelectedTracks((prev) => ({ ...prev, subtitle: track }));
-      }
-    },
-    [availableTracks],
-  );
+  const handleSubtitleTrackChange = useCallback((_trackIndex: number) => {
+    // MPV handles subtitle tracks internally - external subtitles are supported
+    // Built-in track selection is handled by the player
+  }, []);
 
   const handlePreviousEpisode = useCallback(() => {
     if (previousEpisode?.id) {
@@ -368,98 +328,51 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     [router],
   );
 
-  const handleESAdded = useCallback((tracks: MediaTracks) => {
-    setAvailableTracks((prev) => {
-      const base = prev ?? { audio: [], video: [], subtitle: [] };
-      const newTracks = { ...base };
-      if (tracks.audio) {
-        newTracks.audio = [...(newTracks.audio ?? []), ...tracks.audio];
-      }
-      if (tracks.subtitle) {
-        newTracks.subtitle = [...(newTracks.subtitle ?? []), ...tracks.subtitle];
-      }
-      if (tracks.video) {
-        newTracks.video = [...(newTracks.video ?? []), ...tracks.video];
-      }
-      return newTracks;
-    });
-  }, []);
-
-  const tracksForUI = useMemo(() => {
-    if (!availableTracks) return undefined;
-    return {
-      audio: availableTracks.audio?.map((t) => ({ name: t.name, index: t.id })) ?? [],
-      subtitle: availableTracks.subtitle?.map((t) => ({ name: t.name, index: t.id })) ?? [],
-    };
-  }, [availableTracks]);
-
-  const selectedTracksForUI = useMemo(() => {
-    return {
-      audio: selectedTracks.audio
-        ? { name: selectedTracks.audio.name, index: selectedTracks.audio.id }
-        : undefined,
-      subtitle: selectedTracks.subtitle
-        ? { name: selectedTracks.subtitle.name, index: selectedTracks.subtitle.id }
-        : undefined,
-    };
-  }, [selectedTracks]);
-
   return (
     <View style={styles.container}>
       {streamInfo?.url && initialTime >= 0 && (
-        <LibVlcPlayerView
+        <ExpoMpvView
           ref={player}
           style={styles.video}
           source={streamInfo.url}
-          autoplay={true}
-          time={initialTime * 1000}
-          rate={rate}
-          tracks={currentTracks}
-          slaves={externalSubtitles.map((sub) => ({
-            source: sub.url,
-            type: 'subtitle' as const,
-            selected: true,
-          }))}
-          onFirstPlay={(info) => {
+          onPlaybackStateChange={({ nativeEvent }) => {
+            setIsPlaying(nativeEvent.isPlaying);
+            if (nativeEvent.isPlaying && initialTime > 0 && !hasInitialSeeked.current) {
+              hasInitialSeeked.current = true;
+              player.current?.seekBy(initialTime);
+            }
+          }}
+          onProgress={({ nativeEvent }) => {
+            setMediaInfo((prev) => ({
+              duration: nativeEvent.duration,
+              currentTime: nativeEvent.position,
+            }));
+            currentTime.value = nativeEvent.position * 1000;
+            syncPlaybackProgress(nativeEvent.position, false);
+            setIsBuffering(false);
+          }}
+          onLoad={({ nativeEvent }) => {
             setIsLoaded(true);
             setIsBuffering(false);
             setIsPlaying(true);
             setIsStopped(false);
-          }}
-          onPlaying={() => {
-            setIsPlaying(true);
-            setIsBuffering(false);
-          }}
-          onPaused={() => {
-            setIsPlaying(false);
-          }}
-          onStopped={() => {
-            setIsPlaying(false);
-            setIsStopped(true);
-          }}
-          onBuffering={() => {
-            setIsBuffering(true);
-          }}
-          onTimeChanged={(event) => {
-            const timeInMs = event.time;
             setMediaInfo((prev) => ({
-              duration: prev?.duration ?? duration,
-              currentTime: timeInMs / 1000,
+              duration: nativeEvent.duration,
+              currentTime: prev?.currentTime ?? 0,
             }));
-            currentTime.value = timeInMs;
-            syncPlaybackProgress(timeInMs / 1000, false);
-            // Clear buffering and set playing when time updates (playback is progressing)
-            // This acts as a heartbeat to keep states in sync
-            setIsBuffering(false);
-            setIsPlaying(true);
-            setIsStopped(false);
           }}
-          onESAdded={handleESAdded}
-          onEncounteredError={() => {
+          onBuffer={({ nativeEvent }) => {
+            setIsBuffering(nativeEvent.isBuffering);
+          }}
+          onError={({ nativeEvent }) => {
             setIsBuffering(false);
             setIsPlaying(false);
             setIsStopped(true);
-            Alert.alert('Error', 'An error occurred while playing the video.');
+            Alert.alert('Error', nativeEvent.error);
+          }}
+          onEnd={() => {
+            setIsPlaying(false);
+            setIsStopped(true);
           }}
         />
       )}
@@ -487,8 +400,6 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
         onPlayPause={handlePlayPause}
         onRateChange={handleRateChange}
         rate={rate}
-        tracks={tracksForUI}
-        selectedTracks={selectedTracksForUI}
         onAudioTrackChange={handleAudioTrackChange}
         onSubtitleTrackChange={handleSubtitleTrackChange}
         hasPreviousEpisode={hasPreviousEpisode}

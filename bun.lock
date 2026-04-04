@@ -36,6 +36,7 @@
         "expo-libvlc-player": "^6.1.10",
         "expo-linear-gradient": "~55.0.11",
         "expo-linking": "~55.0.11",
+        "expo-mpv": "^0.1.0",
         "expo-navigation-bar": "~55.0.10",
         "expo-network": "~55.0.11",
         "expo-router": "~55.0.10",
@@ -1109,6 +1110,8 @@
     "expo-modules-autolinking": ["expo-modules-autolinking@55.0.14", "", { "dependencies": { "@expo/require-utils": "^55.0.3", "@expo/spawn-async": "^1.7.2", "chalk": "^4.1.0", "commander": "^7.2.0" }, "bin": { "expo-modules-autolinking": "bin/expo-modules-autolinking.js" } }, "sha512-2dy5lDBx4DP8rV/1pdlRW0kLBVKlfdhd0Pj8LHGBWw6zohTtsu8OKV7Ks3v9lDRt4SHDPehj89yCZgg36c51tA=="],
 
     "expo-modules-core": ["expo-modules-core@55.0.20", "", { "dependencies": { "invariant": "^2.2.4" }, "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-XqWPvB9eWuUvEQclu0eLbsqNDg3J3KFlQo1l3qodqqzIWno5wM3eRJCycmSwWAFPeTDMk7CxeD2JNFxOJ5Nd8w=="],
+
+    "expo-mpv": ["expo-mpv@0.1.0", "", { "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-iiSDKie5Y7JTkgbHxxjd33kRkhl8PkO6IteA1rNoeVT7hOjz0IbeJYf8tE34kdlUdVQHcM04Jf++W+RXWGg4Iw=="],
 
     "expo-navigation-bar": ["expo-navigation-bar@55.0.10", "", { "dependencies": { "debug": "^4.3.2", "react-native-is-edge-to-edge": "^1.2.1" }, "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-guIBTYMl5fVStKFmEsWRwUP7O044A0oYYgDLc4mCUXiuzs12jJscUmVztQFBTvALS9AzyQMQZs7ISLGiw74F/g=="],
 

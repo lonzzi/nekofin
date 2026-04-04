@@ -109,7 +109,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
         {
           ios: {
             reactNativeReleaseLevel: 'experimental',
-            deploymentTarget: '15.1',
+            deploymentTarget: '16.0',
           },
           android: {
             reactNativeReleaseLevel: 'experimental',
@@ -127,7 +127,6 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
         },
       ],
       './plugins/withAndroidPip',
-      './plugins/withMinDeploymentTarget',
       ['./plugins/withDrawableAssets', './assets/drawables'],
     ],
     experiments: {

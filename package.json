@@ -49,6 +49,7 @@
     "expo-libvlc-player": "^6.1.10",
     "expo-linear-gradient": "~55.0.11",
     "expo-linking": "~55.0.11",
+    "expo-mpv": "^0.1.0",
     "expo-navigation-bar": "~55.0.10",
     "expo-network": "~55.0.11",
     "expo-router": "~55.0.10",
