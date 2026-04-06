@@ -1,11 +1,18 @@
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { MediaItem } from '@/services/media/types';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback } from 'react';
+import { FlatList, ListRenderItem, StyleSheet, Text, View } from 'react-native';
 
 import { SkeletonUserViewCard } from '../ui/Skeleton';
 import { UserViewCard } from './UserViewCard';
 
-export const UserViewSection = ({
+const skeletonData = Array.from({ length: 3 });
+const skeletonKeyExtractor = (_: unknown, index: number) => `skeleton-${index}`;
+const renderSkeletonItem = () => <SkeletonUserViewCard />;
+const itemKeyExtractor = (item: MediaItem, index: number) =>
+  item.id ? String(item.id) : String(index);
+
+export const UserViewSection = React.memo(function UserViewSection({
   userView,
   isLoading,
   title,
@@ -13,20 +20,25 @@ export const UserViewSection = ({
   userView: MediaItem[];
   isLoading?: boolean;
   title?: string;
-}) => {
+}) {
   const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
   const userViewItems = userView || [];
+
+  const renderItem: ListRenderItem<MediaItem> = useCallback(
+    ({ item }) => <UserViewCard item={item} title={item.name || '未知标题'} />,
+    [],
+  );
 
   if (isLoading) {
     return (
       <View>
         <FlatList
-          data={Array.from({ length: 3 })}
+          data={skeletonData}
           horizontal
-          keyExtractor={(_, index) => `skeleton-${index}`}
+          keyExtractor={skeletonKeyExtractor}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.userViewContainer}
-          renderItem={() => <SkeletonUserViewCard />}
+          renderItem={renderSkeletonItem}
         />
       </View>
     );
@@ -46,16 +58,14 @@ export const UserViewSection = ({
       <FlatList
         data={userViewItems}
         horizontal
-        keyExtractor={(item, index) => (item.id ? String(item.id) : String(index))}
+        keyExtractor={itemKeyExtractor}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.userViewContainer}
-        renderItem={({ item, index }) => (
-          <UserViewCard item={item} key={item.id || index} title={item.name || '未知标题'} />
-        )}
+        renderItem={renderItem}
       />
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   userViewContainer: {

@@ -1,12 +1,13 @@
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback } from 'react';
+import { FlatList, ListRenderItem, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { SkeletonCard, SkeletonSectionHeader } from '../ui/Skeleton';
 import { EpisodeCard, SeriesCard } from './Card';
 
-export function Section({
+export const Section = React.memo(function Section({
   title,
   onViewAll,
   items,
@@ -20,6 +21,18 @@ export function Section({
   type?: 'episode' | 'series';
 }) {
   const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
+
+  const renderEpisodeItem: ListRenderItem<MediaItem> = useCallback(
+    ({ item }) => <EpisodeCard item={item} style={episodeCardStyle} showPlayButton />,
+    [],
+  );
+
+  const renderSeriesItem: ListRenderItem<MediaItem> = useCallback(
+    ({ item }) => <SeriesCard item={item} />,
+    [],
+  );
+
+  const renderItem = type === 'episode' ? renderEpisodeItem : renderSeriesItem;
 
   return (
     <View>
@@ -43,12 +56,12 @@ export function Section({
       )}
       {isLoading ? (
         <FlatList
-          data={Array.from({ length: 5 })}
+          data={skeletonData}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.sectionListContent}
-          renderItem={() => <SkeletonCard type={type} />}
-          keyExtractor={(_, index) => `skeleton-${index}`}
+          renderItem={renderSkeletonItem}
+          keyExtractor={skeletonKeyExtractor}
         />
       ) : items.length > 0 ? (
         <FlatList
@@ -56,14 +69,8 @@ export function Section({
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.sectionListContent}
-          renderItem={({ item }) =>
-            type === 'episode' ? (
-              <EpisodeCard item={item} style={{ width: 220 }} showPlayButton />
-            ) : (
-              <SeriesCard item={item} />
-            )
-          }
-          keyExtractor={(item) => item.id!}
+          renderItem={renderItem}
+          keyExtractor={itemKeyExtractor}
         />
       ) : (
         <View style={styles.emptyContainer}>
@@ -72,7 +79,14 @@ export function Section({
       )}
     </View>
   );
-}
+});
+
+const episodeCardStyle = { width: 220 };
+const skeletonData = Array.from({ length: 5 });
+
+const skeletonKeyExtractor = (_: unknown, index: number) => `skeleton-${index}`;
+const itemKeyExtractor = (item: MediaItem) => item.id!;
+const renderSkeletonItem = () => <SkeletonCard type="episode" />;
 
 const styles = StyleSheet.create({
   sectionHeader: {

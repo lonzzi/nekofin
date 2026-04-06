@@ -1,5 +1,5 @@
 import { AvatarImage } from '@/components/AvatarImage';
-import { ItemImage } from '@/components/ItemImage';
+import { CarouselHeader } from '@/components/home/CarouselHeader';
 import { Section } from '@/components/media/Section';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
@@ -7,23 +7,19 @@ import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { UserViewSection } from '@/components/user-view/UserViewSection';
 import { useHomeSections } from '@/hooks/useHomeSections';
-import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { MediaItem } from '@/services/media/types';
 import { MenuAction, MenuView } from '@react-native-menu/menu';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useIsFocused } from '@react-navigation/native';
-import { Image } from 'expo-image';
 import {
   useNavigation,
   useNavigationContainerRef,
   useRootNavigationState,
   useRouter,
 } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Platform, StyleSheet, TouchableOpacity, useWindowDimensions, View } from 'react-native';
-import PagerView from 'react-native-pager-view';
 
 export default function HomeScreen() {
   const { servers, currentServer, setCurrentServer, refreshServerInfo, isInitialized } =
@@ -31,14 +27,8 @@ export default function HomeScreen() {
   const navigation = useNavigation();
   const navigationRef = useNavigationContainerRef();
   const rootNavigationState = useRootNavigationState();
-  const mediaAdapter = useMediaAdapter();
 
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#000' }, 'background');
-
-  const carouselPlaceholderColor = useThemeColor(
-    { light: '#d1d1d6', dark: '#2b2b2b' },
-    'background',
-  );
 
   const headerHeight = useHeaderHeight();
   const { height: windowHeight } = useWindowDimensions();
@@ -47,54 +37,11 @@ export default function HomeScreen() {
   const router = useRouter();
 
   const { sections, randomItemsQuery } = useHomeSections(currentServer);
-  const [carouselIndex, setCarouselIndex] = useState(0);
-  const pagerRef = useRef<PagerView>(null);
   const isFocused = useIsFocused();
 
   const carouselItems = useMemo(() => {
     return randomItemsQuery.data ?? [];
   }, [randomItemsQuery.data]);
-
-  const carouselImageInfos = useMemo(() => {
-    return carouselItems.map((item) => {
-      const imageInfo = mediaAdapter.getImageInfo({
-        item,
-        opts: {
-          preferBackdrop: true,
-          preferThumb: true,
-        },
-      });
-      const logoImageInfo = mediaAdapter.getImageInfo({
-        item,
-        opts: { preferLogo: true, width: 400 },
-      });
-      return {
-        imageUrl: imageInfo.url,
-        blurhash: imageInfo.blurhash,
-        logoImageUrl: logoImageInfo.url?.replace('Primary', 'Logo'),
-      };
-    });
-  }, [carouselItems, mediaAdapter]);
-
-  // Auto-play: advance to next page every 6.5s
-  useEffect(() => {
-    if (!isFocused || carouselItems.length <= 1) return;
-    const timer = setInterval(() => {
-      setCarouselIndex((prev) => {
-        const next = (prev + 1) % carouselItems.length;
-        pagerRef.current?.setPage(next);
-        return next;
-      });
-    }, 6500);
-    return () => clearInterval(timer);
-  }, [isFocused, carouselItems.length]);
-
-  // Reset index when items change
-  useEffect(() => {
-    if (carouselItems.length === 0) {
-      setCarouselIndex(0);
-    }
-  }, [carouselItems.length]);
 
   const handleServerSelect = useCallback(
     (serverId: string) => {
@@ -186,43 +133,31 @@ export default function HomeScreen() {
     currentServer,
   ]);
 
-  const handleCarouselItemPress = useCallback(
-    (item: MediaItem) => {
-      if (!item?.id) return;
+  // Stabilize onViewAll callbacks
+  const handleViewAllResume = useCallback(() => router.push('/view-all/resume'), [router]);
+  const handleViewAllNextup = useCallback(() => router.push('/view-all/nextup'), [router]);
 
-      switch (item.type) {
-        case 'Movie':
-          router.push({ pathname: '/movie/[id]', params: { id: item.id } });
-          return;
-        case 'Series':
-          router.push({ pathname: '/series/[id]', params: { id: item.id } });
-          return;
-        case 'Season':
+  // Build stable onViewAll callbacks for latest sections
+  const latestViewAllHandlers = useMemo(() => {
+    const handlers: Record<string, () => void> = {};
+    for (const section of sections) {
+      if (section.type === 'latest') {
+        const folderId = section.key.replace('latest_', '');
+        const folderName = section.title.replace('最近添加的 ', '');
+        handlers[section.key] = () =>
           router.push({
-            pathname: '/episode',
-            params: { seasonId: item.id },
+            pathname: '/view-all/[type]',
+            params: { folderId, folderName, type: 'latest' },
           });
-          return;
-        case 'Episode':
-          router.push({
-            pathname: '/episode',
-            params: { episodeId: item.id, seasonId: item.seasonId },
-          });
-          return;
-        default:
-          if (item.seriesId) {
-            router.push({ pathname: '/series/[id]', params: { id: item.seriesId } });
-          }
       }
-    },
-    [router],
-  );
+    }
+    return handlers;
+  }, [sections, router]);
 
-  // Current item info for text overlay
-  const currentItem = carouselItems[carouselIndex];
-  const currentImageInfo = carouselImageInfos[carouselIndex];
-  const currentTitle = currentItem ? currentItem.seriesName || currentItem.name || '未知标题' : '';
-  const currentLogoUrl = currentImageInfo?.logoImageUrl;
+  const headerImage = useMemo(
+    () => <CarouselHeader items={carouselItems} height={carouselHeight} isFocused={isFocused} />,
+    [carouselItems, carouselHeight, isFocused],
+  );
 
   if (servers.length === 0 && isInitialized) {
     return (
@@ -245,127 +180,7 @@ export default function HomeScreen() {
       style={{ flex: 1, backgroundColor }}
       headerHeight={carouselHeight}
       contentStyle={{ gap: 2, backgroundColor }}
-      headerImage={
-        <View style={{ height: carouselHeight }}>
-          {carouselItems.length > 0 && (
-            <PagerView
-              ref={pagerRef}
-              style={styles.pagerView}
-              initialPage={0}
-              overdrag
-              onPageSelected={(e) => setCarouselIndex(e.nativeEvent.position)}
-            >
-              {carouselItems.map((item, index) => {
-                const imageInfo = carouselImageInfos[index];
-                return (
-                  <View
-                    key={item.id ?? `${item.type}-${item.seriesId ?? index}`}
-                    collapsable={false}
-                  >
-                    <TouchableOpacity
-                      activeOpacity={0.9}
-                      style={styles.carouselCard}
-                      onPress={() => handleCarouselItemPress(item)}
-                    >
-                      {imageInfo?.imageUrl ? (
-                        <ItemImage
-                          uri={imageInfo.imageUrl}
-                          style={[styles.carouselImage, { backgroundColor }]}
-                          contentFit="cover"
-                          cachePolicy="memory-disk"
-                          placeholderBlurhash={imageInfo.blurhash}
-                        />
-                      ) : (
-                        <View
-                          style={[
-                            styles.carouselImage,
-                            styles.carouselPlaceholder,
-                            { backgroundColor: carouselPlaceholderColor },
-                          ]}
-                        >
-                          <IconSymbol name="video.fill" size={48} color="rgba(255,255,255,0.9)" />
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
-            </PagerView>
-          )}
-
-          {/* Bottom info overlay */}
-          <View pointerEvents="none" style={styles.bottomOverlay}>
-            {currentItem && (
-              <View style={styles.cardInner}>
-                {currentLogoUrl ? (
-                  <Image
-                    source={{ uri: currentLogoUrl }}
-                    style={styles.cardLogo}
-                    contentFit="contain"
-                  />
-                ) : (
-                  <ThemedText style={styles.cardTitle} numberOfLines={1}>
-                    {currentTitle}
-                  </ThemedText>
-                )}
-                <View style={styles.cardMetaRow}>
-                  {currentItem.type === 'Movie' && (
-                    <View style={[styles.cardTag, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
-                      <ThemedText style={styles.cardTagText}>电影</ThemedText>
-                    </View>
-                  )}
-                  {currentItem.type === 'Series' && (
-                    <View style={[styles.cardTag, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
-                      <ThemedText style={styles.cardTagText}>剧集</ThemedText>
-                    </View>
-                  )}
-                  {currentItem.productionYear && (
-                    <ThemedText style={styles.cardMeta}>{currentItem.productionYear}</ThemedText>
-                  )}
-                  {currentItem.communityRating != null && (
-                    <ThemedText style={styles.cardMeta}>
-                      ★ {currentItem.communityRating.toFixed(1)}
-                    </ThemedText>
-                  )}
-                  {currentItem.officialRating && (
-                    <View
-                      style={[
-                        styles.cardTag,
-                        { borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
-                      ]}
-                    >
-                      <ThemedText style={styles.cardTagText}>
-                        {currentItem.officialRating}
-                      </ThemedText>
-                    </View>
-                  )}
-                </View>
-              </View>
-            )}
-
-            {/* Dot indicators */}
-            {carouselItems.length > 1 && (
-              <View style={styles.dotsRow}>
-                {carouselItems.map((item, index) => (
-                  <View
-                    key={item.id ?? `${item.type}-${item.seriesId ?? index}`}
-                    style={[
-                      styles.dot,
-                      index === carouselIndex && styles.dotActive,
-                      {
-                        backgroundColor:
-                          index === carouselIndex
-                            ? 'rgba(255,255,255,0.9)'
-                            : 'rgba(255,255,255,0.35)',
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
-        </View>
-      }
+      headerImage={headerImage}
     >
       <View style={{ gap: 24, marginTop: 24 }}>
         {sections.map((section) => {
@@ -375,7 +190,7 @@ export default function HomeScreen() {
               <Section
                 key={section.key}
                 title={section.title}
-                onViewAll={() => router.push('/view-all/resume')}
+                onViewAll={handleViewAllResume}
                 items={section.items}
                 isLoading={section.isLoading}
               />
@@ -387,7 +202,7 @@ export default function HomeScreen() {
               <Section
                 key={section.key}
                 title={section.title}
-                onViewAll={() => router.push('/view-all/nextup')}
+                onViewAll={handleViewAllNextup}
                 items={section.items}
                 isLoading={section.isLoading}
               />
@@ -405,21 +220,11 @@ export default function HomeScreen() {
           }
           if (section.type === 'latest') {
             if (!section.isLoading && section.items.length === 0) return null;
-            const folderId = section.key.replace('latest_', '');
             return (
               <Section
                 key={section.key}
                 title={section.title}
-                onViewAll={() =>
-                  router.push({
-                    pathname: '/view-all/[type]',
-                    params: {
-                      folderId,
-                      folderName: section.title.replace('最近添加的 ', ''),
-                      type: 'latest',
-                    },
-                  })
-                }
+                onViewAll={latestViewAllHandlers[section.key]}
                 items={section.items}
                 isLoading={section.isLoading}
                 type="series"
@@ -437,80 +242,6 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  pagerView: {
-    flex: 1,
-  },
-  carouselCard: {
-    flex: 1,
-    overflow: 'hidden',
-    backgroundColor: '#151718',
-  },
-  carouselImage: {
-    width: '100%',
-    height: '100%',
-  },
-  carouselPlaceholder: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bottomOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingBottom: 16,
-    paddingHorizontal: 18,
-    justifyContent: 'flex-end',
-  },
-  cardInner: {
-    gap: 8,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-    color: '#fff',
-  },
-  cardLogo: {
-    height: 40,
-    width: '60%',
-    alignSelf: 'flex-start',
-  },
-  cardMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  cardMeta: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.7)',
-  },
-  cardTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  cardTagText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  dotsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 12,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  dotActive: {
-    width: 16,
   },
   serverButton: {
     borderWidth: 1,

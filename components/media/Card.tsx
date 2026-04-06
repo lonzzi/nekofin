@@ -8,7 +8,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { Content, Item, ItemIcon, ItemTitle, Root as Menu, Trigger } from 'zeego/context-menu';
 
@@ -46,7 +46,7 @@ export const getSubtitle = (item: MediaItem) => {
   return item.name;
 };
 
-export function EpisodeCard({
+export const EpisodeCard = React.memo(function EpisodeCard({
   item,
   style,
   hideText,
@@ -85,18 +85,21 @@ export function EpisodeCard({
     handleMarkAsUnwatched,
   } = useMediaActions(item);
 
-  const imageInfo =
-    imgInfo ??
-    mediaAdapter.getImageInfo({
-      item,
-      opts: {
-        preferBackdrop: imgType === 'Backdrop',
-        preferThumb: imgType === 'Thumb',
-        preferBanner: imgType === 'Banner',
-        preferLogo: imgType === 'Logo',
-        width: 400,
-      },
-    });
+  const imageInfo = useMemo(
+    () =>
+      imgInfo ??
+      mediaAdapter.getImageInfo({
+        item,
+        opts: {
+          preferBackdrop: imgType === 'Backdrop',
+          preferThumb: imgType === 'Thumb',
+          preferBanner: imgType === 'Banner',
+          preferLogo: imgType === 'Logo',
+          width: 400,
+        },
+      }),
+    [imgInfo, mediaAdapter, item, imgType],
+  );
 
   const imageUrl = imageInfo.url;
 
@@ -258,9 +261,9 @@ export function EpisodeCard({
       </Content>
     </Menu>
   );
-}
+});
 
-export function SeriesCard({
+export const SeriesCard = React.memo(function SeriesCard({
   item,
   style,
   imgType = 'Primary',
@@ -288,20 +291,24 @@ export function SeriesCard({
     handleMarkAsUnwatched,
   } = useMediaActions(item);
 
-  const imageInfo = mediaAdapter.getImageInfo({
-    item,
-    opts: {
-      preferBackdrop: imgType === 'Backdrop',
-      preferThumb: imgType === 'Thumb',
-      preferBanner: imgType === 'Banner',
-      preferLogo: imgType === 'Logo',
-      width: 400,
-    },
-  });
+  const imageInfo = useMemo(
+    () =>
+      mediaAdapter.getImageInfo({
+        item,
+        opts: {
+          preferBackdrop: imgType === 'Backdrop',
+          preferThumb: imgType === 'Thumb',
+          preferBanner: imgType === 'Banner',
+          preferLogo: imgType === 'Logo',
+          width: 400,
+        },
+      }),
+    [mediaAdapter, item, imgType],
+  );
 
   const imageUrl = imageInfo.url;
 
-  const handlePress = () => {
+  const handlePress = useCallback(() => {
     if (isLongPressing) return;
 
     const type = item.type;
@@ -326,11 +333,7 @@ export function SeriesCard({
     }
 
     console.warn('Unknown type:', type);
-  };
-
-  const handleViewDetails = () => {
-    handlePress();
-  };
+  }, [isLongPressing, item, router]);
 
   const isPlayed = currentUserData?.played === true;
 
@@ -375,7 +378,7 @@ export function SeriesCard({
           <ItemIcon ios={{ name: 'play.circle' }} />
           <ItemTitle>播放</ItemTitle>
         </Item>
-        <Item key="viewDetails" onSelect={handleViewDetails}>
+        <Item key="viewDetails" onSelect={handlePress}>
           <ItemIcon ios={{ name: 'info.circle' }} />
           <ItemTitle>查看详情</ItemTitle>
         </Item>
@@ -393,7 +396,7 @@ export function SeriesCard({
       </Content>
     </Menu>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {
