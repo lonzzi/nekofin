@@ -18,7 +18,7 @@
 ## ✨ 功能特色
 
 - 📱 跨平台支持：iOS 和 Android 双平台
-- 🎬 媒体播放：基于 VLC 的高性能视频播放器
+- 🎬 媒体播放：基于 mpv 的高性能视频播放器
 - 💬 弹幕支持：集成弹弹play，支持弹幕搜索和显示
 - 🎯 多服务器：同时支持 Jellyfin 和 Emby（实验性支持）媒体服务器
 
@@ -26,7 +26,7 @@
 
 - React Native
 - Expo
-- VLC Player
+- mpv Player
 
 ## 📥 下载
 

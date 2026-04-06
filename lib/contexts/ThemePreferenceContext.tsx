@@ -10,7 +10,7 @@ type ThemePreferenceContextValue = {
 };
 
 const STORAGE_KEY = 'theme.preference';
-const DEFAULT_THEME: ThemePreference = 'dark';
+const DEFAULT_THEME: ThemePreference = 'system';
 
 const ThemePreferenceContext = createContext<ThemePreferenceContextValue | undefined>(undefined);
 
