@@ -18,6 +18,8 @@ export function SettingsButtons({ style }: SettingsButtonsProps) {
     selectedTracks,
     onAudioTrackChange,
     onSubtitleTrackChange,
+    aspectRatio,
+    onAspectRatioChange,
     onRateChange,
     rate,
     setMenuOpen,
@@ -121,9 +123,8 @@ export function SettingsButtons({ style }: SettingsButtonsProps) {
         onOpenMenu={() => setMenuOpen(true)}
         onCloseMenu={() => setMenuOpen(false)}
         title="字幕选择"
-        actions={[
-          // 内置字幕选项
-          ...(subtitleTracks.length > 0
+        actions={
+          subtitleTracks.length > 0
             ? [
                 createMenuAction('subtitle_-1', '关闭字幕', selectedTracks?.subtitle?.index, -1),
                 ...subtitleTracks.map((track) =>
@@ -135,8 +136,8 @@ export function SettingsButtons({ style }: SettingsButtonsProps) {
                   ),
                 ),
               ]
-            : [{ id: 'no_subtitle', title: '无可用字幕', state: 'off' as const }]),
-        ]}
+            : [{ id: 'no_subtitle', title: '无可用字幕', state: 'off' as const }]
+        }
       >
         <TouchableOpacity style={styles.circleButton} disabled={subtitleTracks.length === 0}>
           <Ionicons
@@ -164,6 +165,31 @@ export function SettingsButtons({ style }: SettingsButtonsProps) {
       >
         <TouchableOpacity style={styles.circleButton}>
           <Ionicons name="speedometer-outline" size={24} color="white" />
+        </TouchableOpacity>
+      </MenuView>
+
+      <MenuView
+        isAnchoredToRight
+        onPressAction={({ nativeEvent }) => {
+          const key = nativeEvent.event;
+          if (key.startsWith('aspect_')) {
+            const mode = key.replace('aspect_', '');
+            onAspectRatioChange?.(mode);
+          }
+          setMenuOpen(false);
+        }}
+        onOpenMenu={() => setMenuOpen(true)}
+        onCloseMenu={() => setMenuOpen(false)}
+        title="画面比例"
+        actions={[
+          createMenuAction('aspect_fit', '自适应', aspectRatio, 'fit'),
+          createMenuAction('aspect_fill', '铺满屏幕', aspectRatio, 'fill'),
+          createMenuAction('aspect_16:9', '16:9', aspectRatio, '16:9'),
+          createMenuAction('aspect_4:3', '4:3', aspectRatio, '4:3'),
+        ]}
+      >
+        <TouchableOpacity style={styles.circleButton}>
+          <Ionicons name="resize-outline" size={24} color="white" />
         </TouchableOpacity>
       </MenuView>
 

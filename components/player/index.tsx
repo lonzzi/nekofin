@@ -44,7 +44,10 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   const [rate, setRate] = useState(1);
   const prevRateRef = useRef<number>(1);
 
-  // Track management (simplified for mpv - external subtitles only)
+  // Track management
+  const [selectedAudioTrack, setSelectedAudioTrack] = useState<number>(-1);
+  const [selectedSubtitleTrack, setSelectedSubtitleTrack] = useState<number>(-1);
+  const [aspectRatio, setAspectRatio] = useState<string>('fit');
 
   const enableTranscoding = storage.getBoolean('enableTranscoding') ?? false;
   const enableSubtitleBurnIn = storage.getBoolean('enableSubtitleBurnIn') ?? false;
@@ -155,12 +158,32 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     gcTime: 0,
   });
 
+  const tracks = useMemo(() => {
+    const mediaStreams = streamInfo?.mediaSource?.MediaStreams ?? [];
+    const audioTracks = mediaStreams
+      .filter((s) => s.Type === 'Audio')
+      .map((s) => ({
+        index: s.Index ?? 0,
+        name: s.DisplayTitle ?? s.Language ?? `Audio ${s.Index ?? 0}`,
+        language: s.Language ?? undefined,
+      }));
+    const subtitleTracks = mediaStreams
+      .filter((s) => s.Type === 'Subtitle')
+      .map((s) => ({
+        index: s.Index ?? 0,
+        name: s.DisplayTitle ?? s.Language ?? `Subtitle ${s.Index ?? 0}`,
+        language: s.Language ?? undefined,
+      }));
+    return { audio: audioTracks, subtitle: subtitleTracks };
+  }, [streamInfo?.mediaSource?.MediaStreams]);
+
   const externalSubtitles = useMemo(() => {
     return (
       streamInfo?.mediaSource?.MediaStreams?.filter(
         (sub) => sub.Type === 'Subtitle' && sub.DeliveryMethod === 'External',
       ).map((sub) => ({
-        name: sub.DisplayTitle ?? '',
+        index: sub.Index ?? 0,
+        name: sub.DisplayTitle ?? sub.Language ?? '',
         url: `${currentApi?.basePath}${sub.DeliveryUrl ?? ''}`,
       })) ?? []
     );
@@ -252,6 +275,23 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     })();
   }, [isPlaying]);
 
+  // Auto-load Jellyfin external subtitles when player is ready
+  useEffect(() => {
+    if (!isLoaded || externalSubtitles.length === 0) return;
+
+    const loadExternalSubtitles = async () => {
+      for (const sub of externalSubtitles) {
+        try {
+          await player.current?.addSubtitle(sub.url, 'auto', sub.name);
+        } catch (error) {
+          console.error(`Failed to load external subtitle: ${sub.name}`, error);
+        }
+      }
+    };
+
+    loadExternalSubtitles();
+  }, [isLoaded, externalSubtitles]);
+
   const handlePlayPause = useCallback(() => {
     player.current?.togglePlay();
   }, [player]);
@@ -274,24 +314,45 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
 
   const handleSeek = useCallback(
     (position: number) => {
-      const targetTime = position * duration;
-      const currentPosition = mediaInfo?.currentTime ?? 0;
-      const diff = targetTime - currentPosition;
-      player.current?.seekBy(diff / 1000);
-      danmakuLayer.current?.seek(targetTime);
+      const targetTimeMs = position * duration; // ms
+      const targetTimeSec = targetTimeMs / 1000; // seconds for mpv
+      player.current?.seekTo(targetTimeSec);
+      danmakuLayer.current?.seek(targetTimeMs);
       setIsBuffering(false);
     },
-    [duration, danmakuLayer, mediaInfo],
+    [duration, danmakuLayer],
   );
 
-  const handleAudioTrackChange = useCallback((_trackIndex: number) => {
-    // MPV handles audio tracks internally - external subtitles are supported
-    // Built-in track selection is handled by the player
+  const handleAudioTrackChange = useCallback((trackIndex: number) => {
+    setSelectedAudioTrack(trackIndex);
+    player.current?.setAudioTrack(trackIndex);
   }, []);
 
-  const handleSubtitleTrackChange = useCallback((_trackIndex: number) => {
-    // MPV handles subtitle tracks internally - external subtitles are supported
-    // Built-in track selection is handled by the player
+  const handleSubtitleTrackChange = useCallback((trackIndex: number) => {
+    setSelectedSubtitleTrack(trackIndex);
+    player.current?.setSubtitleTrack(trackIndex);
+  }, []);
+
+  const handleAspectRatioChange = useCallback((mode: string) => {
+    setAspectRatio(mode);
+    switch (mode) {
+      case 'fit':
+        player.current?.setPropertyString('panscan', '0');
+        player.current?.setPropertyString('video-aspect-override', '-1');
+        break;
+      case 'fill':
+        player.current?.setPropertyString('panscan', '1');
+        player.current?.setPropertyString('video-aspect-override', '-1');
+        break;
+      case '16:9':
+        player.current?.setPropertyString('panscan', '0');
+        player.current?.setPropertyString('video-aspect-override', '16:9');
+        break;
+      case '4:3':
+        player.current?.setPropertyString('panscan', '0');
+        player.current?.setPropertyString('video-aspect-override', '4:3');
+        break;
+    }
   }, []);
 
   const handlePreviousEpisode = useCallback(() => {
@@ -400,8 +461,15 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
         onPlayPause={handlePlayPause}
         onRateChange={handleRateChange}
         rate={rate}
+        tracks={tracks}
+        selectedTracks={{
+          audio: tracks?.audio?.find((t) => t.index === selectedAudioTrack),
+          subtitle: tracks?.subtitle?.find((t) => t.index === selectedSubtitleTrack),
+        }}
         onAudioTrackChange={handleAudioTrackChange}
         onSubtitleTrackChange={handleSubtitleTrackChange}
+        aspectRatio={aspectRatio}
+        onAspectRatioChange={handleAspectRatioChange}
         hasPreviousEpisode={hasPreviousEpisode}
         hasNextEpisode={hasNextEpisode}
         onPreviousEpisode={handlePreviousEpisode}

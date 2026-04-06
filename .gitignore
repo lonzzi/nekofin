@@ -52,3 +52,6 @@ modules/*/android/build
 
 #idea
 /.idea
+
+.yalc
+yalc.lock

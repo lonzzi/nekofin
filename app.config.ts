@@ -128,6 +128,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
       ],
       './plugins/withAndroidPip',
       ['./plugins/withDrawableAssets', './assets/drawables'],
+      'expo-mpv',
     ],
     experiments: {
       typedRoutes: true,
