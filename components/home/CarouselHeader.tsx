@@ -1,9 +1,11 @@
 import { ItemImage } from '@/components/ItemImage';
 import { ThemedText } from '@/components/ThemedText';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { MediaItem } from '@/services/media/types';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -119,9 +121,19 @@ export function CarouselHeader({
   const currentTitle = currentItem ? currentItem.seriesName || currentItem.name || '未知标题' : '';
   const currentLogoUrl = showLogo ? currentImageInfo?.logoImageUrl : undefined;
 
+  const colorScheme = useColorScheme();
+  const placeholderIconColor = colorScheme === 'dark' ? '#555' : '#bbb';
+
+  const hasImages = items.length > 0;
+
   return (
     <View style={{ height }}>
-      {items.length > 0 && (
+      {!hasImages && (
+        <View style={[StyleSheet.absoluteFill, styles.carouselPlaceholder]}>
+          <Ionicons name="film-outline" size={52} color={placeholderIconColor} />
+        </View>
+      )}
+      {hasImages && (
         <PagerView
           ref={pagerRef}
           style={styles.pagerView}
@@ -164,75 +176,82 @@ export function CarouselHeader({
         </PagerView>
       )}
 
-      {/* Bottom gradient scrim for text readability */}
-      <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.7)']}
-        style={styles.gradientScrim}
-        pointerEvents="none"
-      />
+      {/* Bottom gradient scrim + info overlay only when images loaded */}
+      {hasImages && (
+        <>
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.7)']}
+            style={styles.gradientScrim}
+            pointerEvents="none"
+          />
 
-      {/* Bottom info overlay */}
-      <View pointerEvents="none" style={styles.bottomOverlay}>
-        {currentItem && (
-          <View style={styles.cardInner}>
-            {currentLogoUrl ? (
-              <Image
-                source={{ uri: currentLogoUrl }}
-                style={styles.cardLogo}
-                contentFit="contain"
-              />
-            ) : (
-              <ThemedText style={styles.cardTitle} numberOfLines={1}>
-                {currentTitle}
-              </ThemedText>
+          <View pointerEvents="none" style={styles.bottomOverlay}>
+            {currentItem && (
+              <View style={styles.cardInner}>
+                {currentLogoUrl ? (
+                  <Image
+                    source={{ uri: currentLogoUrl }}
+                    style={styles.cardLogo}
+                    contentFit="contain"
+                  />
+                ) : (
+                  <ThemedText style={styles.cardTitle} numberOfLines={1}>
+                    {currentTitle}
+                  </ThemedText>
+                )}
+                <View style={styles.cardMetaRow}>
+                  {currentItem.type === 'Movie' && (
+                    <View style={styles.cardTag}>
+                      <ThemedText style={styles.cardTagText}>电影</ThemedText>
+                    </View>
+                  )}
+                  {currentItem.type === 'Series' && (
+                    <View style={styles.cardTag}>
+                      <ThemedText style={styles.cardTagText}>剧集</ThemedText>
+                    </View>
+                  )}
+                  {currentItem.productionYear && (
+                    <ThemedText style={styles.cardMeta}>{currentItem.productionYear}</ThemedText>
+                  )}
+                  {currentItem.communityRating != null && (
+                    <ThemedText style={styles.cardMeta}>
+                      ★ {currentItem.communityRating.toFixed(1)}
+                    </ThemedText>
+                  )}
+                  {currentItem.officialRating && (
+                    <View style={[styles.cardTag, styles.cardTagOutline]}>
+                      <ThemedText style={styles.cardTagText}>
+                        {currentItem.officialRating}
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
+              </View>
             )}
-            <View style={styles.cardMetaRow}>
-              {currentItem.type === 'Movie' && (
-                <View style={styles.cardTag}>
-                  <ThemedText style={styles.cardTagText}>电影</ThemedText>
-                </View>
-              )}
-              {currentItem.type === 'Series' && (
-                <View style={styles.cardTag}>
-                  <ThemedText style={styles.cardTagText}>剧集</ThemedText>
-                </View>
-              )}
-              {currentItem.productionYear && (
-                <ThemedText style={styles.cardMeta}>{currentItem.productionYear}</ThemedText>
-              )}
-              {currentItem.communityRating != null && (
-                <ThemedText style={styles.cardMeta}>
-                  ★ {currentItem.communityRating.toFixed(1)}
-                </ThemedText>
-              )}
-              {currentItem.officialRating && (
-                <View style={[styles.cardTag, styles.cardTagOutline]}>
-                  <ThemedText style={styles.cardTagText}>{currentItem.officialRating}</ThemedText>
-                </View>
-              )}
-            </View>
-          </View>
-        )}
 
-        {/* Dot indicators */}
-        {items.length > 1 && (
-          <View style={styles.dotsRow}>
-            {items.map((item, index) => (
-              <View
-                key={item.id ?? `${item.type}-${item.seriesId ?? index}`}
-                style={[
-                  styles.dot,
-                  index === carouselIndex && styles.dotActive,
-                  {
-                    backgroundColor:
-                      index === carouselIndex ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.35)',
-                  },
-                ]}
-              />
-            ))}
+            {/* Dot indicators */}
+            {items.length > 1 && (
+              <View style={styles.dotsRow}>
+                {items.map((item, index) => (
+                  <View
+                    key={item.id ?? `${item.type}-${item.seriesId ?? index}`}
+                    style={[
+                      styles.dot,
+                      index === carouselIndex && styles.dotActive,
+                      {
+                        backgroundColor:
+                          index === carouselIndex
+                            ? 'rgba(255,255,255,0.9)'
+                            : 'rgba(255,255,255,0.35)',
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
           </View>
-        )}
-      </View>
+        </>
+      )}
     </View>
   );
 }
