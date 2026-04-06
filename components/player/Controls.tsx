@@ -25,6 +25,8 @@ type ControlsProps = {
   selectedTracks?: MediaTrack;
   onAudioTrackChange?: (trackIndex: number) => void;
   onSubtitleTrackChange?: (trackIndex: number) => void;
+  aspectRatio?: string;
+  onAspectRatioChange?: (mode: string) => void;
   hasPreviousEpisode?: boolean;
   hasNextEpisode?: boolean;
   onPreviousEpisode?: () => void;
@@ -55,6 +57,8 @@ export function Controls({
   selectedTracks,
   onAudioTrackChange,
   onSubtitleTrackChange,
+  aspectRatio,
+  onAspectRatioChange,
   hasPreviousEpisode,
   hasNextEpisode,
   onPreviousEpisode,
@@ -155,6 +159,8 @@ export function Controls({
     selectedTracks,
     onAudioTrackChange,
     onSubtitleTrackChange,
+    aspectRatio,
+    onAspectRatioChange,
     hasPreviousEpisode,
     hasNextEpisode,
     onPreviousEpisode,

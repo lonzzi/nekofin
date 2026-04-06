@@ -1,6 +1,5 @@
 import { AvatarImage } from '@/components/AvatarImage';
 import { ItemImage } from '@/components/ItemImage';
-import { getSubtitle } from '@/components/media/Card';
 import { Section } from '@/components/media/Section';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
@@ -14,6 +13,7 @@ import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { MediaItem } from '@/services/media/types';
 import { MenuAction, MenuView } from '@react-native-menu/menu';
 import { useIsFocused } from '@react-navigation/native';
+import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import {
   useNavigation,
@@ -21,9 +21,8 @@ import {
   useRootNavigationState,
   useRouter,
 } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Easing,
   Platform,
   StyleSheet,
   TouchableOpacity,
@@ -31,9 +30,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { easeGradient } from 'react-native-easing-gradient';
-import { useSharedValue } from 'react-native-reanimated';
-import Carousel from 'react-native-reanimated-carousel';
+import PagerView from 'react-native-pager-view';
 
 export default function HomeScreen() {
   const { servers, currentServer, setCurrentServer, refreshServerInfo, isInitialized } =
@@ -50,30 +47,27 @@ export default function HomeScreen() {
     'background',
   );
 
+  const dotActiveColor = useThemeColor(
+    { light: 'rgba(0,0,0,0.9)', dark: 'rgba(255,255,255,0.9)' },
+    'text',
+  );
+
+  const dotInactiveColor = useThemeColor(
+    { light: 'rgba(0,0,0,0.25)', dark: 'rgba(255,255,255,0.25)' },
+    'text',
+  );
+
   const colorScheme = useColorScheme() ?? 'light';
+  const isDark = colorScheme === 'dark';
 
-  const gradientStartColor = colorScheme === 'light' ? 'rgba(252,255,255,0)' : 'rgba(0,0,0,0)';
-  const gradientEndColor = colorScheme === 'light' ? 'rgba(252,255,255,1)' : 'rgba(0,0,0,1)';
-
-  const { colors, locations } = easeGradient({
-    colorStops: {
-      0: { color: gradientStartColor },
-      1: { color: gradientEndColor },
-    },
-    easing: Easing.bezier(0.4, 0.0, 0.2, 1),
-    extraColorStopsPerTransition: 12,
-  });
-
-  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const { height: windowHeight } = useWindowDimensions();
   const carouselHeight = windowHeight * 0.7;
 
   const router = useRouter();
 
   const { sections, randomItemsQuery } = useHomeSections(currentServer);
   const [carouselIndex, setCarouselIndex] = useState(0);
-  const carouselScrollOffset = useSharedValue(0);
-  const carouselProgress = useSharedValue(0);
-  const carouselTextProgress = useSharedValue(0);
+  const pagerRef = useRef<PagerView>(null);
   const isFocused = useIsFocused();
 
   const carouselItems = useMemo(() => {
@@ -100,6 +94,26 @@ export default function HomeScreen() {
       };
     });
   }, [carouselItems, mediaAdapter]);
+
+  // Auto-play: advance to next page every 6.5s
+  useEffect(() => {
+    if (!isFocused || carouselItems.length <= 1) return;
+    const timer = setInterval(() => {
+      setCarouselIndex((prev) => {
+        const next = (prev + 1) % carouselItems.length;
+        pagerRef.current?.setPage(next);
+        return next;
+      });
+    }, 6500);
+    return () => clearInterval(timer);
+  }, [isFocused, carouselItems.length]);
+
+  // Reset index when items change
+  useEffect(() => {
+    if (carouselItems.length === 0) {
+      setCarouselIndex(0);
+    }
+  }, [carouselItems.length]);
 
   const handleServerSelect = useCallback(
     (serverId: string) => {
@@ -142,14 +156,6 @@ export default function HomeScreen() {
     },
     [servers, setCurrentServer, refreshServerInfo, navigationRef, rootNavigationState],
   );
-
-  useEffect(() => {
-    if (carouselItems.length === 0) {
-      setCarouselIndex(0);
-      carouselScrollOffset.value = 0;
-      return;
-    }
-  }, [carouselItems.length, carouselScrollOffset]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -231,80 +237,11 @@ export default function HomeScreen() {
     [router],
   );
 
-  const renderMainCarouselItem = useCallback(
-    ({ item, index }: { item: MediaItem; index: number }) => {
-      const imageInfo = carouselImageInfos[index];
-      const imageUrl = imageInfo?.imageUrl;
-
-      return (
-        <View style={[styles.carouselItemWrapper, { height: carouselHeight }]}>
-          <TouchableOpacity
-            activeOpacity={0.9}
-            style={styles.carouselCard}
-            onPress={() => handleCarouselItemPress(item)}
-          >
-            {imageUrl ? (
-              <ItemImage
-                uri={imageUrl}
-                style={[styles.carouselImage, { backgroundColor }]}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-                placeholderBlurhash={imageInfo.blurhash}
-              />
-            ) : (
-              <View
-                style={[
-                  styles.carouselImage,
-                  styles.carouselPlaceholder,
-                  { backgroundColor: carouselPlaceholderColor },
-                ]}
-              >
-                <IconSymbol name="video.fill" size={48} color="rgba(255,255,255,0.9)" />
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-      );
-    },
-    [
-      carouselImageInfos,
-      carouselHeight,
-      handleCarouselItemPress,
-      backgroundColor,
-      carouselPlaceholderColor,
-    ],
-  );
-
-  const renderTextCarouselItem = useCallback(
-    ({ item, index }: { item: MediaItem; index: number }) => {
-      const title = item.seriesName || item.name || '未知标题';
-      const subtitle = getSubtitle(item);
-      const imageInfo = carouselImageInfos[index];
-      const logoImageUrl = imageInfo?.logoImageUrl;
-
-      return (
-        <View style={styles.carouselTextContainer}>
-          {logoImageUrl ? (
-            <Image
-              source={{ uri: logoImageUrl }}
-              style={styles.carouselLogo}
-              contentFit="contain"
-            />
-          ) : (
-            <ThemedText style={styles.carouselTitle} numberOfLines={1}>
-              {title}
-            </ThemedText>
-          )}
-          {subtitle ? (
-            <ThemedText style={styles.carouselSubtitle} numberOfLines={1}>
-              {subtitle}
-            </ThemedText>
-          ) : null}
-        </View>
-      );
-    },
-    [carouselImageInfos],
-  );
+  // Current item info for text overlay
+  const currentItem = carouselItems[carouselIndex];
+  const currentImageInfo = carouselImageInfos[carouselIndex];
+  const currentTitle = currentItem ? currentItem.seriesName || currentItem.name || '未知标题' : '';
+  const currentLogoUrl = currentImageInfo?.logoImageUrl;
 
   if (servers.length === 0 && isInitialized) {
     return (
@@ -326,134 +263,205 @@ export default function HomeScreen() {
       contentInset={{ top: -100 }}
       style={{ flex: 1, backgroundColor }}
       headerHeight={carouselHeight}
-      enableMaskView
-      gradientColors={colors as unknown as [string, string]}
-      gradientLocations={locations as unknown as [number, number]}
       contentStyle={{ gap: 2, backgroundColor }}
       headerImage={
-        <View>
+        <View style={{ height: carouselHeight }}>
           {carouselItems.length > 0 && (
-            <Carousel
-              width={windowWidth}
-              height={carouselHeight}
-              data={carouselItems}
-              defaultScrollOffsetValue={carouselScrollOffset}
-              loop={carouselItems.length > 1}
-              autoPlay={isFocused && carouselItems.length > 1}
-              autoPlayInterval={6500}
-              scrollAnimationDuration={900}
-              pagingEnabled
-              onSnapToItem={(index) => setCarouselIndex(index)}
-              onConfigurePanGesture={(panGesture) => {
-                return panGesture.activeOffsetX([-5, 5]).failOffsetY([-20, 20]);
-              }}
-              onProgressChange={carouselProgress}
-              renderItem={renderMainCarouselItem}
-            />
+            <PagerView
+              ref={pagerRef}
+              style={styles.pagerView}
+              initialPage={0}
+              overdrag
+              onPageSelected={(e) => setCarouselIndex(e.nativeEvent.position)}
+            >
+              {carouselItems.map((item, index) => {
+                const imageInfo = carouselImageInfos[index];
+                return (
+                  <View
+                    key={item.id ?? `${item.type}-${item.seriesId ?? index}`}
+                    collapsable={false}
+                  >
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      style={styles.carouselCard}
+                      onPress={() => handleCarouselItemPress(item)}
+                    >
+                      {imageInfo?.imageUrl ? (
+                        <ItemImage
+                          uri={imageInfo.imageUrl}
+                          style={[styles.carouselImage, { backgroundColor }]}
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
+                          placeholderBlurhash={imageInfo.blurhash}
+                        />
+                      ) : (
+                        <View
+                          style={[
+                            styles.carouselImage,
+                            styles.carouselPlaceholder,
+                            { backgroundColor: carouselPlaceholderColor },
+                          ]}
+                        >
+                          <IconSymbol name="video.fill" size={48} color="rgba(255,255,255,0.9)" />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </PagerView>
+          )}
+
+          {/* Info floating card */}
+          {currentItem && (
+            <View pointerEvents="none" style={styles.infoCard}>
+              <BlurView
+                intensity={60}
+                tint={isDark ? 'systemChromeMaterialDark' : 'systemChromeMaterialLight'}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={styles.cardInner}>
+                {currentLogoUrl ? (
+                  <Image
+                    source={{ uri: currentLogoUrl }}
+                    style={styles.cardLogo}
+                    contentFit="contain"
+                  />
+                ) : (
+                  <ThemedText style={styles.cardTitle} numberOfLines={1}>
+                    {currentTitle}
+                  </ThemedText>
+                )}
+                <View style={styles.cardMetaRow}>
+                  {currentItem.type === 'Movie' && (
+                    <View
+                      style={[
+                        styles.cardTag,
+                        { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' },
+                      ]}
+                    >
+                      <ThemedText style={styles.cardTagText}>电影</ThemedText>
+                    </View>
+                  )}
+                  {currentItem.type === 'Series' && (
+                    <View
+                      style={[
+                        styles.cardTag,
+                        { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' },
+                      ]}
+                    >
+                      <ThemedText style={styles.cardTagText}>剧集</ThemedText>
+                    </View>
+                  )}
+                  {currentItem.productionYear && (
+                    <ThemedText style={styles.cardMeta}>{currentItem.productionYear}</ThemedText>
+                  )}
+                  {currentItem.communityRating != null && (
+                    <ThemedText style={styles.cardMeta}>
+                      ★ {currentItem.communityRating.toFixed(1)}
+                    </ThemedText>
+                  )}
+                  {currentItem.officialRating && (
+                    <View
+                      style={[
+                        styles.cardTag,
+                        {
+                          borderWidth: 1,
+                          borderColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)',
+                        },
+                      ]}
+                    >
+                      <ThemedText style={styles.cardTagText}>
+                        {currentItem.officialRating}
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Dot indicators */}
+          {carouselItems.length > 1 && (
+            <View pointerEvents="none" style={styles.dotsOverlay}>
+              {carouselItems.map((item, index) => (
+                <View
+                  key={item.id ?? `${item.type}-${item.seriesId ?? index}`}
+                  style={[
+                    styles.dot,
+                    index === carouselIndex && styles.dotActive,
+                    {
+                      backgroundColor: index === carouselIndex ? dotActiveColor : dotInactiveColor,
+                    },
+                  ]}
+                />
+              ))}
+            </View>
           )}
         </View>
       }
     >
-      <View>
-        {carouselItems.length > 0 && (
-          <Carousel
-            width={windowWidth}
-            height={120}
-            data={carouselItems}
-            defaultScrollOffsetValue={carouselScrollOffset}
-            loop={carouselItems.length > 1}
-            autoPlay={false}
-            scrollAnimationDuration={900}
-            pagingEnabled
-            onConfigurePanGesture={(panGesture) => {
-              return panGesture.activeOffsetX([-10, 10]);
-            }}
-            onProgressChange={carouselTextProgress}
-            style={styles.carouselContainer}
-            renderItem={renderTextCarouselItem}
-          />
-        )}
-        {carouselItems.length > 1 && (
-          <View style={styles.carouselIndicatorsContainer} pointerEvents="none">
-            <View style={styles.carouselIndicators}>
-              {carouselItems.map((item, index) => (
-                <ThemedView
-                  key={item.id ?? `${item.type}-${item.seriesId ?? index}`}
-                  style={[
-                    styles.carouselIndicatorDot,
-                    index === carouselIndex && styles.carouselIndicatorDotActive,
-                  ]}
-                  lightColor={index === carouselIndex ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.25)'}
-                  darkColor={
-                    index === carouselIndex ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.25)'
-                  }
-                />
-              ))}
-            </View>
-          </View>
-        )}
-        <View style={{ gap: 24, marginTop: 24 }}>
-          {sections.map((section) => {
-            if (section.type === 'resume') {
-              if (!section.isLoading && section.items.length === 0) return null;
-              return (
-                <Section
-                  key={section.key}
-                  title={section.title}
-                  onViewAll={() => router.push('/view-all/resume')}
-                  items={section.items}
-                  isLoading={section.isLoading}
-                />
-              );
-            }
-            if (section.type === 'nextup') {
-              if (!section.isLoading && section.items.length === 0) return null;
-              return (
-                <Section
-                  key={section.key}
-                  title={section.title}
-                  onViewAll={() => router.push('/view-all/nextup')}
-                  items={section.items}
-                  isLoading={section.isLoading}
-                />
-              );
-            }
-            if (section.type === 'userview') {
-              return (
-                <UserViewSection
-                  key={section.key}
-                  title={section.title}
-                  userView={section.items}
-                  isLoading={section.isLoading}
-                />
-              );
-            }
-            if (section.type === 'latest') {
-              if (!section.isLoading && section.items.length === 0) return null;
-              const folderId = section.key.replace('latest_', '');
-              return (
-                <Section
-                  key={section.key}
-                  title={section.title}
-                  onViewAll={() =>
-                    router.push({
-                      pathname: '/view-all/[type]',
-                      params: {
-                        folderId,
-                        folderName: section.title.replace('最近添加的 ', ''),
-                        type: 'latest',
-                      },
-                    })
-                  }
-                  items={section.items}
-                  isLoading={section.isLoading}
-                  type="series"
-                />
-              );
-            }
-            return null;
-          })}
-        </View>
+      <View style={{ gap: 24, marginTop: 24 }}>
+        {sections.map((section) => {
+          if (section.type === 'resume') {
+            if (!section.isLoading && section.items.length === 0) return null;
+            return (
+              <Section
+                key={section.key}
+                title={section.title}
+                onViewAll={() => router.push('/view-all/resume')}
+                items={section.items}
+                isLoading={section.isLoading}
+              />
+            );
+          }
+          if (section.type === 'nextup') {
+            if (!section.isLoading && section.items.length === 0) return null;
+            return (
+              <Section
+                key={section.key}
+                title={section.title}
+                onViewAll={() => router.push('/view-all/nextup')}
+                items={section.items}
+                isLoading={section.isLoading}
+              />
+            );
+          }
+          if (section.type === 'userview') {
+            return (
+              <UserViewSection
+                key={section.key}
+                title={section.title}
+                userView={section.items}
+                isLoading={section.isLoading}
+              />
+            );
+          }
+          if (section.type === 'latest') {
+            if (!section.isLoading && section.items.length === 0) return null;
+            const folderId = section.key.replace('latest_', '');
+            return (
+              <Section
+                key={section.key}
+                title={section.title}
+                onViewAll={() =>
+                  router.push({
+                    pathname: '/view-all/[type]',
+                    params: {
+                      folderId,
+                      folderName: section.title.replace('最近添加的 ', ''),
+                      type: 'latest',
+                    },
+                  })
+                }
+                items={section.items}
+                isLoading={section.isLoading}
+                type="series"
+              />
+            );
+          }
+          return null;
+        })}
       </View>
     </ParallaxScrollView>
   );
@@ -464,14 +472,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  carouselContainer: {
-    position: 'absolute',
-    bottom: 0,
-    justifyContent: 'center',
-  },
-  carouselItemWrapper: {
+  pagerView: {
     flex: 1,
-    width: '100%',
   },
   carouselCard: {
     flex: 1,
@@ -486,50 +488,65 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  carouselTextContainer: {
+  infoCard: {
     position: 'absolute',
-    left: 20,
-    right: 20,
-    gap: 6,
+    bottom: 44,
+    left: 16,
+    right: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
     zIndex: 2,
-    textAlign: 'center',
   },
-  carouselTitle: {
-    fontSize: 24,
+  cardInner: {
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  cardTitle: {
+    fontSize: 20,
     fontWeight: '700',
-    textAlign: 'center',
+    letterSpacing: -0.3,
   },
-  carouselSubtitle: {
-    fontSize: 15,
-    textAlign: 'center',
+  cardLogo: {
+    height: 40,
+    width: '60%',
+    alignSelf: 'flex-start',
   },
-  carouselLogo: {
-    height: 60,
+  cardMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
   },
-  carouselIndicators: {
+  cardMeta: {
+    fontSize: 13,
+    opacity: 0.7,
+  },
+  cardTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  cardTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  dotsOverlay: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 16,
     left: 0,
     right: 0,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 6,
   },
-  carouselIndicatorsContainer: {
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  carouselIndicatorDot: {
+  dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
   },
-  carouselIndicatorDotActive: {
+  dotActive: {
     width: 16,
   },
   serverButton: {

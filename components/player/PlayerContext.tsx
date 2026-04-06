@@ -58,6 +58,8 @@ export type PlayerContextValue = {
   selectedTracks?: MediaTrack;
   onAudioTrackChange?: (trackIndex: number) => void;
   onSubtitleTrackChange?: (trackIndex: number) => void;
+  aspectRatio?: string;
+  onAspectRatioChange?: (mode: string) => void;
   hasPreviousEpisode?: boolean;
   hasNextEpisode?: boolean;
   onPreviousEpisode?: () => void;
