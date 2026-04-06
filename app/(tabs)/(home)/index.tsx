@@ -12,8 +12,8 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { MediaItem } from '@/services/media/types';
 import { MenuAction, MenuView } from '@react-native-menu/menu';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { useIsFocused } from '@react-navigation/native';
-import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import {
   useNavigation,
@@ -22,14 +22,7 @@ import {
   useRouter,
 } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Platform,
-  StyleSheet,
-  TouchableOpacity,
-  useColorScheme,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { Platform, StyleSheet, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import PagerView from 'react-native-pager-view';
 
 export default function HomeScreen() {
@@ -47,21 +40,9 @@ export default function HomeScreen() {
     'background',
   );
 
-  const dotActiveColor = useThemeColor(
-    { light: 'rgba(0,0,0,0.9)', dark: 'rgba(255,255,255,0.9)' },
-    'text',
-  );
-
-  const dotInactiveColor = useThemeColor(
-    { light: 'rgba(0,0,0,0.25)', dark: 'rgba(255,255,255,0.25)' },
-    'text',
-  );
-
-  const colorScheme = useColorScheme() ?? 'light';
-  const isDark = colorScheme === 'dark';
-
+  const headerHeight = useHeaderHeight();
   const { height: windowHeight } = useWindowDimensions();
-  const carouselHeight = windowHeight * 0.7;
+  const carouselHeight = windowHeight * 0.6;
 
   const router = useRouter();
 
@@ -260,7 +241,7 @@ export default function HomeScreen() {
     <ParallaxScrollView
       showsVerticalScrollIndicator={false}
       contentInsetAdjustmentBehavior="automatic"
-      contentInset={{ top: -100 }}
+      contentInset={{ top: -headerHeight }}
       style={{ flex: 1, backgroundColor }}
       headerHeight={carouselHeight}
       contentStyle={{ gap: 2, backgroundColor }}
@@ -312,14 +293,9 @@ export default function HomeScreen() {
             </PagerView>
           )}
 
-          {/* Info floating card */}
-          {currentItem && (
-            <View pointerEvents="none" style={styles.infoCard}>
-              <BlurView
-                intensity={60}
-                tint={isDark ? 'systemChromeMaterialDark' : 'systemChromeMaterialLight'}
-                style={StyleSheet.absoluteFill}
-              />
+          {/* Bottom info overlay */}
+          <View pointerEvents="none" style={styles.bottomOverlay}>
+            {currentItem && (
               <View style={styles.cardInner}>
                 {currentLogoUrl ? (
                   <Image
@@ -334,22 +310,12 @@ export default function HomeScreen() {
                 )}
                 <View style={styles.cardMetaRow}>
                   {currentItem.type === 'Movie' && (
-                    <View
-                      style={[
-                        styles.cardTag,
-                        { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' },
-                      ]}
-                    >
+                    <View style={[styles.cardTag, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
                       <ThemedText style={styles.cardTagText}>电影</ThemedText>
                     </View>
                   )}
                   {currentItem.type === 'Series' && (
-                    <View
-                      style={[
-                        styles.cardTag,
-                        { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' },
-                      ]}
-                    >
+                    <View style={[styles.cardTag, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
                       <ThemedText style={styles.cardTagText}>剧集</ThemedText>
                     </View>
                   )}
@@ -365,10 +331,7 @@ export default function HomeScreen() {
                     <View
                       style={[
                         styles.cardTag,
-                        {
-                          borderWidth: 1,
-                          borderColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)',
-                        },
+                        { borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
                       ]}
                     >
                       <ThemedText style={styles.cardTagText}>
@@ -378,26 +341,29 @@ export default function HomeScreen() {
                   )}
                 </View>
               </View>
-            </View>
-          )}
+            )}
 
-          {/* Dot indicators */}
-          {carouselItems.length > 1 && (
-            <View pointerEvents="none" style={styles.dotsOverlay}>
-              {carouselItems.map((item, index) => (
-                <View
-                  key={item.id ?? `${item.type}-${item.seriesId ?? index}`}
-                  style={[
-                    styles.dot,
-                    index === carouselIndex && styles.dotActive,
-                    {
-                      backgroundColor: index === carouselIndex ? dotActiveColor : dotInactiveColor,
-                    },
-                  ]}
-                />
-              ))}
-            </View>
-          )}
+            {/* Dot indicators */}
+            {carouselItems.length > 1 && (
+              <View style={styles.dotsRow}>
+                {carouselItems.map((item, index) => (
+                  <View
+                    key={item.id ?? `${item.type}-${item.seriesId ?? index}`}
+                    style={[
+                      styles.dot,
+                      index === carouselIndex && styles.dotActive,
+                      {
+                        backgroundColor:
+                          index === carouselIndex
+                            ? 'rgba(255,255,255,0.9)'
+                            : 'rgba(255,255,255,0.35)',
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
         </View>
       }
     >
@@ -488,24 +454,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  infoCard: {
+  bottomOverlay: {
     position: 'absolute',
-    bottom: 44,
-    left: 16,
-    right: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-    zIndex: 2,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingBottom: 16,
+    paddingHorizontal: 18,
+    justifyContent: 'flex-end',
   },
   cardInner: {
-    paddingHorizontal: 18,
-    paddingVertical: 14,
     gap: 8,
   },
   cardTitle: {
     fontSize: 20,
     fontWeight: '700',
     letterSpacing: -0.3,
+    color: '#fff',
   },
   cardLogo: {
     height: 40,
@@ -520,7 +485,7 @@ const styles = StyleSheet.create({
   },
   cardMeta: {
     fontSize: 13,
-    opacity: 0.7,
+    color: 'rgba(255,255,255,0.7)',
   },
   cardTag: {
     paddingHorizontal: 8,
@@ -530,16 +495,14 @@ const styles = StyleSheet.create({
   cardTagText: {
     fontSize: 12,
     fontWeight: '600',
+    color: '#fff',
   },
-  dotsOverlay: {
-    position: 'absolute',
-    bottom: 16,
-    left: 0,
-    right: 0,
+  dotsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 6,
+    marginTop: 12,
   },
   dot: {
     width: 8,

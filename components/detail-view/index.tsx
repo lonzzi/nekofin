@@ -39,7 +39,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const { data: bundle, isLoading, refetch } = query;
 
   const { height: windowHeight } = useWindowDimensions();
-  const headerHeight = windowHeight * 0.7;
+  const headerHeight = windowHeight * 0.6;
 
   const mediaAdapter = useMediaAdapter();
 
@@ -192,7 +192,6 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
 
   return (
     <ParallaxScrollView
-      enableMaskView
       headerHeight={headerHeight}
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}

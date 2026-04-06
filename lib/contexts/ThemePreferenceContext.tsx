@@ -1,5 +1,5 @@
 import { storage } from '@/lib/storage';
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { Appearance } from 'react-native';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
@@ -18,13 +18,12 @@ function applyTheme(preference: ThemePreference) {
   Appearance.setColorScheme(preference === 'system' ? 'unspecified' : preference);
 }
 
-export function ThemePreferenceProvider({ children }: { children: React.ReactNode }) {
-  const initialPreference = (storage.getString(STORAGE_KEY) as ThemePreference) || DEFAULT_THEME;
-  const [themePreference, setThemePreferenceState] = useState<ThemePreference>(initialPreference);
+// Apply theme synchronously at module load time, before any component renders
+const storedPreference = (storage.getString(STORAGE_KEY) as ThemePreference) || DEFAULT_THEME;
+applyTheme(storedPreference);
 
-  useEffect(() => {
-    applyTheme(initialPreference);
-  }, [initialPreference]);
+export function ThemePreferenceProvider({ children }: { children: React.ReactNode }) {
+  const [themePreference, setThemePreferenceState] = useState<ThemePreference>(storedPreference);
 
   const setThemePreference = useCallback((preference: ThemePreference) => {
     setThemePreferenceState(preference);

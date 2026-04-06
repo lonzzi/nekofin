@@ -165,7 +165,7 @@ export function SkeletonItemGrid({
 
 export function SkeletonDetailHeader() {
   const { height: windowHeight } = useWindowDimensions();
-  const headerHeight = windowHeight * 0.7;
+  const headerHeight = windowHeight * 0.6;
 
   return <View style={[styles.detailHeader, { height: headerHeight }]} />;
 }
@@ -348,13 +348,11 @@ const styles = StyleSheet.create({
     height: 520,
   },
   detailContent: {
-    top: -160,
+    top: -140,
     padding: 20,
     gap: 8,
   },
-  detailLogo: {
-    top: -20,
-  },
+  detailLogo: {},
   detailTitle: {
     marginTop: 8,
   },

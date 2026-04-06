@@ -228,13 +228,12 @@ export const detailViewStyles = StyleSheet.create({
     backgroundColor: '#eee',
   },
   content: {
-    top: -160,
+    top: -140,
     padding: 20,
     gap: 8,
-    marginBottom: -160,
+    marginBottom: -60,
   },
   logo: {
-    top: -20,
     width: '100%',
     height: 120,
   },

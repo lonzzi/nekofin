@@ -87,7 +87,7 @@ export default function RootLayout() {
                       <Stack.Screen name="player" options={{ headerShown: false }} />
                       <Stack.Screen name="+not-found" />
                     </Stack>
-                    <StatusBar style="auto" />
+                    <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
                   </ThemeProvider>
                 </BottomSheetModalProvider>
               </ThemeColorProvider>
