@@ -109,7 +109,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
         {
           ios: {
             reactNativeReleaseLevel: 'experimental',
-            deploymentTarget: '16.0',
+            deploymentTarget: '16.4',
           },
           android: {
             reactNativeReleaseLevel: 'stable',
@@ -126,6 +126,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
           abiFilters: ['arm64-v8a'],
         },
       ],
+      './plugins/withGradleJvmArgs',
       './plugins/withAndroidPip',
       ['./plugins/withDrawableAssets', './assets/drawables'],
       'expo-mpv',

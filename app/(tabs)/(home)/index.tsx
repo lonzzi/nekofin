@@ -10,14 +10,13 @@ import { useHomeSections } from '@/hooks/useHomeSections';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { MenuAction, MenuView } from '@react-native-menu/menu';
-import { useHeaderHeight } from '@react-navigation/elements';
-import { useIsFocused } from '@react-navigation/native';
 import {
   useNavigation,
   useNavigationContainerRef,
   useRootNavigationState,
   useRouter,
 } from 'expo-router';
+import { useHeaderHeight, useIsFocused } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Platform, StyleSheet, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 

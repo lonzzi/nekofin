@@ -5,10 +5,10 @@ import useRefresh from '@/hooks/useRefresh';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { HeaderButton } from '@react-navigation/elements';
 import { UseQueryResult } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { useNavigation } from 'expo-router';
+import { HeaderButton } from 'expo-router/react-navigation';
 import { useEffect, useState } from 'react';
 import { RefreshControl, Text, useWindowDimensions, View } from 'react-native';
 

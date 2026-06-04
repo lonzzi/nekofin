@@ -2,14 +2,14 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { BlurView } from 'expo-blur';
 import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
 import { Slider } from 'react-native-awesome-slider';
-import Animated, { SharedValue } from 'react-native-reanimated';
+import Animated, { AnimatedStyle, SharedValue } from 'react-native-reanimated';
 
 type VerticalSliderProps = {
   iconName: keyof typeof Ionicons.glyphMap;
   progress: SharedValue<number>;
   minimumValue: SharedValue<number>;
   maximumValue: SharedValue<number>;
-  style?: StyleProp<ViewStyle>;
+  style?: StyleProp<ViewStyle | AnimatedStyle<ViewStyle>>;
 };
 
 export function VerticalSlider({

@@ -1,7 +1,7 @@
 import MaskedView from '@react-native-masked-view/masked-view';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useBottomTabBarHeight } from 'expo-router/js-tabs';
 import { StyleSheet, View } from 'react-native';
 import { easeGradient } from 'react-native-easing-gradient';
 

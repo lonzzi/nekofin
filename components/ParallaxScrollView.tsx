@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   headerOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   content: {
     flex: 1,
