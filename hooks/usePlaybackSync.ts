@@ -1,5 +1,5 @@
 import { MediaItem, MediaServerInfo } from '@/services/media/types';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { SharedValue } from 'react-native-reanimated';
 
 import { useMediaAdapter } from './useMediaAdapter';
@@ -18,12 +18,25 @@ export const usePlaybackSync = ({
   playSessionId,
 }: UsePlaybackSyncProps) => {
   const mediaAdapter = useMediaAdapter();
+  const lastProgressReportRef = useRef<{ position: number; ts: number } | null>(null);
 
   const syncPlaybackProgress = useCallback(
-    (position: number, isPaused: boolean = false) => {
+    (positionMs: number, isPaused: boolean = false, options?: { force?: boolean }) => {
       if (!currentServer || !itemDetail || !playSessionId) return;
 
-      const positionTicks = Math.round(position);
+      const now = Date.now();
+      const lastReport = lastProgressReportRef.current;
+      const shouldReport =
+        options?.force ||
+        isPaused ||
+        !lastReport ||
+        now - lastReport.ts >= 5000 ||
+        Math.abs(positionMs - lastReport.position) >= 15000;
+
+      if (!shouldReport) return;
+
+      const positionTicks = Math.round(positionMs);
+      lastProgressReportRef.current = { position: positionMs, ts: now };
       mediaAdapter.reportPlaybackProgress({
         itemId: itemDetail.id!,
         positionTicks,
@@ -35,10 +48,11 @@ export const usePlaybackSync = ({
   );
 
   const syncPlaybackStart = useCallback(
-    (position: number) => {
+    (positionMs: number) => {
       if (!currentServer || !itemDetail || !playSessionId) return;
 
-      const positionTicks = Math.round(position);
+      const positionTicks = Math.round(positionMs);
+      lastProgressReportRef.current = { position: positionMs, ts: Date.now() };
       mediaAdapter.reportPlaybackStart({
         itemId: itemDetail.id!,
         positionTicks,
@@ -49,10 +63,11 @@ export const usePlaybackSync = ({
   );
 
   const syncPlaybackStop = useCallback(
-    (position: number) => {
+    (positionMs: number) => {
       if (!currentServer || !itemDetail || !playSessionId) return;
 
-      const positionTicks = Math.round(position);
+      lastProgressReportRef.current = { position: positionMs, ts: Date.now() };
+      const positionTicks = Math.round(positionMs);
       mediaAdapter.reportPlaybackStop({
         itemId: itemDetail.id!,
         positionTicks,
@@ -65,8 +80,7 @@ export const usePlaybackSync = ({
   useEffect(() => {
     return () => {
       if (currentServer && itemDetail && playSessionId) {
-        const positionTicks = Math.round(currentTime.value);
-        syncPlaybackStop(positionTicks);
+        syncPlaybackStop(currentTime.value);
       }
     };
   }, [mediaAdapter, currentServer, itemDetail, playSessionId, syncPlaybackStop, currentTime]);

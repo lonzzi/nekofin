@@ -5,35 +5,11 @@ import { DeviceProfile } from '@jellyfin/sdk/lib/generated-client/models/device-
 
 import {
   addFavoriteItem,
-  authenticateAndSaveServer,
-  createApi,
-  createApiFromServerInfo,
-  findBestServer,
-  getAllItemsByFolder,
-  getApiInstance,
-  getAvailableFilters,
-  getEpisodesBySeason,
-  getFavoriteItems,
-  getFavoriteItemsPaged,
   getItemDetail,
   getItemMediaSources,
-  getJellyfinInstance,
-  getLatestItems,
-  getLatestItemsByFolder,
-  getNextUpItems,
-  getNextUpItemsByFolder,
   getPublicUsers,
-  getRandomItems,
-  getRecommendedSearchKeywords,
-  getResumeItems,
-  getSeasonsBySeries,
-  getSimilarMovies,
-  getSimilarShows,
-  getStreamInfo,
   getSystemInfo,
   getUserInfo,
-  getUserView,
-  login as jfLogin,
   logout,
   markItemPlayed,
   markItemUnplayed,
@@ -41,8 +17,6 @@ import {
   reportPlaybackProgress,
   reportPlaybackStart,
   reportPlaybackStop,
-  searchItems,
-  setGlobalApiInstance,
 } from '.';
 import {
   GetRandomItemsParams,
@@ -76,6 +50,7 @@ import {
   type MarkItemPlayedParams,
   type MediaItem,
   type MediaItemType,
+  type MediaPage,
   type MediaSortBy,
   type ReportPlaybackProgressParams,
   type ReportPlaybackStartParams,
@@ -83,51 +58,43 @@ import {
   type SearchItemsParams,
   type UpdateFavoriteItemParams,
 } from '../types';
+import {
+  authenticateAndSaveServer,
+  createApi,
+  createApiFromServerInfo,
+  findBestServer,
+  getJellyfinInstance,
+  login as jfLogin,
+} from './client';
+import {
+  getAllItemsByFolder,
+  getAvailableFilters,
+  getEpisodesBySeason,
+  getFavoriteItems,
+  getFavoriteItemsPaged,
+  getLatestItems,
+  getLatestItemsByFolder,
+  getNextUpItems,
+  getNextUpItemsByFolder,
+  getRandomItems,
+  getRecommendedSearchKeywords,
+  getResumeItems,
+  getSeasonsBySeries,
+  getSimilarMovies,
+  getSimilarShows,
+  getUserView,
+  searchItems,
+} from './items';
+import {
+  convertBaseItemDtoToMediaItem,
+  parseJellyfinItemArrayResponse,
+  parseJellyfinItemsPage,
+  parseJellyfinItemsResponse,
+} from './mappers';
+import { mapJellyfinPlaybackInfo } from './playback';
+import { getStreamInfo } from './stream';
 
-export function convertBaseItemDtoToMediaItem(item: BaseItemDto): MediaItem {
-  return {
-    id: item.Id || '',
-    name: item.Name || '',
-    type: (item.Type as MediaItemType) || 'Other',
-    raw: item,
-    seriesName: item.SeriesName,
-    seriesId: item.SeriesId,
-    parentId: item.ParentId,
-    indexNumber: item.IndexNumber,
-    parentIndexNumber: item.ParentIndexNumber,
-    productionYear: item.ProductionYear,
-    endDate: item.EndDate,
-    status: item.Status as 'Continuing' | 'Ended' | undefined,
-    overview: item.Overview,
-    communityRating: item.CommunityRating,
-    criticRating: item.CriticRating,
-    officialRating: item.OfficialRating,
-    genres: item.Genres,
-    genreItems: item.GenreItems?.map((g) => ({ name: g.Name || '' })),
-    people: item.People?.map((p) => ({
-      name: p.Name || '',
-      id: p.Id || '',
-      type: (p.Type as 'Actor' | 'Director' | 'Writer' | 'Producer') || 'Actor',
-      role: p.Role,
-      primaryImageTag: p.PrimaryImageTag,
-      imageBlurHashes: p.ImageBlurHashes,
-      raw: p,
-    })),
-    studios: item.Studios?.map((s) => ({ name: s.Name || '' })),
-    userData: item.UserData
-      ? {
-          played: item.UserData.Played,
-          playedPercentage: item.UserData.PlayedPercentage,
-          isFavorite: item.UserData.IsFavorite,
-          playbackPositionTicks: item.UserData.PlaybackPositionTicks,
-        }
-      : undefined,
-    runTimeTicks: item.RunTimeTicks,
-    originalTitle: item.OriginalTitle,
-    seasonId: item.SeasonId,
-    collectionType: item.CollectionType,
-  };
-}
+export { convertBaseItemDtoToMediaItem } from './mappers';
 
 function convertSortByToJellyfin(sortBy: MediaSortBy[]): ItemSortBy[] {
   return sortBy.map((sb) => sb as ItemSortBy);
@@ -140,15 +107,12 @@ function convertItemTypesToJellyfin(itemTypes: MediaItemType[]): BaseItemKind[] 
 export class JellyfinAdapter implements MediaAdapter {
   _api: Api | null = null;
 
-  getApiInstance = getApiInstance;
-  setGlobalApiInstance = setGlobalApiInstance;
-
   setApi(api: Api | null): void {
     this._api = api;
   }
 
   getApi(): Api | null {
-    return this._api || this.getApiInstance();
+    return this._api;
   }
 
   async discoverServers({ host }: DiscoverServersParams) {
@@ -162,14 +126,18 @@ export class JellyfinAdapter implements MediaAdapter {
   }
 
   createApi({ address }: CreateApiParams) {
-    return createApi(address);
+    const api = createApi(address);
+    this.setApi(api);
+    return api;
   }
   createApiFromServerInfo({ serverInfo }: CreateApiFromServerInfoParams): Api {
-    return createApiFromServerInfo(serverInfo);
+    const api = createApiFromServerInfo(serverInfo);
+    this.setApi(api);
+    return api;
   }
 
   async getSystemInfo() {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getSystemInfo(api);
     return {
@@ -180,7 +148,7 @@ export class JellyfinAdapter implements MediaAdapter {
   }
 
   async getPublicUsers() {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getPublicUsers(api);
     return (
@@ -196,7 +164,7 @@ export class JellyfinAdapter implements MediaAdapter {
   }
 
   login({ username, password }: LoginParams) {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     return jfLogin(api, username, password);
   }
@@ -210,8 +178,8 @@ export class JellyfinAdapter implements MediaAdapter {
     );
   }
 
-  async getLatestItems(params: GetLatestItemsParams) {
-    const api = getApiInstance();
+  async getLatestItems(params: GetLatestItemsParams): Promise<MediaPage<MediaItem>> {
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getLatestItems(api, params.userId, params.limit, {
       includeItemTypes: params?.includeItemTypes
@@ -222,69 +190,50 @@ export class JellyfinAdapter implements MediaAdapter {
       year: params?.year,
       tags: params?.tags,
     });
-    return {
-      data: {
-        Items: result.data?.Items?.map(convertBaseItemDtoToMediaItem),
-      },
-    };
+    return parseJellyfinItemsPage(result);
   }
 
-  async getLatestItemsByFolder({ userId, folderId, limit }: GetLatestItemsByFolderParams) {
-    const api = getApiInstance();
+  async getLatestItemsByFolder({
+    userId,
+    folderId,
+    limit,
+  }: GetLatestItemsByFolderParams): Promise<MediaPage<MediaItem>> {
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getLatestItemsByFolder(api, userId, folderId, limit);
-    return {
-      data: {
-        Items: result.data?.map(convertBaseItemDtoToMediaItem),
-      },
-    };
+    return parseJellyfinItemArrayResponse(result);
   }
 
-  async getNextUpItems({ userId, limit }: GetNextUpItemsParams) {
-    const api = getApiInstance();
+  async getNextUpItems({ userId, limit }: GetNextUpItemsParams): Promise<MediaPage<MediaItem>> {
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getNextUpItems(api, userId, limit);
-    return {
-      data: {
-        Items: result.data?.Items?.map(convertBaseItemDtoToMediaItem),
-        TotalRecordCount: result.data?.TotalRecordCount,
-      },
-    };
+    return parseJellyfinItemsPage(result);
   }
 
-  async getNextUpItemsByFolder({ userId, folderId, limit }: GetNextUpItemsByFolderParams) {
-    const api = getApiInstance();
+  async getNextUpItemsByFolder({
+    userId,
+    folderId,
+    limit,
+  }: GetNextUpItemsByFolderParams): Promise<MediaPage<MediaItem>> {
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getNextUpItemsByFolder(api, userId, folderId, limit);
-    return {
-      data: {
-        Items: result.data?.Items?.map(convertBaseItemDtoToMediaItem),
-        TotalRecordCount: result.data?.TotalRecordCount,
-      },
-    };
+    return parseJellyfinItemsPage(result);
   }
 
-  async getResumeItems({ userId, limit }: GetResumeItemsParams) {
-    const api = getApiInstance();
+  async getResumeItems({ userId, limit }: GetResumeItemsParams): Promise<MediaPage<MediaItem>> {
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getResumeItems(api, userId, limit);
-    return {
-      data: {
-        Items: result.data?.Items?.map(convertBaseItemDtoToMediaItem),
-        TotalRecordCount: result.data?.TotalRecordCount,
-      },
-    };
+    return parseJellyfinItemsPage(result);
   }
 
-  async getFavoriteItems({ userId, limit }: GetFavoriteItemsParams) {
-    const api = getApiInstance();
+  async getFavoriteItems({ userId, limit }: GetFavoriteItemsParams): Promise<MediaPage<MediaItem>> {
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getFavoriteItems(api, userId, limit);
-    return {
-      data: {
-        Items: result.data?.Items?.map(convertBaseItemDtoToMediaItem),
-      },
-    };
+    return parseJellyfinItemsPage(result);
   }
 
   async getFavoriteItemsPaged({
@@ -297,8 +246,8 @@ export class JellyfinAdapter implements MediaAdapter {
     onlyUnplayed,
     year,
     tags,
-  }: GetFavoriteItemsPagedParams) {
-    const api = getApiInstance();
+  }: GetFavoriteItemsPagedParams): Promise<MediaPage<MediaItem>> {
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getFavoriteItemsPaged(api, userId, startIndex, limit, {
       includeItemTypes: includeItemTypes ? convertItemTypesToJellyfin(includeItemTypes) : undefined,
@@ -308,22 +257,17 @@ export class JellyfinAdapter implements MediaAdapter {
       year,
       tags,
     });
-    return {
-      data: {
-        Items: result.data?.Items?.map(convertBaseItemDtoToMediaItem),
-        TotalRecordCount: result.data?.TotalRecordCount,
-      },
-    };
+    return parseJellyfinItemsPage(result);
   }
 
   async logout() {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     await logout(api);
   }
 
   async getUserInfo({ userId }: GetUserInfoParams) {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getUserInfo(api, userId);
     return {
@@ -337,60 +281,24 @@ export class JellyfinAdapter implements MediaAdapter {
   }
 
   async getItemDetail({ itemId, userId }: GetItemDetailParams) {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getItemDetail(api, itemId, userId);
     return convertBaseItemDtoToMediaItem(result.data!);
   }
 
   async getItemMediaSources({ itemId }: GetItemMediaSourcesParams) {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getItemMediaSources(api, itemId);
-    return {
-      mediaSources:
-        result.data?.MediaSources?.map((source) => ({
-          id: source.Id || '',
-          protocol: source.Protocol || '',
-          container: source.Container || '',
-          size: source.Size,
-          bitrate: source.Bitrate,
-          mediaStreams:
-            source.MediaStreams?.map((stream) => ({
-              codec: stream.Codec || '',
-              type: (stream.Type as 'Video' | 'Audio' | 'Subtitle') || 'Video',
-              index: stream.Index || 0,
-              language: stream.Language,
-              isDefault: stream.IsDefault,
-              isForced: stream.IsForced,
-              width: stream.Width,
-              height: stream.Height,
-              bitRate: stream.BitRate,
-              // Video specific
-              averageFrameRate: stream.AverageFrameRate,
-              realFrameRate: stream.RealFrameRate,
-              profile: stream.Profile,
-              level: stream.Level,
-              pixelFormat: stream.PixelFormat,
-              bitDepth: stream.BitDepth,
-              isInterlaced: stream.IsInterlaced,
-              aspectRatio: stream.AspectRatio,
-              videoRange: stream.VideoRange,
-              // Audio specific
-              channels: stream.Channels,
-              channelLayout: stream.ChannelLayout,
-              sampleRate: stream.SampleRate,
-              title: stream.Title,
-            })) || [],
-        })) || [],
-    };
+    return mapJellyfinPlaybackInfo(result.data);
   }
 
   async getUserView({ userId }: GetUserViewParams) {
     const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getUserView(api, userId);
-    return result.data?.Items?.map(convertBaseItemDtoToMediaItem) || [];
+    return parseJellyfinItemsResponse(result);
   }
 
   async getAllItemsByFolder({
@@ -404,8 +312,8 @@ export class JellyfinAdapter implements MediaAdapter {
     onlyUnplayed,
     year,
     tags,
-  }: GetAllItemsByFolderParams) {
-    const api = getApiInstance();
+  }: GetAllItemsByFolderParams): Promise<MediaPage<MediaItem>> {
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getAllItemsByFolder(
       api,
@@ -422,60 +330,53 @@ export class JellyfinAdapter implements MediaAdapter {
         tags,
       },
     );
-    return {
-      data: {
-        Items: result.data?.Items?.map(convertBaseItemDtoToMediaItem),
-        TotalRecordCount: result.data?.TotalRecordCount,
-      },
-    };
+    return parseJellyfinItemsPage(result);
   }
 
-  async getSeasonsBySeries({ seriesId, userId }: GetSeasonsBySeriesParams) {
-    const api = getApiInstance();
+  async getSeasonsBySeries({
+    seriesId,
+    userId,
+  }: GetSeasonsBySeriesParams): Promise<MediaPage<MediaItem>> {
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getSeasonsBySeries(api, seriesId, userId);
-    return {
-      data: {
-        Items: result.data?.Items?.map(convertBaseItemDtoToMediaItem),
-      },
-    };
+    return parseJellyfinItemsPage(result);
   }
 
-  async getEpisodesBySeason({ seasonId, userId }: GetEpisodesBySeasonParams) {
-    const api = getApiInstance();
+  async getEpisodesBySeason({
+    seasonId,
+    userId,
+  }: GetEpisodesBySeasonParams): Promise<MediaPage<MediaItem>> {
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getEpisodesBySeason(api, seasonId, userId);
-    return {
-      data: {
-        Items: result.data?.Items?.map(convertBaseItemDtoToMediaItem),
-      },
-    };
+    return parseJellyfinItemsPage(result);
   }
 
-  async getSimilarShows({ itemId, userId, limit }: GetSimilarShowsParams) {
-    const api = getApiInstance();
+  async getSimilarShows({
+    itemId,
+    userId,
+    limit,
+  }: GetSimilarShowsParams): Promise<MediaPage<MediaItem>> {
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getSimilarShows(api, itemId, userId, limit);
-    return {
-      data: {
-        Items: result.data?.Items?.map(convertBaseItemDtoToMediaItem),
-      },
-    };
+    return parseJellyfinItemsPage(result);
   }
 
-  async getSimilarMovies({ itemId, userId, limit }: GetSimilarMoviesParams) {
-    const api = getApiInstance();
+  async getSimilarMovies({
+    itemId,
+    userId,
+    limit,
+  }: GetSimilarMoviesParams): Promise<MediaPage<MediaItem>> {
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getSimilarMovies(api, itemId, userId, limit);
-    return {
-      data: {
-        Items: result.data?.Items?.map(convertBaseItemDtoToMediaItem),
-      },
-    };
+    return parseJellyfinItemsPage(result);
   }
 
   async searchItems({ userId, searchTerm, limit, includeItemTypes }: SearchItemsParams) {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await searchItems(
       api,
@@ -488,28 +389,29 @@ export class JellyfinAdapter implements MediaAdapter {
   }
 
   async getRecommendedSearchKeywords({ userId, limit }: GetRecommendedSearchKeywordsParams) {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     return getRecommendedSearchKeywords(api, userId, limit);
   }
 
   async getRandomItems(params: GetRandomItemsParams): Promise<MediaItem[]> {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getRandomItems(api, params.userId, params.limit);
     return result.map(convertBaseItemDtoToMediaItem);
   }
 
   async getAvailableFilters({ userId, parentId }: GetAvailableFiltersParams) {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     const result = await getAvailableFilters(api, userId, parentId);
     return result;
   }
 
   getImageInfo({ item, opts }: GetImageInfoParams) {
+    const api = this.getApi();
     const baseItem = (item as MediaItem).raw ?? item;
-    return getImageInfo(baseItem as BaseItemDto, opts);
+    return getImageInfo(baseItem as BaseItemDto, opts, api);
   }
 
   async getStreamInfo({
@@ -526,7 +428,7 @@ export class JellyfinAdapter implements MediaAdapter {
     deviceId,
     alwaysBurnInSubtitleWhenTranscoding,
   }: GetStreamInfoParams & { deviceProfile: DeviceProfile }) {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     return getStreamInfo({
       api,
@@ -546,25 +448,25 @@ export class JellyfinAdapter implements MediaAdapter {
   }
 
   async addFavoriteItem({ userId, itemId }: UpdateFavoriteItemParams) {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     await addFavoriteItem(api, userId, itemId);
   }
 
   async removeFavoriteItem({ userId, itemId }: UpdateFavoriteItemParams) {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     await removeFavoriteItem(api, userId, itemId);
   }
 
   async markItemPlayed({ userId, itemId, datePlayed }: MarkItemPlayedParams) {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     await markItemPlayed(api, userId, itemId, datePlayed);
   }
 
   async markItemUnplayed({ userId, itemId }: UpdateFavoriteItemParams) {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     await markItemUnplayed(api, userId, itemId);
   }
@@ -575,19 +477,19 @@ export class JellyfinAdapter implements MediaAdapter {
     isPaused,
     PlaySessionId,
   }: ReportPlaybackProgressParams) {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     await reportPlaybackProgress(api, itemId, positionTicks, isPaused ?? false, PlaySessionId);
   }
 
   async reportPlaybackStart({ itemId, positionTicks, PlaySessionId }: ReportPlaybackStartParams) {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     await reportPlaybackStart(api, itemId, positionTicks ?? 0, PlaySessionId);
   }
 
   async reportPlaybackStop({ itemId, positionTicks, PlaySessionId }: ReportPlaybackStopParams) {
-    const api = getApiInstance();
+    const api = this.getApi();
     if (!api) throw new Error('API instance is not set');
     await reportPlaybackStop(api, itemId, positionTicks, PlaySessionId);
   }

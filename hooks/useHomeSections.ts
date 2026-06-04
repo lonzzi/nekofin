@@ -1,6 +1,13 @@
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { getHiddenUserViews } from '@/lib/utils/userViewConfig';
+import {
+  homeLatestByFolderQueryOptions,
+  homeNextUpQueryOptions,
+  homeRandomQueryOptions,
+  homeResumeQueryOptions,
+  homeUserViewsQueryOptions,
+} from '@/services/media/queryOptions';
 import { MediaItem, MediaServerInfo } from '@/services/media/types';
 import { useQueries } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
@@ -17,7 +24,6 @@ export type HomeSectionWithStatus = HomeSection & { isLoading: boolean };
 
 export function useHomeSections(currentServer: MediaServerInfo | null) {
   const mediaAdapter = useMediaAdapter();
-  const enabled = !!currentServer?.id && !!currentServer?.userId;
 
   const [hiddenUserViewIds, setHiddenUserViewIds] = useState<string[]>(() =>
     currentServer?.id ? getHiddenUserViews(currentServer.id) : [],
@@ -31,43 +37,19 @@ export function useHomeSections(currentServer: MediaServerInfo | null) {
     }, [currentServer?.id]),
   );
 
-  const resumeQuery = useQueryWithFocus<MediaItem[]>({
-    refetchOnScreenFocus: true,
-    queryKey: ['homeSections', currentServer?.id, 'resume'],
-    queryFn: async () => {
-      if (!currentServer) return [];
-      const response = await mediaAdapter.getResumeItems({
-        userId: currentServer.userId,
-        limit: 10,
-      });
-      return response.data.Items || [];
-    },
-    enabled,
+  const resumeQuery = useQueryWithFocus({
+    ...homeResumeQueryOptions({ adapter: mediaAdapter, currentServer }),
+    refetchOnScreenFocus: 'stale',
   });
 
-  const nextUpQuery = useQueryWithFocus<MediaItem[]>({
-    refetchOnScreenFocus: true,
-    queryKey: ['homeSections', currentServer?.id, 'nextup'],
-    queryFn: async () => {
-      if (!currentServer) return [];
-      const response = await mediaAdapter.getNextUpItems({
-        userId: currentServer.userId,
-        limit: 10,
-      });
-      return response.data.Items || [];
-    },
-    enabled,
+  const nextUpQuery = useQueryWithFocus({
+    ...homeNextUpQueryOptions({ adapter: mediaAdapter, currentServer }),
+    refetchOnScreenFocus: 'stale',
   });
 
-  const allUserViewQuery = useQueryWithFocus<MediaItem[]>({
-    refetchOnScreenFocus: true,
-    queryKey: ['homeSections', currentServer?.id, 'allUserView'],
-    queryFn: async () => {
-      if (!currentServer) return [];
-      const userView = await mediaAdapter.getUserView({ userId: currentServer.userId });
-      return (userView || []).filter((item) => item.collectionType !== 'playlists');
-    },
-    enabled,
+  const allUserViewQuery = useQueryWithFocus({
+    ...homeUserViewsQueryOptions({ adapter: mediaAdapter, currentServer }),
+    refetchOnScreenFocus: 'stale',
   });
 
   const userViewQuery = useMemo(() => {
@@ -91,32 +73,18 @@ export function useHomeSections(currentServer: MediaServerInfo | null) {
   }, [userViewQuery.data, hiddenUserViewIds]);
 
   const latestQueries = useQueries({
-    queries: latestFolders.map((folder) => ({
-      queryKey: ['homeSections', currentServer?.id, 'latest', folder.folderId],
-      queryFn: async () => {
-        if (!currentServer) return [];
-        const response = await mediaAdapter.getLatestItemsByFolder({
-          userId: currentServer.userId,
-          folderId: folder.folderId,
-          limit: 16,
-        });
-        return response.data.Items || [];
-      },
-      enabled,
-    })),
+    queries: latestFolders.map((folder) =>
+      homeLatestByFolderQueryOptions({
+        adapter: mediaAdapter,
+        currentServer,
+        folderId: folder.folderId,
+      }),
+    ),
   });
 
-  const randomItemsQuery = useQueryWithFocus<MediaItem[]>({
+  const randomItemsQuery = useQueryWithFocus({
+    ...homeRandomQueryOptions({ adapter: mediaAdapter, currentServer }),
     refetchOnScreenFocus: false,
-    queryKey: ['homeSections', currentServer?.id, 'random'],
-    queryFn: async () => {
-      if (!currentServer) return [];
-      return await mediaAdapter.getRandomItems({
-        userId: currentServer.userId,
-        limit: 6,
-      });
-    },
-    enabled,
   });
 
   const resumeSection = useMemo<HomeSectionWithStatus>(

@@ -5,6 +5,24 @@ type ResponseInterceptor = (
 
 interface ApiClientOptions {
   baseUrl: string;
+  timeoutMs?: number;
+}
+
+export class ApiClientError extends Error {
+  code?: number;
+  status?: number;
+  url: string;
+
+  constructor(
+    message: string,
+    { code, status, url }: { code?: number; status?: number; url: string },
+  ) {
+    super(message);
+    this.name = 'ApiClientError';
+    this.code = code;
+    this.status = status;
+    this.url = url;
+  }
 }
 
 export interface ApiResponse<T> {
@@ -27,7 +45,7 @@ export interface ApiClient {
   addResponseInterceptor: (interceptor: ResponseInterceptor) => void;
 }
 
-function createApiClient({ baseUrl }: ApiClientOptions): ApiClient {
+function createApiClient({ baseUrl, timeoutMs }: ApiClientOptions): ApiClient {
   const requestInterceptors: RequestInterceptor[] = [];
   const responseInterceptors: ResponseInterceptor[] = [];
 
@@ -39,7 +57,19 @@ function createApiClient({ baseUrl }: ApiClientOptions): ApiClient {
       interceptedConfig = interceptor(interceptedConfig);
     }
 
-    let response = await fetch(fullUrl, interceptedConfig);
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    if (timeoutMs && !interceptedConfig.signal) {
+      const controller = new AbortController();
+      timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      interceptedConfig = { ...interceptedConfig, signal: controller.signal };
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(fullUrl, interceptedConfig);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
 
     for (const interceptor of responseInterceptors) {
       const interceptedResponse = await interceptor(response);
@@ -50,12 +80,21 @@ function createApiClient({ baseUrl }: ApiClientOptions): ApiClient {
     }
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new ApiClientError(`HTTP error! status: ${response.status}`, {
+        status: response.status,
+        url: fullUrl,
+      });
     }
 
     const apiResponse: ApiResponse<T> = await response.json();
     if (apiResponse.code !== 0 && apiResponse.code !== 200) {
-      throw new Error(`API error! code: ${apiResponse.code}, message: ${apiResponse.msg}`);
+      throw new ApiClientError(
+        `API error! code: ${apiResponse.code}, message: ${apiResponse.msg}`,
+        {
+          code: apiResponse.code,
+          url: fullUrl,
+        },
+      );
     }
 
     return apiResponse;

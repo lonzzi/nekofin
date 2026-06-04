@@ -15,6 +15,15 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SharedValue } from 'react-native-reanimated';
 
 import { Bullet } from './Bullet';
+import { filterDanmakuComments } from './danmakuFilters';
+import {
+  calculateDanmakuLayout,
+  calculateDanmakuRows,
+  calculateEffectiveScrollSpeed,
+  calculateScrollDurationMs,
+  createActiveDanmakuBullet,
+  estimateDanmakuTextWidth,
+} from './danmakuLayout';
 import { ActiveBullet, DanmakuSettingsType } from './DanmakuTypes';
 
 export type DanmakuLayerRef = {
@@ -69,15 +78,9 @@ export function DanmakuLayer({
 
   const widthCacheRef = useRef<Map<string, number>>(new Map());
   const lineHeight = fontSize + 8;
-  const rows = Math.max(6, Math.floor(((height * heightRatio) / lineHeight) * density));
+  const rows = calculateDanmakuRows({ height, heightRatio, lineHeight, density });
 
-  const layout = useMemo(() => {
-    // 顶部和底部弹幕行数
-    const topRows = Math.max(1, Math.floor(rows * 1));
-    const bottomRows = Math.max(1, Math.floor(rows * 1));
-    const scrollRows = Math.max(1, rows);
-    return { topRows, bottomRows, scrollRows };
-  }, [rows]);
+  const layout = useMemo(() => calculateDanmakuLayout(rows), [rows]);
 
   const rowMinGapPx = 50;
   const scrollLaneNextAvailableRef = useRef<number[]>([]);
@@ -141,23 +144,7 @@ export function DanmakuLayer({
       const key = `${fontSize}|${text}`;
       const cached = (widthCacheRef.current as Map<string, number>).get(key);
       if (cached != null) return cached;
-      let cjkCount = 0;
-      let otherCount = 0;
-      for (let i = 0; i < text.length; i++) {
-        const ch = text.charCodeAt(i);
-        if (
-          (ch >= 0x4e00 && ch <= 0x9fff) ||
-          (ch >= 0x3400 && ch <= 0x4dbf) ||
-          (ch >= 0x20000 && ch <= 0x2a6df)
-        ) {
-          cjkCount++;
-        } else {
-          otherCount++;
-        }
-      }
-      const cjkWidth = cjkCount * fontSize;
-      const otherWidth = otherCount * fontSize * 0.6;
-      const val = Math.min(width * 2, cjkWidth + otherWidth + 16);
+      const val = estimateDanmakuTextWidth({ text, fontSize, containerWidth: width });
       if (widthCacheRef.current.size > 10000) widthCacheRef.current.clear();
       widthCacheRef.current.set(key, val);
       return val;
@@ -165,18 +152,10 @@ export function DanmakuLayer({
     [fontSize, width],
   );
 
-  const defaultDurationMs = useMemo(() => {
-    return Math.max(800, Math.round(4000 / Math.max(0.25, playbackRate)));
-  }, [playbackRate]);
-
   // 根据文字长度调整速度（长弹幕更快），返回 px/s
   const computeEffectiveSpeed = useCallback(
-    (textWidth: number): number => {
-      const base = Math.max(50, speed);
-      const ratio = Math.min(2, Math.max(0, textWidth / Math.max(1, width)));
-      const factor = 1 + 0.4 * ratio;
-      return Math.min(base * factor * Math.max(0.25, playbackRate), 900);
-    },
+    (textWidth: number): number =>
+      calculateEffectiveScrollSpeed({ textWidth, speed, width, playbackRate }),
     [speed, width, playbackRate],
   );
 
@@ -187,66 +166,24 @@ export function DanmakuLayer({
       startOffsetMs: number = 0,
       scheduledMs: number = 0,
     ): ActiveBullet => {
-      const baseParams = {
-        id: comment.id,
-        text: comment.text,
-        colorHex: comment.colorHex,
-        mode: comment.mode,
+      return createActiveDanmakuBullet({
+        comment,
+        rowIndex,
         startOffsetMs,
         scheduledMs,
         textWidth: estimateTextWidth(comment.text),
-      };
-
-      switch (comment.mode) {
-        case DANDAN_COMMENT_MODE.Top:
-          return {
-            ...baseParams,
-            top: rowIndex * lineHeight,
-            durationMs: defaultDurationMs,
-          };
-
-        case DANDAN_COMMENT_MODE.Bottom:
-          const bottomStart = height * heightRatio - lineHeight;
-          return {
-            ...baseParams,
-            top: bottomStart - (layout.bottomRows - 1 - rowIndex) * lineHeight,
-            durationMs: defaultDurationMs,
-          };
-
-        case DANDAN_COMMENT_MODE.Scroll:
-        case DANDAN_COMMENT_MODE.ScrollBottom:
-          const scrollStart = 0;
-          const effSpeed = computeEffectiveSpeed(baseParams.textWidth);
-          // 长弹幕需要更多时间完全通过屏幕，总距离应该是屏幕宽度 + 弹幕宽度 + 缓冲距离
-          const totalDistance = width + baseParams.textWidth + 300;
-          const durationMs = Math.max(
-            3000,
-            Math.round((totalDistance / Math.max(1, effSpeed)) * 1000),
-          );
-          return {
-            ...baseParams,
-            top: scrollStart + rowIndex * lineHeight,
-            durationMs,
-          };
-
-        default:
-          return {
-            ...baseParams,
-            top: 0,
-            durationMs: defaultDurationMs,
-          };
-      }
+        runtime: {
+          height,
+          heightRatio,
+          lineHeight,
+          layout,
+          playbackRate,
+          speed,
+          width,
+        },
+      });
     },
-    [
-      estimateTextWidth,
-      lineHeight,
-      defaultDurationMs,
-      height,
-      heightRatio,
-      layout.bottomRows,
-      computeEffectiveSpeed,
-      width,
-    ],
+    [estimateTextWidth, lineHeight, height, heightRatio, layout, playbackRate, speed, width],
   );
 
   const pickScrollRow = useCallback(
@@ -258,12 +195,12 @@ export function DanmakuLayer({
       const newTextWidth = estimateTextWidth(text);
       const vEff = computeEffectiveSpeed(newTextWidth); // px/s
       const vEffPxPerMs = Math.max(0.01, vEff / 1000);
-      // 长弹幕需要更多时间完全通过屏幕
+      const newDurationMs = calculateScrollDurationMs({
+        width,
+        textWidth: newTextWidth,
+        speed: vEff,
+      });
       const newTotalDistance = width + newTextWidth + 300;
-      const newDurationMs = Math.max(
-        3000,
-        Math.round((newTotalDistance / Math.max(1, vEff)) * 1000),
-      );
       const deltaCurrMs = Math.ceil(((newTextWidth + rowMinGapPx) / Math.max(1, vEff)) * 1000);
       const gapBuffer = Math.max(8, newTextWidth * 0.05);
 
@@ -455,141 +392,34 @@ export function DanmakuLayer({
   );
 
   // 弹幕过滤和密度控制
-  const filteredComments = useMemo(() => {
-    if (!comments.length) return [];
-
-    // 应用时间偏移
-    const offsetComments = comments.map((c) => ({
-      ...c,
-      timeInSeconds: c.timeInSeconds + curEpOffset,
-    }));
-
-    // 应用弹幕来源过滤
-    let filteredBySource = offsetComments;
-    if (danmakuFilter > 0) {
-      filteredBySource = offsetComments.filter((comment) => {
-        const user = comment.user || '';
-
-        // B站弹幕过滤
-        if ((danmakuFilter & 1) === 1 && user.includes('[BiliBili]')) {
-          return false;
-        }
-
-        // 巴哈弹幕过滤
-        if ((danmakuFilter & 2) === 2 && user.includes('[Gamer]')) {
-          return false;
-        }
-
-        // 弹弹Play弹幕过滤
-        if ((danmakuFilter & 4) === 4 && user.startsWith('[') && user.endsWith(']')) {
-          return false;
-        }
-
-        // 其他弹幕过滤
-        if (
-          (danmakuFilter & 8) === 8 &&
-          !user.includes('[BiliBili]') &&
-          !user.includes('[Gamer]') &&
-          !user.startsWith('[')
-        ) {
-          return false;
-        }
-
-        return true;
-      });
-    }
-
-    // 应用弹幕模式过滤
-    let filteredByMode = filteredBySource;
-    if (danmakuModeFilter > 0) {
-      filteredByMode = filteredBySource.filter((comment) => {
-        // 底部弹幕过滤
-        if ((danmakuModeFilter & 1) === 1 && comment.mode === DANDAN_COMMENT_MODE.Bottom) {
-          return false;
-        }
-
-        // 顶部弹幕过滤
-        if ((danmakuModeFilter & 2) === 2 && comment.mode === DANDAN_COMMENT_MODE.Top) {
-          return false;
-        }
-
-        // 滚动弹幕过滤
-        if (
-          (danmakuModeFilter & 4) === 4 &&
-          (comment.mode === DANDAN_COMMENT_MODE.Scroll ||
-            comment.mode === DANDAN_COMMENT_MODE.ScrollBottom)
-        ) {
-          return false;
-        }
-
-        return true;
-      });
-    }
-
-    // 应用密度限制
-    if (danmakuDensityLimit > 0) {
-      const earlyDensityGraceSeconds = 8;
-      const containerWidth = width;
-      const containerHeight = height * heightRatio - 18;
-      const duration = Math.ceil(
-        containerWidth / Math.max(1, speed * Math.max(0.25, playbackRate)),
-      );
-      const lines = Math.floor(containerHeight / fontSize) - 1;
-
-      const limit = (9 - danmakuDensityLimit * 2) * lines;
-      const verticalLimit = lines - 1 > 0 ? lines - 1 : 1;
-
-      const timeBuckets: Record<number, number> = {};
-      const verticalTimeBuckets: Record<number, number> = {};
-      const resultComments: typeof filteredByMode = [];
-
-      filteredByMode.forEach((comment) => {
-        if (comment.timeInSeconds <= earlyDensityGraceSeconds) {
-          resultComments.push(comment);
-          return;
-        }
-        const timeIndex = Math.ceil(comment.timeInSeconds / duration);
-
-        if (!timeBuckets[timeIndex]) {
-          timeBuckets[timeIndex] = 0;
-        }
-        if (!verticalTimeBuckets[timeIndex]) {
-          verticalTimeBuckets[timeIndex] = 0;
-        }
-
-        if (
-          comment.mode === DANDAN_COMMENT_MODE.Top ||
-          comment.mode === DANDAN_COMMENT_MODE.Bottom
-        ) {
-          if (verticalTimeBuckets[timeIndex] < verticalLimit) {
-            verticalTimeBuckets[timeIndex]++;
-            resultComments.push(comment);
-          }
-        } else {
-          if (timeBuckets[timeIndex] < limit) {
-            timeBuckets[timeIndex]++;
-            resultComments.push(comment);
-          }
-        }
-      });
-
-      return resultComments;
-    }
-
-    return filteredByMode.sort((a, b) => a.timeInSeconds - b.timeInSeconds);
-  }, [
-    comments,
-    curEpOffset,
-    danmakuFilter,
-    danmakuModeFilter,
-    danmakuDensityLimit,
-    width,
-    height,
-    heightRatio,
-    speed,
-    playbackRate,
-    fontSize,
-  ]);
+  const filteredComments = useMemo(
+    () =>
+      filterDanmakuComments(comments, {
+        curEpOffset,
+        danmakuFilter,
+        danmakuModeFilter,
+        danmakuDensityLimit,
+        width,
+        height,
+        heightRatio,
+        speed,
+        playbackRate,
+        fontSize,
+      }),
+    [
+      comments,
+      curEpOffset,
+      danmakuFilter,
+      danmakuModeFilter,
+      danmakuDensityLimit,
+      width,
+      height,
+      heightRatio,
+      speed,
+      playbackRate,
+      fontSize,
+    ],
+  );
 
   useEffect(() => {
     sync(videoTime);
@@ -725,20 +555,10 @@ export function DanmakuLayer({
 
           if (extraDelay === 0) {
             const bullet = createDanmakuBullet(c, rowIndex, 0, tMs);
-            if (
-              c.mode === DANDAN_COMMENT_MODE.Scroll ||
-              c.mode === DANDAN_COMMENT_MODE.ScrollBottom
-            ) {
-            }
             setActive((prev) => [...prev, bullet]);
             processedCommentsRef.current.add(c.id);
           } else {
             const bullet = createDanmakuBullet(c, rowIndex, 0, tMs + extraDelay);
-            if (
-              c.mode === DANDAN_COMMENT_MODE.Scroll ||
-              c.mode === DANDAN_COMMENT_MODE.ScrollBottom
-            ) {
-            }
             setActive((prev) => [...prev, bullet]);
             processedCommentsRef.current.add(c.id);
           }

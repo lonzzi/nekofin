@@ -5,8 +5,8 @@ import {
   UseQueryOptions,
   UseQueryResult,
 } from '@tanstack/react-query';
-import { useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
+
+import { useRefetchOnScreenFocus, type RefetchOnScreenFocus } from './useRefetchOnScreenFocus';
 
 export function useQueryWithFocus<
   TQueryFnData = unknown,
@@ -16,18 +16,20 @@ export function useQueryWithFocus<
 >(
   options: UseQueryOptions<TQueryFnData, TError, TData, TQueryKey> & {
     /** 是否在页面 focus 时自动刷新 */
-    refetchOnScreenFocus?: boolean;
+    refetchOnScreenFocus?: RefetchOnScreenFocus;
   },
 ): UseQueryResult<NoInfer<TData>, TError> {
-  const query = useQuery(options);
-  const refetch = query.refetch;
+  const { refetchOnScreenFocus = 'stale', ...queryOptions } = options;
+  const query = useQuery(queryOptions);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (options.refetchOnScreenFocus ?? true) {
-        refetch();
-      }
-    }, [refetch, options.refetchOnScreenFocus]),
+  useRefetchOnScreenFocus(
+    {
+      isEnabled: query.isEnabled,
+      fetchStatus: query.fetchStatus,
+      isStale: query.isStale,
+      refetch: query.refetch,
+    },
+    refetchOnScreenFocus,
   );
 
   return query;

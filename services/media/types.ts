@@ -1,8 +1,8 @@
-import { ImageUrlInfo } from '@/lib/utils/image';
-import { RecommendedServerInfo } from '@jellyfin/sdk';
-import { BaseItemPersonImageBlurHashes } from '@jellyfin/sdk/lib/generated-client/models/base-item-person-image-blur-hashes';
+import type { ImageUrlInfo } from '@/lib/utils/image';
+import type { RecommendedServerInfo } from '@jellyfin/sdk';
+import type { BaseItemPersonImageBlurHashes } from '@jellyfin/sdk/lib/generated-client/models/base-item-person-image-blur-hashes';
 
-import { StreamInfo } from './jellyfin';
+import type { StreamInfo } from './jellyfin/stream';
 
 export type MediaApi = {
   basePath: string;
@@ -93,6 +93,11 @@ export interface MediaSystemInfo {
 
 export interface MediaPlaybackInfo {
   mediaSources: MediaSource[];
+}
+
+export interface MediaPage<T> {
+  items: T[];
+  total?: number;
 }
 
 export interface MediaSource {
@@ -204,6 +209,7 @@ export type WithFilterOptions = {
   year?: number;
   tags?: string[];
 };
+export type MediaItemQueryFilters = WithFilterOptions;
 
 // 组合别名（保持原导出名不变）
 export type GetLatestItemsParams = WithUserId & WithLimit & Omit<WithFilterOptions, 'onlyUnplayed'>;
@@ -249,7 +255,7 @@ export interface GetStreamInfoParams {
   startTimeTicks: number;
   maxStreamingBitrate?: number;
   playSessionId?: string | null;
-  deviceProfile: any;
+  deviceProfile: unknown;
   audioStreamIndex?: number;
   subtitleStreamIndex?: number;
   height?: number;
@@ -286,15 +292,12 @@ export interface ReportPlaybackStopParams {
 export abstract class MediaAdapter {
   _api: MediaApi | null = null;
 
-  abstract getApiInstance(): MediaApi | null;
-  abstract setGlobalApiInstance(api: MediaApi | null): void;
-
   setApi(api: MediaApi | null): void {
     this._api = api;
   }
 
   getApi(): MediaApi | null {
-    return this._api || this.getApiInstance();
+    return this._api;
   }
 
   abstract discoverServers(params: DiscoverServersParams): Promise<RecommendedServerInfo[]>;
@@ -308,47 +311,29 @@ export abstract class MediaAdapter {
   abstract login(params: LoginParams): Promise<unknown>;
   abstract authenticateAndSaveServer(params: AuthenticateAndSaveServerParams): Promise<unknown>;
 
-  abstract getLatestItems(params: GetLatestItemsParams): Promise<{
-    data: { Items?: MediaItem[]; TotalRecordCount?: number };
-  }>;
-  abstract getLatestItemsByFolder(params: GetLatestItemsByFolderParams): Promise<{
-    data: { Items?: MediaItem[]; TotalRecordCount?: number };
-  }>;
-  abstract getNextUpItems(params: GetNextUpItemsParams): Promise<{
-    data: { Items?: MediaItem[]; TotalRecordCount?: number };
-  }>;
-  abstract getNextUpItemsByFolder(params: GetNextUpItemsByFolderParams): Promise<{
-    data: { Items?: MediaItem[]; TotalRecordCount?: number };
-  }>;
-  abstract getResumeItems(params: GetResumeItemsParams): Promise<{
-    data: { Items?: MediaItem[]; TotalRecordCount?: number };
-  }>;
-  abstract getFavoriteItems(params: GetFavoriteItemsParams): Promise<{
-    data: { Items?: MediaItem[]; TotalRecordCount?: number };
-  }>;
-  abstract getFavoriteItemsPaged(params: GetFavoriteItemsPagedParams): Promise<{
-    data: { Items?: MediaItem[]; TotalRecordCount?: number };
-  }>;
+  abstract getLatestItems(params: GetLatestItemsParams): Promise<MediaPage<MediaItem>>;
+  abstract getLatestItemsByFolder(
+    params: GetLatestItemsByFolderParams,
+  ): Promise<MediaPage<MediaItem>>;
+  abstract getNextUpItems(params: GetNextUpItemsParams): Promise<MediaPage<MediaItem>>;
+  abstract getNextUpItemsByFolder(
+    params: GetNextUpItemsByFolderParams,
+  ): Promise<MediaPage<MediaItem>>;
+  abstract getResumeItems(params: GetResumeItemsParams): Promise<MediaPage<MediaItem>>;
+  abstract getFavoriteItems(params: GetFavoriteItemsParams): Promise<MediaPage<MediaItem>>;
+  abstract getFavoriteItemsPaged(
+    params: GetFavoriteItemsPagedParams,
+  ): Promise<MediaPage<MediaItem>>;
   abstract logout(): Promise<void>;
   abstract getUserInfo(params: GetUserInfoParams): Promise<MediaUser>;
   abstract getItemDetail(params: GetItemDetailParams): Promise<MediaItem>;
   abstract getItemMediaSources(params: GetItemMediaSourcesParams): Promise<MediaPlaybackInfo>;
   abstract getUserView(params: GetUserViewParams): Promise<MediaItem[]>;
-  abstract getAllItemsByFolder(params: GetAllItemsByFolderParams): Promise<{
-    data: { Items?: MediaItem[]; TotalRecordCount?: number };
-  }>;
-  abstract getSeasonsBySeries(params: GetSeasonsBySeriesParams): Promise<{
-    data: { Items?: MediaItem[] };
-  }>;
-  abstract getEpisodesBySeason(params: GetEpisodesBySeasonParams): Promise<{
-    data: { Items?: MediaItem[] };
-  }>;
-  abstract getSimilarShows(params: GetSimilarShowsParams): Promise<{
-    data: { Items?: MediaItem[] };
-  }>;
-  abstract getSimilarMovies(params: GetSimilarMoviesParams): Promise<{
-    data: { Items?: MediaItem[] };
-  }>;
+  abstract getAllItemsByFolder(params: GetAllItemsByFolderParams): Promise<MediaPage<MediaItem>>;
+  abstract getSeasonsBySeries(params: GetSeasonsBySeriesParams): Promise<MediaPage<MediaItem>>;
+  abstract getEpisodesBySeason(params: GetEpisodesBySeasonParams): Promise<MediaPage<MediaItem>>;
+  abstract getSimilarShows(params: GetSimilarShowsParams): Promise<MediaPage<MediaItem>>;
+  abstract getSimilarMovies(params: GetSimilarMoviesParams): Promise<MediaPage<MediaItem>>;
   abstract searchItems(params: SearchItemsParams): Promise<MediaItem[]>;
   abstract getRecommendedSearchKeywords(
     params: GetRecommendedSearchKeywordsParams,

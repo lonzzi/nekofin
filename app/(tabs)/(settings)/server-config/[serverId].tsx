@@ -6,8 +6,8 @@ import { SwitchSetting } from '@/components/ui/SwitchSetting';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { getHiddenUserViews, toggleUserViewHidden } from '@/lib/utils/userViewConfig';
-import { createMediaAdapterWithApi, getMediaAdapter } from '@/services/media';
-import { MediaItem } from '@/services/media/types';
+import { createMediaAdapterWithApi, createMediaApiFromServerInfo } from '@/services/media';
+import { serverUserViewsQueryOptions } from '@/services/media/queryOptions';
 import { useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -19,19 +19,15 @@ export default function ServerConfigScreen() {
   const navigation = useNavigation();
 
   const server = useMemo(() => servers.find((s) => s.id === serverId), [servers, serverId]);
+  const serverAdapter = useMemo(() => {
+    if (!server) return null;
+    const api = createMediaApiFromServerInfo(server);
+    return createMediaAdapterWithApi(server.type, api);
+  }, [server]);
 
-  const userViewQuery = useQueryWithFocus<MediaItem[]>({
-    refetchOnScreenFocus: true,
-    queryKey: ['serverConfig', 'userViews', serverId],
-    queryFn: async () => {
-      if (!server?.userId) return [];
-      const baseAdapter = getMediaAdapter(server.type);
-      const api = baseAdapter.createApiFromServerInfo({ serverInfo: server });
-      const adapter = createMediaAdapterWithApi(server.type, api);
-      const userView = await adapter.getUserView({ userId: server.userId });
-      return (userView || []).filter((item) => item.collectionType !== 'playlists');
-    },
-    enabled: !!server?.userId,
+  const userViewQuery = useQueryWithFocus({
+    ...serverUserViewsQueryOptions({ adapter: serverAdapter, server }),
+    refetchOnScreenFocus: 'stale',
   });
 
   const [hiddenUserViewIds, setHiddenUserViewIds] = useState<string[]>(() =>

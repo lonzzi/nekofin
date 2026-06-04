@@ -1,6 +1,9 @@
-import { getMediaAdapter } from '@/services/media';
+import {
+  createMediaAdapterWithApi,
+  createMediaApiFromServerInfo,
+  getMediaAdapter,
+} from '@/services/media';
 import { deleteCachedApiForServer } from '@/services/media/jellyfin';
-import { jellyfinAdapter } from '@/services/media/jellyfin/jellyfinAdapter';
 import { MediaApi, MediaServerInfo, MediaServerType } from '@/services/media/types';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
@@ -50,18 +53,12 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
 
   const currentApi = useMemo(() => {
     if (!currentServer) {
-      // 清空全局实例
-      jellyfinAdapter.setGlobalApiInstance(null);
       return null;
     }
     try {
-      const adapter = getMediaAdapter(currentServer.type);
-      const api = adapter.createApiFromServerInfo({ serverInfo: currentServer });
-      adapter.setGlobalApiInstance(api);
-      return api;
+      return createMediaApiFromServerInfo(currentServer);
     } catch (error) {
       console.error('Failed to create API instance:', error);
-      jellyfinAdapter.setGlobalApiInstance(null);
       return null;
     }
   }, [currentServer]);
@@ -80,10 +77,6 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
         address: normalizeServerAddress(server.address),
       }));
       setServers(normalizedServers);
-      normalizedServers.forEach((s) => {
-        const adapter = getMediaAdapter(s.type);
-        adapter.createApiFromServerInfo({ serverInfo: s });
-      });
       const persistedId = storage.getString(CURRENT_SERVER_ID_KEY) || null;
       if (persistedId && normalizedServers.some((s) => s.id === persistedId)) {
         setCurrentServerId(persistedId);
@@ -112,8 +105,6 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
     await saveServers(updatedServers);
     setCurrentServerId(newServer.id);
     storage.set(CURRENT_SERVER_ID_KEY, newServer.id);
-    const adapter = getMediaAdapter(newServer.type);
-    adapter.createApiFromServerInfo({ serverInfo: newServer });
   };
 
   const authenticateAndAddServer = async ({
@@ -166,11 +157,6 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
         : server,
     );
     await saveServers(updatedServers);
-    const updated = updatedServers.find((s) => s.id === id);
-    if (updated) {
-      const adapter = getMediaAdapter(updated.type);
-      adapter.createApiFromServerInfo({ serverInfo: updated });
-    }
   };
 
   const getServer = (id: string) => {
@@ -185,9 +171,8 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
   const refreshServerInfo = async (id: string) => {
     const server = servers.find((s) => s.id === id);
     if (!server) return;
-    const adapter = getMediaAdapter(server.type);
-    const api = adapter.createApiFromServerInfo({ serverInfo: server });
-    adapter.setGlobalApiInstance(api);
+    const api = createMediaApiFromServerInfo(server);
+    const adapter = createMediaAdapterWithApi(server.type, api);
     const system = await adapter.getSystemInfo();
     const user = await adapter.getUserInfo({ userId: server.userId });
     await updateServer(id, {

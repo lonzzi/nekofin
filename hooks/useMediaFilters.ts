@@ -1,14 +1,7 @@
-import { MediaItemType, MediaSortBy, MediaSortOrder } from '@/services/media/types';
+import type { MediaItemQueryFilters } from '@/services/media/types';
 import { useState } from 'react';
 
-export type MediaFilters = {
-  includeItemTypes?: MediaItemType[];
-  sortBy?: MediaSortBy[];
-  sortOrder?: MediaSortOrder;
-  onlyUnplayed?: boolean;
-  year?: number;
-  tags?: string[];
-};
+export type MediaFilters = MediaItemQueryFilters;
 
 export function createDefaultFilters(overrides?: Partial<MediaFilters>): MediaFilters {
   return {

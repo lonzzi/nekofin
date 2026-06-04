@@ -1,19 +1,21 @@
 /**
  * Item and playback helpers
  */
-import { getApiInstance } from '@/services/media/jellyfin';
+import {
+  getJellyfinItemDownloadUrl,
+  getJellyfinSeasonDownloadMap,
+  getJellyfinSeriesDownloadMap,
+} from '@/services/media/jellyfin/download';
+import type { Api } from '@jellyfin/sdk';
 import {
   BaseItemKind,
-  ItemFields,
   ItemSortBy,
   type BaseItemDto,
   type BaseItemPerson,
   type MediaStream,
 } from '@jellyfin/sdk/lib/generated-client';
-import { getItemsApi } from '@jellyfin/sdk/lib/utils/api/items-api';
-import { getTvShowsApi } from '@jellyfin/sdk/lib/utils/api/tv-shows-api';
 
-import { isNil } from '.';
+import { isNil } from './guards';
 
 /**
  * A list of valid collections that should be treated as folders.
@@ -357,19 +359,8 @@ export function getItemIdFromSourceIndex(item: BaseItemDto, sourceIndex?: number
  *
  * @returns - A download object.
  */
-export function getItemDownloadUrl(itemId: string): string | undefined {
-  const api = getApiInstance();
-  if (!api) {
-    return undefined;
-  }
-  const serverAddress = api?.basePath;
-  const userToken = api?.accessToken;
-
-  if (!serverAddress || !userToken) {
-    return undefined;
-  }
-
-  return `${serverAddress}/Items/${itemId}/Download?api_key=${userToken}`;
+export function getItemDownloadUrl(api: Api, itemId: string): string | undefined {
+  return getJellyfinItemDownloadUrl(api, itemId);
 }
 
 /**
@@ -378,35 +369,11 @@ export function getItemDownloadUrl(itemId: string): string | undefined {
  * @returns - A map: [EpisodeName, DownloadUrl].
  */
 export async function getItemSeasonDownloadMap(
+  api: Api,
   seasonId: string,
   userId: string,
 ): Promise<Map<string, string>> {
-  const api = getApiInstance();
-  if (!api) {
-    return new Map<string, string>();
-  }
-  const result = new Map<string, string>();
-
-  const episodes =
-    (
-      await getItemsApi(api).getItems({
-        userId,
-        parentId: seasonId,
-        fields: [ItemFields.Overview, ItemFields.CanDownload, ItemFields.Path],
-      })
-    ).data.Items ?? [];
-
-  for (const episode of episodes) {
-    if (episode.Id && !isNil(episode.Name)) {
-      const url = getItemDownloadUrl(episode.Id);
-
-      if (url) {
-        result.set(episode.Name, url);
-      }
-    }
-  }
-
-  return result;
+  return getJellyfinSeasonDownloadMap(api, seasonId, userId);
 }
 
 /**
@@ -415,32 +382,11 @@ export async function getItemSeasonDownloadMap(
  * @returns - A map: [EpisodeName, DownloadUrl].
  */
 export async function getItemSeriesDownloadMap(
+  api: Api,
   seriesId: string,
   userId: string,
 ): Promise<Map<string, string>> {
-  const api = getApiInstance();
-  if (!api) {
-    return new Map<string, string>();
-  }
-  let result = new Map<string, string>();
-
-  const seasons =
-    (
-      await getTvShowsApi(api).getSeasons({
-        userId,
-        seriesId: seriesId,
-      })
-    ).data.Items ?? [];
-
-  for (const season of seasons) {
-    if (season.Id) {
-      const map = await getItemSeasonDownloadMap(season.Id, userId);
-
-      result = new Map([...result, ...map]);
-    }
-  }
-
-  return result;
+  return getJellyfinSeriesDownloadMap(api, seriesId, userId);
 }
 
 /**

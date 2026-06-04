@@ -13,38 +13,14 @@ import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from '
 import { Content, Item, ItemIcon, ItemTitle, Root as Menu, Trigger } from 'zeego/context-menu';
 
 import { ItemImage } from '../ItemImage';
+import {
+  getEpisodeCardRoute,
+  getImagePreferenceOptions,
+  getSeriesCardRoute,
+  getSubtitle,
+} from './cardHelpers';
 
-export const getSubtitle = (item: MediaItem) => {
-  if (item.type === 'Episode') {
-    const season = item.parentIndexNumber;
-    const episode = item.indexNumber;
-    const seasonText = season !== undefined ? `S${season}` : '';
-    const episodeText = episode !== undefined ? `E${episode}` : '';
-
-    if (seasonText || episodeText) {
-      return `${seasonText}${episodeText} - ${item.name}`;
-    }
-    return item.name;
-  }
-  if (item.type === 'Movie') {
-    return item.productionYear ?? '未知时间';
-  }
-  if (item.type === 'Series') {
-    const startYear = item.productionYear?.toString() ?? '';
-    if (item.status === 'Continuing') {
-      return startYear ? `${startYear} - 现在` : '现在';
-    }
-    if (item.endDate) {
-      const endYear = new Date(item.endDate).getFullYear();
-      if (startYear && parseInt(startYear) === endYear) {
-        return startYear;
-      }
-      return startYear ? `${startYear} - ${endYear}` : `${endYear}`;
-    }
-    return startYear ?? '未知时间';
-  }
-  return item.name;
-};
+export { getSubtitle } from './cardHelpers';
 
 export const EpisodeCard = React.memo(function EpisodeCard({
   item,
@@ -90,13 +66,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
       imgInfo ??
       mediaAdapter.getImageInfo({
         item,
-        opts: {
-          preferBackdrop: imgType === 'Backdrop',
-          preferThumb: imgType === 'Thumb',
-          preferBanner: imgType === 'Banner',
-          preferLogo: imgType === 'Logo',
-          width: 400,
-        },
+        opts: getImagePreferenceOptions(imgType),
       }),
     [imgInfo, mediaAdapter, item, imgType],
   );
@@ -104,21 +74,11 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   const imageUrl = imageInfo.url;
 
   const handlePress = useCallback(async () => {
-    if (!item.id || isLongPressing) return;
+    if (isLongPressing) return;
 
-    if (item.type === 'Movie') {
-      router.push({
-        pathname: '/movie/[id]',
-        params: { id: item.id },
-      });
-      return;
-    }
-
-    router.push({
-      pathname: '/episode',
-      params: { episodeId: item.id, seasonId: item.seasonId },
-    });
-  }, [item.id, item.type, item.seasonId, isLongPressing, router]);
+    const route = getEpisodeCardRoute(item);
+    if (route) router.push(route);
+  }, [item, isLongPressing, router]);
 
   const playedPercentage =
     typeof currentUserData?.playedPercentage === 'number'
@@ -295,13 +255,7 @@ export const SeriesCard = React.memo(function SeriesCard({
     () =>
       mediaAdapter.getImageInfo({
         item,
-        opts: {
-          preferBackdrop: imgType === 'Backdrop',
-          preferThumb: imgType === 'Thumb',
-          preferBanner: imgType === 'Banner',
-          preferLogo: imgType === 'Logo',
-          width: 400,
-        },
+        opts: getImagePreferenceOptions(imgType),
       }),
     [mediaAdapter, item, imgType],
   );
@@ -311,28 +265,12 @@ export const SeriesCard = React.memo(function SeriesCard({
   const handlePress = useCallback(() => {
     if (isLongPressing) return;
 
-    const type = item.type;
-
-    if (type === 'Season') {
-      router.push({
-        pathname: '/episode',
-        params: { seasonId: item.id },
-      });
-      return;
+    const route = getSeriesCardRoute(item);
+    if (route) {
+      router.push(route);
+    } else {
+      console.warn('Unknown type:', item.type);
     }
-
-    if (type === 'Series' || type === 'Episode') {
-      const seriesId = item.seriesId ?? item.id;
-      router.push({ pathname: '/series/[id]', params: { id: seriesId! } });
-      return;
-    }
-
-    if (type === 'Movie') {
-      router.push({ pathname: '/movie/[id]', params: { id: item.id! } });
-      return;
-    }
-
-    console.warn('Unknown type:', type);
   }, [isLongPressing, item, router]);
 
   const isPlayed = currentUserData?.played === true;

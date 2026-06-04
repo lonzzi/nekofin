@@ -2,6 +2,7 @@ import DetailView from '@/components/detail-view';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { firstEpisodeBySeasonQueryOptions } from '@/services/media/queryOptions';
 import { useLocalSearchParams } from 'expo-router';
 
 export default function EpisodeDetailPage() {
@@ -10,17 +11,12 @@ export default function EpisodeDetailPage() {
   const mediaAdapter = useMediaAdapter();
 
   const { data: firstEpisode } = useQueryWithFocus({
-    queryKey: ['first-episode-by-season', seasonId],
-    queryFn: async () => {
-      if (!seasonId || !currentServer?.userId) return null;
-      const episodesRes = await mediaAdapter.getEpisodesBySeason({
-        seasonId,
-        userId: currentServer.userId,
-      });
-      const episodes = episodesRes.data.Items ?? [];
-      return episodes.length > 0 ? episodes[0] : null;
-    },
-    enabled: !episodeId && !!seasonId && !!currentServer?.userId,
+    ...firstEpisodeBySeasonQueryOptions({
+      adapter: mediaAdapter,
+      currentServer,
+      seasonId,
+      enabled: !episodeId,
+    }),
   });
 
   const itemId = episodeId ?? firstEpisode?.id;

@@ -3,11 +3,15 @@ import { ItemGridScreen } from '@/components/media/ItemGridScreen';
 import PageScrollView from '@/components/PageScrollView';
 import { SkeletonHorizontalSection } from '@/components/ui/Skeleton';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
+import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
+import {
+  recommendedSearchItemsQueryOptions,
+  searchItemsQueryOptions,
+} from '@/services/media/queryOptions';
 import { MediaItem } from '@/services/media/types';
-import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from 'expo-router';
 import React, { RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -34,19 +38,12 @@ export default function SearchScreen() {
 
   const searchBarRef = useRef<SearchBarCommands>(null);
 
-  const canQuery = Boolean(currentServer?.userId);
-
-  const { data: recommendedData = [] } = useQuery({
-    enabled: canQuery,
-    queryKey: ['recommend-keywords', currentServer?.id],
-    queryFn: async () => {
-      if (!currentServer?.userId) return [];
-      return await mediaAdapter.getRandomItems({
-        userId: currentServer.userId,
-        limit: 20,
-      });
-    },
-  });
+  const { data: recommendedData = [] } = useQueryWithFocus(
+    recommendedSearchItemsQueryOptions({
+      adapter: mediaAdapter,
+      currentServer,
+    }),
+  );
 
   const debouncedKeyword = useDebouncedValue(keyword, 300);
 
@@ -60,18 +57,13 @@ export default function SearchScreen() {
     isLoading: loadingResults,
     isError: isResultsError,
     refetch,
-  } = useQuery<MediaItem[]>({
-    enabled: canQuery && effectiveKeyword.length > 0,
-    queryKey: ['search-items', currentServer?.id, effectiveKeyword],
-    queryFn: async () => {
-      if (!currentServer?.userId) return [];
-      return await mediaAdapter.searchItems({
-        userId: currentServer.userId,
-        searchTerm: effectiveKeyword,
-        limit: 120,
-      });
-    },
-  });
+  } = useQueryWithFocus(
+    searchItemsQueryOptions({
+      adapter: mediaAdapter,
+      currentServer,
+      keyword: effectiveKeyword,
+    }),
+  );
 
   const groupedResults = useMemo(() => {
     const typeToItems: Record<string, MediaItem[]> = {};

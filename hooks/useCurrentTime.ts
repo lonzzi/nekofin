@@ -6,9 +6,10 @@ export function useCurrentTime({ time }: { time: SharedValue<number> }) {
   const [currentTime, setCurrentTime] = useState(0);
 
   useAnimatedReaction(
-    () => time.value,
-    (newTime) => {
-      scheduleOnRN(setCurrentTime, newTime);
+    () => Math.floor(time.value / 1000),
+    (newSecond, previousSecond) => {
+      if (newSecond === previousSecond) return;
+      scheduleOnRN(setCurrentTime, newSecond * 1000);
     },
   );
 

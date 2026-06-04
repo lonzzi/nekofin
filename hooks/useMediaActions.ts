@@ -1,11 +1,15 @@
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { updateCachedMediaItemUserData } from '@/services/media/cache';
+import { mediaQueryKeys } from '@/services/media/queryKeys';
 import { MediaItem, MediaUserData } from '@/services/media/types';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
 export function useMediaActions(item: MediaItem) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { currentServer } = useMediaServers();
   const mediaAdapter = useMediaAdapter();
 
@@ -19,6 +23,23 @@ export function useMediaActions(item: MediaItem) {
 
   const currentUserData = localUserData || item.userData;
 
+  const updateCachedUserData = (
+    updater: (previous: MediaUserData | null | undefined) => MediaUserData | null,
+  ) => {
+    if (!currentServer?.id || !item.id) return;
+    queryClient.setQueriesData(
+      { queryKey: mediaQueryKeys.server(currentServer.id) },
+      (data: unknown) => updateCachedMediaItemUserData(data, item.id, updater),
+    );
+  };
+
+  const invalidateServerMedia = () => {
+    if (!currentServer?.id) return;
+    void queryClient.invalidateQueries({
+      queryKey: mediaQueryKeys.server(currentServer.id),
+    });
+  };
+
   const handlePlay = () => {
     if (!item.id) return;
     router.push({
@@ -30,8 +51,14 @@ export function useMediaActions(item: MediaItem) {
   const handleAddToFavorites = async () => {
     if (!item.id || !currentServer || isUpdating) return;
 
+    const previousUserData = currentUserData ?? null;
     setIsUpdating(true);
-    setLocalUserData((prev) => ({
+    const nextUserData = {
+      ...previousUserData,
+      isFavorite: true,
+    };
+    setLocalUserData(nextUserData);
+    updateCachedUserData((prev) => ({
       ...prev,
       isFavorite: true,
     }));
@@ -41,11 +68,10 @@ export function useMediaActions(item: MediaItem) {
         userId: currentServer.userId,
         itemId: item.id,
       });
+      invalidateServerMedia();
     } catch (error) {
-      setLocalUserData((prev) => ({
-        ...prev,
-        isFavorite: false,
-      }));
+      setLocalUserData(previousUserData);
+      updateCachedUserData(() => previousUserData);
       console.error('添加收藏失败:', error);
     } finally {
       setIsUpdating(false);
@@ -55,8 +81,15 @@ export function useMediaActions(item: MediaItem) {
   const handleMarkAsWatched = async () => {
     if (!item.id || !currentServer || isUpdating) return;
 
+    const previousUserData = currentUserData ?? null;
     setIsUpdating(true);
-    setLocalUserData((prev) => ({
+    const nextUserData = {
+      ...previousUserData,
+      played: true,
+      playedPercentage: 100,
+    };
+    setLocalUserData(nextUserData);
+    updateCachedUserData((prev) => ({
       ...prev,
       played: true,
       playedPercentage: 100,
@@ -68,12 +101,10 @@ export function useMediaActions(item: MediaItem) {
         itemId: item.id,
         datePlayed: new Date().toISOString(),
       });
+      invalidateServerMedia();
     } catch (error) {
-      setLocalUserData((prev) => ({
-        ...prev,
-        played: false,
-        playedPercentage: prev?.playedPercentage || 0,
-      }));
+      setLocalUserData(previousUserData);
+      updateCachedUserData(() => previousUserData);
       console.error('标记为已看失败:', error);
     } finally {
       setIsUpdating(false);
@@ -83,8 +114,15 @@ export function useMediaActions(item: MediaItem) {
   const handleMarkAsUnwatched = async () => {
     if (!item.id || !currentServer || isUpdating) return;
 
+    const previousUserData = currentUserData ?? null;
     setIsUpdating(true);
-    setLocalUserData((prev) => ({
+    const nextUserData = {
+      ...previousUserData,
+      played: false,
+      playedPercentage: 0,
+    };
+    setLocalUserData(nextUserData);
+    updateCachedUserData((prev) => ({
       ...prev,
       played: false,
       playedPercentage: 0,
@@ -95,12 +133,10 @@ export function useMediaActions(item: MediaItem) {
         userId: currentServer.userId,
         itemId: item.id,
       });
+      invalidateServerMedia();
     } catch (error) {
-      setLocalUserData((prev) => ({
-        ...prev,
-        played: true,
-        playedPercentage: prev?.playedPercentage || 100,
-      }));
+      setLocalUserData(previousUserData);
+      updateCachedUserData(() => previousUserData);
       console.error('标记为未看失败:', error);
     } finally {
       setIsUpdating(false);

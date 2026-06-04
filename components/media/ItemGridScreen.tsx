@@ -2,12 +2,14 @@ import { EpisodeCard, SeriesCard } from '@/components/media/Card';
 import { useGridLayout } from '@/hooks/useGridLayout';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { MediaFilters } from '@/hooks/useMediaFilters';
+import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import useRefresh from '@/hooks/useRefresh';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
+import { availableFiltersQueryOptions } from '@/services/media/queryOptions';
 import { MediaItem, MediaSortBy } from '@/services/media/types';
-import { InfiniteData, UseInfiniteQueryResult, useQuery } from '@tanstack/react-query';
+import { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query';
 import { GlassContainer } from 'expo-glass-effect';
 import { useNavigation } from 'expo-router';
 import React, { useCallback, useEffect, useMemo } from 'react';
@@ -27,6 +29,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PageScrollView from '../PageScrollView';
 import { FilterButton } from '../ui/FilterButton';
 import { SkeletonItemGrid } from '../ui/Skeleton';
+import { dedupeMediaItems, flattenItemGridPages, groupMediaItems } from './itemGridData';
 
 export type ItemGridScreenProps = {
   title: string;
@@ -73,74 +76,27 @@ export function ItemGridScreen({
 
   const items = useMemo(() => {
     if (dataProp) {
-      const merged: MediaItem[] = [];
-      const seen = new Set<string | undefined>();
-      for (const it of dataProp) {
-        const id = it.id;
-        if (id && !seen.has(id)) {
-          merged.push(it);
-          seen.add(id);
-        }
-      }
-      return merged;
+      return dedupeMediaItems(dataProp);
     }
     if (queryData) {
-      const pages = queryData.pages ?? [];
-      const merged: MediaItem[] = [];
-      const seen = new Set<string | undefined>();
-      for (const page of pages) {
-        const list = Array.isArray(page) ? page : page.items;
-        for (const it of list) {
-          const id = it.id;
-          if (id && !seen.has(id)) {
-            merged.push(it);
-            seen.add(id);
-          }
-        }
-      }
-      return merged;
+      return flattenItemGridPages(queryData.pages);
     }
     return [];
   }, [dataProp, queryData]);
 
   const groupedItems = useMemo(() => {
-    if (disableGrouping) {
-      return [{ key: 'all', title: '', items }];
-    }
-    const typeToItems: Record<string, MediaItem[]> = {};
-    items.forEach((item) => {
-      const key = item.type || 'Other';
-      if (!typeToItems[key]) typeToItems[key] = [];
-      typeToItems[key].push(item);
-    });
-    const order = ['Series', 'Movie', 'Episode', 'MusicVideo', 'Other'];
-    const titleMap: Record<string, string> = {
-      Series: '剧集',
-      Movie: '电影',
-      Episode: '单集',
-      MusicVideo: '音乐视频',
-      Other: '其他',
-    };
-    const entries = Object.entries(typeToItems);
-    entries.sort(
-      (a, b) =>
-        (order.indexOf(a[0]) === -1 ? 999 : order.indexOf(a[0])) -
-        (order.indexOf(b[0]) === -1 ? 999 : order.indexOf(b[0])),
-    );
-    return entries.map(([type, items]) => ({ key: type, title: titleMap[type] || type, items }));
+    return groupMediaItems(items, disableGrouping);
   }, [items, disableGrouping]);
 
   const { refreshing, onRefresh } = useRefresh(refetch || (async () => {}));
 
-  const { data: availableFilters } = useQuery({
-    enabled: !!currentServer && !!onChangeFilters,
-    queryKey: ['available-filters', currentServer?.id],
-    queryFn: async () => {
-      const res = await mediaAdapter.getAvailableFilters({ userId: currentServer!.userId });
-      return res;
-    },
-    staleTime: 10 * 60 * 1000,
-  });
+  const { data: availableFilters } = useQueryWithFocus(
+    availableFiltersQueryOptions({
+      adapter: mediaAdapter,
+      currentServer,
+      enabled: !!onChangeFilters,
+    }),
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: MediaItem }) => {

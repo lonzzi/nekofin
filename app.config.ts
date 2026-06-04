@@ -112,7 +112,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
             deploymentTarget: '16.0',
           },
           android: {
-            reactNativeReleaseLevel: 'experimental',
+            reactNativeReleaseLevel: 'stable',
             useAndroidX: true,
             usesCleartextTraffic: true,
           },

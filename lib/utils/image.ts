@@ -2,7 +2,7 @@
  * Helper for image manipulation and image-related utility functions
  *
  */
-import { getApiInstance } from '@/services/media/jellyfin';
+import type { Api } from '@jellyfin/sdk';
 import {
   BaseItemKind,
   ImageType,
@@ -14,7 +14,8 @@ import type { ImageRequestParameters } from '@jellyfin/sdk/lib/models/api/image-
 import { getImageApi } from '@jellyfin/sdk/lib/utils/api/image-api';
 import type { ImageUrlsApi } from '@jellyfin/sdk/lib/utils/api/image-urls-api';
 
-import { isNil } from '.';
+import { isNil } from './guards';
+import { resolveImageCandidate } from './imageCandidates';
 import { CardShapes, getShapeFromItemType, isPerson } from './items';
 
 export interface ImageUrlInfo {
@@ -29,12 +30,10 @@ const imageDefaultOptions = (): ImageRequestParameters => ({ format: 'Webp' });
 /**
  * Gets the image URL given an item id and the image type requested
  */
-export function getItemImageUrl(...args: Parameters<ImageUrlsApi['getItemImageUrlById']>) {
-  const api = getApiInstance();
-  if (!api) {
-    return undefined;
-  }
-
+export function getItemImageUrl(
+  api: Api,
+  ...args: Parameters<ImageUrlsApi['getItemImageUrlById']>
+) {
   const argsLen = args.length;
 
   switch (argsLen) {
@@ -58,11 +57,7 @@ export function getItemImageUrl(...args: Parameters<ImageUrlsApi['getItemImageUr
 /**
  * Gets the logged's user image URL
  */
-export function getUserImageUrl(user?: UserDto) {
-  const api = getApiInstance();
-  if (!api) {
-    return undefined;
-  }
+export function getUserImageUrl(api: Api, user?: UserDto) {
   return getImageApi(api).getUserImageUrl(user, imageDefaultOptions());
 }
 
@@ -70,6 +65,7 @@ export function getUserImageUrl(user?: UserDto) {
  * Gets the image url with the desired size and quality.
  */
 function getImageUrlWithSize(
+  api: Api | null | undefined,
   itemId: string,
   {
     width,
@@ -84,7 +80,11 @@ function getImageUrlWithSize(
   } = {},
   imgType?: ImageType,
 ) {
-  return getItemImageUrl(itemId, imgType, {
+  if (!api) {
+    return undefined;
+  }
+
+  return getItemImageUrl(api, itemId, imgType, {
     quality,
     maxWidth: isNil(width) ? undefined : Math.round(width * ratio),
     maxHeight: isNil(height) ? undefined : Math.round(height * ratio),
@@ -266,123 +266,18 @@ export function getImageInfo(
     ratio?: number;
     tag?: string;
   } = {},
+  api?: Api | null,
 ): ImageUrlInfo {
-  // TODO: Refactor to have separate getPosterImageInfo, getThumbImageInfo and getBackdropImageInfo.
-  let imgType;
-  let imgTag;
-  let itemId: string | null | undefined = item.Id;
-  let height;
-
-  if (tag && preferBackdrop) {
-    imgType = ImageType.Backdrop;
-    imgTag = tag;
-  } else if (tag && preferBanner) {
-    imgType = ImageType.Banner;
-    imgTag = tag;
-  } else if (tag && preferLogo) {
-    imgType = ImageType.Logo;
-    imgTag = tag;
-  } else if (tag && preferThumb) {
-    imgType = ImageType.Thumb;
-    imgTag = tag;
-  } else if (tag) {
-    imgType = ImageType.Primary;
-    imgTag = tag;
-  } else if (isPerson(item)) {
-    imgType = ImageType.Primary;
-    imgTag = item.PrimaryImageTag;
-  } else if (preferThumb && item.ImageTags?.Thumb) {
-    imgType = ImageType.Thumb;
-    imgTag = item.ImageTags.Thumb;
-  } else if ((preferBanner || shape === CardShapes.Banner) && item.ImageTags?.Banner) {
-    imgType = ImageType.Banner;
-    imgTag = item.ImageTags.Banner;
-  } else if (preferLogo && item.ImageTags?.Logo) {
-    imgType = ImageType.Logo;
-    imgTag = item.ImageTags.Logo;
-  } else if (preferBackdrop && item.BackdropImageTags?.[0]) {
-    imgType = ImageType.Backdrop;
-    imgTag = item.BackdropImageTags[0];
-  } else if (preferLogo && item.ParentLogoImageTag && item.ParentLogoItemId) {
-    imgType = ImageType.Logo;
-    imgTag = item.ParentLogoImageTag;
-    itemId = item.ParentLogoItemId;
-  } else if (preferBackdrop && item.ParentBackdropImageTags?.[0] && item.ParentBackdropItemId) {
-    imgType = ImageType.Backdrop;
-    imgTag = item.ParentBackdropImageTags[0];
-    itemId = item.ParentBackdropItemId;
-  } else if (preferThumb && item.SeriesThumbImageTag && inheritThumb) {
-    imgType = ImageType.Thumb;
-    imgTag = item.SeriesThumbImageTag;
-    itemId = item.SeriesId;
-  } else if (preferThumb && item.ParentThumbItemId && inheritThumb && item.MediaType !== 'Photo') {
-    imgType = ImageType.Thumb;
-    imgTag = item.ParentThumbImageTag;
-    itemId = item.ParentThumbItemId;
-  } else if (preferThumb && item.BackdropImageTags?.length) {
-    imgType = ImageType.Backdrop;
-    imgTag = item.BackdropImageTags[0];
-  } else if (
-    preferThumb &&
-    item.ParentBackdropImageTags?.length &&
-    inheritThumb &&
-    item.Type === BaseItemKind.Episode
-  ) {
-    imgType = ImageType.Backdrop;
-    imgTag = item.ParentBackdropImageTags[0];
-    itemId = item.ParentBackdropItemId;
-  } else if (
-    item.ImageTags?.Primary &&
-    (item.Type !== BaseItemKind.Episode || item.ChildCount !== 0)
-  ) {
-    imgType = ImageType.Primary;
-    imgTag = item.ImageTags.Primary;
-    height =
-      width && item.PrimaryImageAspectRatio
-        ? Math.round(width / item.PrimaryImageAspectRatio)
-        : undefined;
-  } else if (item.SeriesPrimaryImageTag) {
-    imgType = ImageType.Primary;
-    imgTag = item.SeriesPrimaryImageTag;
-    itemId = item.SeriesId;
-  } else if (item.ParentPrimaryImageTag) {
-    imgType = ImageType.Primary;
-    imgTag = item.ParentPrimaryImageTag;
-    itemId = item.ParentPrimaryImageItemId;
-  } else if (item.AlbumId && item.AlbumPrimaryImageTag) {
-    imgType = ImageType.Primary;
-    imgTag = item.AlbumPrimaryImageTag;
-    itemId = item.AlbumId;
-    height =
-      width && item.PrimaryImageAspectRatio
-        ? Math.round(width / item.PrimaryImageAspectRatio)
-        : undefined;
-  } else if (item.Type === BaseItemKind.Season && item.ImageTags?.Thumb) {
-    imgType = ImageType.Thumb;
-    imgTag = item.ImageTags.Thumb;
-  } else if (item.BackdropImageTags?.length) {
-    imgType = ImageType.Backdrop;
-    imgTag = item.BackdropImageTags[0];
-  } else if (item.ImageTags?.Thumb) {
-    imgType = ImageType.Thumb;
-    imgTag = item.ImageTags.Thumb;
-  } else if (item.SeriesThumbImageTag && inheritThumb) {
-    imgType = ImageType.Thumb;
-    imgTag = item.SeriesThumbImageTag;
-    itemId = item.SeriesId;
-  } else if (item.ParentThumbItemId && inheritThumb) {
-    imgType = ImageType.Thumb;
-    imgTag = item.ParentThumbImageTag;
-    itemId = item.ParentThumbItemId;
-  } else if (item.ParentBackdropImageTags?.length && inheritThumb) {
-    imgType = ImageType.Backdrop;
-    imgTag = item.ParentBackdropImageTags[0];
-    itemId = item.ParentBackdropItemId;
-  }
-
-  if (!itemId && item.Id) {
-    itemId = item.Id;
-  }
+  const { imageType, imageTag, itemId, height } = resolveImageCandidate(item, {
+    shape,
+    preferThumb,
+    preferBanner,
+    preferLogo,
+    preferBackdrop,
+    inheritThumb,
+    width,
+    tag,
+  });
 
   if (!itemId) {
     return {
@@ -393,6 +288,7 @@ export function getImageInfo(
 
   return {
     url: getImageUrlWithSize(
+      api,
       itemId,
       {
         width,
@@ -400,9 +296,9 @@ export function getImageInfo(
         quality,
         ratio,
       },
-      imgType,
+      imageType,
     ),
-    blurhash: imgType && imgTag ? item.ImageBlurHashes?.[imgType]?.[imgTag] : undefined,
+    blurhash: imageType && imageTag ? item.ImageBlurHashes?.[imageType]?.[imageTag] : undefined,
   };
 }
 
@@ -418,6 +314,7 @@ export function getImageInfo(
  * @returns Information for the item, containing the full URL, image tag and blurhash.
  */
 export function getLogo(
+  api: Api | null | undefined,
   item: BaseItemDto,
   {
     quality = 90,
@@ -448,6 +345,7 @@ export function getLogo(
     url: isNil(imgTag)
       ? undefined
       : getImageUrlWithSize(
+          api,
           itemId ?? '',
           {
             width,

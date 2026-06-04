@@ -15,6 +15,14 @@ import Animated, {
 import { VolumeManager } from 'react-native-volume-manager';
 import { scheduleOnRN } from 'react-native-worklets';
 
+import {
+  calculateSeekGesture,
+  calculateVerticalGestureValue,
+  formatSeekOffsetText,
+  getVerticalGestureMode,
+  isHorizontalPan,
+  isVerticalPan,
+} from './gestureMath';
 import { usePlayer } from './PlayerContext';
 import { VerticalSlider } from './VerticalSlider';
 
@@ -207,7 +215,7 @@ export function GestureHandler() {
       const deltaX = event.translationX;
       const deltaY = event.translationY;
 
-      if (Math.abs(deltaX) <= Math.abs(deltaY) * 1.2) {
+      if (!isHorizontalPan(deltaX, deltaY)) {
         return;
       }
 
@@ -219,11 +227,13 @@ export function GestureHandler() {
         scheduleOnRN(handleGestureSeekStart);
       }
 
-      const progressRatio = deltaX / screenWidth;
-      const timeChange = progressRatio * 180000;
-
+      const { offset: timeChange, time: newTime } = calculateSeekGesture({
+        translationX: deltaX,
+        screenWidth,
+        duration,
+        startTime: gestureSeekStartTime.value,
+      });
       gestureSeekOffset.value = timeChange;
-      const newTime = Math.max(0, Math.min(duration, gestureSeekStartTime.value + timeChange));
 
       const time = newTime;
       gestureSeekPreview.value = time;
@@ -232,11 +242,8 @@ export function GestureHandler() {
         text: `${formatTimeWorklet(newTime)} / ${totalTime}`,
       });
 
-      const offsetSeconds = Math.round(timeChange / 1000);
-      const offsetText = offsetSeconds > 0 ? `+${offsetSeconds}s` : `${offsetSeconds}s`;
-
       setNativeProps(animatedOffsetTextInputRef, {
-        text: offsetText,
+        text: formatSeekOffsetText(timeChange),
       });
     })
     .onEnd(() => {
@@ -252,10 +259,9 @@ export function GestureHandler() {
     .failOffsetX([-8, 8])
     .maxPointers(1)
     .onStart((event) => {
-      const isLeftSide = event.x < screenWidth * 0.5;
-      const isRightSide = event.x >= screenWidth * 0.5;
+      const nextSliderMode = getVerticalGestureMode(event.x, screenWidth);
 
-      if (isLeftSide) {
+      if (nextSliderMode === 'brightness') {
         if (!isInitialized) {
           return;
         }
@@ -263,7 +269,7 @@ export function GestureHandler() {
         gestureBrightnessStartValue.value = brightness;
         gestureBrightnessOffset.value = 0;
         gestureBrightnessPreview.value = brightness;
-      } else if (isRightSide) {
+      } else if (nextSliderMode === 'volume') {
         sliderMode.value = 'volume';
         gestureVolumeStartValue.value = volume;
         gestureVolumeOffset.value = 0;
@@ -279,7 +285,7 @@ export function GestureHandler() {
       const deltaY = event.translationY;
       const deltaX = event.translationX;
 
-      if (Math.abs(deltaY) <= Math.abs(deltaX) * 1.2) {
+      if (!isVerticalPan(deltaX, deltaY)) {
         return;
       }
 
@@ -292,14 +298,12 @@ export function GestureHandler() {
           scheduleOnRN(handleBrightnessGestureStart);
         }
 
-        const progressRatio = -deltaY / (screenWidth * 0.3);
-        const brightnessChange = progressRatio * 0.6;
-
+        const { offset: brightnessChange, value: newBrightness } = calculateVerticalGestureValue({
+          translationY: deltaY,
+          screenWidth,
+          startValue: gestureBrightnessStartValue.value,
+        });
         gestureBrightnessOffset.value = brightnessChange;
-        const newBrightness = Math.max(
-          0,
-          Math.min(1, gestureBrightnessStartValue.value + brightnessChange),
-        );
 
         gestureBrightnessPreview.value = newBrightness;
         brightnessSliderValue.value = newBrightness;
@@ -310,11 +314,12 @@ export function GestureHandler() {
           scheduleOnRN(handleVolumeGestureStart);
         }
 
-        const progressRatio = -deltaY / (screenWidth * 0.3);
-        const volumeChange = progressRatio * 0.6;
-
+        const { offset: volumeChange, value: newVolume } = calculateVerticalGestureValue({
+          translationY: deltaY,
+          screenWidth,
+          startValue: gestureVolumeStartValue.value,
+        });
         gestureVolumeOffset.value = volumeChange;
-        const newVolume = Math.max(0, Math.min(1, gestureVolumeStartValue.value + volumeChange));
 
         gestureVolumePreview.value = newVolume;
         volumeSliderValue.value = newVolume;

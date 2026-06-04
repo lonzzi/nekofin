@@ -2,8 +2,9 @@ import type { Api } from '@jellyfin/sdk';
 
 import { embyAdapter, EmbyAdapter } from './emby/embyAdapter';
 import { EmbyApi } from './emby/index';
+import { createApiFromServerInfo as createJellyfinApiFromServerInfo } from './jellyfin';
 import { jellyfinAdapter, JellyfinAdapter } from './jellyfin/jellyfinAdapter';
-import type { MediaAdapter, MediaServerType } from './types';
+import type { MediaAdapter, MediaServerInfo, MediaServerType } from './types';
 
 export function getMediaAdapter(type: MediaServerType = 'jellyfin'): MediaAdapter {
   if (type === 'emby') return embyAdapter;
@@ -20,6 +21,17 @@ export function createMediaAdapterWithApi(type: MediaServerType, api: Api | Emby
     adapter.setApi(api as Api);
     return adapter;
   }
+}
+
+export function createMediaApiFromServerInfo(serverInfo: MediaServerInfo): Api | EmbyApi {
+  if (serverInfo.type === 'emby') {
+    return {
+      basePath: serverInfo.address.replace(/\/$/, ''),
+      accessToken: serverInfo.accessToken,
+    };
+  }
+
+  return createJellyfinApiFromServerInfo(serverInfo);
 }
 
 export type { MediaAdapter, MediaServerType } from './types';
