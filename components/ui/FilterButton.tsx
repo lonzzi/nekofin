@@ -1,10 +1,13 @@
-import { BottomSheetModal as GorhomBottomSheetModal } from '@gorhom/bottom-sheet';
+import { useSettingsColors } from '@/hooks/useSettingsColors';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { MenuAction, MenuView } from '@react-native-menu/menu';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { useRef } from 'react';
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { useMemo } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '../ThemedText';
-import { FilterSheet } from './FilterSheet';
+
+const emptyFilterValue = '__all__';
 
 export const FilterButton = ({
   label,
@@ -17,44 +20,59 @@ export const FilterButton = ({
   options: { label: string; value?: string; active?: boolean }[];
   onSelect: (value?: string) => void;
 }) => {
-  const sheetRef = useRef<GorhomBottomSheetModal | null>(null);
+  const { secondaryTextColor } = useSettingsColors();
+  const menuActions = useMemo<MenuAction[]>(
+    () =>
+      options.map((option) => ({
+        id: option.value ?? emptyFilterValue,
+        title: option.label,
+        state: option.active ? 'on' : 'off',
+      })),
+    [options],
+  );
+
   return (
-    <GlassView
-      style={[
-        styles.chip,
-        !isLiquidGlassAvailable() && {
-          backgroundColor: 'rgba(127,127,127,0.15)',
-        },
-      ]}
-      isInteractive
+    <MenuView
+      title={title ?? label}
+      actions={menuActions}
+      onPressAction={({ nativeEvent }) => {
+        onSelect(nativeEvent.event === emptyFilterValue ? undefined : nativeEvent.event);
+      }}
     >
-      <TouchableOpacity
-        onPress={() => sheetRef.current?.present()}
-        style={{
-          paddingHorizontal: 10,
-          paddingVertical: 6,
-        }}
+      <GlassView
+        style={[
+          styles.chip,
+          !isLiquidGlassAvailable() && {
+            backgroundColor: 'rgba(127,127,127,0.15)',
+          },
+        ]}
+        isInteractive
       >
-        <ThemedText style={styles.chipText} type="subtitle">
-          {label}
-        </ThemedText>
-      </TouchableOpacity>
-      <FilterSheet
-        ref={sheetRef}
-        title={title}
-        options={options}
-        onSelect={(v) => {
-          onSelect(v);
-          sheetRef.current?.dismiss();
-        }}
-      />
-    </GlassView>
+        <Pressable style={styles.pressable}>
+          <View style={styles.content}>
+            <ThemedText style={styles.chipText} type="subtitle">
+              {label}
+            </ThemedText>
+            <Ionicons name="chevron-down" size={12} color={secondaryTextColor} />
+          </View>
+        </Pressable>
+      </GlassView>
+    </MenuView>
   );
 };
 
 const styles = StyleSheet.create({
   chip: {
     borderRadius: 999,
+  },
+  pressable: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   chipText: {
     fontSize: 12,
