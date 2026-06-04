@@ -13,13 +13,14 @@ import {
 } from '@/services/media/queryOptions';
 import { MediaItem } from '@/services/media/types';
 import { useNavigation } from 'expo-router';
-import React, { RefObject, useEffect, useMemo, useRef, useState } from 'react';
+import React, { RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
+  ListRenderItem,
+  Pressable,
   StyleSheet,
   Text,
   TextInputChangeEvent,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SearchBarCommands } from 'react-native-screens';
@@ -89,18 +90,23 @@ export default function SearchScreen() {
     return entries.map(([type, items]) => ({ key: type, title: titleMap[type] || type, items }));
   }, [results]);
 
-  const renderItem = ({ item }: { item: MediaItem }) => {
+  const renderItem: ListRenderItem<MediaItem> = useCallback(({ item }) => {
     if (item.type === 'Series') {
       return <SeriesCard item={item} />;
     }
     return <EpisodeCard item={item} />;
-  };
+  }, []);
+
+  const keyExtractor = useCallback((item: MediaItem) => item.id!, []);
+  const itemSeparator = useCallback(() => <View style={styles.itemSeparator} />, []);
 
   useEffect(() => {
     navigation.setOptions({
       headerSearchBarOptions: {
         ref: searchBarRef as RefObject<SearchBarCommands>,
-        placeholder: '搜索影片、剧集...',
+        placeholder: currentServer?.name
+          ? `搜索 ${currentServer.name} 中的影片、剧集`
+          : '搜索影片、剧集',
         onChangeText: (t: TextInputChangeEvent) => {
           const text = t.nativeEvent.text;
           if (text.length === 0) {
@@ -116,7 +122,7 @@ export default function SearchScreen() {
         cancelButtonText: '取消',
       },
     });
-  }, [navigation, searchBarRef]);
+  }, [currentServer?.name, navigation, searchBarRef]);
 
   if (effectiveKeyword.length === 0) {
     return <ItemGridScreen title="推荐" data={recommendedData} type="series" disableGrouping />;
@@ -130,12 +136,12 @@ export default function SearchScreen() {
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>没有找到相关内容</Text>
           {isResultsError && (
-            <TouchableOpacity
+            <Pressable
               style={[styles.retryButton, { borderColor: accentColor }]}
               onPress={() => refetch()}
             >
               <Text style={[styles.retryText, { color: accentColor }]}>重试</Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
       )}
@@ -146,11 +152,11 @@ export default function SearchScreen() {
           <FlatList
             data={group.items}
             renderItem={renderItem}
-            keyExtractor={(item) => item.id!}
+            keyExtractor={keyExtractor}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalListContainer}
-            ItemSeparatorComponent={() => <View style={{ width: 16 }} />}
+            ItemSeparatorComponent={itemSeparator}
           />
         </View>
       ))}
@@ -183,6 +189,9 @@ const styles = StyleSheet.create({
   horizontalListContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
+  },
+  itemSeparator: {
+    width: 16,
   },
   emptyContainer: {
     alignItems: 'center',
