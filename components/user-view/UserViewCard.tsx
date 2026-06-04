@@ -4,7 +4,7 @@ import { MediaItem } from '@/services/media/types';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { IconSymbol } from '../ui/IconSymbol';
 
@@ -35,7 +35,7 @@ export const UserViewCard = React.memo(function UserViewCard({
   }, [item, title, router]);
 
   return (
-    <TouchableOpacity style={styles.userViewCard} onPress={handlePress}>
+    <Pressable style={styles.userViewCard} onPress={handlePress}>
       {imageInfo.url ? (
         <Image
           source={{ uri: imageInfo.url }}
@@ -55,7 +55,7 @@ export const UserViewCard = React.memo(function UserViewCard({
           {title}
         </Text>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 });
 

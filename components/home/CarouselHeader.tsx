@@ -10,7 +10,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import PagerView from 'react-native-pager-view';
 
 interface CarouselHeaderProps {
@@ -145,8 +145,7 @@ export function CarouselHeader({
             const imageInfo = carouselImageInfos[index];
             return (
               <View key={item.id ?? `${item.type}-${item.seriesId ?? index}`} collapsable={false}>
-                <TouchableOpacity
-                  activeOpacity={0.9}
+                <Pressable
                   style={styles.carouselCard}
                   onPress={() => handleCarouselItemPress(item)}
                 >
@@ -169,7 +168,7 @@ export function CarouselHeader({
                       <IconSymbol name="video.fill" size={48} color="rgba(255,255,255,0.9)" />
                     </View>
                   )}
-                </TouchableOpacity>
+                </Pressable>
               </View>
             );
           })}
