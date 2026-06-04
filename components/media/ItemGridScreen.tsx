@@ -17,11 +17,11 @@ import {
   ActivityIndicator,
   FlatList,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -350,14 +350,14 @@ export function ItemGridScreen({
       <View style={[styles.container, { backgroundColor, paddingTop: insets.top }]}>
         <View style={styles.errorContainer}>
           <Text style={[styles.errorText, { color: textColor }]}>加载失败，请重试</Text>
-          <TouchableOpacity
+          <Pressable
             style={[styles.retryButton, { backgroundColor: accentColor }]}
             onPress={() => {
               refetch?.();
             }}
           >
             <Text style={styles.retryButtonText}>重试</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     );

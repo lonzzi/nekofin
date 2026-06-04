@@ -1,5 +1,5 @@
-import { AvatarImage } from '@/components/AvatarImage';
 import { CarouselHeader } from '@/components/home/CarouselHeader';
+import { ServerAccountBanner } from '@/components/media-server/ServerAccountBanner';
 import { Section } from '@/components/media/Section';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
@@ -9,7 +9,6 @@ import { UserViewSection } from '@/components/user-view/UserViewSection';
 import { useHomeSections } from '@/hooks/useHomeSections';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { MenuAction, MenuView } from '@react-native-menu/menu';
 import {
   useNavigation,
   useNavigationContainerRef,
@@ -18,7 +17,7 @@ import {
 } from 'expo-router';
 import { useHeaderHeight, useIsFocused } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useMemo } from 'react';
-import { Platform, StyleSheet, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 export default function HomeScreen() {
   const { servers, currentServer, setCurrentServer, refreshServerInfo, isInitialized } =
@@ -86,51 +85,9 @@ export default function HomeScreen() {
 
   useEffect(() => {
     navigation.setOptions({
-      headerRight: () =>
-        servers && servers.length > 0 ? (
-          <View style={styles.headerButtons}>
-            <MenuView
-              isAnchoredToRight
-              title="服务器列表"
-              onPressAction={({ nativeEvent }) => {
-                const serverId = nativeEvent.event;
-                if (serverId && serverId !== 'current') {
-                  handleServerSelect(serverId);
-                }
-              }}
-              actions={[
-                ...(servers.map((server) => ({
-                  id: server.id,
-                  title: server.name,
-                  state:
-                    currentServer?.id === server.id
-                      ? 'on'
-                      : Platform.select({
-                          ios: 'off',
-                          android: 'mixed',
-                        }),
-                })) as MenuAction[]),
-              ]}
-            >
-              <TouchableOpacity style={styles.serverButton}>
-                <AvatarImage
-                  key={currentServer?.id}
-                  avatarUri={currentServer?.userAvatar}
-                  style={styles.serverButtonAvatar}
-                />
-              </TouchableOpacity>
-            </MenuView>
-          </View>
-        ) : undefined,
+      headerRight: undefined,
     });
-  }, [
-    currentServer?.userAvatar,
-    navigation,
-    servers,
-    currentServer?.id,
-    handleServerSelect,
-    currentServer,
-  ]);
+  }, [navigation]);
 
   // Stabilize onViewAll callbacks
   const handleViewAllResume = useCallback(() => router.push('/view-all/resume'), [router]);
@@ -164,9 +121,9 @@ export default function HomeScreen() {
         <IconSymbol name="externaldrive.connected.to.line.below" size={48} color="#9AA0A6" />
         <ThemedText style={styles.emptyTitle}>还没有服务器</ThemedText>
         <ThemedText style={styles.emptySubtitle}>添加一个媒体服务器以开始使用</ThemedText>
-        <TouchableOpacity style={styles.primaryButton} onPress={() => router.push('/media')}>
+        <Pressable style={styles.primaryButton} onPress={() => router.push('/media')}>
           <ThemedText style={styles.primaryButtonText}>添加服务器</ThemedText>
-        </TouchableOpacity>
+        </Pressable>
       </ThemedView>
     );
   }
@@ -181,7 +138,13 @@ export default function HomeScreen() {
       contentStyle={{ gap: 2, backgroundColor }}
       headerImage={headerImage}
     >
-      <View style={{ gap: 24, marginTop: 24 }}>
+      <View style={styles.content}>
+        <ServerAccountBanner
+          currentServer={currentServer}
+          servers={servers}
+          onSelectServer={handleServerSelect}
+          onManageServers={() => router.push('/media')}
+        />
         {sections.map((section) => {
           if (section.type === 'resume') {
             if (!section.isLoading && section.items.length === 0) return null;
@@ -238,21 +201,9 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  serverButton: {
-    borderWidth: 1,
-    borderColor: '#f2f2f2',
-    borderRadius: 64,
-    backgroundColor: '#f2f2f2',
-    overflow: 'hidden',
-  },
-  serverButtonAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
+  content: {
+    gap: 24,
+    marginTop: 16,
   },
   emptyContainer: {
     flex: 1,

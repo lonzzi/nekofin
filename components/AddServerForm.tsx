@@ -2,9 +2,10 @@ import { useSettingsColors } from '@/hooks/useSettingsColors';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { MenuView } from '@react-native-menu/menu';
 import React, { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 
 import { ThemedText } from './ThemedText';
@@ -16,7 +17,7 @@ interface AddServerFormProps {
 const serverTypes = [
   { key: 'jellyfin', label: 'Jellyfin' },
   { key: 'emby', label: 'Emby' },
-];
+] as const;
 
 const addServerSchema = z.object({
   serverType: z.enum(['jellyfin', 'emby']),
@@ -87,28 +88,30 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
           control={control}
           name="serverType"
           render={({ field: { onChange, value } }) => (
-            <View style={styles.typeContainer}>
-              {serverTypes.map((type) => {
-                const isActive = value === type.key;
-                return (
-                  <TouchableOpacity
-                    key={type.key}
-                    style={[
-                      styles.typeButton,
-                      { borderColor: separatorColor },
-                      isActive && { backgroundColor: accentColor, borderColor: accentColor },
-                    ]}
-                    onPress={() => onChange(type.key)}
-                  >
-                    <ThemedText
-                      style={[styles.typeButtonText, isActive && styles.typeButtonTextActive]}
-                    >
-                      {type.label}
-                    </ThemedText>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <MenuView
+              title="选择媒体后端"
+              actions={serverTypes.map((type) => ({
+                id: type.key,
+                title: type.label,
+                state: value === type.key ? 'on' : 'off',
+              }))}
+              onPressAction={({ nativeEvent }) => onChange(nativeEvent.event)}
+            >
+              <Pressable
+                style={[
+                  styles.nativeSelect,
+                  { borderColor: separatorColor, backgroundColor },
+                  errors.serverType && styles.inputError,
+                ]}
+              >
+                <ThemedText style={styles.nativeSelectText}>
+                  {serverTypes.find((type) => type.key === value)?.label}
+                </ThemedText>
+                <ThemedText style={[styles.nativeSelectChevron, { color: secondaryTextColor }]}>
+                  选择
+                </ThemedText>
+              </Pressable>
+            </MenuView>
           )}
         />
         {errors.serverType && (
@@ -209,7 +212,7 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
       </View>
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity
+        <Pressable
           style={[styles.button, { backgroundColor }]}
           onPress={onClose}
           disabled={isLoading}
@@ -217,9 +220,9 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
           <ThemedText style={[styles.cancelButtonText, { color: secondaryTextColor }]}>
             取消
           </ThemedText>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           style={[styles.button, { backgroundColor: isLoading ? '#ccc' : accentColor }]}
           onPress={handleSubmit(onSubmit)}
           disabled={isLoading}
@@ -227,7 +230,7 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
           <ThemedText style={styles.submitButtonText}>
             {isLoading ? '添加中...' : '添加服务器'}
           </ThemedText>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </BottomSheetScrollView>
   );
@@ -253,24 +256,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 8,
   },
-  typeContainer: {
+  nativeSelect: {
     flexDirection: 'row',
-    gap: 12,
-  },
-  typeButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'space-between',
     borderRadius: 8,
     borderWidth: 1,
-    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  typeButtonText: {
+  nativeSelectText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  nativeSelectChevron: {
     fontSize: 14,
-    fontWeight: '500',
-  },
-  typeButtonTextActive: {
-    color: 'white',
+    fontWeight: '600',
   },
   input: {
     borderWidth: 1,

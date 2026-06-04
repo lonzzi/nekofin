@@ -9,7 +9,7 @@ import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Content, Item, ItemIcon, ItemTitle, Root as Menu, Trigger } from 'zeego/context-menu';
 
 import { ItemImage } from '../ItemImage';
@@ -99,22 +99,21 @@ export const EpisodeCard = React.memo(function EpisodeCard({
 
   const PlayButton = useCallback(() => {
     return (
-      <TouchableOpacity
+      <Pressable
         style={[
           styles.playButton,
           !isLiquidGlassAvailable() && { backgroundColor: 'rgba(0, 0, 0, 0.6)' },
         ]}
         onPress={handlePlay}
-        activeOpacity={0.8}
       >
         <Ionicons name="play" size={32} color="#fff" />
-      </TouchableOpacity>
+      </Pressable>
     );
   }, [handlePlay]);
 
   const CardComp = useCallback(
     () => (
-      <TouchableOpacity
+      <Pressable
         style={[styles.card, { width: 200 }, style]}
         disabled={disabled}
         onPress={onPress || handlePress}
@@ -168,7 +167,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
             </Text>
           </>
         )}
-      </TouchableOpacity>
+      </Pressable>
     ),
     [
       PlayButton,
@@ -288,7 +287,7 @@ export const SeriesCard = React.memo(function SeriesCard({
   return (
     <Menu>
       <Trigger>
-        <TouchableOpacity
+        <Pressable
           style={[styles.card, { width: 120 }, style]}
           onPress={handlePress}
           onLongPress={handleLongPressStart}
@@ -309,7 +308,7 @@ export const SeriesCard = React.memo(function SeriesCard({
               {getSubtitle(item)}
             </Text>
           )}
-        </TouchableOpacity>
+        </Pressable>
       </Trigger>
       <Content>
         <Item key="play" onSelect={handlePlay}>

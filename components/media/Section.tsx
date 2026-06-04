@@ -2,7 +2,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useCallback } from 'react';
-import { FlatList, ListRenderItem, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, ListRenderItem, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SkeletonCard, SkeletonSectionHeader } from '../ui/Skeleton';
 import { EpisodeCard, SeriesCard } from './Card';
@@ -39,7 +39,7 @@ export const Section = React.memo(function Section({
       {isLoading ? (
         <SkeletonSectionHeader />
       ) : (
-        <TouchableOpacity onPress={onViewAll} activeOpacity={0.8}>
+        <Pressable onPress={onViewAll}>
           <View style={styles.sectionHeader}>
             <Text
               style={[styles.sectionTitle, { color: textColor }]}
@@ -52,7 +52,7 @@ export const Section = React.memo(function Section({
               <Ionicons name="chevron-forward" size={20} color={textColor} />
             </View>
           </View>
-        </TouchableOpacity>
+        </Pressable>
       )}
       {isLoading ? (
         <FlatList

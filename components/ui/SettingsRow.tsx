@@ -3,7 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { MenuView } from '@react-native-menu/menu';
 import { Image } from 'expo-image';
 import React from 'react';
-import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 export interface SettingsRowProps {
   title: string;
@@ -40,7 +40,7 @@ export const SettingsRow: React.FC<SettingsRowProps> = ({
     useSettingsColors();
 
   const RowContent = (
-    <TouchableOpacity
+    <Pressable
       style={[
         styles.settingItem,
         { backgroundColor: secondarySystemGroupedBackground },
@@ -69,7 +69,7 @@ export const SettingsRow: React.FC<SettingsRowProps> = ({
           <Ionicons name="chevron-forward" size={20} color={secondaryTextColor} />
         ) : null}
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 
   if (menuActions && menuActions.length > 0) {

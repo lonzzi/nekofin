@@ -1,17 +1,17 @@
 import { AddServerForm } from '@/components/AddServerForm';
 import { AvatarImage } from '@/components/AvatarImage';
 import { BottomSheetBackdropModal } from '@/components/BottomSheetBackdropModal';
+import { ServerAccountBanner } from '@/components/media-server/ServerAccountBanner';
 import PageScrollView from '@/components/PageScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { Section } from '@/components/ui/Section';
-import { SelectSetting } from '@/components/ui/SelectSetting';
 import { SettingsRow } from '@/components/ui/SettingsRow';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { MediaServerInfo } from '@/services/media/types';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 export default function MediaScreen() {
   const { servers, removeServer, setCurrentServer, currentServer } = useMediaServers();
@@ -30,8 +30,17 @@ export default function MediaScreen() {
     bottomSheetRef.current?.dismiss();
   };
 
-  const handleRemoveServer = async (id: string) => {
-    await removeServer(id);
+  const handleRemoveServer = async (server: MediaServerInfo) => {
+    Alert.alert('删除媒体账号', `从 Nekofin 移除 ${server.name} / ${server.username}？`, [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '删除',
+        style: 'destructive',
+        onPress: () => {
+          void removeServer(server.id);
+        },
+      },
+    ]);
   };
 
   const handleSetCurrentServer = (serverId: string) => {
@@ -41,25 +50,15 @@ export default function MediaScreen() {
     }
   };
 
-  const serverOptions = servers.map((server) => ({
-    id: server.id,
-    title: server.name,
-    subtitle: `${server.type} • ${server.address}`,
-    value: server.id,
-  }));
-
   const renderServerItem = (server: MediaServerInfo) => {
+    const isCurrentServer = currentServer?.id === server.id;
     return (
-      <SelectSetting
+      <SettingsRow
         key={server.id}
         title={server.name}
-        subtitle={`${server.type} • ${server.address}`}
-        value={server.id}
-        options={[
-          { title: server.name, subtitle: `${server.type} • ${server.address}`, value: server.id },
-        ]}
+        subtitle={`${server.type.toUpperCase()} - ${server.username}\n${server.address}`}
         icon={server.userAvatar ? undefined : 'link'}
-        showSelectionMenu={false}
+        onPress={() => handleSetCurrentServer(server.id)}
         leftComponent={
           server.userAvatar ? (
             <AvatarImage
@@ -73,53 +72,84 @@ export default function MediaScreen() {
             />
           ) : undefined
         }
-        customActions={[
-          {
-            id: 'config',
-            title: '配置',
-            onPress: () =>
-              router.push({
-                pathname: '/server-config/[serverId]',
-                params: { serverId: server.id },
-              }),
-          },
-          {
-            id: 'remove',
-            title: '删除服务器',
-            onPress: () => handleRemoveServer(server.id),
-          },
+        rightComponent={
+          <ThemedText style={[styles.statusText, isCurrentServer && styles.statusTextActive]}>
+            {isCurrentServer ? '当前' : '切换'}
+          </ThemedText>
+        }
+        showArrow={false}
+        menuTitle="媒体账号"
+        menuActions={[
+          { id: 'use', title: '设为当前账号' },
+          { id: 'config', title: '连接配置' },
+          { id: 'remove', title: '删除账号' },
         ]}
+        onMenuAction={(actionId) => {
+          if (actionId === 'use') {
+            handleSetCurrentServer(server.id);
+            return;
+          }
+          if (actionId === 'config') {
+            router.push({
+              pathname: '/server-config/[serverId]',
+              params: { serverId: server.id },
+            });
+            return;
+          }
+          if (actionId === 'remove') {
+            handleRemoveServer(server);
+          }
+        }}
       />
     );
   };
 
   return (
     <PageScrollView style={styles.container}>
-      <Section title="服务器管理">
-        <SettingsRow title="添加服务器" icon="add" onPress={handleAddServer} />
-        {servers.length > 0 && (
-          <SelectSetting
-            title="当前服务器"
-            subtitle="选择要使用的媒体服务器"
-            value={currentServer?.id || ''}
-            options={serverOptions}
-            onValueChange={handleSetCurrentServer}
-            placeholder="请选择服务器"
-            menuTitle="选择服务器"
+      <View style={styles.workspace}>
+        <ServerAccountBanner
+          currentServer={currentServer}
+          servers={servers}
+          onSelectServer={handleSetCurrentServer}
+          compact
+        />
+        <View style={styles.workspaceActions}>
+          <SettingsRow
+            title="添加 Jellyfin / Emby 账号"
+            subtitle="连接一个新的媒体库用户"
+            icon="add-circle"
+            onPress={handleAddServer}
           />
-        )}
-      </Section>
+        </View>
+      </View>
 
-      {servers.length > 0 && (
-        <Section title="服务器列表">{servers.map((server) => renderServerItem(server))}</Section>
-      )}
-
-      {servers.length === 0 && (
+      {servers.length > 0 ? (
+        <Section title="账号与后端">{servers.map((server) => renderServerItem(server))}</Section>
+      ) : (
         <View style={styles.emptyContainer}>
-          <ThemedText style={styles.emptyText}>暂无保存的服务器</ThemedText>
-          <ThemedText style={styles.emptySubtext}>点击上方按钮添加你的第一个服务器</ThemedText>
+          <ThemedText style={styles.emptyText}>还没有媒体账号</ThemedText>
+          <ThemedText style={styles.emptySubtext}>
+            添加 Jellyfin 或 Emby 账号后，首页会按当前账号展示继续观看、媒体库和收藏。
+          </ThemedText>
+          <SettingsRow title="添加第一个账号" icon="add" onPress={handleAddServer} />
         </View>
       )}
+
+      {currentServer ? (
+        <Section title="当前账号">
+          <SettingsRow
+            title="连接配置"
+            subtitle={`${currentServer.type.toUpperCase()} - ${currentServer.address}`}
+            icon="server"
+            onPress={() =>
+              router.push({
+                pathname: '/server-config/[serverId]',
+                params: { serverId: currentServer.id },
+              })
+            }
+          />
+        </Section>
+      ) : null}
 
       <BottomSheetBackdropModal ref={bottomSheetRef} onDismiss={() => setIsAddServerVisible(false)}>
         {isAddServerVisible && <AddServerForm onClose={handleCloseAddServer} />}
@@ -132,10 +162,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  workspace: {
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 18,
+  },
+  workspaceActions: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderCurve: 'continuous',
+  },
   emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
     paddingVertical: 40,
   },
   emptyText: {
@@ -146,6 +185,14 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     opacity: 0.6,
-    textAlign: 'center',
+    lineHeight: 20,
+  },
+  statusText: {
+    fontSize: 13,
+    fontWeight: '600',
+    opacity: 0.55,
+  },
+  statusTextActive: {
+    opacity: 1,
   },
 });
