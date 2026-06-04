@@ -9,7 +9,7 @@ export default function TabLayout() {
     <NativeTabs minimizeBehavior="onScrollDown">
       <NativeTabs.Trigger name="index" hidden />
       <NativeTabs.Trigger name="(home)">
-        <NativeTabs.Trigger.Label>首页</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>媒体库</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           drawable="film"
           sf={{ default: 'film', selected: 'film.fill' }}

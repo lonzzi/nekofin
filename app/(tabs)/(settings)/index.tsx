@@ -1,3 +1,4 @@
+import { ServerAccountBanner } from '@/components/media-server/ServerAccountBanner';
 import PageScrollView from '@/components/PageScrollView';
 import { Section } from '@/components/ui/Section';
 import { SettingsRow } from '@/components/ui/SettingsRow';
@@ -6,10 +7,11 @@ import { ThemePreference, useThemePreference } from '@/lib/contexts/ThemePrefere
 import Constants from 'expo-constants';
 import { useNavigation, useRouter } from 'expo-router';
 import { useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
-  const { servers } = useMediaServers();
+  const { servers, currentServer, setCurrentServer } = useMediaServers();
   const { themePreference, setThemePreference } = useThemePreference();
 
   const router = useRouter();
@@ -30,6 +32,13 @@ export default function SettingsScreen() {
     <SettingsRow {...props} />
   );
 
+  const handleServerSelect = (serverId: string) => {
+    const server = servers.find((item) => item.id === serverId);
+    if (server) {
+      setCurrentServer(server);
+    }
+  };
+
   useEffect(() => {
     navigation.setOptions({
       headerLargeTitle: true,
@@ -38,10 +47,24 @@ export default function SettingsScreen() {
 
   return (
     <PageScrollView showsVerticalScrollIndicator={false}>
-      <Section title="服务器">
+      <View style={styles.accountBanner}>
+        <ServerAccountBanner
+          currentServer={currentServer}
+          servers={servers}
+          onSelectServer={handleServerSelect}
+          onManageServers={() => router.push('/media')}
+          compact
+        />
+      </View>
+
+      <Section title="媒体账号">
         <SettingItem
-          title="服务器列表"
-          subtitle={`${servers.length} 个服务器`}
+          title="账号与后端"
+          subtitle={
+            currentServer
+              ? `${servers.length} 个账号 - 当前为 ${currentServer.username}`
+              : `${servers.length} 个账号`
+          }
           icon="list"
           onPress={() => router.push('/media')}
         />
@@ -80,3 +103,10 @@ export default function SettingsScreen() {
     </PageScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  accountBanner: {
+    paddingHorizontal: 16,
+    paddingTop: 18,
+  },
+});

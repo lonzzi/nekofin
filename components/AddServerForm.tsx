@@ -59,13 +59,13 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
         type: data.serverType,
       });
 
-      Alert.alert('成功', '服务器添加成功', [{ text: '确定', onPress: onClose }]);
+      Alert.alert('成功', '媒体账号添加成功', [{ text: '确定', onPress: onClose }]);
       reset();
     } catch (error) {
       console.error('Authentication error:', error);
       Alert.alert(
         '错误',
-        error instanceof Error ? error.message : '服务器认证失败，请检查地址、用户名和密码',
+        error instanceof Error ? error.message : '账号认证失败，请检查地址、用户名和密码',
       );
     } finally {
       setIsLoading(false);
@@ -79,11 +79,11 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
       keyboardShouldPersistTaps="handled"
     >
       <ThemedText type="title" style={styles.title}>
-        添加媒体服务器
+        添加媒体账号
       </ThemedText>
 
       <View style={styles.section}>
-        <ThemedText style={styles.label}>服务器类型</ThemedText>
+        <ThemedText style={styles.label}>媒体后端</ThemedText>
         <Controller
           control={control}
           name="serverType"
@@ -120,7 +120,7 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
       </View>
 
       <View style={styles.section}>
-        <ThemedText style={styles.label}>服务器地址</ThemedText>
+        <ThemedText style={styles.label}>后端地址</ThemedText>
         <Controller
           control={control}
           name="address"
@@ -228,7 +228,7 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
           disabled={isLoading}
         >
           <ThemedText style={styles.submitButtonText}>
-            {isLoading ? '添加中...' : '添加服务器'}
+            {isLoading ? '添加中...' : '添加媒体账号'}
           </ThemedText>
         </Pressable>
       </View>

@@ -119,10 +119,10 @@ export default function HomeScreen() {
     return (
       <ThemedView style={styles.emptyContainer}>
         <IconSymbol name="externaldrive.connected.to.line.below" size={48} color="#9AA0A6" />
-        <ThemedText style={styles.emptyTitle}>还没有服务器</ThemedText>
-        <ThemedText style={styles.emptySubtitle}>添加一个媒体服务器以开始使用</ThemedText>
+        <ThemedText style={styles.emptyTitle}>还没有媒体账号</ThemedText>
+        <ThemedText style={styles.emptySubtitle}>添加 Jellyfin 或 Emby 账号以开始使用</ThemedText>
         <Pressable style={styles.primaryButton} onPress={() => router.push('/media')}>
-          <ThemedText style={styles.primaryButtonText}>添加服务器</ThemedText>
+          <ThemedText style={styles.primaryButtonText}>添加媒体账号</ThemedText>
         </Pressable>
       </ThemedView>
     );
