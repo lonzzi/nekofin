@@ -1,0 +1,38 @@
+diff --git a/ios/Sources/Extensions+Helpers/RCTView+Helpers.swift b/ios/Sources/Extensions+Helpers/RCTView+Helpers.swift
+index 09be306d5aa39337c5114c2ad6ba7513218e0751..5180f8ef4ea46b2238887066e2b137c712698c75 100644
+--- a/ios/Sources/Extensions+Helpers/RCTView+Helpers.swift
++++ b/ios/Sources/Extensions+Helpers/RCTView+Helpers.swift
+@@ -25,15 +25,26 @@ public extension RCTView {
+     return rootView.recursivelyFindSubview(whereType: targetType);
+   };
+   
+-  var closestParentReactContentView: RCTRootContentView? {
+-    let targetType = RCTRootContentView.self;
+-  
+-    if let match = self.recursivelyFindParentView(whereType: targetType) {
+-      return match;
++  var closestParentReactContentView: RCTView? {
++    guard let targetType = NSClassFromString("RCTRootContentView") else {
++      return nil;
+     };
+-    
++
++    var currentView = self.superview;
++
++    while let view = currentView {
++      if view.isKind(of: targetType) {
++        return view as? RCTView;
++      };
++
++      currentView = view.superview;
++    };
++
+     guard let rootView = self.rootViewForCurrentWindow else { return nil };
+-    return rootView.recursivelyFindSubview(whereType: targetType);
++
++    return rootView.recursivelyFindSubview(forPredicate: {
++      $0.isKind(of: targetType);
++    }) as? RCTView;
+   };
+   
+   var reactTouchHandlers: [RCTTouchHandler]? {

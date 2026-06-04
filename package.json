@@ -24,15 +24,15 @@
     "@expo/metro-runtime": "~56.0.13",
     "@expo/ui": "~56.0.15",
     "@expo/vector-icons": "^15.0.3",
-    "@gorhom/bottom-sheet": "^5.2.6",
-    "@hookform/resolvers": "^5.2.1",
+    "@gorhom/bottom-sheet": "^5.2.14",
+    "@hookform/resolvers": "^5.4.0",
     "@jellyfin/sdk": "^0.13.0",
     "@react-native-masked-view/masked-view": "0.3.2",
     "@react-native-menu/menu": "2.0.0",
-    "@tanstack/query-async-storage-persister": "^5.96.2",
-    "@tanstack/react-query": "^5.96.2",
-    "@tanstack/react-query-persist-client": "^5.96.2",
-    "axios": "^1.11.0",
+    "@tanstack/query-async-storage-persister": "^5.101.0",
+    "@tanstack/react-query": "^5.101.0",
+    "@tanstack/react-query-persist-client": "^5.101.0",
+    "axios": "^1.17.0",
     "compare-versions": "^6.1.1",
     "expo": "^56.0.0",
     "expo-blur": "~56.0.3",
@@ -62,10 +62,10 @@
     "expo-web-browser": "~56.0.5",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-hook-form": "^7.71.1",
+    "react-hook-form": "^7.77.0",
     "react-native": "0.85.3",
     "react-native-awesome-slider": "^2.9.0",
-    "react-native-drawer-layout": "^4.2.0",
+    "react-native-drawer-layout": "^4.2.4",
     "react-native-easing-gradient": "^1.1.1",
     "react-native-gesture-handler": "~2.31.1",
     "react-native-ios-context-menu": "^3.2.1",
@@ -77,26 +77,26 @@
     "react-native-screens": "4.25.2",
     "react-native-svg": "15.15.4",
     "react-native-uuid": "^2.0.3",
-    "react-native-video": "^6.16.1",
+    "react-native-video": "^6.19.2",
     "react-native-volume-manager": "^2.0.8",
     "react-native-web": "^0.21.0",
     "react-native-webview": "13.16.1",
     "react-native-worklets": "0.8.3",
     "zeego": "^3.0.6",
-    "zod": "^4.0.15"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@babel/core": "^7.25.2",
+    "@babel/core": "^7.29.7",
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
     "@ianvs/prettier-plugin-sort-imports": "^4.5.1",
-    "@types/react": "~19.2.10",
+    "@types/react": "~19.2.16",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~56.0.4",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.4",
     "prettier": "3.6.2",
-    "tsx": "^4.20.5",
+    "tsx": "^4.22.4",
     "typescript": "~6.0.3",
     "vitest": "^4.1.8"
   },
@@ -113,5 +113,8 @@
     "staticFeatureFlags": {
       "DISABLE_COMMIT_PAUSING_MECHANISM": true
     }
+  },
+  "patchedDependencies": {
+    "react-native-ios-utilities@5.2.0": "patches/react-native-ios-utilities@5.2.0.patch"
   }
 }

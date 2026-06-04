@@ -211,18 +211,25 @@ export const DanmakuSearchModal = ({ onCommentsLoaded, ref }: DanmakuSearchModal
           </TouchableOpacity>
         </View>
 
-        <BottomSheetFlatList
-          data={searchStep === 'anime' ? animes : episodes}
-          renderItem={searchStep === 'anime' ? renderAnimeItem : renderEpisodeItem}
-          keyExtractor={(item: DandanAnime | DandanEpisode) =>
-            searchStep === 'anime'
-              ? (item as DandanAnime).animeId.toString()
-              : (item as DandanEpisode).episodeId.toString()
-          }
-          ListEmptyComponent={renderEmptyComponent}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-        />
+        {searchStep === 'anime' ? (
+          <BottomSheetFlatList
+            data={animes}
+            renderItem={renderAnimeItem}
+            keyExtractor={(item) => item.animeId.toString()}
+            ListEmptyComponent={renderEmptyComponent}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+          />
+        ) : (
+          <BottomSheetFlatList
+            data={episodes}
+            renderItem={renderEpisodeItem}
+            keyExtractor={(item) => item.episodeId.toString()}
+            ListEmptyComponent={renderEmptyComponent}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
       </View>
     </BottomSheetBackdropModal>
   );
