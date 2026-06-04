@@ -10,7 +10,7 @@ import { MediaItem, MediaPerson } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MenuView } from '@react-native-menu/menu';
 import { useEffect, useRef, useState } from 'react';
-import { FlatList, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { EpisodeCard, SeriesCard } from '../media/Card';
 import { ThemedText } from '../ThemedText';
@@ -127,7 +127,7 @@ export const EpisodeModeContent = ({
               setSelectedSeasonId(nativeEvent.event);
             }}
           >
-            <TouchableOpacity
+            <Pressable
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -138,7 +138,7 @@ export const EpisodeModeContent = ({
                 {getSeasonTitle(seasons.find((s) => s.id === selectedSeasonId))}
               </Text>
               <Ionicons name="chevron-down" size={16} color={textColor} />
-            </TouchableOpacity>
+            </Pressable>
           </MenuView>
         </View>
       )}

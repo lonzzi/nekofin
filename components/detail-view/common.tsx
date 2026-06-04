@@ -7,7 +7,7 @@ import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, TextLayoutEvent, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextLayoutEvent, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { BottomSheetBackdropModal } from '../BottomSheetBackdropModal';
@@ -66,7 +66,7 @@ export const PlayButton = ({ item }: { item: MediaItem }) => {
           ]}
         />
       )}
-      <TouchableOpacity
+      <Pressable
         onPress={() => {
           router.push({ pathname: '/player', params: { itemId: item.id! } });
         }}
@@ -85,7 +85,7 @@ export const PlayButton = ({ item }: { item: MediaItem }) => {
           </Text>
           <Ionicons name="play-circle" size={24} color={textColor} />
         </View>
-      </TouchableOpacity>
+      </Pressable>
     </GlassView>
   );
 };
@@ -151,9 +151,9 @@ export const ItemOverview = ({ item }: { item: MediaItem }) => {
           {overview}
         </Text>
         {textLines > 5 && (
-          <TouchableOpacity onPress={handleShowMore}>
+          <Pressable onPress={handleShowMore}>
             <Text style={[detailViewStyles.overview, { color: accentColor }]}>查看更多</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
 
