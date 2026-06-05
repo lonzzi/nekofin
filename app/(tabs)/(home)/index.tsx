@@ -1,5 +1,4 @@
 import { CarouselHeader } from '@/components/home/CarouselHeader';
-import { ServerAccountBanner } from '@/components/media-server/ServerAccountBanner';
 import { Section } from '@/components/media/Section';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
@@ -9,22 +8,14 @@ import { UserViewSection } from '@/components/user-view/UserViewSection';
 import { useHomeSections } from '@/hooks/useHomeSections';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import {
-  useNavigation,
-  useNavigationContainerRef,
-  useRootNavigationState,
-  useRouter,
-} from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 import { useHeaderHeight, useIsFocused } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 export default function HomeScreen() {
-  const { servers, currentServer, setCurrentServer, refreshServerInfo, isInitialized } =
-    useMediaServers();
+  const { servers, currentServer, isInitialized } = useMediaServers();
   const navigation = useNavigation();
-  const navigationRef = useNavigationContainerRef();
-  const rootNavigationState = useRootNavigationState();
 
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#000' }, 'background');
 
@@ -40,53 +31,6 @@ export default function HomeScreen() {
   const carouselItems = useMemo(() => {
     return randomItemsQuery.data ?? [];
   }, [randomItemsQuery.data]);
-
-  const handleServerSelect = useCallback(
-    (serverId: string) => {
-      const selectedServer = servers.find((server) => server.id === serverId);
-      if (!selectedServer) return;
-
-      setCurrentServer(selectedServer);
-      void refreshServerInfo(serverId).catch((error) => {
-        console.error('Failed to refresh server info:', error);
-      });
-
-      if (navigationRef.current && rootNavigationState) {
-        const rootRoute = rootNavigationState.routes.find((route) => route.name === '__root');
-        if (rootRoute && rootRoute.state) {
-          const tabsRoute = rootRoute.state.routes.find((route) => route.name === '(tabs)');
-          if (tabsRoute && tabsRoute.state) {
-            const resetRoutes = tabsRoute.state.routes.map((route) => ({
-              name: route.name,
-              params: route.name === 'index' ? undefined : { screen: 'index' },
-            }));
-
-            navigationRef.current.reset({
-              index: 0,
-              routes: [
-                {
-                  name: '__root',
-                  state: {
-                    index: 0,
-                    routes: [
-                      {
-                        name: '(tabs)',
-                        state: {
-                          index: 0,
-                          routes: resetRoutes,
-                        },
-                      },
-                    ],
-                  },
-                },
-              ],
-            });
-          }
-        }
-      }
-    },
-    [servers, setCurrentServer, refreshServerInfo, navigationRef, rootNavigationState],
-  );
 
   useEffect(() => {
     navigation.setOptions({
@@ -144,12 +88,6 @@ export default function HomeScreen() {
       headerImage={headerImage}
     >
       <View style={styles.content}>
-        <ServerAccountBanner
-          currentServer={currentServer}
-          servers={servers}
-          onSelectServer={handleServerSelect}
-          onManageServers={() => router.push('/media')}
-        />
         {sections.map((section) => {
           if (section.type === 'resume') {
             if (!section.isLoading && section.items.length === 0) return null;

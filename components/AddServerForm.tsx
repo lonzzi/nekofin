@@ -1,11 +1,10 @@
 import { useSettingsColors } from '@/hooks/useSettingsColors';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MenuView } from '@react-native-menu/menu';
 import React, { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { z } from 'zod';
 
 import { ThemedText } from './ThemedText';
@@ -73,10 +72,11 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
   };
 
   return (
-    <BottomSheetScrollView
+    <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
       keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
     >
       <ThemedText type="title" style={styles.title}>
         添加媒体账号
@@ -125,7 +125,7 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
           control={control}
           name="address"
           render={({ field: { onChange, onBlur, value } }) => (
-            <BottomSheetTextInput
+            <TextInput
               style={[
                 styles.input,
                 { color: textColor, borderColor: separatorColor, backgroundColor },
@@ -156,7 +156,7 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
           control={control}
           name="username"
           render={({ field: { onChange, onBlur, value } }) => (
-            <BottomSheetTextInput
+            <TextInput
               style={[
                 styles.input,
                 { color: textColor, borderColor: separatorColor, backgroundColor },
@@ -186,7 +186,7 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
           control={control}
           name="password"
           render={({ field: { onChange, onBlur, value } }) => (
-            <BottomSheetTextInput
+            <TextInput
               style={[
                 styles.input,
                 { color: textColor, borderColor: separatorColor, backgroundColor },
@@ -232,7 +232,7 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
           </ThemedText>
         </Pressable>
       </View>
-    </BottomSheetScrollView>
+    </ScrollView>
   );
 };
 

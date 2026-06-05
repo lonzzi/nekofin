@@ -1,6 +1,5 @@
 import { AddServerForm } from '@/components/AddServerForm';
 import { AvatarImage } from '@/components/AvatarImage';
-import { BottomSheetBackdropModal } from '@/components/BottomSheetBackdropModal';
 import { ServerAccountBanner } from '@/components/media-server/ServerAccountBanner';
 import PageScrollView from '@/components/PageScrollView';
 import { ThemedText } from '@/components/ThemedText';
@@ -8,26 +7,23 @@ import { Section } from '@/components/ui/Section';
 import { SettingsRow } from '@/components/ui/SettingsRow';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { MediaServerInfo } from '@/services/media/types';
-import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { BottomSheet, RNHostView } from '@expo/ui';
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
 export default function MediaScreen() {
   const { servers, removeServer, setCurrentServer, currentServer } = useMediaServers();
   const router = useRouter();
 
-  const bottomSheetRef = useRef<BottomSheetModal>(null);
   const [isAddServerVisible, setIsAddServerVisible] = useState(false);
 
   const handleAddServer = () => {
     setIsAddServerVisible(true);
-    bottomSheetRef.current?.present();
   };
 
   const handleCloseAddServer = () => {
     setIsAddServerVisible(false);
-    bottomSheetRef.current?.dismiss();
   };
 
   const handleRemoveServer = async (server: MediaServerInfo) => {
@@ -151,9 +147,16 @@ export default function MediaScreen() {
         </Section>
       ) : null}
 
-      <BottomSheetBackdropModal ref={bottomSheetRef} onDismiss={() => setIsAddServerVisible(false)}>
-        {isAddServerVisible && <AddServerForm onClose={handleCloseAddServer} />}
-      </BottomSheetBackdropModal>
+      <BottomSheet
+        isPresented={isAddServerVisible}
+        onDismiss={() => setIsAddServerVisible(false)}
+        snapPoints={['full']}
+        testID="add-media-account-sheet"
+      >
+        <RNHostView>
+          <AddServerForm onClose={handleCloseAddServer} />
+        </RNHostView>
+      </BottomSheet>
     </PageScrollView>
   );
 }
