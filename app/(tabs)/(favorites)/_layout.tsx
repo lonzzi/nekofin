@@ -1,10 +1,13 @@
 import { GroupedStackRoutes } from '@/components/GroupedStackRoutes';
+import { getSystemColor } from '@/constants/SystemColor';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { isGreaterThanOrEqual26 } from '@/lib/utils';
 import { Stack } from 'expo-router';
-import { Platform, useColorScheme } from 'react-native';
+import { Platform } from 'react-native';
 
 export default function HomeLayout() {
-  const backgroundColor = useColorScheme() === 'dark' ? 'black' : 'white';
+  const colorScheme = useColorScheme();
+  const backgroundColor = getSystemColor('systemBackground', colorScheme);
 
   return (
     <Stack

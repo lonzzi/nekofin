@@ -1,9 +1,12 @@
+import { getSystemColor } from '@/constants/SystemColor';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { isGreaterThanOrEqual26 } from '@/lib/utils';
 import { Stack } from 'expo-router';
-import { Platform, useColorScheme } from 'react-native';
+import { Platform } from 'react-native';
 
 export default function HomeLayout() {
-  const backgroundColor = useColorScheme() === 'dark' ? 'black' : '#f1f2f6';
+  const colorScheme = useColorScheme();
+  const backgroundColor = getSystemColor('systemGroupedBackground', colorScheme);
 
   return (
     <Stack

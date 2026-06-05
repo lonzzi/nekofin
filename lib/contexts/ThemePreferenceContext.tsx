@@ -1,11 +1,13 @@
 import { storage } from '@/lib/storage';
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { Appearance } from 'react-native';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Appearance, ColorSchemeName } from 'react-native';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
+export type ResolvedColorScheme = 'light' | 'dark';
 
 type ThemePreferenceContextValue = {
   themePreference: ThemePreference;
+  colorScheme: ResolvedColorScheme;
   setThemePreference: (preference: ThemePreference) => void;
 };
 
@@ -15,7 +17,11 @@ const DEFAULT_THEME: ThemePreference = 'system';
 const ThemePreferenceContext = createContext<ThemePreferenceContextValue | undefined>(undefined);
 
 function applyTheme(preference: ThemePreference) {
-  Appearance.setColorScheme(preference === 'system' ? 'unspecified' : preference);
+  Appearance.setColorScheme((preference === 'system' ? 'auto' : preference) as ColorSchemeName);
+}
+
+function resolveColorScheme(colorScheme: ColorSchemeName | null | undefined): ResolvedColorScheme {
+  return colorScheme === 'dark' ? 'dark' : 'light';
 }
 
 // Apply theme synchronously at module load time, before any component renders
@@ -24,6 +30,17 @@ applyTheme(storedPreference);
 
 export function ThemePreferenceProvider({ children }: { children: React.ReactNode }) {
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>(storedPreference);
+  const [systemColorScheme, setSystemColorScheme] = useState<ResolvedColorScheme>(() =>
+    resolveColorScheme(Appearance.getColorScheme()),
+  );
+
+  useEffect(() => {
+    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
+      setSystemColorScheme(resolveColorScheme(colorScheme));
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   const setThemePreference = useCallback((preference: ThemePreference) => {
     setThemePreferenceState(preference);
@@ -34,9 +51,10 @@ export function ThemePreferenceProvider({ children }: { children: React.ReactNod
   const contextValue = useMemo<ThemePreferenceContextValue>(
     () => ({
       themePreference,
+      colorScheme: themePreference === 'system' ? systemColorScheme : themePreference,
       setThemePreference,
     }),
-    [themePreference, setThemePreference],
+    [themePreference, systemColorScheme, setThemePreference],
   );
 
   return (
@@ -52,4 +70,8 @@ export function useThemePreference() {
     throw new Error('useThemePreference must be used within a ThemePreferenceProvider');
   }
   return ctx;
+}
+
+export function useResolvedColorScheme() {
+  return useThemePreference().colorScheme;
 }

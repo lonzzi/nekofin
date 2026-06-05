@@ -1,8 +1,11 @@
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { getSystemColor } from '@/constants/SystemColor';
 import { DanmakuSettingsProvider } from '@/lib/contexts/DanmakuSettingsContext';
 import { MediaServerProvider } from '@/lib/contexts/MediaServerContext';
-import { ThemeColorProvider } from '@/lib/contexts/ThemeColorContext';
-import { ThemePreferenceProvider } from '@/lib/contexts/ThemePreferenceContext';
+import { ThemeColorProvider, useAccentColor } from '@/lib/contexts/ThemeColorContext';
+import {
+  ThemePreferenceProvider,
+  useResolvedColorScheme,
+} from '@/lib/contexts/ThemePreferenceContext';
 import { storage } from '@/lib/storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient } from '@tanstack/react-query';
@@ -12,7 +15,7 @@ import { Stack, useSegments } from 'expo-router';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -40,7 +43,6 @@ const persister = createAsyncStoragePersister({
 });
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   const [loaded] = useFonts({
     Roboto: require('../assets/fonts/Roboto-Regular.ttf'),
   });
@@ -73,25 +75,50 @@ export default function RootLayout() {
           <MediaServerProvider>
             <DanmakuSettingsProvider>
               <ThemeColorProvider>
-                <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-                  <Stack
-                    screenOptions={{
-                      headerTransparent: Platform.OS === 'ios',
-                      headerBackTitle: '',
-                      headerBackButtonDisplayMode: 'minimal',
-                    }}
-                  >
-                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                    <Stack.Screen name="player" options={{ headerShown: false }} />
-                    <Stack.Screen name="+not-found" />
-                  </Stack>
-                  <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-                </ThemeProvider>
+                <RootNavigation />
               </ThemeColorProvider>
             </DanmakuSettingsProvider>
           </MediaServerProvider>
         </ThemePreferenceProvider>
       </GestureHandlerRootView>
     </PersistQueryClientProvider>
+  );
+}
+
+function RootNavigation() {
+  const colorScheme = useResolvedColorScheme();
+  const { accentColor } = useAccentColor();
+
+  const navigationTheme = useMemo(() => {
+    const baseTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
+    return {
+      ...baseTheme,
+      colors: {
+        ...baseTheme.colors,
+        primary: accentColor,
+        background: getSystemColor('systemBackground', colorScheme),
+        card: getSystemColor('systemBackground', colorScheme),
+        text: getSystemColor('label', colorScheme),
+        border: getSystemColor('systemGray4', colorScheme),
+        notification: accentColor,
+      },
+    };
+  }, [accentColor, colorScheme]);
+
+  return (
+    <ThemeProvider value={navigationTheme}>
+      <Stack
+        screenOptions={{
+          headerTransparent: Platform.OS === 'ios',
+          headerBackTitle: '',
+          headerBackButtonDisplayMode: 'minimal',
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="player" options={{ headerShown: false }} />
+        <Stack.Screen name="+not-found" />
+      </Stack>
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+    </ThemeProvider>
   );
 }
