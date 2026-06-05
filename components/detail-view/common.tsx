@@ -2,15 +2,14 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
 import { formatDurationFromTicks } from '@/lib/utils';
 import { MediaItem } from '@/services/media/types';
+import { BottomSheet, RNHostView } from '@expo/ui';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextLayoutEvent, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { BottomSheetBackdropModal } from '../BottomSheetBackdropModal';
 import { ThemedText } from '../ThemedText';
 
 export const PlayButton = ({ item }: { item: MediaItem }) => {
@@ -121,7 +120,7 @@ export const ItemMeta = ({ item }: { item: MediaItem }) => {
 
 export const ItemOverview = ({ item }: { item: MediaItem }) => {
   const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const [isOverviewPresented, setIsOverviewPresented] = useState(false);
   const [textLines, setTextLines] = useState(0);
 
   const { accentColor } = useAccentColor();
@@ -129,7 +128,7 @@ export const ItemOverview = ({ item }: { item: MediaItem }) => {
   const overview = item?.overview?.trim() ?? '';
 
   const handleShowMore = () => {
-    bottomSheetModalRef.current?.present();
+    setIsOverviewPresented(true);
   };
 
   const handleTextLayout = (event: TextLayoutEvent) => {
@@ -157,12 +156,18 @@ export const ItemOverview = ({ item }: { item: MediaItem }) => {
         )}
       </View>
 
-      <BottomSheetBackdropModal ref={bottomSheetModalRef} enableDynamicSizing>
-        <BottomSheetView style={detailViewStyles.modalContent}>
-          <Text style={[detailViewStyles.modalTitle, { color: textColor }]}>剧情简介</Text>
-          <Text style={[detailViewStyles.modalOverview, { color: textColor }]}>{overview}</Text>
-        </BottomSheetView>
-      </BottomSheetBackdropModal>
+      <BottomSheet
+        isPresented={isOverviewPresented}
+        onDismiss={() => setIsOverviewPresented(false)}
+        testID="item-overview-sheet"
+      >
+        <RNHostView matchContents>
+          <View style={detailViewStyles.modalContent}>
+            <Text style={[detailViewStyles.modalTitle, { color: textColor }]}>剧情简介</Text>
+            <Text style={[detailViewStyles.modalOverview, { color: textColor }]}>{overview}</Text>
+          </View>
+        </RNHostView>
+      </BottomSheet>
     </>
   );
 };

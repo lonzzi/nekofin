@@ -1,4 +1,3 @@
-import { BottomSheetBackdropModal } from '@/components/BottomSheetBackdropModal';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import {
   DandanAnime,
@@ -7,10 +6,19 @@ import {
   getCommentsByEpisodeId,
   searchAnimesByKeyword,
 } from '@/services/dandanplay';
+import { BottomSheet, RNHostView } from '@expo/ui';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { BottomSheetFlatList, BottomSheetModal, BottomSheetTextInput } from '@gorhom/bottom-sheet';
-import { ComponentRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useImperativeHandle, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 type DanmakuSearchModalProps = {
   onCommentsLoaded: (
@@ -34,20 +42,19 @@ export const DanmakuSearchModal = ({ onCommentsLoaded, ref }: DanmakuSearchModal
   const [episodes, setEpisodes] = useState<DandanEpisode[]>([]);
   const [selectedAnime, setSelectedAnime] = useState<DandanAnime | null>(null);
   const [loading, setLoading] = useState(false);
-  const textInputRef = useRef<ComponentRef<typeof BottomSheetTextInput>>(null);
+  const [isPresented, setIsPresented] = useState(false);
+  const textInputRef = useRef<TextInput>(null);
 
   const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#000' }, 'background');
   const borderColor = useThemeColor({ light: '#e0e0e0', dark: '#333' }, 'text');
 
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-
   const present = useCallback(() => {
-    bottomSheetModalRef.current?.present();
+    setIsPresented(true);
   }, []);
 
   const dismiss = useCallback(() => {
-    bottomSheetModalRef.current?.dismiss();
+    setIsPresented(false);
   }, []);
 
   useImperativeHandle(
@@ -94,7 +101,7 @@ export const DanmakuSearchModal = ({ onCommentsLoaded, ref }: DanmakuSearchModal
           animeTitle: selectedAnime?.animeTitle ?? '',
           episodeTitle: episode.episodeTitle,
         });
-        bottomSheetModalRef.current?.dismiss();
+        setIsPresented(false);
         Alert.alert('成功', '弹幕已加载');
       } catch (error) {
         Alert.alert('加载失败', '无法加载弹幕，请重试');
@@ -157,76 +164,75 @@ export const DanmakuSearchModal = ({ onCommentsLoaded, ref }: DanmakuSearchModal
   const episodeKeyExtractor = useCallback((item: DandanEpisode) => item.episodeId.toString(), []);
 
   return (
-    <BottomSheetBackdropModal
-      ref={bottomSheetModalRef}
-      onDismiss={handleClose}
-      snapPoints={['90%']}
-      enableDynamicSizing={false}
-      enablePanDownToClose={true}
-      enableContentPanningGesture={false}
-      topInset={30}
-      bottomInset={40}
-      detached
-      style={{ marginHorizontal: 120 }}
+    <BottomSheet
+      isPresented={isPresented}
+      onDismiss={() => {
+        setIsPresented(false);
+        handleClose();
+      }}
+      snapPoints={['full']}
+      testID="danmaku-search-sheet"
     >
-      <View style={[styles.container, { backgroundColor }]}>
-        <View style={styles.searchContainer}>
-          <BottomSheetTextInput
-            style={[
-              styles.searchInput,
-              {
-                backgroundColor: backgroundColor,
-                borderColor: borderColor,
-                color: textColor,
-              },
-            ]}
-            placeholder={searchStep === 'anime' ? '输入番剧名称' : '剧集列表'}
-            placeholderTextColor={`${String(textColor)}80`}
-            onChangeText={setSearchKeyword}
-            onSubmitEditing={handleSearch}
-            editable={searchStep === 'anime'}
-            autoCapitalize="none"
-            autoCorrect={false}
-            ref={textInputRef}
-          />
-          <Pressable
-            style={[
-              styles.searchButton,
-              !searchKeyword.trim() && styles.disabledButton,
-              { backgroundColor: !searchKeyword.trim() ? borderColor : '#007AFF' },
-            ]}
-            onPress={handleSearch}
-            disabled={!searchKeyword.trim() || loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <Ionicons name="search" size={20} color="white" />
-            )}
-          </Pressable>
-        </View>
+      <RNHostView>
+        <View style={[styles.container, { backgroundColor }]}>
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={[
+                styles.searchInput,
+                {
+                  backgroundColor: backgroundColor,
+                  borderColor: borderColor,
+                  color: textColor,
+                },
+              ]}
+              placeholder={searchStep === 'anime' ? '输入番剧名称' : '剧集列表'}
+              placeholderTextColor={`${String(textColor)}80`}
+              onChangeText={setSearchKeyword}
+              onSubmitEditing={handleSearch}
+              editable={searchStep === 'anime'}
+              autoCapitalize="none"
+              autoCorrect={false}
+              ref={textInputRef}
+            />
+            <Pressable
+              style={[
+                styles.searchButton,
+                !searchKeyword.trim() && styles.disabledButton,
+                { backgroundColor: !searchKeyword.trim() ? borderColor : '#007AFF' },
+              ]}
+              onPress={handleSearch}
+              disabled={!searchKeyword.trim() || loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Ionicons name="search" size={20} color="white" />
+              )}
+            </Pressable>
+          </View>
 
-        {searchStep === 'anime' ? (
-          <BottomSheetFlatList
-            data={animes}
-            renderItem={renderAnimeItem}
-            keyExtractor={animeKeyExtractor}
-            ListEmptyComponent={renderEmptyComponent}
-            contentContainerStyle={styles.listContainer}
-            showsVerticalScrollIndicator={false}
-          />
-        ) : (
-          <BottomSheetFlatList
-            data={episodes}
-            renderItem={renderEpisodeItem}
-            keyExtractor={episodeKeyExtractor}
-            ListEmptyComponent={renderEmptyComponent}
-            contentContainerStyle={styles.listContainer}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
-      </View>
-    </BottomSheetBackdropModal>
+          {searchStep === 'anime' ? (
+            <FlatList
+              data={animes}
+              renderItem={renderAnimeItem}
+              keyExtractor={animeKeyExtractor}
+              ListEmptyComponent={renderEmptyComponent}
+              contentContainerStyle={styles.listContainer}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <FlatList
+              data={episodes}
+              renderItem={renderEpisodeItem}
+              keyExtractor={episodeKeyExtractor}
+              ListEmptyComponent={renderEmptyComponent}
+              contentContainerStyle={styles.listContainer}
+              showsVerticalScrollIndicator={false}
+            />
+          )}
+        </View>
+      </RNHostView>
+    </BottomSheet>
   );
 };
 

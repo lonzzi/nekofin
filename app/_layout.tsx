@@ -4,7 +4,6 @@ import { MediaServerProvider } from '@/lib/contexts/MediaServerContext';
 import { ThemeColorProvider } from '@/lib/contexts/ThemeColorContext';
 import { ThemePreferenceProvider } from '@/lib/contexts/ThemePreferenceContext';
 import { storage } from '@/lib/storage';
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
@@ -74,22 +73,20 @@ export default function RootLayout() {
           <MediaServerProvider>
             <DanmakuSettingsProvider>
               <ThemeColorProvider>
-                <BottomSheetModalProvider>
-                  <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-                    <Stack
-                      screenOptions={{
-                        headerTransparent: Platform.OS === 'ios',
-                        headerBackTitle: '',
-                        headerBackButtonDisplayMode: 'minimal',
-                      }}
-                    >
-                      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                      <Stack.Screen name="player" options={{ headerShown: false }} />
-                      <Stack.Screen name="+not-found" />
-                    </Stack>
-                    <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-                  </ThemeProvider>
-                </BottomSheetModalProvider>
+                <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                  <Stack
+                    screenOptions={{
+                      headerTransparent: Platform.OS === 'ios',
+                      headerBackTitle: '',
+                      headerBackButtonDisplayMode: 'minimal',
+                    }}
+                  >
+                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                    <Stack.Screen name="player" options={{ headerShown: false }} />
+                    <Stack.Screen name="+not-found" />
+                  </Stack>
+                  <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+                </ThemeProvider>
               </ThemeColorProvider>
             </DanmakuSettingsProvider>
           </MediaServerProvider>

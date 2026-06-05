@@ -1,22 +1,19 @@
-import { useSettingsColors } from '@/hooks/useSettingsColors';
+import {
+  NativeSettingsButton,
+  NativeSettingsForm,
+  NativeSettingsItem,
+  NativeSettingsPicker,
+  NativeSettingsSection,
+} from '@/components/ui/NativeSettings';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { MenuView } from '@react-native-menu/menu';
-import React, { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { TextInput } from '@expo/ui';
+import { useState } from 'react';
+import { Alert } from 'react-native';
 import { z } from 'zod';
-
-import { ThemedText } from './ThemedText';
 
 interface AddServerFormProps {
   onClose: () => void;
 }
-
-const serverTypes = [
-  { key: 'jellyfin', label: 'Jellyfin' },
-  { key: 'emby', label: 'Emby' },
-] as const;
 
 const addServerSchema = z.object({
   serverType: z.enum(['jellyfin', 'emby']),
@@ -29,41 +26,40 @@ type AddServerFormData = z.infer<typeof addServerSchema>;
 
 export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
   const { authenticateAndAddServer } = useMediaServers();
+  const [serverType, setServerType] = useState<AddServerFormData['serverType']>('jellyfin');
+  const [address, setAddress] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const { textColor, secondaryTextColor, backgroundColor, accentColor, separatorColor } =
-    useSettingsColors();
 
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<AddServerFormData>({
-    resolver: zodResolver(addServerSchema),
-    defaultValues: {
-      serverType: 'jellyfin',
-      address: '',
-      username: '',
-      password: '',
-    },
-  });
+  const handleSubmit = async () => {
+    const result = addServerSchema.safeParse({
+      serverType,
+      address: address.trim(),
+      username: username.trim(),
+      password: password.trim(),
+    });
 
-  const onSubmit = async (data: AddServerFormData) => {
+    if (!result.success) {
+      setFormError(result.error.issues[0]?.message ?? '请检查账号信息');
+      return;
+    }
+
+    setFormError(null);
     setIsLoading(true);
     try {
       await authenticateAndAddServer({
-        address: data.address.trim(),
-        username: data.username.trim(),
-        password: (data.password || '').trim(),
-        type: data.serverType,
+        address: result.data.address,
+        username: result.data.username,
+        password: result.data.password || '',
+        type: result.data.serverType,
       });
 
       Alert.alert('成功', '媒体账号添加成功', [{ text: '确定', onPress: onClose }]);
-      reset();
     } catch (error) {
       console.error('Authentication error:', error);
-      Alert.alert(
-        '错误',
+      setFormError(
         error instanceof Error ? error.message : '账号认证失败，请检查地址、用户名和密码',
       );
     } finally {
@@ -72,242 +68,79 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
-      <ThemedText type="title" style={styles.title}>
-        添加媒体账号
-      </ThemedText>
-
-      <View style={styles.section}>
-        <ThemedText style={styles.label}>媒体后端</ThemedText>
-        <Controller
-          control={control}
-          name="serverType"
-          render={({ field: { onChange, value } }) => (
-            <MenuView
-              title="选择媒体后端"
-              actions={serverTypes.map((type) => ({
-                id: type.key,
-                title: type.label,
-                state: value === type.key ? 'on' : 'off',
-              }))}
-              onPressAction={({ nativeEvent }) => onChange(nativeEvent.event)}
-            >
-              <Pressable
-                style={[
-                  styles.nativeSelect,
-                  { borderColor: separatorColor, backgroundColor },
-                  errors.serverType && styles.inputError,
-                ]}
-              >
-                <ThemedText style={styles.nativeSelectText}>
-                  {serverTypes.find((type) => type.key === value)?.label}
-                </ThemedText>
-                <ThemedText style={[styles.nativeSelectChevron, { color: secondaryTextColor }]}>
-                  选择
-                </ThemedText>
-              </Pressable>
-            </MenuView>
-          )}
+    <NativeSettingsForm testID="add-media-account-form">
+      <NativeSettingsSection title="添加媒体账号">
+        <NativeSettingsPicker
+          title="媒体后端"
+          value={serverType}
+          options={[
+            { title: 'Jellyfin', value: 'jellyfin' },
+            { title: 'Emby', value: 'emby' },
+          ]}
+          onValueChange={(value) => setServerType(value as AddServerFormData['serverType'])}
+          disabled={isLoading}
         />
-        {errors.serverType && (
-          <ThemedText style={styles.errorText}>{errors.serverType.message}</ThemedText>
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText style={styles.label}>后端地址</ThemedText>
-        <Controller
-          control={control}
-          name="address"
-          render={({ field: { onChange, onBlur, value } }) => (
+        <NativeSettingsItem
+          title="后端地址"
+          subtitle="例如: http://192.168.1.100:8096"
+          trailing={
             <TextInput
-              style={[
-                styles.input,
-                { color: textColor, borderColor: separatorColor, backgroundColor },
-                errors.address && styles.inputError,
-              ]}
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="例如: http://192.168.1.100:8096"
-              placeholderTextColor={secondaryTextColor}
+              defaultValue={address}
+              onChangeText={setAddress}
+              placeholder="URL"
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
               autoComplete="url"
-              textContentType="URL"
-              allowFontScaling={false}
+              editable={!isLoading}
             />
-          )}
+          }
         />
-        {errors.address && (
-          <ThemedText style={styles.errorText}>{errors.address.message}</ThemedText>
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText style={styles.label}>用户名</ThemedText>
-        <Controller
-          control={control}
-          name="username"
-          render={({ field: { onChange, onBlur, value } }) => (
+        <NativeSettingsItem
+          title="用户名"
+          trailing={
             <TextInput
-              style={[
-                styles.input,
-                { color: textColor, borderColor: separatorColor, backgroundColor },
-                errors.username && styles.inputError,
-              ]}
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="输入用户名"
-              placeholderTextColor={secondaryTextColor}
+              defaultValue={username}
+              onChangeText={setUsername}
+              placeholder="用户名"
               autoCapitalize="none"
               autoCorrect={false}
               autoComplete="username"
-              textContentType="username"
-              allowFontScaling={false}
+              editable={!isLoading}
             />
-          )}
+          }
         />
-        {errors.username && (
-          <ThemedText style={styles.errorText}>{errors.username.message}</ThemedText>
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText style={styles.label}>密码</ThemedText>
-        <Controller
-          control={control}
-          name="password"
-          render={({ field: { onChange, onBlur, value } }) => (
+        <NativeSettingsItem
+          title="密码"
+          trailing={
             <TextInput
-              style={[
-                styles.input,
-                { color: textColor, borderColor: separatorColor, backgroundColor },
-                errors.password && styles.inputError,
-              ]}
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="输入密码"
-              placeholderTextColor={secondaryTextColor}
+              defaultValue={password}
+              onChangeText={setPassword}
+              placeholder="密码"
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
               autoComplete="password"
-              textContentType="password"
-              allowFontScaling={false}
+              editable={!isLoading}
             />
-          )}
+          }
         />
-        {errors.password && (
-          <ThemedText style={styles.errorText}>{errors.password.message}</ThemedText>
-        )}
-      </View>
+      </NativeSettingsSection>
 
-      <View style={styles.buttonContainer}>
-        <Pressable
-          style={[styles.button, { backgroundColor }]}
-          onPress={onClose}
-          disabled={isLoading}
-        >
-          <ThemedText style={[styles.cancelButtonText, { color: secondaryTextColor }]}>
-            取消
-          </ThemedText>
-        </Pressable>
+      {formError ? (
+        <NativeSettingsSection>
+          <NativeSettingsItem title="错误" subtitle={formError} />
+        </NativeSettingsSection>
+      ) : null}
 
-        <Pressable
-          style={[styles.button, { backgroundColor: isLoading ? '#ccc' : accentColor }]}
-          onPress={handleSubmit(onSubmit)}
+      <NativeSettingsSection>
+        <NativeSettingsButton
+          label={isLoading ? '添加中...' : '添加媒体账号'}
+          onPress={handleSubmit}
           disabled={isLoading}
-        >
-          <ThemedText style={styles.submitButtonText}>
-            {isLoading ? '添加中...' : '添加媒体账号'}
-          </ThemedText>
-        </Pressable>
-      </View>
-    </ScrollView>
+        />
+        <NativeSettingsButton label="取消" onPress={onClose} variant="text" disabled={isLoading} />
+      </NativeSettingsSection>
+    </NativeSettingsForm>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-  },
-  contentContainer: {
-    paddingBottom: 60,
-  },
-  title: {
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  section: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  nativeSelect: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 8,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  nativeSelectText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  nativeSelectChevron: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    backgroundColor: '#f8f8f8',
-  },
-  inputError: {
-    borderColor: '#ff3b30',
-  },
-  errorText: {
-    color: '#ff3b30',
-    fontSize: 14,
-    marginTop: 4,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-  },
-});
