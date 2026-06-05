@@ -43,8 +43,13 @@ export default function HomeScreen() {
 
   const handleServerSelect = useCallback(
     (serverId: string) => {
-      setCurrentServer(servers.find((server) => server.id === serverId)!);
-      refreshServerInfo(serverId);
+      const selectedServer = servers.find((server) => server.id === serverId);
+      if (!selectedServer) return;
+
+      setCurrentServer(selectedServer);
+      void refreshServerInfo(serverId).catch((error) => {
+        console.error('Failed to refresh server info:', error);
+      });
 
       if (navigationRef.current && rootNavigationState) {
         const rootRoute = rootNavigationState.routes.find((route) => route.name === '__root');
