@@ -1,5 +1,5 @@
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
-import { useThemeColor } from '@/hooks/useThemeColor';
+import { useAppTheme } from '@/lib/design-system';
 import { MediaItem } from '@/services/media/types';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -16,7 +16,7 @@ export const UserViewCard = React.memo(function UserViewCard({
   title: string;
 }) {
   const router = useRouter();
-  const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
+  const theme = useAppTheme();
 
   const mediaAdapter = useMediaAdapter();
 
@@ -42,16 +42,32 @@ export const UserViewCard = React.memo(function UserViewCard({
           placeholder={{
             blurhash: imageInfo.blurhash,
           }}
-          style={styles.cover}
+          style={[
+            styles.cover,
+            { backgroundColor: theme.colors.surfaceMuted, borderRadius: theme.radius.md },
+          ]}
           contentFit="cover"
         />
       ) : (
-        <View style={[styles.cover, styles.coverPlaceholder]}>
-          <IconSymbol name="chevron.left.forwardslash.chevron.right" size={48} color="#ccc" />
+        <View
+          style={[
+            styles.cover,
+            styles.coverPlaceholder,
+            { backgroundColor: theme.colors.surfaceMuted, borderRadius: theme.radius.md },
+          ]}
+        >
+          <IconSymbol
+            name="chevron.left.forwardslash.chevron.right"
+            size={48}
+            color={theme.colors.textTertiary}
+          />
         </View>
       )}
       <View style={styles.userViewInfo}>
-        <Text style={[styles.userViewTitle, { color: textColor }]} numberOfLines={1}>
+        <Text
+          style={[theme.typography.footnote, styles.userViewTitle, { color: theme.colors.text }]}
+          numberOfLines={1}
+        >
           {title}
         </Text>
       </View>
@@ -67,16 +83,12 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   userViewTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
     marginBottom: 2,
     textAlign: 'center',
   },
   cover: {
     width: 200,
     aspectRatio: 16 / 9,
-    backgroundColor: '#eee',
-    borderRadius: 12,
   },
   coverPlaceholder: {
     justifyContent: 'center',

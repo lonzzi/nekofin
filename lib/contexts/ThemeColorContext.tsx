@@ -1,3 +1,4 @@
+import { brandColors } from '@/lib/design-system/tokens';
 import { storage } from '@/lib/storage';
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
@@ -8,8 +9,8 @@ type ThemeColorContextValue = {
   setAccentColor: (color: string) => void;
 };
 
-const DEFAULT_ACCENT_COLOR = '#9C4DFF';
-const EMBY_ACCENT_COLOR = '#4CAF50';
+const DEFAULT_ACCENT_COLOR = brandColors.jellyfin;
+const EMBY_ACCENT_COLOR = brandColors.emby;
 const STORAGE_KEY = 'theme.accentColor';
 
 const ThemeColorContext = createContext<ThemeColorContextValue | undefined>(undefined);

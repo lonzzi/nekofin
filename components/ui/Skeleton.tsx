@@ -1,4 +1,4 @@
-import { useThemeColor } from '@/hooks/useThemeColor';
+import { useAppTheme } from '@/lib/design-system';
 import { useEffect, useRef } from 'react';
 import {
   Animated,
@@ -19,8 +19,9 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style }: SkeletonProps) {
-  const backgroundColor = useThemeColor({ light: '#f0f0f0', dark: '#2a2a2a' }, 'background');
-  const shimmerColor = useThemeColor({ light: '#e0e0e0', dark: '#3a3a3a' }, 'background');
+  const theme = useAppTheme();
+  const backgroundColor = theme.colors.surfaceMuted;
+  const shimmerColor = theme.colors.surfaceElevated;
 
   const shimmerAnimation = useRef(new Animated.Value(0)).current;
 
@@ -68,49 +69,81 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style 
 }
 
 export function SkeletonCard({ type = 'episode' }: { type?: 'episode' | 'series' }) {
+  const theme = useAppTheme();
   const cardWidth = type === 'episode' ? 220 : 120;
   const aspectRatio = type === 'episode' ? 16 / 9 : 2 / 3;
 
   return (
     <View style={[styles.card, { width: cardWidth }]}>
-      <Skeleton width="100%" height={cardWidth / aspectRatio} borderRadius={12} />
-      <Skeleton width="85%" height={16} borderRadius={4} style={styles.titleSkeleton} />
-      <Skeleton width="60%" height={13} borderRadius={4} style={styles.subtitleSkeleton} />
+      <Skeleton width="100%" height={cardWidth / aspectRatio} borderRadius={theme.radius.md} />
+      <Skeleton
+        width="85%"
+        height={theme.typography.body.lineHeight}
+        borderRadius={theme.radius.xs}
+        style={styles.titleSkeleton}
+      />
+      <Skeleton
+        width="60%"
+        height={theme.typography.footnote.lineHeight}
+        borderRadius={theme.radius.xs}
+        style={styles.subtitleSkeleton}
+      />
     </View>
   );
 }
 
 export function SkeletonUserViewCard() {
+  const theme = useAppTheme();
+
   return (
     <View style={styles.userViewCard}>
-      <Skeleton width={200} height={200 / (16 / 9)} borderRadius={12} />
+      <Skeleton width={200} height={200 / (16 / 9)} borderRadius={theme.radius.md} />
       <View style={styles.userViewInfo}>
-        <Skeleton width="80%" height={14} borderRadius={4} />
+        <Skeleton
+          width="80%"
+          height={theme.typography.footnote.lineHeight}
+          borderRadius={theme.radius.xs}
+        />
       </View>
     </View>
   );
 }
 
 export function SkeletonSectionHeader() {
+  const theme = useAppTheme();
+
   return (
-    <View style={styles.sectionHeader}>
-      <Skeleton width={120} height={24} borderRadius={4} />
-      <Skeleton width={60} height={16} borderRadius={4} />
+    <View style={[styles.sectionHeader, { paddingHorizontal: theme.spacing.page }]}>
+      <Skeleton
+        width={120}
+        height={theme.typography.title3.lineHeight}
+        borderRadius={theme.radius.xs}
+      />
+      <Skeleton
+        width={60}
+        height={theme.typography.footnote.lineHeight}
+        borderRadius={theme.radius.xs}
+      />
     </View>
   );
 }
 
 export function SkeletonFilterBar() {
+  const theme = useAppTheme();
+
   return (
     <View style={styles.filterBar}>
       <ScrollView
-        style={{ marginHorizontal: -20 }}
+        style={{ marginHorizontal: -theme.spacing.page }}
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
+        contentContainerStyle={[
+          styles.filterRow,
+          { gap: theme.spacing.sm, paddingHorizontal: theme.spacing.page },
+        ]}
       >
         {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} width={80} height={32} borderRadius={16} />
+          <Skeleton key={index} width={80} height={32} borderRadius={theme.radius.pill} />
         ))}
       </ScrollView>
     </View>
@@ -124,14 +157,25 @@ export function SkeletonGridItem({
   type?: 'episode' | 'series';
   itemWidth: number;
 }) {
+  const theme = useAppTheme();
   const aspectRatio = type === 'episode' ? 16 / 9 : 2 / 3;
   const cardHeight = itemWidth / aspectRatio;
 
   return (
     <View style={[styles.gridItem, { width: itemWidth }]}>
-      <Skeleton width="100%" height={cardHeight} borderRadius={12} />
-      <Skeleton width="85%" height={16} borderRadius={4} style={styles.gridTitleSkeleton} />
-      <Skeleton width="60%" height={13} borderRadius={4} style={styles.gridSubtitleSkeleton} />
+      <Skeleton width="100%" height={cardHeight} borderRadius={theme.radius.md} />
+      <Skeleton
+        width="85%"
+        height={theme.typography.body.lineHeight}
+        borderRadius={theme.radius.xs}
+        style={styles.gridTitleSkeleton}
+      />
+      <Skeleton
+        width="60%"
+        height={theme.typography.footnote.lineHeight}
+        borderRadius={theme.radius.xs}
+        style={styles.gridSubtitleSkeleton}
+      />
     </View>
   );
 }
@@ -147,13 +191,21 @@ export function SkeletonItemGrid({
   itemWidth: number;
   gap: number;
 }) {
+  const theme = useAppTheme();
   const itemsPerRow = numColumns;
   const totalItems = itemsPerRow * 3; // 显示3行
 
   return (
     <View style={styles.itemGridContainer}>
       <View
-        style={[styles.gridContainer, { paddingHorizontal: 20, paddingVertical: 20, rowGap: 16 }]}
+        style={[
+          styles.gridContainer,
+          {
+            paddingHorizontal: theme.spacing.page,
+            paddingVertical: theme.spacing.xl,
+            rowGap: gap,
+          },
+        ]}
       >
         {Array.from({ length: totalItems }).map((_, index) => (
           <SkeletonGridItem key={index} type={type} itemWidth={itemWidth} />

@@ -1,27 +1,14 @@
-import { getSystemColor } from '@/constants/SystemColor';
-import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
-
-import { useColorScheme } from './useColorScheme';
+import { useAppTheme } from '@/lib/design-system';
 
 export function useSettingsColors() {
-  const { accentColor } = useAccentColor();
-  const theme = useColorScheme() ?? 'light';
-
-  const textColor = getSystemColor('label', theme);
-  const secondaryTextColor = getSystemColor('secondaryLabel', theme);
-  const backgroundColor = getSystemColor('systemBackground', theme);
-  const separatorColor = getSystemColor('systemGray4', theme);
-  const secondarySystemGroupedBackground = getSystemColor(
-    'secondarySystemGroupedBackground',
-    theme,
-  );
+  const theme = useAppTheme();
 
   return {
-    textColor,
-    secondaryTextColor,
-    backgroundColor,
-    accentColor,
-    separatorColor,
-    secondarySystemGroupedBackground,
+    textColor: theme.colors.text,
+    secondaryTextColor: theme.colors.textSecondary,
+    backgroundColor: theme.colors.background,
+    accentColor: theme.colors.tint,
+    separatorColor: theme.colors.separator,
+    secondarySystemGroupedBackground: theme.colors.surface,
   };
 }

@@ -1,4 +1,4 @@
-import { useThemeColor } from '@/hooks/useThemeColor';
+import { useAppTheme } from '@/lib/design-system';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Image, ImageProps, ImageStyle } from 'expo-image';
 import { ReactNode, useState } from 'react';
@@ -20,14 +20,14 @@ export const ItemImage = ({
   fallback?: ReactNode;
 }) => {
   const [failed, setFailed] = useState(false);
-  const borderColor = useThemeColor({ light: '#ccc', dark: '#333' }, 'background');
+  const theme = useAppTheme();
 
   if (!uri || failed) {
     return (
       <>
         {fallback ?? (
           <View style={[style, { justifyContent: 'center', alignItems: 'center' }]}>
-            <FontAwesome name="film" size={36} color={borderColor} />
+            <FontAwesome name="film" size={36} color={theme.colors.textTertiary} />
           </View>
         )}
       </>

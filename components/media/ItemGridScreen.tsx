@@ -4,9 +4,8 @@ import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { MediaFilters } from '@/hooks/useMediaFilters';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import useRefresh from '@/hooks/useRefresh';
-import { useThemeColor } from '@/hooks/useThemeColor';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
+import { useAppTheme } from '@/lib/design-system';
 import { availableFiltersQueryOptions } from '@/services/media/queryOptions';
 import { MediaItem, MediaSortBy } from '@/services/media/types';
 import { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query';
@@ -54,9 +53,8 @@ export function ItemGridScreen({
   disableGrouping = false,
 }: ItemGridScreenProps) {
   const insets = useSafeAreaInsets();
-  const backgroundColor = useThemeColor({ light: '#fff', dark: '#000' }, 'background');
-  const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
-  const { accentColor } = useAccentColor();
+  const theme = useAppTheme();
+  const backgroundColor = theme.colors.background;
   const { numColumns, itemWidth, gap } = useGridLayout(type);
   const episodeLayout = useGridLayout('episode');
 
@@ -130,13 +128,13 @@ export function ItemGridScreen({
     if (isFetchingNextPage) {
       return (
         <View style={styles.footerLoadingContainer}>
-          <ActivityIndicator size="small" color={accentColor} />
+          <ActivityIndicator size="small" color={theme.colors.tint} />
         </View>
       );
     }
     if (!hasNextPage) return <View style={{ height: 16 }} />;
     return <View style={{ height: 16 }} />;
-  }, [query, isFetchingNextPage, hasNextPage, accentColor]);
+  }, [query, isFetchingNextPage, hasNextPage, theme.colors.tint]);
 
   useEffect(() => {
     navigation.setOptions({ title });
@@ -146,14 +144,17 @@ export function ItemGridScreen({
     if (!onChangeFilters) return null;
 
     return (
-      <View style={styles.filterBar}>
+      <View style={{ marginHorizontal: -theme.spacing.page, paddingBottom: theme.spacing.md }}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterScrollContent}
+          contentContainerStyle={[
+            styles.filterScrollContent,
+            { paddingHorizontal: theme.spacing.page },
+          ]}
           contentInsetAdjustmentBehavior="never"
         >
-          <GlassContainer spacing={10} style={[styles.filterRow]}>
+          <GlassContainer spacing={theme.spacing.sm} style={styles.filterRow}>
             <FilterButton
               label="年份"
               title="选择年份"
@@ -291,7 +292,14 @@ export function ItemGridScreen({
         </ScrollView>
       </View>
     );
-  }, [onChangeFilters, availableFilters, filters]);
+  }, [
+    onChangeFilters,
+    availableFilters,
+    filters,
+    theme.spacing.page,
+    theme.spacing.md,
+    theme.spacing.sm,
+  ]);
 
   const renderGroupSection = useCallback(
     (group: { key: string; title: string; items: MediaItem[] }, showTitle: boolean) => {
@@ -299,9 +307,16 @@ export function ItemGridScreen({
       const groupItemWidth = isEpisodeGroup ? episodeLayout.itemWidth : itemWidth;
 
       return (
-        <View key={group.key} style={styles.groupSection}>
+        <View key={group.key} style={{ paddingTop: theme.spacing.sm }}>
           {showTitle && (
-            <Text style={[styles.sectionTitle, { color: textColor }]}>{group.title}</Text>
+            <Text
+              style={[
+                theme.typography.bodyEmphasized,
+                { color: theme.colors.text, marginBottom: theme.spacing.sm },
+              ]}
+            >
+              {group.title}
+            </Text>
           )}
           <FlatList
             data={group.items}
@@ -319,17 +334,21 @@ export function ItemGridScreen({
             keyExtractor={keyExtractor}
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={styles.horizontalList}
-            contentContainerStyle={styles.horizontalListContainer}
+            style={{ marginHorizontal: -theme.spacing.page }}
+            contentContainerStyle={{
+              paddingLeft: theme.spacing.page,
+              paddingRight: theme.spacing.page,
+              paddingVertical: theme.spacing.md,
+            }}
             contentInsetAdjustmentBehavior="never"
-            ItemSeparatorComponent={() => <View style={{ width: 16 }} />}
+            ItemSeparatorComponent={() => <View style={{ width: theme.spacing.lg }} />}
             onEndReached={handleEndReached}
             onEndReachedThreshold={0.4}
           />
         </View>
       );
     },
-    [episodeLayout.itemWidth, itemWidth, textColor, keyExtractor, handleEndReached, useThreeCols],
+    [episodeLayout.itemWidth, itemWidth, theme, keyExtractor, handleEndReached, useThreeCols],
   );
 
   if (query && isLoading) {
@@ -344,14 +363,29 @@ export function ItemGridScreen({
     return (
       <View style={[styles.container, { backgroundColor, paddingTop: insets.top }]}>
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: textColor }]}>加载失败，请重试</Text>
+          <Text
+            style={[
+              theme.typography.body,
+              styles.errorText,
+              { color: theme.colors.text, marginBottom: theme.spacing.xl },
+            ]}
+          >
+            加载失败，请重试
+          </Text>
           <Pressable
-            style={[styles.retryButton, { backgroundColor: accentColor }]}
+            style={{
+              backgroundColor: theme.colors.tint,
+              borderRadius: theme.radius.sm,
+              paddingHorizontal: theme.spacing.xl,
+              paddingVertical: theme.spacing.md,
+            }}
             onPress={() => {
               refetch?.();
             }}
           >
-            <Text style={styles.retryButtonText}>重试</Text>
+            <Text style={[theme.typography.bodyEmphasized, { color: theme.colors.inverseText }]}>
+              重试
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -372,15 +406,19 @@ export function ItemGridScreen({
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.4}
-        contentContainerStyle={[
-          styles.listContainer,
-          { paddingBottom: Platform.OS === 'android' ? 100 : 0 },
-        ]}
+        contentContainerStyle={{
+          paddingBottom: Platform.OS === 'android' ? 100 : 0,
+          paddingHorizontal: theme.spacing.page,
+          paddingVertical: theme.spacing.xl,
+          rowGap: theme.spacing.lg,
+        }}
         ListHeaderComponent={renderFilterBar()}
         ListFooterComponent={listFooter}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyText, { color: textColor }]}>暂无内容</Text>
+            <Text style={[theme.typography.body, { color: theme.colors.textSecondary }]}>
+              暂无内容
+            </Text>
           </View>
         }
         style={{ backgroundColor }}
@@ -391,7 +429,10 @@ export function ItemGridScreen({
   return (
     <ScrollView
       style={{ backgroundColor }}
-      contentContainerStyle={styles.scrollContainer}
+      contentContainerStyle={{
+        paddingHorizontal: theme.spacing.page,
+        paddingVertical: theme.spacing.xl,
+      }}
       showsVerticalScrollIndicator={false}
       contentInsetAdjustmentBehavior="automatic"
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -402,7 +443,9 @@ export function ItemGridScreen({
         groupedItems.map((group) => renderGroupSection(group, true))
       ) : (
         <View style={styles.emptyContainer}>
-          <Text style={[styles.emptyText, { color: textColor }]}>暂无内容</Text>
+          <Text style={[theme.typography.body, { color: theme.colors.textSecondary }]}>
+            暂无内容
+          </Text>
         </View>
       )}
 
@@ -415,46 +458,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scrollContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-  },
-  filterBar: {
-    marginHorizontal: -20,
-    paddingBottom: 12,
-  },
   filterRow: {
     flexDirection: 'row',
     columnGap: 8,
     alignItems: 'center',
   },
   filterScrollContent: {
-    paddingHorizontal: 20,
     paddingVertical: 4,
-  },
-  listContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    rowGap: 16,
-  },
-  groupSection: {
-    paddingTop: 8,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  groupListContainer: {
-    rowGap: 16,
-  },
-  horizontalListContainer: {
-    paddingLeft: 20,
-    paddingRight: 20,
-    paddingVertical: 12,
-  },
-  horizontalList: {
-    marginHorizontal: -20,
   },
   loadingContainer: {
     flex: 1,
@@ -468,28 +478,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   errorText: {
-    fontSize: 16,
     textAlign: 'center',
-    marginBottom: 20,
-  },
-  retryButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    opacity: 0.6,
   },
   footerLoadingContainer: {
     paddingVertical: 12,

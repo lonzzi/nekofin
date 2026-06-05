@@ -1,5 +1,4 @@
-import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
-import { useResolvedColorScheme } from '@/lib/contexts/ThemePreferenceContext';
+import { useAppTheme } from '@/lib/design-system';
 import { Button, FieldGroup, ListItem, Text as NativeText, Picker, Slider, Switch } from '@expo/ui';
 import { Host as ComposeHost } from '@expo/ui/jetpack-compose';
 import { Host as SwiftHost } from '@expo/ui/swift-ui';
@@ -29,8 +28,7 @@ export function NativeSettingsForm({
   hosted?: boolean;
   surface?: 'page' | 'sheet';
 }) {
-  const colorScheme = useResolvedColorScheme();
-  const { accentColor } = useAccentColor();
+  const theme = useAppTheme();
 
   const modifiers =
     Platform.OS === 'ios'
@@ -52,7 +50,7 @@ export function NativeSettingsForm({
 
   if (Platform.OS === 'ios') {
     return (
-      <SwiftHost style={{ flex: 1 }} colorScheme={colorScheme} useViewportSizeMeasurement>
+      <SwiftHost style={{ flex: 1 }} colorScheme={theme.colorScheme} useViewportSizeMeasurement>
         {form}
       </SwiftHost>
     );
@@ -62,8 +60,8 @@ export function NativeSettingsForm({
     return (
       <ComposeHost
         style={{ flex: 1 }}
-        colorScheme={colorScheme}
-        seedColor={accentColor}
+        colorScheme={theme.colorScheme}
+        seedColor={theme.colors.tint}
         useViewportSizeMeasurement
       >
         {form}

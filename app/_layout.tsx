@@ -1,11 +1,8 @@
-import { getSystemColor } from '@/constants/SystemColor';
 import { DanmakuSettingsProvider } from '@/lib/contexts/DanmakuSettingsContext';
 import { MediaServerProvider } from '@/lib/contexts/MediaServerContext';
-import { ThemeColorProvider, useAccentColor } from '@/lib/contexts/ThemeColorContext';
-import {
-  ThemePreferenceProvider,
-  useResolvedColorScheme,
-} from '@/lib/contexts/ThemePreferenceContext';
+import { ThemeColorProvider } from '@/lib/contexts/ThemeColorContext';
+import { ThemePreferenceProvider } from '@/lib/contexts/ThemePreferenceContext';
+import { useAppTheme } from '@/lib/design-system';
 import { storage } from '@/lib/storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient } from '@tanstack/react-query';
@@ -86,24 +83,23 @@ export default function RootLayout() {
 }
 
 function RootNavigation() {
-  const colorScheme = useResolvedColorScheme();
-  const { accentColor } = useAccentColor();
+  const appTheme = useAppTheme();
 
   const navigationTheme = useMemo(() => {
-    const baseTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
+    const baseTheme = appTheme.isDark ? DarkTheme : DefaultTheme;
     return {
       ...baseTheme,
       colors: {
         ...baseTheme.colors,
-        primary: accentColor,
-        background: getSystemColor('systemBackground', colorScheme),
-        card: getSystemColor('systemBackground', colorScheme),
-        text: getSystemColor('label', colorScheme),
-        border: getSystemColor('systemGray4', colorScheme),
-        notification: accentColor,
+        primary: appTheme.colors.tint,
+        background: appTheme.colors.background,
+        card: appTheme.colors.background,
+        text: appTheme.colors.text,
+        border: appTheme.colors.separator,
+        notification: appTheme.colors.tint,
       },
     };
-  }, [accentColor, colorScheme]);
+  }, [appTheme]);
 
   return (
     <ThemeProvider value={navigationTheme}>
@@ -118,7 +114,7 @@ function RootNavigation() {
         <Stack.Screen name="player" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style={appTheme.isDark ? 'light' : 'dark'} />
     </ThemeProvider>
   );
 }

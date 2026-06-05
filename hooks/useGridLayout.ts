@@ -1,4 +1,5 @@
 import { useIsTablet } from '@/hooks/useIsTablet';
+import { spacing } from '@/lib/design-system';
 import { useMemo } from 'react';
 import { useWindowDimensions } from 'react-native';
 
@@ -7,7 +8,8 @@ export function useGridLayout(type?: 'series' | 'episode') {
   const { width } = useWindowDimensions();
 
   return useMemo(() => {
-    const containerPadding = 40;
+    const gap = spacing.md;
+    const containerPadding = spacing.page * 2;
     const availableWidth = width - containerPadding;
 
     let targetItemWidth: number;
@@ -31,13 +33,13 @@ export function useGridLayout(type?: 'series' | 'episode') {
 
     numColumns = Math.max(2, Math.min(numColumns, isTablet ? 8 : 4));
 
-    const totalGap = (numColumns - 1) * 12;
+    const totalGap = (numColumns - 1) * gap;
     const itemWidth = (availableWidth - totalGap) / numColumns;
 
     return {
       numColumns,
       itemWidth,
-      gap: 12,
+      gap,
     };
   }, [isTablet, type, width]);
 }

@@ -1,4 +1,4 @@
-import { useThemeColor } from '@/hooks/useThemeColor';
+import { useAppTheme } from '@/lib/design-system';
 import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useCallback } from 'react';
@@ -20,7 +20,7 @@ export const Section = React.memo(function Section({
   isLoading: boolean;
   type?: 'episode' | 'series';
 }) {
-  const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
+  const theme = useAppTheme();
 
   const renderEpisodeItem: ListRenderItem<MediaItem> = useCallback(
     ({ item }) => <EpisodeCard item={item} style={episodeCardStyle} showPlayButton />,
@@ -40,16 +40,20 @@ export const Section = React.memo(function Section({
         <SkeletonSectionHeader />
       ) : (
         <Pressable onPress={onViewAll}>
-          <View style={styles.sectionHeader}>
+          <View style={[styles.sectionHeader, { paddingHorizontal: theme.spacing.page }]}>
             <Text
-              style={[styles.sectionTitle, { color: textColor }]}
+              style={[theme.typography.title3, styles.sectionTitle, { color: theme.colors.text }]}
               numberOfLines={1}
               ellipsizeMode="tail"
             >
               {title}
             </Text>
             <View style={styles.viewAllButton}>
-              <Ionicons name="chevron-forward" size={20} color={textColor} />
+              <Ionicons
+                name="chevron-forward"
+                size={theme.sizes.iconMd}
+                color={theme.colors.text}
+              />
             </View>
           </View>
         </Pressable>
@@ -59,7 +63,10 @@ export const Section = React.memo(function Section({
           data={skeletonData}
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.sectionListContent}
+          contentContainerStyle={[
+            styles.sectionListContent,
+            { gap: theme.spacing.md, paddingHorizontal: theme.spacing.page },
+          ]}
           renderItem={renderSkeletonItem}
           keyExtractor={skeletonKeyExtractor}
         />
@@ -68,13 +75,18 @@ export const Section = React.memo(function Section({
           data={items}
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.sectionListContent}
+          contentContainerStyle={[
+            styles.sectionListContent,
+            { gap: theme.spacing.md, paddingHorizontal: theme.spacing.page },
+          ]}
           renderItem={renderItem}
           keyExtractor={itemKeyExtractor}
         />
       ) : (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>暂无内容</Text>
+        <View style={[styles.emptyContainer, { paddingHorizontal: theme.spacing.page }]}>
+          <Text style={[theme.typography.body, { color: theme.colors.textSecondary }]}>
+            暂无内容
+          </Text>
         </View>
       )}
     </View>
@@ -92,12 +104,9 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
     flex: 1,
     marginRight: 12,
   },
@@ -111,8 +120,6 @@ const styles = StyleSheet.create({
   },
   sectionListContent: {
     paddingVertical: 6,
-    paddingHorizontal: 20,
-    gap: 12,
   },
   loadingContainer: {
     paddingHorizontal: 20,
@@ -121,15 +128,10 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#888',
   },
   emptyContainer: {
     paddingHorizontal: 20,
     paddingVertical: 20,
     alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#888',
   },
 });

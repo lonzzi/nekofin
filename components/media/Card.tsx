@@ -1,7 +1,7 @@
 import { useMediaActions } from '@/hooks/useMediaActions';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
-import { useThemeColor } from '@/hooks/useThemeColor';
 import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
+import { useAppTheme } from '@/lib/design-system';
 import { ImageUrlInfo } from '@/lib/utils/image';
 import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -46,9 +46,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   disableContextMenu?: boolean;
 }) {
   const router = useRouter();
-  const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
-  const subtitleColor = useThemeColor({ light: '#666', dark: '#999' }, 'text');
-  const borderColor = useThemeColor({ light: '#ccc', dark: '#333' }, 'background');
+  const theme = useAppTheme();
   const { accentColor } = useAccentColor();
   const [isLongPressing, setIsLongPressing] = useState(false);
 
@@ -102,14 +100,14 @@ export const EpisodeCard = React.memo(function EpisodeCard({
       <Pressable
         style={[
           styles.playButton,
-          !isLiquidGlassAvailable() && { backgroundColor: 'rgba(0, 0, 0, 0.6)' },
+          !isLiquidGlassAvailable() && { backgroundColor: theme.colors.mediaChrome },
         ]}
         onPress={handlePlay}
       >
         <Ionicons name="play" size={32} color="#fff" />
       </Pressable>
     );
-  }, [handlePlay]);
+  }, [handlePlay, theme.colors.mediaChrome]);
 
   const CardComp = useCallback(
     () => (
@@ -120,10 +118,23 @@ export const EpisodeCard = React.memo(function EpisodeCard({
         onLongPress={handleLongPressStart}
         onPressOut={handleLongPressEnd}
       >
-        <View style={styles.coverContainer}>
+        <View
+          style={[
+            styles.coverContainer,
+            { backgroundColor: theme.colors.surfaceMuted, borderRadius: theme.radius.md },
+          ]}
+        >
           <ItemImage
             uri={imageUrl}
-            style={[styles.cover, showBorder && { ...styles.cardBorder, borderColor }]}
+            style={[
+              styles.cover,
+              { backgroundColor: theme.colors.surfaceMuted },
+              showBorder && {
+                ...styles.cardBorder,
+                borderColor: theme.colors.separator,
+                borderRadius: theme.radius.md,
+              },
+            ]}
             placeholderBlurhash={imageInfo.blurhash}
             cachePolicy="memory-disk"
             contentFit="cover"
@@ -137,13 +148,26 @@ export const EpisodeCard = React.memo(function EpisodeCard({
               <PlayButton />
             ))}
           {isPlayed && (
-            <View style={styles.playedOverlay}>
+            <View
+              style={[
+                styles.playedOverlay,
+                {
+                  backgroundColor: theme.colors.mediaChrome,
+                  borderRadius: theme.radius.pill,
+                  padding: theme.spacing.xxs,
+                  right: theme.spacing.sm,
+                  top: theme.spacing.sm,
+                },
+              ]}
+            >
               <Ionicons name="checkmark-circle" size={24} color={accentColor} />
             </View>
           )}
           {playedPercentage !== undefined && (
             <View style={styles.progressContainer}>
-              <View style={styles.progressBackground}>
+              <View
+                style={[styles.progressBackground, { backgroundColor: theme.colors.mediaChrome }]}
+              >
                 <View
                   style={[
                     styles.progressFill,
@@ -159,10 +183,24 @@ export const EpisodeCard = React.memo(function EpisodeCard({
         </View>
         {!hideText && (
           <>
-            <Text style={[styles.cardTitle, { color: textColor }]} numberOfLines={1}>
+            <Text
+              style={[
+                theme.typography.bodyEmphasized,
+                styles.cardTitle,
+                { color: theme.colors.text },
+              ]}
+              numberOfLines={1}
+            >
               {item.seriesName || item.name || '未知标题'}
             </Text>
-            <Text style={[styles.subtitle, { color: subtitleColor }]} numberOfLines={1}>
+            <Text
+              style={[
+                theme.typography.footnote,
+                styles.subtitle,
+                { color: theme.colors.textSecondary },
+              ]}
+              numberOfLines={1}
+            >
               {getSubtitle(item)}
             </Text>
           </>
@@ -172,7 +210,6 @@ export const EpisodeCard = React.memo(function EpisodeCard({
     [
       PlayButton,
       accentColor,
-      borderColor,
       disabled,
       handleLongPressEnd,
       handleLongPressStart,
@@ -187,8 +224,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
       showBorder,
       showPlayButton,
       style,
-      subtitleColor,
-      textColor,
+      theme,
     ],
   );
 
@@ -235,9 +271,7 @@ export const SeriesCard = React.memo(function SeriesCard({
   hideSubtitle?: boolean;
   showBorder?: boolean;
 }) {
-  const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
-  const subtitleColor = useThemeColor({ light: '#666', dark: '#999' }, 'text');
-  const borderColor = useThemeColor({ light: '#ccc', dark: '#333' }, 'background');
+  const theme = useAppTheme();
   const router = useRouter();
   const [isLongPressing, setIsLongPressing] = useState(false);
 
@@ -295,16 +329,38 @@ export const SeriesCard = React.memo(function SeriesCard({
         >
           <ItemImage
             uri={imageUrl}
-            style={[styles.posterCover, showBorder && { ...styles.cardBorder, borderColor }]}
+            style={[
+              styles.posterCover,
+              { backgroundColor: theme.colors.surfaceMuted, borderRadius: theme.radius.md },
+              showBorder && {
+                ...styles.cardBorder,
+                borderColor: theme.colors.separator,
+                borderRadius: theme.radius.md,
+              },
+            ]}
             placeholderBlurhash={imageInfo.blurhash}
             cachePolicy="memory-disk"
             contentFit="cover"
           />
-          <Text style={[styles.cardTitle, { color: textColor }]} numberOfLines={1}>
+          <Text
+            style={[
+              theme.typography.bodyEmphasized,
+              styles.cardTitle,
+              { color: theme.colors.text },
+            ]}
+            numberOfLines={1}
+          >
             {hideSubtitle ? item.name : item.seriesName || item.name || '未知标题'}
           </Text>
           {!hideSubtitle && (
-            <Text style={[styles.subtitle, { color: subtitleColor }]} numberOfLines={1}>
+            <Text
+              style={[
+                theme.typography.footnote,
+                styles.subtitle,
+                { color: theme.colors.textSecondary },
+              ]}
+              numberOfLines={1}
+            >
               {getSubtitle(item)}
             </Text>
           )}
@@ -341,14 +397,10 @@ const styles = StyleSheet.create({
   },
   coverContainer: {
     position: 'relative',
-    backgroundColor: '#eee',
-    borderRadius: 12,
     overflow: 'hidden',
   },
   cardBorder: {
     borderWidth: 0.5,
-    borderColor: '#ccc',
-    borderRadius: 12,
   },
   cover: {
     position: 'relative',
@@ -358,8 +410,6 @@ const styles = StyleSheet.create({
   posterCover: {
     width: '100%',
     aspectRatio: 2 / 3,
-    backgroundColor: '#eee',
-    borderRadius: 12,
   },
   progressContainer: {
     position: 'absolute',
@@ -371,7 +421,6 @@ const styles = StyleSheet.create({
   },
   progressBackground: {
     height: 4,
-    backgroundColor: 'rgba(51, 51, 51, 0.8)',
     borderRadius: 0,
     overflow: 'hidden',
   },
@@ -381,12 +430,7 @@ const styles = StyleSheet.create({
   },
   playedOverlay: {
     position: 'absolute',
-    top: 8,
-    right: 8,
     zIndex: 2,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 9999,
-    padding: 2,
   },
   playButton: {
     position: 'absolute',
@@ -402,13 +446,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
     marginTop: 8,
     marginHorizontal: 8,
   },
   subtitle: {
-    fontSize: 13,
     marginHorizontal: 8,
     marginTop: 2,
   },

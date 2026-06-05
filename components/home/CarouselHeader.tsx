@@ -1,9 +1,8 @@
 import { ItemImage } from '@/components/ItemImage';
 import { ThemedText } from '@/components/ThemedText';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
-import { useThemeColor } from '@/hooks/useThemeColor';
+import { useAppTheme } from '@/lib/design-system';
 import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
@@ -30,12 +29,7 @@ export function CarouselHeader({
   const pagerRef = useRef<PagerView>(null);
   const router = useRouter();
   const mediaAdapter = useMediaAdapter();
-
-  const backgroundColor = useThemeColor({ light: '#fff', dark: '#000' }, 'background');
-  const carouselPlaceholderColor = useThemeColor(
-    { light: '#d1d1d6', dark: '#2b2b2b' },
-    'background',
-  );
+  const theme = useAppTheme();
 
   const carouselImageInfos = useMemo(() => {
     return items.map((item) => {
@@ -121,16 +115,13 @@ export function CarouselHeader({
   const currentTitle = currentItem ? currentItem.seriesName || currentItem.name || '未知标题' : '';
   const currentLogoUrl = showLogo ? currentImageInfo?.logoImageUrl : undefined;
 
-  const colorScheme = useColorScheme();
-  const placeholderIconColor = colorScheme === 'dark' ? '#555' : '#bbb';
-
   const hasImages = items.length > 0;
 
   return (
     <View style={{ height }}>
       {!hasImages && (
         <View style={[StyleSheet.absoluteFill, styles.carouselPlaceholder]}>
-          <Ionicons name="film-outline" size={52} color={placeholderIconColor} />
+          <Ionicons name="film-outline" size={52} color={theme.colors.textTertiary} />
         </View>
       )}
       {hasImages && (
@@ -152,7 +143,7 @@ export function CarouselHeader({
                   {imageInfo?.imageUrl ? (
                     <ItemImage
                       uri={imageInfo.imageUrl}
-                      style={[styles.carouselImage, { backgroundColor }]}
+                      style={[styles.carouselImage, { backgroundColor: theme.colors.background }]}
                       contentFit="cover"
                       cachePolicy="memory-disk"
                       placeholderBlurhash={imageInfo.blurhash}
@@ -162,10 +153,10 @@ export function CarouselHeader({
                       style={[
                         styles.carouselImage,
                         styles.carouselPlaceholder,
-                        { backgroundColor: carouselPlaceholderColor },
+                        { backgroundColor: theme.colors.surfaceMuted },
                       ]}
                     >
-                      <IconSymbol name="video.fill" size={48} color="rgba(255,255,255,0.9)" />
+                      <IconSymbol name="video.fill" size={48} color={theme.colors.inverseText} />
                     </View>
                   )}
                 </Pressable>
@@ -194,32 +185,63 @@ export function CarouselHeader({
                     contentFit="contain"
                   />
                 ) : (
-                  <ThemedText style={styles.cardTitle} numberOfLines={1}>
+                  <ThemedText
+                    style={[
+                      theme.typography.title3,
+                      styles.cardTitle,
+                      { color: theme.colors.inverseText },
+                    ]}
+                    numberOfLines={1}
+                  >
                     {currentTitle}
                   </ThemedText>
                 )}
                 <View style={styles.cardMetaRow}>
                   {currentItem.type === 'Movie' && (
                     <View style={styles.cardTag}>
-                      <ThemedText style={styles.cardTagText}>电影</ThemedText>
+                      <ThemedText
+                        style={[
+                          theme.typography.caption,
+                          styles.cardTagText,
+                          { color: theme.colors.inverseText },
+                        ]}
+                      >
+                        电影
+                      </ThemedText>
                     </View>
                   )}
                   {currentItem.type === 'Series' && (
                     <View style={styles.cardTag}>
-                      <ThemedText style={styles.cardTagText}>剧集</ThemedText>
+                      <ThemedText
+                        style={[
+                          theme.typography.caption,
+                          styles.cardTagText,
+                          { color: theme.colors.inverseText },
+                        ]}
+                      >
+                        剧集
+                      </ThemedText>
                     </View>
                   )}
                   {currentItem.productionYear && (
-                    <ThemedText style={styles.cardMeta}>{currentItem.productionYear}</ThemedText>
+                    <ThemedText style={[theme.typography.footnote, styles.cardMeta]}>
+                      {currentItem.productionYear}
+                    </ThemedText>
                   )}
                   {currentItem.communityRating != null && (
-                    <ThemedText style={styles.cardMeta}>
+                    <ThemedText style={[theme.typography.footnote, styles.cardMeta]}>
                       ★ {currentItem.communityRating.toFixed(1)}
                     </ThemedText>
                   )}
                   {currentItem.officialRating && (
                     <View style={[styles.cardTag, styles.cardTagOutline]}>
-                      <ThemedText style={styles.cardTagText}>
+                      <ThemedText
+                        style={[
+                          theme.typography.caption,
+                          styles.cardTagText,
+                          { color: theme.colors.inverseText },
+                        ]}
+                      >
                         {currentItem.officialRating}
                       </ThemedText>
                     </View>
@@ -268,7 +290,6 @@ const styles = StyleSheet.create({
   carouselCard: {
     flex: 1,
     overflow: 'hidden',
-    backgroundColor: '#151718',
   },
   carouselImage: {
     width: '100%',
@@ -298,10 +319,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cardTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-    color: '#fff',
+    letterSpacing: 0,
     ...TEXT_SHADOW,
   },
   cardLogo: {
@@ -316,7 +334,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   cardMeta: {
-    fontSize: 13,
     color: 'rgba(255,255,255,0.85)',
     ...TEXT_SHADOW,
   },
@@ -332,9 +349,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.4)',
   },
   cardTagText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#fff',
     ...TEXT_SHADOW,
   },
   dotsRow: {

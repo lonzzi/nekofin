@@ -3,9 +3,11 @@
  * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
  */
 
+import { brandColors } from '@/lib/design-system/tokens';
+
 import { SystemColors } from './SystemColor';
 
-const tintColor = '#9C4DFF';
+const tintColor = brandColors.jellyfin;
 
 export const Colors = {
   light: {

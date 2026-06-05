@@ -1,12 +1,11 @@
-import { getSystemColor } from '@/constants/SystemColor';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { useAppTheme } from '@/lib/design-system';
 import { isGreaterThanOrEqual26 } from '@/lib/utils';
 import { Stack } from 'expo-router';
 import { Platform } from 'react-native';
 
 export default function HomeLayout() {
-  const colorScheme = useColorScheme();
-  const backgroundColor = getSystemColor('systemGroupedBackground', colorScheme);
+  const theme = useAppTheme();
+  const backgroundColor = theme.colors.backgroundGrouped;
 
   return (
     <Stack

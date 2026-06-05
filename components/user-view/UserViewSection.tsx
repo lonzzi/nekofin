@@ -1,4 +1,4 @@
-import { useThemeColor } from '@/hooks/useThemeColor';
+import { useAppTheme } from '@/lib/design-system';
 import { MediaItem } from '@/services/media/types';
 import React, { useCallback } from 'react';
 import { FlatList, ListRenderItem, StyleSheet, Text, View } from 'react-native';
@@ -21,7 +21,7 @@ export const UserViewSection = React.memo(function UserViewSection({
   isLoading?: boolean;
   title?: string;
 }) {
-  const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
+  const theme = useAppTheme();
   const userViewItems = userView || [];
 
   const renderItem: ListRenderItem<MediaItem> = useCallback(
@@ -37,7 +37,10 @@ export const UserViewSection = React.memo(function UserViewSection({
           horizontal
           keyExtractor={skeletonKeyExtractor}
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.userViewContainer}
+          contentContainerStyle={[
+            styles.userViewContainer,
+            { gap: theme.spacing.md, paddingHorizontal: theme.spacing.page },
+          ]}
           renderItem={renderSkeletonItem}
         />
       </View>
@@ -46,21 +49,47 @@ export const UserViewSection = React.memo(function UserViewSection({
 
   if (userViewItems.length === 0) {
     return (
-      <View>
-        <Text style={styles.userViewContent}>暂无内容</Text>
+      <View style={{ paddingHorizontal: theme.spacing.page }}>
+        <Text
+          style={[
+            theme.typography.footnote,
+            styles.userViewContent,
+            { color: theme.colors.textSecondary },
+          ]}
+        >
+          暂无内容
+        </Text>
       </View>
     );
   }
 
   return (
     <View>
-      {title && <Text style={[styles.userViewTitle, { color: textColor }]}>{title}</Text>}
+      {title && (
+        <Text
+          style={[
+            theme.typography.title3,
+            styles.userViewTitle,
+            {
+              color: theme.colors.text,
+              marginBottom: theme.spacing.md,
+              marginRight: theme.spacing.md,
+              paddingHorizontal: theme.spacing.page,
+            },
+          ]}
+        >
+          {title}
+        </Text>
+      )}
       <FlatList
         data={userViewItems}
         horizontal
         keyExtractor={itemKeyExtractor}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.userViewContainer}
+        contentContainerStyle={[
+          styles.userViewContainer,
+          { gap: theme.spacing.md, paddingHorizontal: theme.spacing.page },
+        ]}
         renderItem={renderItem}
       />
     </View>
@@ -70,22 +99,13 @@ export const UserViewSection = React.memo(function UserViewSection({
 const styles = StyleSheet.create({
   userViewContainer: {
     flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 20,
     paddingVertical: 6,
   },
   userViewContent: {
-    fontSize: 14,
-    fontWeight: 'bold',
     marginBottom: 2,
     textAlign: 'center',
   },
   userViewTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
     flex: 1,
-    paddingHorizontal: 20,
-    marginRight: 12,
-    marginBottom: 12,
   },
 });

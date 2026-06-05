@@ -4,9 +4,8 @@ import PageScrollView from '@/components/PageScrollView';
 import { SkeletonHorizontalSection } from '@/components/ui/Skeleton';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
-import { useThemeColor } from '@/hooks/useThemeColor';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
+import { useAppTheme } from '@/lib/design-system';
 import {
   recommendedSearchItemsQueryOptions,
   searchItemsQueryOptions,
@@ -30,10 +29,8 @@ export default function SearchScreen() {
   const [keyword, setKeyword] = useState<string>('');
   const [selected, setSelected] = useState<string>('');
   const mediaAdapter = useMediaAdapter();
-
-  const backgroundColor = useThemeColor({ light: '#fff', dark: '#000' }, 'background');
-  const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
-  const { accentColor } = useAccentColor();
+  const theme = useAppTheme();
+  const backgroundColor = theme.colors.background;
 
   const navigation = useNavigation();
 
@@ -98,7 +95,10 @@ export default function SearchScreen() {
   }, []);
 
   const keyExtractor = useCallback((item: MediaItem) => item.id!, []);
-  const itemSeparator = useCallback(() => <View style={styles.itemSeparator} />, []);
+  const itemSeparator = useCallback(
+    () => <View style={{ width: theme.spacing.lg }} />,
+    [theme.spacing.lg],
+  );
 
   useEffect(() => {
     navigation.setOptions({
@@ -134,28 +134,63 @@ export default function SearchScreen() {
 
       {groupedResults.length === 0 && !loadingResults && (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>没有找到相关内容</Text>
+          <Text
+            style={[
+              theme.typography.footnote,
+              styles.emptyText,
+              { color: theme.colors.textSecondary, marginBottom: theme.spacing.sm },
+            ]}
+          >
+            没有找到相关内容
+          </Text>
           {isResultsError && (
             <Pressable
-              style={[styles.retryButton, { borderColor: accentColor }]}
+              style={[
+                styles.retryButton,
+                {
+                  borderColor: theme.colors.tint,
+                  borderRadius: theme.radius.sm,
+                  paddingHorizontal: theme.spacing.lg,
+                  paddingVertical: theme.spacing.sm,
+                },
+              ]}
               onPress={() => refetch()}
             >
-              <Text style={[styles.retryText, { color: accentColor }]}>重试</Text>
+              <Text
+                style={[theme.typography.footnote, styles.retryText, { color: theme.colors.tint }]}
+              >
+                重试
+              </Text>
             </Pressable>
           )}
         </View>
       )}
 
       {groupedResults.map((group) => (
-        <View key={group.key} style={styles.groupSection}>
-          <Text style={[styles.sectionTitle, { color: textColor }]}>{group.title}</Text>
+        <View key={group.key} style={{ paddingTop: theme.spacing.sm }}>
+          <Text
+            style={[
+              theme.typography.bodyEmphasized,
+              styles.sectionTitle,
+              {
+                color: theme.colors.text,
+                marginBottom: theme.spacing.sm,
+                paddingHorizontal: theme.spacing.lg,
+              },
+            ]}
+          >
+            {group.title}
+          </Text>
           <FlatList
             data={group.items}
             renderItem={renderItem}
             keyExtractor={keyExtractor}
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalListContainer}
+            contentContainerStyle={{
+              paddingHorizontal: theme.spacing.lg,
+              paddingVertical: theme.spacing.md,
+            }}
             ItemSeparatorComponent={itemSeparator}
           />
         </View>
@@ -177,39 +212,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
-    paddingHorizontal: 16,
-  },
-  groupSection: {
-    paddingTop: 8,
-  },
-  horizontalListContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  itemSeparator: {
-    width: 16,
-  },
+  sectionTitle: {},
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: 40,
   },
-  emptyText: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 10,
-  },
+  emptyText: {},
   retryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
     borderWidth: 1,
   },
   retryText: {
-    fontSize: 14,
     fontWeight: '600',
   },
 });
