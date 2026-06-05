@@ -1,7 +1,12 @@
 import { Button, FieldGroup, ListItem, Text as NativeText, Picker, Slider, Switch } from '@expo/ui';
 import { Host as ComposeHost } from '@expo/ui/jetpack-compose';
 import { Host as SwiftHost } from '@expo/ui/swift-ui';
-import { listSectionSpacing } from '@expo/ui/swift-ui/modifiers';
+import {
+  controlSize,
+  frame,
+  listSectionSpacing,
+  scrollContentBackground,
+} from '@expo/ui/swift-ui/modifiers';
 import type { ReactNode } from 'react';
 import { Platform } from 'react-native';
 
@@ -15,16 +20,23 @@ export function NativeSettingsForm({
   children,
   testID,
   hosted = false,
+  surface = 'page',
 }: {
   children: ReactNode;
   testID?: string;
   hosted?: boolean;
+  surface?: 'page' | 'sheet';
 }) {
+  const modifiers =
+    Platform.OS === 'ios'
+      ? [
+          listSectionSpacing('compact'),
+          ...(surface === 'sheet' ? [scrollContentBackground('hidden')] : []),
+        ]
+      : undefined;
+
   const form = (
-    <FieldGroup
-      testID={testID}
-      modifiers={Platform.OS === 'ios' ? [listSectionSpacing('compact')] : undefined}
-    >
+    <FieldGroup testID={testID} modifiers={modifiers}>
       {children}
     </FieldGroup>
   );
@@ -186,13 +198,28 @@ export function NativeSettingsButton({
   onPress,
   variant = 'filled',
   disabled,
+  fullWidth = true,
 }: {
   label: string;
   onPress: () => void;
   variant?: 'filled' | 'outlined' | 'text';
   disabled?: boolean;
+  fullWidth?: boolean;
 }) {
-  return <Button label={label} onPress={onPress} variant={variant} disabled={disabled} />;
+  const modifiers =
+    Platform.OS === 'ios' && fullWidth
+      ? [frame({ maxWidth: Infinity }), controlSize('large')]
+      : undefined;
+
+  return (
+    <Button
+      label={label}
+      onPress={onPress}
+      variant={variant}
+      disabled={disabled}
+      modifiers={modifiers}
+    />
+  );
 }
 
 export function NativeSettingsText({ children }: { children: string }) {

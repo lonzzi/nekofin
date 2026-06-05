@@ -101,7 +101,6 @@ export default function MediaScreen() {
       <BottomSheet
         isPresented={isAddServerVisible}
         onDismiss={() => setIsAddServerVisible(false)}
-        snapPoints={['full']}
         testID="add-media-account-sheet"
       >
         {isAddServerVisible ? <AddServerForm onClose={handleCloseAddServer} /> : null}

@@ -68,7 +68,7 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
   };
 
   return (
-    <NativeSettingsForm testID="add-media-account-form" hosted>
+    <NativeSettingsForm testID="add-media-account-form" hosted surface="sheet">
       <NativeSettingsSection title="添加媒体账号">
         <NativeSettingsPicker
           title="媒体后端"
@@ -82,12 +82,11 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
         />
         <NativeSettingsItem
           title="后端地址"
-          subtitle="例如: http://192.168.1.100:8096"
           trailing={
             <TextInput
               defaultValue={address}
               onChangeText={setAddress}
-              placeholder="URL"
+              placeholder="http://192.168.1.100:8096"
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"

@@ -24,21 +24,29 @@ export default function SettingsScreen() {
 
   return (
     <NativeSettingsForm testID="settings-form">
-      <NativeSettingsSection title="媒体账号">
+      <NativeSettingsSection title="账号">
         <NativeSettingsItem
           title="账号与后端"
           subtitle={
             currentServer
-              ? `${servers.length} 个账号 - 当前为 ${currentServer.username}`
+              ? `${servers.length} 个账号，当前为 ${currentServer.username}`
               : `${servers.length} 个账号`
           }
           onPress={() => router.push('/media')}
         />
       </NativeSettingsSection>
 
-      <NativeSettingsSection title="播放">
-        <NativeSettingsItem title="转码设置" onPress={() => router.push('/transcoding')} />
-        <NativeSettingsItem title="弹幕设置" onPress={() => router.push('/danmaku')} />
+      <NativeSettingsSection title="播放体验">
+        <NativeSettingsItem
+          title="转码"
+          subtitle="码率、编码器与字幕烧录"
+          onPress={() => router.push('/transcoding')}
+        />
+        <NativeSettingsItem
+          title="弹幕"
+          subtitle="显示区域、字体与来源过滤"
+          onPress={() => router.push('/danmaku')}
+        />
       </NativeSettingsSection>
 
       <NativeSettingsSection title="外观">
@@ -54,7 +62,7 @@ export default function SettingsScreen() {
         />
       </NativeSettingsSection>
 
-      <NativeSettingsSection title="关于">
+      <NativeSettingsSection title="应用">
         <NativeSettingsItem
           title="版本信息"
           subtitle={`nekofin v${Constants.expoConfig?.version || '1.0.0'}`}
