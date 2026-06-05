@@ -68,7 +68,7 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
   };
 
   return (
-    <NativeSettingsForm testID="add-media-account-form">
+    <NativeSettingsForm testID="add-media-account-form" hosted>
       <NativeSettingsSection title="添加媒体账号">
         <NativeSettingsPicker
           title="媒体后端"

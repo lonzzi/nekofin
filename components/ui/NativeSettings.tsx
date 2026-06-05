@@ -1,5 +1,8 @@
 import { Button, FieldGroup, ListItem, Text as NativeText, Picker, Slider, Switch } from '@expo/ui';
+import { Host as ComposeHost } from '@expo/ui/jetpack-compose';
+import { Host as SwiftHost } from '@expo/ui/swift-ui';
 import type { ReactNode } from 'react';
+import { Platform } from 'react-native';
 
 export type NativeSettingsOption = {
   title: string;
@@ -7,8 +10,38 @@ export type NativeSettingsOption = {
   subtitle?: string;
 };
 
-export function NativeSettingsForm({ children, testID }: { children: ReactNode; testID?: string }) {
-  return <FieldGroup testID={testID}>{children}</FieldGroup>;
+export function NativeSettingsForm({
+  children,
+  testID,
+  hosted = false,
+}: {
+  children: ReactNode;
+  testID?: string;
+  hosted?: boolean;
+}) {
+  const form = <FieldGroup testID={testID}>{children}</FieldGroup>;
+
+  if (hosted) {
+    return form;
+  }
+
+  if (Platform.OS === 'ios') {
+    return (
+      <SwiftHost style={{ flex: 1 }} useViewportSizeMeasurement>
+        {form}
+      </SwiftHost>
+    );
+  }
+
+  if (Platform.OS === 'android') {
+    return (
+      <ComposeHost style={{ flex: 1 }} useViewportSizeMeasurement>
+        {form}
+      </ComposeHost>
+    );
+  }
+
+  return form;
 }
 
 export function NativeSettingsSection({
