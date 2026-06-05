@@ -1,6 +1,7 @@
 import { Button, FieldGroup, ListItem, Text as NativeText, Picker, Slider, Switch } from '@expo/ui';
 import { Host as ComposeHost } from '@expo/ui/jetpack-compose';
 import { Host as SwiftHost } from '@expo/ui/swift-ui';
+import { listSectionSpacing } from '@expo/ui/swift-ui/modifiers';
 import type { ReactNode } from 'react';
 import { Platform } from 'react-native';
 
@@ -19,7 +20,14 @@ export function NativeSettingsForm({
   testID?: string;
   hosted?: boolean;
 }) {
-  const form = <FieldGroup testID={testID}>{children}</FieldGroup>;
+  const form = (
+    <FieldGroup
+      testID={testID}
+      modifiers={Platform.OS === 'ios' ? [listSectionSpacing('compact')] : undefined}
+    >
+      {children}
+    </FieldGroup>
+  );
 
   if (hosted) {
     return form;
