@@ -1,3 +1,4 @@
+import { AvatarImage } from '@/components/AvatarImage';
 import {
   NativeSettingsForm,
   NativeSettingsItem,
@@ -6,6 +7,7 @@ import {
 } from '@/components/ui/NativeSettings';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { ThemePreference, useThemePreference } from '@/lib/contexts/ThemePreferenceContext';
+import { RNHostView } from '@expo/ui';
 import Constants from 'expo-constants';
 import { useNavigation, useRouter } from 'expo-router';
 import { useEffect } from 'react';
@@ -27,6 +29,16 @@ export default function SettingsScreen() {
       <NativeSettingsSection title="账号">
         <NativeSettingsItem
           title="账号与后端"
+          leading={
+            currentServer ? (
+              <RNHostView matchContents>
+                <AvatarImage
+                  avatarUri={currentServer.userAvatar}
+                  style={{ width: 36, height: 36, borderRadius: 12 }}
+                />
+              </RNHostView>
+            ) : undefined
+          }
           subtitle={
             currentServer
               ? `${servers.length} 个账号，当前为 ${currentServer.username}`

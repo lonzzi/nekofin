@@ -77,6 +77,7 @@ export function NativeSettingsSection({
 export function NativeSettingsItem({
   title,
   subtitle,
+  leading,
   value,
   trailing,
   onPress,
@@ -84,6 +85,7 @@ export function NativeSettingsItem({
 }: {
   title: string;
   subtitle?: string;
+  leading?: ReactNode;
   value?: string;
   trailing?: ReactNode;
   onPress?: () => void;
@@ -91,6 +93,7 @@ export function NativeSettingsItem({
 }) {
   return (
     <ListItem
+      leading={leading}
       onPress={onPress}
       supportingText={subtitle}
       trailing={trailing ?? value}

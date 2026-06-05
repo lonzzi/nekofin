@@ -7,6 +7,7 @@ import type { PropsWithChildren, ReactElement } from 'react';
 import { Easing, Platform, ScrollViewProps, StyleProp, StyleSheet, ViewStyle } from 'react-native';
 import { easeGradient } from 'react-native-easing-gradient';
 import Animated, {
+  Extrapolation,
   interpolate,
   useAnimatedRef,
   useAnimatedStyle,
@@ -81,10 +82,16 @@ export default function ParallaxScrollView({
             scrollOffset.value,
             [-headerHeight, 0, headerHeight],
             [-headerHeight / 2, 0, headerHeight * 0.75],
+            Extrapolation.CLAMP,
           ),
         },
         {
-          scale: interpolate(scrollOffset.value, [-headerHeight, 0, headerHeight], [2, 1, 1]),
+          scale: interpolate(
+            scrollOffset.value,
+            [-headerHeight, 0, headerHeight],
+            [2, 1, 1],
+            Extrapolation.CLAMP,
+          ),
         },
       ],
     };

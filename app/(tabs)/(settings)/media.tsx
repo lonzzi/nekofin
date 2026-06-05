@@ -1,4 +1,5 @@
 import { AddServerForm } from '@/components/AddServerForm';
+import { AvatarImage } from '@/components/AvatarImage';
 import {
   NativeSettingsForm,
   NativeSettingsItem,
@@ -6,16 +7,18 @@ import {
 } from '@/components/ui/NativeSettings';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { MediaServerInfo } from '@/services/media/types';
-import { BottomSheet } from '@expo/ui';
+import { BottomSheet, RNHostView } from '@expo/ui';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, useWindowDimensions } from 'react-native';
 
 export default function MediaScreen() {
   const { servers, removeServer, setCurrentServer, currentServer } = useMediaServers();
   const router = useRouter();
+  const { height: windowHeight } = useWindowDimensions();
 
   const [isAddServerVisible, setIsAddServerVisible] = useState(false);
+  const addServerSheetHeight = Math.min(Math.max(windowHeight * 0.58, 440), 560);
 
   const handleCloseAddServer = () => {
     setIsAddServerVisible(false);
@@ -60,6 +63,14 @@ export default function MediaScreen() {
                 <NativeSettingsItem
                   key={server.id}
                   title={server.name}
+                  leading={
+                    <RNHostView matchContents>
+                      <AvatarImage
+                        avatarUri={server.userAvatar}
+                        style={{ width: 36, height: 36, borderRadius: 12 }}
+                      />
+                    </RNHostView>
+                  }
                   subtitle={`${server.type.toUpperCase()} - ${server.username}\n${server.address}`}
                   value={isCurrentServer ? '当前' : '切换'}
                   onPress={() => handleSetCurrentServer(server.id)}
@@ -81,6 +92,14 @@ export default function MediaScreen() {
           <NativeSettingsSection title="当前账号">
             <NativeSettingsItem
               title="连接配置"
+              leading={
+                <RNHostView matchContents>
+                  <AvatarImage
+                    avatarUri={currentServer.userAvatar}
+                    style={{ width: 36, height: 36, borderRadius: 12 }}
+                  />
+                </RNHostView>
+              }
               subtitle={`${currentServer.type.toUpperCase()} - ${currentServer.address}`}
               onPress={() =>
                 router.push({
@@ -101,6 +120,7 @@ export default function MediaScreen() {
       <BottomSheet
         isPresented={isAddServerVisible}
         onDismiss={() => setIsAddServerVisible(false)}
+        snapPoints={[{ height: addServerSheetHeight }]}
         testID="add-media-account-sheet"
       >
         {isAddServerVisible ? <AddServerForm onClose={handleCloseAddServer} /> : null}
