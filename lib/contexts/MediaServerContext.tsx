@@ -7,6 +7,11 @@ import { deleteCachedApiForServer } from '@/services/media/jellyfin';
 import { MediaApi, MediaServerInfo, MediaServerType } from '@/services/media/types';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
+import {
+  createMediaServerStorageId,
+  normalizeServerAddress,
+  upsertMediaServer,
+} from '../mediaServerStore';
 import { storage } from '../storage';
 
 interface MediaServerContextType {
@@ -33,10 +38,6 @@ const MediaServerContext = createContext<MediaServerContextType | undefined>(und
 
 const STORAGE_KEY = 'nekofin_servers';
 const CURRENT_SERVER_ID_KEY = 'nekofin_current_server_id';
-
-function normalizeServerAddress(address: string): string {
-  return address.replace(/\/$/, '');
-}
 
 export function MediaServerProvider({ children }: { children: React.ReactNode }) {
   const [servers, setServers] = useState<MediaServerInfo[]>([]);
@@ -94,14 +95,14 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
 
   const addServer = async (server: Omit<MediaServerInfo, 'id' | 'createdAt'>) => {
     const normalizedAddress = normalizeServerAddress(server.address);
-    const newServer: MediaServerInfo = {
+    const serverId = createMediaServerStorageId(normalizedAddress, server.userId);
+    const newServer: Omit<MediaServerInfo, 'createdAt'> = {
       ...server,
       address: normalizedAddress,
-      id: `${normalizedAddress}_${server.userId}`,
-      createdAt: Date.now(),
+      id: serverId,
     };
 
-    const updatedServers = [...servers, newServer];
+    const updatedServers = upsertMediaServer(servers, newServer);
     await saveServers(updatedServers);
     setCurrentServerId(newServer.id);
     storage.set(CURRENT_SERVER_ID_KEY, newServer.id);
