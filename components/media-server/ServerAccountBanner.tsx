@@ -17,6 +17,7 @@ type ServerAccountBannerProps = {
 
 function getServerTypeLabel(type?: MediaServerInfo['type']) {
   if (type === 'emby') return 'Emby';
+  if (!type) return '媒体账号';
   return 'Jellyfin';
 }
 

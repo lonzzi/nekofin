@@ -148,15 +148,10 @@ export function ItemGridScreen({
     return (
       <View style={styles.filterBar}>
         <ScrollView
-          style={{
-            marginHorizontal: -20,
-            paddingVertical: 40,
-            position: 'absolute',
-            top: -50,
-            width: '200%',
-          }}
           horizontal
           showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterScrollContent}
+          contentInsetAdjustmentBehavior="never"
         >
           <GlassContainer spacing={10} style={[styles.filterRow]}>
             <FilterButton
@@ -425,15 +420,17 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   filterBar: {
-    position: 'relative',
-    paddingBottom: 8,
-    height: 24,
+    marginHorizontal: -20,
+    paddingBottom: 12,
   },
   filterRow: {
     flexDirection: 'row',
     columnGap: 8,
     alignItems: 'center',
+  },
+  filterScrollContent: {
     paddingHorizontal: 20,
+    paddingVertical: 4,
   },
   listContainer: {
     paddingHorizontal: 20,
