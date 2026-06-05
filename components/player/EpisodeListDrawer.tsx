@@ -3,14 +3,7 @@ import { formatDurationFromTicks } from '@/lib/utils';
 import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import {
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Drawer } from 'react-native-drawer-layout';
 import Animated, {
   useAnimatedStyle,
@@ -86,10 +79,9 @@ export function EpisodeListDrawer({ ref }: { ref: React.RefObject<EpisodeListDra
       const isCurrentEpisode = currentItem?.id === item.id;
 
       return (
-        <TouchableOpacity
+        <Pressable
           style={[styles.episodeItem, isCurrentEpisode && styles.currentEpisodeItem]}
           onPress={() => handleEpisodePress(item)}
-          activeOpacity={0.7}
         >
           <View style={styles.episodeContent}>
             <EpisodeCard
@@ -118,7 +110,7 @@ export function EpisodeListDrawer({ ref }: { ref: React.RefObject<EpisodeListDra
               )}
             </View>
           </View>
-        </TouchableOpacity>
+        </Pressable>
       );
     },
     [currentItem?.id, handleEpisodePress, subtitleColor],
@@ -146,9 +138,9 @@ export function EpisodeListDrawer({ ref }: { ref: React.RefObject<EpisodeListDra
           <View style={styles.drawerContent} pointerEvents="auto">
             <View style={styles.header}>
               <Text style={styles.headerTitle}>剧集列表</Text>
-              <TouchableOpacity onPress={dismiss} style={styles.closeButton}>
+              <Pressable onPress={dismiss} style={styles.closeButton}>
                 <Ionicons name="close" size={24} color="#fff" />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <FlatList

@@ -5,7 +5,7 @@ import * as Network from 'expo-network';
 import { useNetworkState } from 'expo-network';
 import { useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -89,9 +89,9 @@ export function TopControls() {
           style={{ position: 'absolute', top: 40 }}
           pointerEvents={showControls ? 'auto' : 'none'}
         >
-          <TouchableOpacity style={styles.backButtonTouchable} onPress={handleBackPress}>
+          <Pressable style={styles.backButtonTouchable} onPress={handleBackPress}>
             <Ionicons name="chevron-back" size={24} color="white" />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         <View style={styles.netRow}>

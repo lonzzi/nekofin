@@ -2,7 +2,7 @@ import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { formatTimeWorklet } from '@/lib/utils';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useCallback } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Slider } from 'react-native-awesome-slider';
 import Animated, {
   useAnimatedStyle,
@@ -136,12 +136,12 @@ export function BottomControls() {
       </View>
 
       <View style={styles.bottomRow}>
-        <TouchableOpacity style={styles.cornerButton}>
+        <View style={styles.cornerButton}>
           {/* <Ionicons name="lock-closed-outline" size={24} color="#fff" /> */}
-        </TouchableOpacity>
+        </View>
 
         <View style={styles.controlsCluster}>
-          <TouchableOpacity
+          <Pressable
             style={[styles.circleButton, !hasPreviousEpisode && styles.disabledButton]}
             onPress={hasPreviousEpisode ? onPreviousEpisode : undefined}
             disabled={!hasPreviousEpisode}
@@ -151,17 +151,17 @@ export function BottomControls() {
               size={24}
               color={hasPreviousEpisode ? 'white' : 'rgba(255,255,255,0.3)'}
             />
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity style={styles.playButton} onPress={handlePlayPause}>
+          <Pressable style={styles.playButton} onPress={handlePlayPause}>
             {isLoading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <Ionicons name={isPlaying ? 'pause' : 'play'} size={30} color="white" />
             )}
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={[styles.circleButton, !hasNextEpisode && styles.disabledButton]}
             onPress={hasNextEpisode ? onNextEpisode : undefined}
             disabled={!hasNextEpisode}
@@ -171,10 +171,10 @@ export function BottomControls() {
               size={24}
               color={hasNextEpisode ? 'white' : 'rgba(255,255,255,0.3)'}
             />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
-        <TouchableOpacity
+        <Pressable
           style={[styles.cornerButton, (isMovie || episodes.length === 0) && styles.disabledButton]}
           onPress={handleEpisodeListPress}
           disabled={isMovie || episodes.length === 0}
@@ -184,7 +184,7 @@ export function BottomControls() {
             size={24}
             color={isMovie || episodes.length === 0 ? 'rgba(255,255,255,0.3)' : '#fff'}
           />
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </Animated.View>
   );

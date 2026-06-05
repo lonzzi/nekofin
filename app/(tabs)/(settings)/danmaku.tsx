@@ -3,7 +3,7 @@ import { Section } from '@/components/ui/Section';
 import { SliderSetting } from '@/components/ui/SliderSetting';
 import { SwitchSetting } from '@/components/ui/SwitchSetting';
 import { defaultSettings, useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export default function DanmakuSettingsScreen() {
   const { settings, setSettings } = useDanmakuSettings();
@@ -114,12 +114,12 @@ export default function DanmakuSettingsScreen() {
       <View style={styles.bottomSpacing} />
 
       <View style={styles.resetSection}>
-        <TouchableOpacity
+        <Pressable
           style={[styles.resetButton, { backgroundColor: '#FF6B6B' }]}
           onPress={handleResetToDefault}
         >
           <Text style={styles.resetButtonText}>恢复默认设置</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </PageScrollView>
   );

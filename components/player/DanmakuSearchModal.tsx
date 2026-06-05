@@ -8,17 +8,9 @@ import {
   searchAnimesByKeyword,
 } from '@/services/dandanplay';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { BottomSheetFlatList, BottomSheetModal } from '@gorhom/bottom-sheet';
-import { useCallback, useImperativeHandle, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { BottomSheetFlatList, BottomSheetModal, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { ComponentRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 type DanmakuSearchModalProps = {
   onCommentsLoaded: (
@@ -42,7 +34,7 @@ export const DanmakuSearchModal = ({ onCommentsLoaded, ref }: DanmakuSearchModal
   const [episodes, setEpisodes] = useState<DandanEpisode[]>([]);
   const [selectedAnime, setSelectedAnime] = useState<DandanAnime | null>(null);
   const [loading, setLoading] = useState(false);
-  const textInputRef = useRef<TextInput>(null);
+  const textInputRef = useRef<ComponentRef<typeof BottomSheetTextInput>>(null);
 
   const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#000' }, 'background');
@@ -123,7 +115,7 @@ export const DanmakuSearchModal = ({ onCommentsLoaded, ref }: DanmakuSearchModal
 
   const renderAnimeItem = useCallback(
     ({ item }: { item: DandanAnime }) => (
-      <TouchableOpacity
+      <Pressable
         style={[styles.item, { borderBottomColor: borderColor }]}
         onPress={() => handleAnimeSelect(item)}
       >
@@ -133,21 +125,21 @@ export const DanmakuSearchModal = ({ onCommentsLoaded, ref }: DanmakuSearchModal
         <Text style={[styles.itemSubtitle, { color: textColor, opacity: 0.6 }]}>
           {item.typeDescription} · {item.episodes.length} 集
         </Text>
-      </TouchableOpacity>
+      </Pressable>
     ),
     [borderColor, textColor, handleAnimeSelect],
   );
 
   const renderEpisodeItem = useCallback(
     ({ item }: { item: DandanEpisode }) => (
-      <TouchableOpacity
+      <Pressable
         style={[styles.item, { borderBottomColor: borderColor }]}
         onPress={() => handleEpisodeSelect(item)}
       >
         <Text style={[styles.itemTitle, { color: textColor }]} numberOfLines={2}>
           {item.episodeTitle}
         </Text>
-      </TouchableOpacity>
+      </Pressable>
     ),
     [borderColor, textColor, handleEpisodeSelect],
   );
@@ -160,6 +152,9 @@ export const DanmakuSearchModal = ({ onCommentsLoaded, ref }: DanmakuSearchModal
     ),
     [searchStep, loading, textColor],
   );
+
+  const animeKeyExtractor = useCallback((item: DandanAnime) => item.animeId.toString(), []);
+  const episodeKeyExtractor = useCallback((item: DandanEpisode) => item.episodeId.toString(), []);
 
   return (
     <BottomSheetBackdropModal
@@ -176,7 +171,7 @@ export const DanmakuSearchModal = ({ onCommentsLoaded, ref }: DanmakuSearchModal
     >
       <View style={[styles.container, { backgroundColor }]}>
         <View style={styles.searchContainer}>
-          <TextInput
+          <BottomSheetTextInput
             style={[
               styles.searchInput,
               {
@@ -194,7 +189,7 @@ export const DanmakuSearchModal = ({ onCommentsLoaded, ref }: DanmakuSearchModal
             autoCorrect={false}
             ref={textInputRef}
           />
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.searchButton,
               !searchKeyword.trim() && styles.disabledButton,
@@ -208,14 +203,14 @@ export const DanmakuSearchModal = ({ onCommentsLoaded, ref }: DanmakuSearchModal
             ) : (
               <Ionicons name="search" size={20} color="white" />
             )}
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {searchStep === 'anime' ? (
           <BottomSheetFlatList
             data={animes}
             renderItem={renderAnimeItem}
-            keyExtractor={(item) => item.animeId.toString()}
+            keyExtractor={animeKeyExtractor}
             ListEmptyComponent={renderEmptyComponent}
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}
@@ -224,7 +219,7 @@ export const DanmakuSearchModal = ({ onCommentsLoaded, ref }: DanmakuSearchModal
           <BottomSheetFlatList
             data={episodes}
             renderItem={renderEpisodeItem}
-            keyExtractor={(item) => item.episodeId.toString()}
+            keyExtractor={episodeKeyExtractor}
             ListEmptyComponent={renderEmptyComponent}
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}

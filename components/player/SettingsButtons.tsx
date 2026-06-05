@@ -3,7 +3,7 @@ import { DandanComment } from '@/services/dandanplay';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MenuView } from '@react-native-menu/menu';
 import { useCallback, useRef } from 'react';
-import { StyleProp, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 import { DanmakuSearchModal, DanmakuSearchModalRef } from './DanmakuSearchModal';
 import { usePlayer } from './PlayerContext';
@@ -101,13 +101,13 @@ export function SettingsButtons({ style }: SettingsButtonsProps) {
             : [{ id: 'no_audio', title: '无可用音轨', state: 'off' as const }]
         }
       >
-        <TouchableOpacity style={styles.circleButton} disabled={audioTracks.length === 0}>
+        <Pressable style={styles.circleButton} disabled={audioTracks.length === 0}>
           <Ionicons
             name="musical-notes"
             size={24}
             color={audioTracks.length === 0 ? '#666' : 'white'}
           />
-        </TouchableOpacity>
+        </Pressable>
       </MenuView>
 
       <MenuView
@@ -139,13 +139,13 @@ export function SettingsButtons({ style }: SettingsButtonsProps) {
             : [{ id: 'no_subtitle', title: '无可用字幕', state: 'off' as const }]
         }
       >
-        <TouchableOpacity style={styles.circleButton} disabled={subtitleTracks.length === 0}>
+        <Pressable style={styles.circleButton} disabled={subtitleTracks.length === 0}>
           <Ionicons
             name="chatbox-ellipses"
             size={24}
             color={subtitleTracks.length === 0 ? '#666' : 'white'}
           />
-        </TouchableOpacity>
+        </Pressable>
       </MenuView>
 
       <MenuView
@@ -163,9 +163,9 @@ export function SettingsButtons({ style }: SettingsButtonsProps) {
         title="播放速度"
         actions={[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map(createRateAction)}
       >
-        <TouchableOpacity style={styles.circleButton}>
+        <Pressable style={styles.circleButton}>
           <Ionicons name="speedometer-outline" size={24} color="white" />
-        </TouchableOpacity>
+        </Pressable>
       </MenuView>
 
       <MenuView
@@ -188,9 +188,9 @@ export function SettingsButtons({ style }: SettingsButtonsProps) {
           createMenuAction('aspect_4:3', '4:3', aspectRatio, '4:3'),
         ]}
       >
-        <TouchableOpacity style={styles.circleButton}>
+        <Pressable style={styles.circleButton}>
           <Ionicons name="resize-outline" size={24} color="white" />
-        </TouchableOpacity>
+        </Pressable>
       </MenuView>
 
       <MenuView
@@ -215,9 +215,9 @@ export function SettingsButtons({ style }: SettingsButtonsProps) {
           { id: 'danmaku_search', title: '搜索弹幕' },
         ]}
       >
-        <TouchableOpacity style={styles.circleButton}>
+        <Pressable style={styles.circleButton}>
           <Ionicons name="chatbubble-ellipses" size={24} color="white" />
-        </TouchableOpacity>
+        </Pressable>
       </MenuView>
 
       <DanmakuSearchModal ref={danmakuSearchModalRef} onCommentsLoaded={handleCommentsLoaded} />
