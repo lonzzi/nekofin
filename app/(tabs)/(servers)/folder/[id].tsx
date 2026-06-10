@@ -7,7 +7,7 @@ import { MediaItemType } from '@/services/media/types';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 
-export default function FolderScreen() {
+export default function ServerFolderScreen() {
   const { id, name, itemTypes } = useLocalSearchParams<{
     id: string;
     name?: string;

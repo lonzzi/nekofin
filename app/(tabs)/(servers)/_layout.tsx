@@ -1,9 +1,10 @@
+import { GroupedStackRoutes } from '@/components/GroupedStackRoutes';
 import { useAppTheme } from '@/lib/design-system';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Stack } from 'expo-router';
 import { Platform } from 'react-native';
 
-export default function HomeLayout() {
+export default function ServersLayout() {
   const theme = useAppTheme();
   const backgroundColor = theme.colors.backgroundGrouped;
 
@@ -25,21 +26,51 @@ export default function HomeLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: '设置',
+          title: '服务器',
           headerLargeTitle: true,
           headerLargeTitleShadowVisible: false,
         }}
       />
       <Stack.Screen
-        name="danmaku"
+        name="library"
         options={{
-          headerTitle: '弹幕设置',
+          title: '',
+          headerTransparent: true,
         }}
       />
       <Stack.Screen
-        name="transcoding"
+        name="favorites"
         options={{
-          headerTitle: '转码设置',
+          title: '收藏',
+          headerLargeTitle: true,
+          headerLargeTitleShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="server-search"
+        options={{
+          title: '搜索',
+          headerLargeTitle: true,
+          headerLargeTitleShadowVisible: false,
+        }}
+      />
+      {GroupedStackRoutes()}
+      <Stack.Screen
+        name="folder/[id]"
+        options={{
+          title: '查看全部',
+        }}
+      />
+      <Stack.Screen
+        name="view-all/[type]"
+        options={{
+          title: '查看全部',
+        }}
+      />
+      <Stack.Screen
+        name="server-config/[serverId]"
+        options={{
+          headerTitle: '服务器配置',
         }}
       />
     </Stack>

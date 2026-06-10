@@ -1,20 +1,17 @@
-import { AvatarImage } from '@/components/AvatarImage';
 import {
   NativeSettingsForm,
   NativeSettingsItem,
   NativeSettingsPicker,
   NativeSettingsSection,
 } from '@/components/ui/NativeSettings';
-import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { ThemePreference, useThemePreference } from '@/lib/contexts/ThemePreferenceContext';
-import { RNHostView } from '@expo/ui';
 import Constants from 'expo-constants';
 import { useNavigation, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
-  const { servers, currentServer } = useMediaServers();
   const { themePreference, setThemePreference } = useThemePreference();
   const router = useRouter();
 
@@ -26,44 +23,22 @@ export default function SettingsScreen() {
 
   return (
     <NativeSettingsForm testID="settings-form">
-      <NativeSettingsSection title="账号">
+      <NativeSettingsSection title="播放">
         <NativeSettingsItem
-          title="账号与后端"
-          leading={
-            currentServer ? (
-              <RNHostView matchContents>
-                <AvatarImage
-                  avatarUri={currentServer.userAvatar}
-                  style={{ width: 36, height: 36, borderRadius: 12 }}
-                />
-              </RNHostView>
-            ) : undefined
-          }
-          subtitle={
-            currentServer
-              ? `${servers.length} 个账号，当前为 ${currentServer.username}`
-              : `${servers.length} 个账号`
-          }
-          onPress={() => router.push('/media')}
-        />
-      </NativeSettingsSection>
-
-      <NativeSettingsSection title="播放体验">
-        <NativeSettingsItem
-          title="转码"
-          subtitle="码率、编码器与字幕烧录"
+          title={<SettingsTitle>转码设置</SettingsTitle>}
+          disclosure
           onPress={() => router.push('/transcoding')}
         />
         <NativeSettingsItem
-          title="弹幕"
-          subtitle="显示区域、字体与来源过滤"
+          title={<SettingsTitle>弹幕设置</SettingsTitle>}
+          disclosure
           onPress={() => router.push('/danmaku')}
         />
       </NativeSettingsSection>
 
       <NativeSettingsSection title="外观">
         <NativeSettingsPicker
-          title="主题"
+          title={<SettingsTitle>主题</SettingsTitle>}
           value={themePreference}
           options={[
             { title: '系统', value: 'system' },
@@ -74,12 +49,17 @@ export default function SettingsScreen() {
         />
       </NativeSettingsSection>
 
-      <NativeSettingsSection title="应用">
+      <NativeSettingsSection title="关于">
         <NativeSettingsItem
-          title="版本信息"
-          subtitle={`nekofin v${Constants.expoConfig?.version || '1.0.0'}`}
+          title={<SettingsTitle>版本信息</SettingsTitle>}
+          subtitle={
+            <SettingsSubtitle primary={`nekofin v${Constants.expoConfig?.version || '1.0.0'}`} />
+          }
         />
-        <NativeSettingsItem title="开源协议" subtitle="MPL-2.0 License" />
+        <NativeSettingsItem
+          title={<SettingsTitle>开源协议</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary="MPL-2.0 License" />}
+        />
       </NativeSettingsSection>
     </NativeSettingsForm>
   );

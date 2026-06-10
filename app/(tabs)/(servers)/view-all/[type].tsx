@@ -6,7 +6,7 @@ import { viewAllItemLayoutType, viewAllQueryOptions } from '@/services/media/que
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 
-export default function ViewAllScreen() {
+export default function ServerViewAllScreen() {
   const { type, folderId, folderName } = useLocalSearchParams<{
     type: string;
     folderId?: string;

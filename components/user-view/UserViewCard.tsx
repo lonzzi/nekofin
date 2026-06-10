@@ -25,7 +25,7 @@ export const UserViewCard = React.memo(function UserViewCard({
   const handlePress = useCallback(() => {
     if (!item) return;
     router.push({
-      pathname: '/folder/[id]',
+      pathname: '/(tabs)/(servers)/folder/[id]',
       params: {
         id: item.id!,
         name: title,

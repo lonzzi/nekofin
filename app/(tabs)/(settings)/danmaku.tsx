@@ -1,10 +1,11 @@
 import {
-  NativeSettingsButton,
   NativeSettingsForm,
+  NativeSettingsItem,
   NativeSettingsSection,
   NativeSettingsSlider,
   NativeSettingsSwitch,
 } from '@/components/ui/NativeSettings';
+import { SettingsSubtitle, SettingsTitle, SettingsValue } from '@/components/ui/SettingsVisual';
 import { defaultSettings, useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { Alert } from 'react-native';
 
@@ -40,8 +41,8 @@ export default function DanmakuSettingsScreen() {
     <NativeSettingsForm testID="danmaku-settings-form">
       <NativeSettingsSection title="基础设置">
         <NativeSettingsSlider
-          title="透明度"
-          subtitle="弹幕显示的透明度"
+          title={<SettingsTitle>透明度</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary="弹幕显示的透明度" />}
           value={settings.opacity}
           min={0.1}
           max={1.0}
@@ -50,8 +51,8 @@ export default function DanmakuSettingsScreen() {
           formatValue={(value) => `${Math.round(value * 100)}%`}
         />
         <NativeSettingsSlider
-          title="字体大小"
-          subtitle="弹幕文字的大小"
+          title={<SettingsTitle>字体大小</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary="弹幕文字的大小" />}
           value={mapFontSizeToSlider(settings.fontSize)}
           min={0}
           max={1}
@@ -60,8 +61,8 @@ export default function DanmakuSettingsScreen() {
           formatValue={(value) => `${mapSliderToFontSize(value)}px`}
         />
         <NativeSettingsSlider
-          title="显示区域"
-          subtitle="弹幕在屏幕上的显示范围"
+          title={<SettingsTitle>显示区域</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary="弹幕在屏幕上的显示范围" />}
           value={settings.heightRatio}
           min={0.3}
           max={1.0}
@@ -73,22 +74,22 @@ export default function DanmakuSettingsScreen() {
 
       <NativeSettingsSection title="弹幕来源过滤">
         <NativeSettingsSwitch
-          title="B站弹幕"
+          title={<SettingsTitle>B站弹幕</SettingsTitle>}
           value={(settings.danmakuFilter & 1) !== 1}
           onValueChange={() => toggleFilter(1)}
         />
         <NativeSettingsSwitch
-          title="巴哈弹幕"
+          title={<SettingsTitle>巴哈弹幕</SettingsTitle>}
           value={(settings.danmakuFilter & 2) !== 2}
           onValueChange={() => toggleFilter(2)}
         />
         <NativeSettingsSwitch
-          title="弹弹Play弹幕"
+          title={<SettingsTitle>弹弹Play弹幕</SettingsTitle>}
           value={(settings.danmakuFilter & 4) !== 4}
           onValueChange={() => toggleFilter(4)}
         />
         <NativeSettingsSwitch
-          title="其他来源弹幕"
+          title={<SettingsTitle>其他来源弹幕</SettingsTitle>}
           value={(settings.danmakuFilter & 8) !== 8}
           onValueChange={() => toggleFilter(8)}
         />
@@ -96,27 +97,28 @@ export default function DanmakuSettingsScreen() {
 
       <NativeSettingsSection title="弹幕类型过滤">
         <NativeSettingsSwitch
-          title="底部弹幕"
+          title={<SettingsTitle>底部弹幕</SettingsTitle>}
           value={(settings.danmakuModeFilter & 1) !== 1}
           onValueChange={() => toggleModeFilter(1)}
         />
         <NativeSettingsSwitch
-          title="顶部弹幕"
+          title={<SettingsTitle>顶部弹幕</SettingsTitle>}
           value={(settings.danmakuModeFilter & 2) !== 2}
           onValueChange={() => toggleModeFilter(2)}
         />
         <NativeSettingsSwitch
-          title="滚动弹幕"
+          title={<SettingsTitle>滚动弹幕</SettingsTitle>}
           value={(settings.danmakuModeFilter & 4) !== 4}
           onValueChange={() => toggleModeFilter(4)}
         />
       </NativeSettingsSection>
 
       <NativeSettingsSection>
-        <NativeSettingsButton
-          label="恢复默认设置"
+        <NativeSettingsItem
+          title={<SettingsTitle>恢复默认设置</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary="将弹幕显示、来源和类型过滤恢复为默认值" />}
+          trailing={<SettingsValue label="恢复" tone="danger" />}
           onPress={handleResetToDefault}
-          variant="outlined"
         />
       </NativeSettingsSection>
     </NativeSettingsForm>

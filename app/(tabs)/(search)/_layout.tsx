@@ -1,6 +1,6 @@
 import { GroupedStackRoutes } from '@/components/GroupedStackRoutes';
 import { useAppTheme } from '@/lib/design-system';
-import { isGreaterThanOrEqual26 } from '@/lib/utils';
+import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Stack } from 'expo-router';
 import { Platform } from 'react-native';
 
@@ -13,10 +13,10 @@ export default function HomeLayout() {
       screenOptions={{
         headerTransparent: Platform.OS === 'ios',
         headerShadowVisible: false,
-        headerBlurEffect: isGreaterThanOrEqual26 ? undefined : 'prominent',
+        headerBlurEffect: isLiquidGlassAvailable() ? undefined : 'prominent',
         headerBackButtonDisplayMode: 'minimal',
         headerLargeStyle: {
-          backgroundColor: isGreaterThanOrEqual26 ? undefined : backgroundColor,
+          backgroundColor: isLiquidGlassAvailable() ? undefined : backgroundColor,
         },
       }}
     >

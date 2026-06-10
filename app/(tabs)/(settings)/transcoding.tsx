@@ -4,6 +4,7 @@ import {
   NativeSettingsSection,
   NativeSettingsSwitch,
 } from '@/components/ui/NativeSettings';
+import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { storage } from '@/lib/storage';
 import { useNavigation } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -72,23 +73,22 @@ export default function TranscodingSettingsScreen() {
     <NativeSettingsForm testID="transcoding-settings-form">
       <NativeSettingsSection title="转码设置">
         <NativeSettingsSwitch
-          title="启用转码"
-          subtitle="当设备无法直接播放时启用转码"
+          title={<SettingsTitle>启用转码</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary="当设备无法直接播放时启用转码" />}
           value={enableTranscoding}
           onValueChange={handleTranscodingToggle}
         />
         <NativeSettingsPicker
           disabled={!enableTranscoding}
-          title="最大码率"
-          subtitle="设置转码时的最大码率"
+          title={<SettingsTitle>最大码率</SettingsTitle>}
           value={maxBitrate.toString()}
           options={bitrateOptions}
           onValueChange={handleBitrateChange}
         />
         <NativeSettingsSwitch
           disabled={!enableTranscoding}
-          title="字幕烧录"
-          subtitle="转码时将字幕烧录到视频中"
+          title={<SettingsTitle>字幕烧录</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary="转码时将字幕烧录到视频中" />}
           value={enableSubtitleBurnIn}
           onValueChange={handleSubtitleBurnInToggle}
         />
@@ -97,8 +97,7 @@ export default function TranscodingSettingsScreen() {
       <NativeSettingsSection title="编码设置">
         <NativeSettingsPicker
           disabled={!enableTranscoding}
-          title="编码器"
-          subtitle="选择视频编码器"
+          title={<SettingsTitle>编码器</SettingsTitle>}
           value={selectedCodec}
           options={codecOptions}
           onValueChange={handleCodecSelection}

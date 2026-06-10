@@ -8,6 +8,7 @@ import { UserViewSection } from '@/components/user-view/UserViewSection';
 import { useHomeSections } from '@/hooks/useHomeSections';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/design-system';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation, useRouter } from 'expo-router';
 import { useHeaderHeight, useIsFocused } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -34,13 +35,40 @@ export default function HomeScreen() {
 
   useEffect(() => {
     navigation.setOptions({
-      headerRight: undefined,
+      headerRight: () => (
+        <View style={styles.headerActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="服务器内搜索"
+            hitSlop={10}
+            onPress={() => router.push('/(tabs)/(servers)/server-search')}
+            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
+          >
+            <Ionicons name="search" size={18} color={theme.colors.text} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="收藏"
+            hitSlop={10}
+            onPress={() => router.push('/(tabs)/(servers)/favorites')}
+            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
+          >
+            <Ionicons name="heart-outline" size={18} color={theme.colors.text} />
+          </Pressable>
+        </View>
+      ),
     });
-  }, [navigation]);
+  }, [navigation, router, theme.colors.surface, theme.colors.text]);
 
   // Stabilize onViewAll callbacks
-  const handleViewAllResume = useCallback(() => router.push('/view-all/resume'), [router]);
-  const handleViewAllNextup = useCallback(() => router.push('/view-all/nextup'), [router]);
+  const handleViewAllResume = useCallback(
+    () => router.push('/(tabs)/(servers)/view-all/resume'),
+    [router],
+  );
+  const handleViewAllNextup = useCallback(
+    () => router.push('/(tabs)/(servers)/view-all/nextup'),
+    [router],
+  );
 
   // Build stable onViewAll callbacks for latest sections
   const latestViewAllHandlers = useMemo(() => {
@@ -51,7 +79,7 @@ export default function HomeScreen() {
         const folderName = section.title.replace('最近添加的 ', '');
         handlers[section.key] = () =>
           router.push({
-            pathname: '/view-all/[type]',
+            pathname: '/(tabs)/(servers)/view-all/[type]',
             params: { folderId, folderName, type: 'latest' },
           });
       }
@@ -87,7 +115,7 @@ export default function HomeScreen() {
               paddingVertical: theme.spacing.md,
             },
           ]}
-          onPress={() => router.push('/media')}
+          onPress={() => router.push('/(tabs)/(servers)')}
         >
           <ThemedText
             style={[theme.typography.bodyEmphasized, { color: theme.colors.inverseText }]}
@@ -175,5 +203,19 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     overflow: 'hidden',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  headerButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pressed: {
+    opacity: 0.68,
   },
 });

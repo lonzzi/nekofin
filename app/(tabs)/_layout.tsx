@@ -1,5 +1,5 @@
 import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
-import { isGreaterThanOrEqual26 } from '@/lib/utils';
+import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
 export default function TabLayout() {
@@ -7,28 +7,19 @@ export default function TabLayout() {
 
   return (
     <NativeTabs minimizeBehavior="onScrollDown">
-      <NativeTabs.Trigger name="index" hidden />
-      <NativeTabs.Trigger name="(home)">
-        <NativeTabs.Trigger.Label>媒体库</NativeTabs.Trigger.Label>
+      <NativeTabs.Trigger name="(servers)">
+        <NativeTabs.Trigger.Label>服务器</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          drawable="film"
-          sf={{ default: 'film', selected: 'film.fill' }}
+          drawable="storage"
+          sf={{ default: 'server.rack', selected: 'server.rack' }}
           selectedColor={accentColor}
         />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(search)" role={isGreaterThanOrEqual26 ? 'search' : undefined}>
+      <NativeTabs.Trigger name="(search)" role={isLiquidGlassAvailable() ? 'search' : undefined}>
         <NativeTabs.Trigger.Label>搜索</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           drawable="search"
           sf={{ default: 'magnifyingglass', selected: 'magnifyingglass' }}
-          selectedColor={accentColor}
-        />
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(favorites)">
-        <NativeTabs.Trigger.Label>收藏</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          drawable="heart"
-          sf={{ default: 'heart', selected: 'heart.fill' }}
           selectedColor={accentColor}
         />
       </NativeTabs.Trigger>

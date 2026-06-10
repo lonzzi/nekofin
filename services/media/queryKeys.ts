@@ -103,6 +103,8 @@ export const mediaQueryKeys = {
     [...mediaQueryKeys.server(serverId), 'search', 'recommended-items'] as const,
   searchItems: (serverId: string | null | undefined, keyword: string) =>
     [...mediaQueryKeys.server(serverId), 'search', 'items', keyword] as const,
+  aggregateSearchItems: (serverIds: string[], keyword: string) =>
+    [...mediaQueryKeys.all, 'aggregate-search', [...serverIds].sort(), keyword] as const,
   mediaSources: (
     serverId: string | null | undefined,
     itemId: string | null | undefined,

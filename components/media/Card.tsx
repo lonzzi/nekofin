@@ -262,14 +262,18 @@ export const SeriesCard = React.memo(function SeriesCard({
   item,
   style,
   imgType = 'Primary',
+  imgInfo,
   hideSubtitle = false,
   showBorder = true,
+  onPress,
 }: {
   item: MediaItem;
   style?: StyleProp<ViewStyle>;
   imgType?: ImageType;
+  imgInfo?: ImageUrlInfo;
   hideSubtitle?: boolean;
   showBorder?: boolean;
+  onPress?: () => void;
 }) {
   const theme = useAppTheme();
   const router = useRouter();
@@ -286,11 +290,12 @@ export const SeriesCard = React.memo(function SeriesCard({
 
   const imageInfo = useMemo(
     () =>
+      imgInfo ??
       mediaAdapter.getImageInfo({
         item,
         opts: getImagePreferenceOptions(imgType),
       }),
-    [mediaAdapter, item, imgType],
+    [imgInfo, mediaAdapter, item, imgType],
   );
 
   const imageUrl = imageInfo.url;
@@ -298,13 +303,18 @@ export const SeriesCard = React.memo(function SeriesCard({
   const handlePress = useCallback(() => {
     if (isLongPressing) return;
 
+    if (onPress) {
+      onPress();
+      return;
+    }
+
     const route = getSeriesCardRoute(item);
     if (route) {
       router.push(route);
     } else {
       console.warn('Unknown type:', item.type);
     }
-  }, [isLongPressing, item, router]);
+  }, [isLongPressing, item, onPress, router]);
 
   const isPlayed = currentUserData?.played === true;
 

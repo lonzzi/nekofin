@@ -1,14 +1,8 @@
 import { getCommentsByEpisodeId, searchAnimesByKeyword } from '@/services/dandanplay';
 import { MediaItem } from '@/services/media/types';
-import { compareVersions } from 'compare-versions';
-import { Platform } from 'react-native';
 import uuid from 'react-native-uuid';
 
 import { storage } from '../storage';
-
-export const iosVersion = Platform.OS === 'ios' ? Platform.Version : '0';
-
-export const isGreaterThanOrEqual26 = compareVersions(iosVersion, '26.0') >= 0;
 
 export const ticksToSeconds = (ticks: number) => {
   return ticks / 10000000;

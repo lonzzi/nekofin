@@ -1,21 +1,24 @@
 import { EpisodeCard, SeriesCard } from '@/components/media/Card';
-import { ItemGridScreen } from '@/components/media/ItemGridScreen';
+import {
+  getEpisodeCardRoute,
+  getImagePreferenceOptions,
+  getSeriesCardRoute,
+} from '@/components/media/cardHelpers';
 import PageScrollView from '@/components/PageScrollView';
-import { SkeletonHorizontalSection } from '@/components/ui/Skeleton';
-import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/design-system';
-import {
-  recommendedSearchItemsQueryOptions,
-  searchItemsQueryOptions,
-} from '@/services/media/queryOptions';
-import { MediaItem } from '@/services/media/types';
-import { useNavigation } from 'expo-router';
+import { createMediaAdapterWithApi, createMediaApiFromServerInfo } from '@/services/media';
+import { mediaQueryKeys } from '@/services/media/queryKeys';
+import { MediaItem, MediaServerInfo } from '@/services/media/types';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
+import { queryOptions } from '@tanstack/react-query';
+import { useNavigation, useRouter } from 'expo-router';
 import React, { RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
-  ListRenderItem,
   Pressable,
   StyleSheet,
   Text,
@@ -24,174 +27,243 @@ import {
 } from 'react-native';
 import { SearchBarCommands } from 'react-native-screens';
 
-export default function SearchScreen() {
-  const { currentServer } = useMediaServers();
-  const [keyword, setKeyword] = useState<string>('');
-  const [selected, setSelected] = useState<string>('');
-  const mediaAdapter = useMediaAdapter();
+type AggregateSearchResult = {
+  key: string;
+  item: MediaItem;
+  server: MediaServerInfo;
+  imageUrl?: string;
+  blurhash?: string;
+};
+
+function aggregateSearchQueryOptions({
+  servers,
+  keyword,
+}: {
+  servers: MediaServerInfo[];
+  keyword: string;
+}) {
+  const trimmedKeyword = keyword.trim();
+
+  return queryOptions({
+    enabled: servers.length > 0 && trimmedKeyword.length > 0,
+    queryKey: mediaQueryKeys.aggregateSearchItems(
+      servers.map((server) => server.id),
+      trimmedKeyword,
+    ),
+    queryFn: async (): Promise<AggregateSearchResult[]> => {
+      if (trimmedKeyword.length === 0) return [];
+
+      const settled = await Promise.allSettled(
+        servers.map(async (server) => {
+          const api = createMediaApiFromServerInfo(server);
+          const adapter = createMediaAdapterWithApi(server.type, api);
+          const items = await adapter.searchItems({
+            userId: server.userId,
+            searchTerm: trimmedKeyword,
+            limit: 60,
+          });
+
+          return items.map((item) => {
+            const imageInfo = adapter.getImageInfo({
+              item,
+              opts: getImagePreferenceOptions(
+                item.type === 'Episode' || item.type === 'Movie'
+                  ? ImageType.Thumb
+                  : ImageType.Primary,
+              ),
+            });
+
+            return {
+              key: `${server.id}:${item.id}`,
+              item,
+              server,
+              imageUrl: imageInfo.url,
+              blurhash: imageInfo.blurhash,
+            };
+          });
+        }),
+      );
+
+      return settled.flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
+    },
+    staleTime: 60 * 1000,
+  });
+}
+
+export default function AggregateSearchScreen() {
+  const { servers, setCurrentServer } = useMediaServers();
+  const [keyword, setKeyword] = useState('');
   const theme = useAppTheme();
-  const backgroundColor = theme.colors.background;
-
   const navigation = useNavigation();
-
+  const router = useRouter();
   const searchBarRef = useRef<SearchBarCommands>(null);
 
-  const { data: recommendedData = [] } = useQueryWithFocus(
-    recommendedSearchItemsQueryOptions({
-      adapter: mediaAdapter,
-      currentServer,
-    }),
-  );
-
   const debouncedKeyword = useDebouncedValue(keyword, 300);
-
-  const effectiveKeyword = useMemo(
-    () => selected || debouncedKeyword,
-    [selected, debouncedKeyword],
-  );
+  const effectiveKeyword = useMemo(() => debouncedKeyword.trim(), [debouncedKeyword]);
 
   const {
     data: results = [],
-    isLoading: loadingResults,
-    isError: isResultsError,
+    isLoading,
+    isFetching,
+    isError,
     refetch,
   } = useQueryWithFocus(
-    searchItemsQueryOptions({
-      adapter: mediaAdapter,
-      currentServer,
+    aggregateSearchQueryOptions({
+      servers,
       keyword: effectiveKeyword,
     }),
-  );
-
-  const groupedResults = useMemo(() => {
-    const typeToItems: Record<string, MediaItem[]> = {};
-    results.forEach((item) => {
-      const key = item.type || 'Other';
-      if (!typeToItems[key]) typeToItems[key] = [];
-      typeToItems[key].push(item);
-    });
-    const order = ['Series', 'Movie', 'Episode', 'MusicVideo', 'Other'];
-    const titleMap: Record<string, string> = {
-      Series: '剧集',
-      Movie: '电影',
-      Episode: '单集',
-      MusicVideo: '音乐视频',
-      Other: '其他',
-    };
-    const entries = Object.entries(typeToItems);
-    entries.sort(
-      (a, b) =>
-        (order.indexOf(a[0]) === -1 ? 999 : order.indexOf(a[0])) -
-        (order.indexOf(b[0]) === -1 ? 999 : order.indexOf(b[0])),
-    );
-    return entries.map(([type, items]) => ({ key: type, title: titleMap[type] || type, items }));
-  }, [results]);
-
-  const renderItem: ListRenderItem<MediaItem> = useCallback(({ item }) => {
-    if (item.type === 'Series') {
-      return <SeriesCard item={item} />;
-    }
-    return <EpisodeCard item={item} />;
-  }, []);
-
-  const keyExtractor = useCallback((item: MediaItem) => item.id!, []);
-  const itemSeparator = useCallback(
-    () => <View style={{ width: theme.spacing.lg }} />,
-    [theme.spacing.lg],
   );
 
   useEffect(() => {
     navigation.setOptions({
       headerSearchBarOptions: {
         ref: searchBarRef as RefObject<SearchBarCommands>,
-        placeholder: currentServer?.name
-          ? `搜索 ${currentServer.name} 中的影片、剧集`
-          : '搜索影片、剧集',
-        onChangeText: (t: TextInputChangeEvent) => {
-          const text = t.nativeEvent.text;
-          if (text.length === 0) {
-            setSelected('');
-          }
-          setKeyword(text);
+        placeholder: '搜索所有服务器',
+        onChangeText: (event: TextInputChangeEvent) => {
+          setKeyword(event.nativeEvent.text);
         },
-        onCancelButtonPress: () => {
-          setKeyword('');
-          setSelected('');
-        },
+        onCancelButtonPress: () => setKeyword(''),
         hideWhenScrolling: false,
         cancelButtonText: '取消',
       },
     });
-  }, [currentServer?.name, navigation, searchBarRef]);
+  }, [navigation]);
+
+  const handleOpenResult = useCallback(
+    (result: AggregateSearchResult) => {
+      setCurrentServer(result.server);
+      const route =
+        result.item.type === 'Series' || result.item.type === 'Season'
+          ? getSeriesCardRoute(result.item)
+          : getEpisodeCardRoute(result.item);
+
+      if (route) {
+        router.push(route);
+      }
+    },
+    [router, setCurrentServer],
+  );
+
+  const groupedResults = useMemo(() => {
+    const serverIdToGroup = new Map<
+      string,
+      { server: MediaServerInfo; items: AggregateSearchResult[] }
+    >();
+    for (const result of results) {
+      const group = serverIdToGroup.get(result.server.id);
+      if (group) {
+        group.items.push(result);
+      } else {
+        serverIdToGroup.set(result.server.id, { server: result.server, items: [result] });
+      }
+    }
+    return Array.from(serverIdToGroup.values());
+  }, [results]);
+
+  const renderCard = useCallback(
+    ({ item: result }: { item: AggregateSearchResult }) => {
+      const isSeries = result.item.type === 'Series' || result.item.type === 'Season';
+      const imgInfo = { url: result.imageUrl, blurhash: result.blurhash };
+      if (isSeries) {
+        return (
+          <SeriesCard
+            item={result.item}
+            imgInfo={imgInfo}
+            onPress={() => handleOpenResult(result)}
+          />
+        );
+      }
+      return (
+        <EpisodeCard
+          item={result.item}
+          imgInfo={imgInfo}
+          onPress={() => handleOpenResult(result)}
+        />
+      );
+    },
+    [handleOpenResult],
+  );
+
+  const cardSeparator = useCallback(
+    () => <View style={{ width: theme.spacing.lg }} />,
+    [theme.spacing.lg],
+  );
 
   if (effectiveKeyword.length === 0) {
-    return <ItemGridScreen title="推荐" data={recommendedData} type="series" disableGrouping />;
+    return (
+      <PageScrollView
+        style={{ backgroundColor: theme.colors.background }}
+        contentContainerStyle={styles.emptyContainer}
+      >
+        <Ionicons name="search" size={34} color={theme.colors.textTertiary} />
+        <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>搜索所有服务器</Text>
+        <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
+          已连接 {servers.length} 个服务器，输入关键词后会聚合 Jellyfin 和 Emby 结果。
+        </Text>
+      </PageScrollView>
+    );
+  }
+
+  if (results.length === 0) {
+    return (
+      <PageScrollView
+        style={{ backgroundColor: theme.colors.background }}
+        contentContainerStyle={styles.emptyContainer}
+      >
+        {isLoading ? (
+          <ActivityIndicator color={theme.colors.tint} />
+        ) : (
+          <>
+            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>没有找到内容</Text>
+            {isError ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => refetch()}
+                style={({ pressed }) => [
+                  styles.retryButton,
+                  { borderColor: theme.colors.separator },
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={[styles.retryText, { color: theme.colors.tint }]}>重试</Text>
+              </Pressable>
+            ) : null}
+          </>
+        )}
+      </PageScrollView>
+    );
   }
 
   return (
-    <PageScrollView style={[styles.container, { backgroundColor }]}>
-      {loadingResults && <SkeletonHorizontalSection title="加载中" />}
-
-      {groupedResults.length === 0 && !loadingResults && (
-        <View style={styles.emptyContainer}>
-          <Text
-            style={[
-              theme.typography.footnote,
-              styles.emptyText,
-              { color: theme.colors.textSecondary, marginBottom: theme.spacing.sm },
-            ]}
-          >
-            没有找到相关内容
-          </Text>
-          {isResultsError && (
-            <Pressable
-              style={[
-                styles.retryButton,
-                {
-                  borderColor: theme.colors.tint,
-                  borderRadius: theme.radius.sm,
-                  paddingHorizontal: theme.spacing.lg,
-                  paddingVertical: theme.spacing.sm,
-                },
-              ]}
-              onPress={() => refetch()}
-            >
-              <Text
-                style={[theme.typography.footnote, styles.retryText, { color: theme.colors.tint }]}
-              >
-                重试
-              </Text>
-            </Pressable>
-          )}
-        </View>
-      )}
-
+    <PageScrollView
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
+      contentContainerStyle={styles.listContent}
+    >
+      <View style={styles.listHeader}>
+        <Text style={[styles.countText, { color: theme.colors.textSecondary }]}>
+          {isFetching ? '搜索中' : `${results.length} 个结果`}
+        </Text>
+      </View>
       {groupedResults.map((group) => (
-        <View key={group.key} style={{ paddingTop: theme.spacing.sm }}>
-          <Text
-            style={[
-              theme.typography.bodyEmphasized,
-              styles.sectionTitle,
-              {
-                color: theme.colors.text,
-                marginBottom: theme.spacing.sm,
-                paddingHorizontal: theme.spacing.lg,
-              },
-            ]}
-          >
-            {group.title}
-          </Text>
+        <View key={group.server.id} style={styles.serverGroup}>
+          <View style={styles.groupTitleRow}>
+            <Text numberOfLines={1} style={[styles.groupTitle, { color: theme.colors.text }]}>
+              {group.server.name}
+            </Text>
+            <View style={[styles.serverPill, { backgroundColor: theme.colors.surfaceMuted }]}>
+              <Text style={[styles.serverPillText, { color: theme.colors.textSecondary }]}>
+                {group.server.type.toUpperCase()} · {group.items.length}
+              </Text>
+            </View>
+          </View>
           <FlatList
             data={group.items}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
+            renderItem={renderCard}
+            keyExtractor={(item) => item.key}
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{
-              paddingHorizontal: theme.spacing.lg,
-              paddingVertical: theme.spacing.md,
-            }}
-            ItemSeparatorComponent={itemSeparator}
+            contentContainerStyle={styles.cardRow}
+            ItemSeparatorComponent={cardSeparator}
           />
         </View>
       ))}
@@ -201,27 +273,94 @@ export default function SearchScreen() {
 
 function useDebouncedValue(value: string, delayMs: number) {
   const [debounced, setDebounced] = React.useState<string>(value);
+
   React.useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(id);
-  }, [value, delayMs]);
+    const timer = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [delayMs, value]);
+
   return debounced;
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  sectionTitle: {},
   emptyContainer: {
+    flexGrow: 1,
     alignItems: 'center',
-    paddingVertical: 40,
+    justifyContent: 'center',
+    gap: 10,
+    paddingHorizontal: 36,
   },
-  emptyText: {},
+  emptyTitle: {
+    fontSize: 19,
+    fontWeight: '700',
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  listContent: {
+    paddingBottom: 36,
+  },
+  listHeader: {
+    paddingTop: 12,
+    paddingBottom: 10,
+    paddingHorizontal: 18,
+  },
+  countText: {
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 17,
+  },
+  serverGroup: {
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
+  groupTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 18,
+    marginBottom: 10,
+  },
+  groupTitle: {
+    flexShrink: 1,
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 23,
+  },
+  cardRow: {
+    paddingHorizontal: 18,
+    paddingVertical: 4,
+  },
+  serverPill: {
+    maxWidth: 140,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  serverPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
+  },
   retryButton: {
-    borderWidth: 1,
+    minHeight: 36,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
   },
   retryText: {
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  pressed: {
+    opacity: 0.68,
   },
 });

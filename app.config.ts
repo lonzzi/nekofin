@@ -108,7 +108,8 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
         'expo-build-properties',
         {
           ios: {
-            reactNativeReleaseLevel: 'experimental',
+            buildReactNativeFromSource: true,
+            reactNativeReleaseLevel: 'stable',
             deploymentTarget: '16.4',
           },
           android: {

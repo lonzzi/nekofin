@@ -69,7 +69,7 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
 
   return (
     <NativeSettingsForm testID="add-media-account-form" hosted surface="sheet">
-      <NativeSettingsSection title="添加媒体账号">
+      <NativeSettingsSection title="连接信息">
         <NativeSettingsPicker
           title="媒体后端"
           value={serverType}
@@ -81,7 +81,7 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
           disabled={isLoading}
         />
         <NativeSettingsItem
-          title="后端地址"
+          title="服务器地址"
           trailing={
             <TextInput
               defaultValue={address}
@@ -134,7 +134,7 @@ export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
 
       <NativeSettingsSection>
         <NativeSettingsButton
-          label={isLoading ? '添加中...' : '添加媒体账号'}
+          label={isLoading ? '添加中...' : '添加'}
           onPress={handleSubmit}
           disabled={isLoading}
         />
