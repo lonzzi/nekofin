@@ -4,13 +4,14 @@ import PageScrollView from '@/components/PageScrollView';
 import { useGridLayout } from '@/hooks/useGridLayout';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/design-system';
-import { MediaServerInfo } from '@/services/media/types';
+import { MediaServerInfo, type MediaServerType } from '@/services/media/types';
 import { BottomSheet } from '@expo/ui';
+import { MenuView, type MenuAction } from '@expo/ui/community/menu';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useNavigation, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 function ServerAvatar({ server }: { server: MediaServerInfo }) {
@@ -92,6 +93,19 @@ function getServerGradient(server: MediaServerInfo, isCurrent: boolean): [string
   }
   return isCurrent ? ['#d9a8f0', '#ecc9f7'] : ['#e0bdf2', '#f0dcf9'];
 }
+
+const addServerActions: MenuAction[] = [
+  {
+    id: 'jellyfin',
+    title: 'Jellyfin',
+    image: 'play.tv',
+  },
+  {
+    id: 'emby',
+    title: 'Emby',
+    image: 'play.rectangle.on.rectangle',
+  },
+];
 
 function ServerCard({
   server,
@@ -264,8 +278,10 @@ function ServerCard({
 export default function ServersScreen() {
   const theme = useAppTheme();
   const router = useRouter();
+  const navigation = useNavigation();
   const { servers, removeServer, setCurrentServer, currentServer } = useMediaServers();
   const [isAddServerVisible, setIsAddServerVisible] = useState(false);
+  const [addServerType, setAddServerType] = useState<MediaServerType>('jellyfin');
   const { itemWidth, gap } = useGridLayout();
 
   const sortedServers = useMemo(
@@ -277,6 +293,42 @@ export default function ServersScreen() {
       }),
     [currentServer?.id, servers],
   );
+
+  const openAddServer = useCallback((serverType: MediaServerType = 'jellyfin') => {
+    setAddServerType(serverType);
+    setIsAddServerVisible(true);
+  }, []);
+
+  const handleAddServerAction = useCallback(
+    ({ nativeEvent }: { nativeEvent: { event: string } }) => {
+      const selectedType = nativeEvent.event;
+      if (selectedType === 'jellyfin' || selectedType === 'emby') {
+        openAddServer(selectedType);
+      }
+    },
+    [openAddServer],
+  );
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <MenuView
+          title="添加媒体账号"
+          actions={addServerActions}
+          onPressAction={handleAddServerAction}
+        >
+          <View
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="添加媒体账号"
+            style={styles.headerButton}
+          >
+            <Ionicons name="add" size={22} color={theme.colors.text} />
+          </View>
+        </MenuView>
+      ),
+    });
+  }, [handleAddServerAction, navigation, theme.colors.text]);
 
   const handleRemoveServer = (server: MediaServerInfo) => {
     Alert.alert('删除服务器', `从 Nekofin 移除 ${server.name} / ${server.username}？`, [
@@ -301,15 +353,6 @@ export default function ServersScreen() {
           <View>
             <CardText variant="body">{`${servers.length} 个服务器账号`}</CardText>
           </View>
-          <GlassView glassEffectStyle="regular" style={styles.addButton}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setIsAddServerVisible(true)}
-              style={({ pressed }) => [styles.addButtonInner, pressed && styles.pressed]}
-            >
-              <CardText variant="action">添加</CardText>
-            </Pressable>
-          </GlassView>
         </View>
 
         {sortedServers.length > 0 ? (
@@ -348,17 +391,19 @@ export default function ServersScreen() {
             <CardText lines={2}>
               添加 Jellyfin 或 Emby 账号后，就可以浏览媒体库和播放记录。
             </CardText>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setIsAddServerVisible(true)}
-              style={({ pressed }) => [
-                styles.emptyAction,
-                { backgroundColor: theme.colors.surfaceMuted },
-                pressed && styles.pressed,
-              ]}
+            <MenuView
+              title="添加媒体账号"
+              actions={addServerActions}
+              onPressAction={handleAddServerAction}
             >
-              <CardText variant="action">添加服务器</CardText>
-            </Pressable>
+              <View
+                accessibilityRole="button"
+                accessibilityLabel="添加服务器"
+                style={[styles.emptyAction, { backgroundColor: theme.colors.surfaceMuted }]}
+              >
+                <CardText variant="action">添加服务器</CardText>
+              </View>
+            </MenuView>
           </View>
         )}
       </PageScrollView>
@@ -368,7 +413,12 @@ export default function ServersScreen() {
         onDismiss={() => setIsAddServerVisible(false)}
         testID="add-media-account-sheet"
       >
-        {isAddServerVisible ? <AddServerForm onClose={() => setIsAddServerVisible(false)} /> : null}
+        {isAddServerVisible ? (
+          <AddServerForm
+            initialServerType={addServerType}
+            onClose={() => setIsAddServerVisible(false)}
+          />
+        ) : null}
       </BottomSheet>
     </>
   );
@@ -385,16 +435,15 @@ const styles = StyleSheet.create({
     minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     gap: 12,
   },
-  addButton: {
-    minWidth: 68,
-    height: 38,
-    borderRadius: 19,
+  headerButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
   },
   serverGrid: {
     flexDirection: 'row',
@@ -498,11 +547,6 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addButtonInner: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },

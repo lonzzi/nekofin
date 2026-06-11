@@ -7,12 +7,13 @@ import {
 } from '@/components/ui/NativeSettings';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { TextInput } from '@expo/ui';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { z } from 'zod';
 
 interface AddServerFormProps {
   onClose: () => void;
+  initialServerType?: AddServerFormData['serverType'];
 }
 
 const addServerSchema = z.object({
@@ -24,14 +25,21 @@ const addServerSchema = z.object({
 
 type AddServerFormData = z.infer<typeof addServerSchema>;
 
-export const AddServerForm: React.FC<AddServerFormProps> = ({ onClose }) => {
+export const AddServerForm: React.FC<AddServerFormProps> = ({
+  onClose,
+  initialServerType = 'jellyfin',
+}) => {
   const { authenticateAndAddServer } = useMediaServers();
-  const [serverType, setServerType] = useState<AddServerFormData['serverType']>('jellyfin');
+  const [serverType, setServerType] = useState<AddServerFormData['serverType']>(initialServerType);
   const [address, setAddress] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setServerType(initialServerType);
+  }, [initialServerType]);
 
   const handleSubmit = async () => {
     const result = addServerSchema.safeParse({
