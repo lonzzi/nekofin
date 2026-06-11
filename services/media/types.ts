@@ -153,6 +153,7 @@ export interface MediaServerInfo {
   id: string;
   address: string;
   name: string;
+  note?: string;
   userId: string;
   username: string;
   userAvatar: string;
@@ -186,6 +187,8 @@ export interface AuthenticateAndSaveServerParams {
   address: string;
   username: string;
   password: string;
+  name?: string;
+  note?: string;
   addServer: (server: Omit<MediaServerInfo, 'id' | 'createdAt'>) => Promise<void>;
 }
 export interface GetUserInfoParams {

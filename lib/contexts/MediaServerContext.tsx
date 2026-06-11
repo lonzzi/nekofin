@@ -26,6 +26,8 @@ interface MediaServerContextType {
     username: string;
     password: string;
     type?: MediaServerType;
+    name?: string;
+    note?: string;
   }) => Promise<void>;
   removeServer: (id: string) => Promise<void>;
   updateServer: (id: string, updates: Partial<MediaServerInfo>) => Promise<void>;
@@ -113,11 +115,15 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
     username,
     password,
     type,
+    name,
+    note,
   }: {
     address: string;
     username: string;
     password: string;
     type?: MediaServerType;
+    name?: string;
+    note?: string;
   }) => {
     const normalizedAddress = normalizeServerAddress(address);
     const adapter = getMediaAdapter(type || 'jellyfin');
@@ -125,6 +131,8 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
       address: normalizedAddress,
       username,
       password,
+      name,
+      note,
       addServer,
     });
   };

@@ -87,6 +87,8 @@ export async function authenticateAndSaveServer(
   username: string,
   password: string,
   addServer: (server: Omit<MediaServerInfo, 'id' | 'createdAt'>) => Promise<void>,
+  name?: string,
+  note?: string,
 ) {
   const api = createApi(address);
   const authResult = await login(api, username, password);
@@ -96,7 +98,8 @@ export async function authenticateAndSaveServer(
     const systemInfo = await getSystemApi(api).getPublicSystemInfo();
     const serverInfo: Omit<MediaServerInfo, 'id' | 'createdAt'> = {
       address: normalizedAddress,
-      name: systemInfo.data?.ServerName || normalizedAddress,
+      name: name?.trim() || systemInfo.data?.ServerName || normalizedAddress,
+      note: note?.trim() || undefined,
       userId: authResult.data.User.Id,
       username: authResult.data.User.Name || username,
       userAvatar: `${normalizedAddress}/Users/${authResult.data.User.Id}/Images/Primary?quality=90`,

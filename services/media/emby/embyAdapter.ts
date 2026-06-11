@@ -149,6 +149,8 @@ export class EmbyAdapter implements MediaAdapter {
     address,
     username,
     password,
+    name,
+    note,
     addServer,
   }: AuthenticateAndSaveServerParams): Promise<unknown> {
     this.createApi({ address });
@@ -160,7 +162,8 @@ export class EmbyAdapter implements MediaAdapter {
       const sys = await this.getSystemInfo();
       const serverInfo: Omit<MediaServerInfo, 'id' | 'createdAt'> = {
         address: normalizedAddress,
-        name: sys.serverName || normalizedAddress,
+        name: name?.trim() || sys.serverName || normalizedAddress,
+        note: note?.trim() || undefined,
         userId: userId,
         username: loginRes.data?.User?.Name || username,
         userAvatar: `${normalizedAddress}/Users/${userId}/Images/Primary?quality=90`,

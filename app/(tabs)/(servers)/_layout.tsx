@@ -73,6 +73,12 @@ export default function ServersLayout() {
           headerTitle: '服务器配置',
         }}
       />
+      <Stack.Screen
+        name="add-server/[serverType]"
+        options={{
+          headerTitle: '添加服务器',
+        }}
+      />
     </Stack>
   );
 }

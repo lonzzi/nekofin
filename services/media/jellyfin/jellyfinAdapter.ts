@@ -175,6 +175,8 @@ export class JellyfinAdapter implements MediaAdapter {
       params.username,
       params.password,
       params.addServer,
+      params.name,
+      params.note,
     );
   }
 
