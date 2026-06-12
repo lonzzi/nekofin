@@ -1,36 +1,16 @@
 import { AvatarImage } from '@/components/AvatarImage';
 import PageScrollView from '@/components/PageScrollView';
+import { AddServerMenu } from '@/components/servers/AddServerMenu';
 import { useGridLayout } from '@/hooks/useGridLayout';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/design-system';
 import { MediaServerInfo, type MediaServerType } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
-import { Image, type ImageProps } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-type AddServerOption = {
-  id: MediaServerType;
-  title: string;
-  icon: ImageProps['source'];
-};
-
-const addServerOptions: AddServerOption[] = [
-  {
-    id: 'jellyfin',
-    title: 'Jellyfin',
-    icon: require('../../../assets/icons/jellyfin.svg'),
-  },
-  {
-    id: 'emby',
-    title: 'Emby',
-    icon: require('../../../assets/icons/emby.svg'),
-  },
-];
+import { useCallback, useEffect, useMemo } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 function ServerAvatar({ server }: { server: MediaServerInfo }) {
   const theme = useAppTheme();
@@ -110,63 +90,6 @@ function getServerGradient(server: MediaServerInfo, isCurrent: boolean): [string
     return isCurrent ? ['#5ce0a0', '#9ef0c8'] : ['#9be9c0', '#c8f5dd'];
   }
   return isCurrent ? ['#d9a8f0', '#ecc9f7'] : ['#e0bdf2', '#f0dcf9'];
-}
-
-function AddServerDropdown({
-  visible,
-  top,
-  onClose,
-  onSelect,
-}: {
-  visible: boolean;
-  top: number;
-  onClose: () => void;
-  onSelect: (serverType: MediaServerType) => void;
-}) {
-  const theme = useAppTheme();
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
-      <Pressable style={styles.menuOverlay} onPress={onClose}>
-        <View
-          style={[
-            styles.addMenu,
-            {
-              top,
-              backgroundColor: theme.colors.surfaceElevated,
-              borderColor: theme.colors.separator,
-            },
-          ]}
-        >
-          {addServerOptions.map((option) => (
-            <Pressable
-              key={option.id}
-              accessibilityRole="button"
-              accessibilityLabel={`添加 ${option.title} 服务器`}
-              onPress={(event) => {
-                event.stopPropagation();
-                onSelect(option.id);
-              }}
-              style={({ pressed }) => [styles.addMenuRow, pressed && styles.menuRowPressed]}
-            >
-              <View
-                style={[styles.addMenuIconWrap, { backgroundColor: theme.colors.surfaceMuted }]}
-              >
-                <Image source={option.icon} style={styles.addMenuIcon} contentFit="contain" />
-              </View>
-              <Text style={[styles.addMenuText, { color: theme.colors.text }]}>{option.title}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </Pressable>
-    </Modal>
-  );
 }
 
 function ServerCard({
@@ -342,8 +265,6 @@ export default function ServersScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { servers, removeServer, setCurrentServer, currentServer } = useMediaServers();
-  const [isAddMenuVisible, setIsAddMenuVisible] = useState(false);
-  const insets = useSafeAreaInsets();
   const { itemWidth, gap } = useGridLayout();
 
   const sortedServers = useMemo(
@@ -358,7 +279,6 @@ export default function ServersScreen() {
 
   const openAddServer = useCallback(
     (serverType: MediaServerType) => {
-      setIsAddMenuVisible(false);
       router.push({
         pathname: '/(tabs)/(servers)/add-server/[serverType]',
         params: { serverType },
@@ -369,20 +289,9 @@ export default function ServersScreen() {
 
   useEffect(() => {
     navigation.setOptions({
-      headerRight: () => (
-        <Pressable
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel="添加媒体账号"
-          hitSlop={10}
-          onPress={() => setIsAddMenuVisible(true)}
-          style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-        >
-          <Ionicons name="add" size={22} color={theme.colors.text} />
-        </Pressable>
-      ),
+      headerRight: () => <AddServerMenu onSelect={openAddServer} />,
     });
-  }, [navigation, theme.colors.text]);
+  }, [navigation, openAddServer]);
 
   const handleRemoveServer = (server: MediaServerInfo) => {
     Alert.alert('删除服务器', `从 Nekofin 移除 ${server.name} / ${server.username}？`, [
@@ -445,28 +354,10 @@ export default function ServersScreen() {
             <CardText lines={2}>
               添加 Jellyfin 或 Emby 账号后，就可以浏览媒体库和播放记录。
             </CardText>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="添加服务器"
-              onPress={() => setIsAddMenuVisible(true)}
-              style={({ pressed }) => [
-                styles.emptyAction,
-                { backgroundColor: theme.colors.surfaceMuted },
-                pressed && styles.pressed,
-              ]}
-            >
-              <CardText variant="action">添加服务器</CardText>
-            </Pressable>
+            <AddServerMenu onSelect={openAddServer} variant="text" />
           </View>
         )}
       </PageScrollView>
-
-      <AddServerDropdown
-        visible={isAddMenuVisible}
-        top={insets.top + 72}
-        onClose={() => setIsAddMenuVisible(false)}
-        onSelect={openAddServer}
-      />
     </>
   );
 }
@@ -484,55 +375,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
     gap: 12,
-  },
-  headerButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuOverlay: {
-    flex: 1,
-  },
-  addMenu: {
-    position: 'absolute',
-    right: 16,
-    minWidth: 188,
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.16,
-    shadowRadius: 28,
-    elevation: 8,
-  },
-  addMenuRow: {
-    minHeight: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-  },
-  addMenuIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addMenuIcon: {
-    width: 22,
-    height: 22,
-  },
-  addMenuText: {
-    fontSize: 16,
-    fontWeight: '600',
-    lineHeight: 21,
-  },
-  menuRowPressed: {
-    opacity: 0.72,
   },
   serverGrid: {
     flexDirection: 'row',
@@ -644,14 +486,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
     padding: 20,
-  },
-  emptyAction: {
-    alignSelf: 'flex-start',
-    minHeight: 38,
-    borderRadius: 19,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    marginTop: 4,
   },
   pressed: {
     opacity: 0.72,
