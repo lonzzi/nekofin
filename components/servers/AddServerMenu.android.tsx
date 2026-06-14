@@ -2,18 +2,29 @@ import { useAppTheme } from '@/lib/design-system';
 import type { MediaServerType } from '@/services/media/types';
 import { MenuView, type MenuAction } from '@expo/ui/community/menu';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, type ImageSourcePropType } from 'react-native';
+
+// Expo UI's Android Icon supports null tint for original colors, but MenuAction
+// currently types imageColor as ColorValue only.
+const originalIconColor = null as unknown as MenuAction['imageColor'];
+
+function resolveMenuIcon(source: ImageSourcePropType): ImageSourcePropType {
+  const resolved = Image.resolveAssetSource(source);
+  return resolved?.uri ? { uri: resolved.uri } : source;
+}
 
 const addServerActions: MenuAction[] = [
   {
     id: 'jellyfin',
     title: 'Jellyfin',
-    image: require('../../assets/drawables/jellyfin.xml'),
+    image: resolveMenuIcon(require('../../assets/icons/jellyfin-icon--color-on-light.png')),
+    imageColor: originalIconColor,
   },
   {
     id: 'emby',
     title: 'Emby',
-    image: require('../../assets/drawables/emby.xml'),
+    image: resolveMenuIcon(require('../../assets/drawables/emby.xml')),
+    imageColor: originalIconColor,
   },
 ];
 

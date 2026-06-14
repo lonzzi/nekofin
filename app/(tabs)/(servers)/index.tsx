@@ -87,9 +87,9 @@ function formatServerAge(createdAt: number) {
 
 function getServerGradient(server: MediaServerInfo, isCurrent: boolean): [string, string] {
   if (server.type === 'emby') {
-    return isCurrent ? ['#5ce0a0', '#9ef0c8'] : ['#9be9c0', '#c8f5dd'];
+    return isCurrent ? ['#a9edcc', '#d4f8e6'] : ['#c8f4dd', '#e6fbef'];
   }
-  return isCurrent ? ['#d9a8f0', '#ecc9f7'] : ['#e0bdf2', '#f0dcf9'];
+  return isCurrent ? ['#e6c4f6', '#f5e2fb'] : ['#edd7f7', '#faeefc'];
 }
 
 function ServerCard({

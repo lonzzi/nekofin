@@ -1,13 +1,11 @@
-import {
-  NativeSettingsForm,
-  NativeSettingsItem,
-  NativeSettingsSection,
-} from '@/components/ui/NativeSettings';
+import PageScrollView from '@/components/PageScrollView';
+import { ServerTypeIcon } from '@/components/servers/ServerTypeIcon';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useAppTheme } from '@/lib/design-system';
 import type { MediaServerType } from '@/services/media/types';
-import { TextInput } from '@expo/ui';
-import { forwardRef, useImperativeHandle, useState } from 'react';
-import { Alert } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { forwardRef, useImperativeHandle, useState, type ReactNode } from 'react';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { z } from 'zod';
 
 export interface AddServerFormHandle {
@@ -39,6 +37,11 @@ type AddServerFormData = z.infer<typeof addServerSchema>;
 const defaultPortByType: Record<MediaServerType, string> = {
   jellyfin: '8096',
   emby: '8096',
+};
+
+const serverTitleByType: Record<MediaServerType, string> = {
+  jellyfin: 'Jellyfin',
+  emby: 'Emby',
 };
 
 function normalizeHost(host: string) {
@@ -82,9 +85,89 @@ function buildServerAddress({
   }
 }
 
+function FormSection({ title, children }: { title?: string; children: ReactNode }) {
+  const theme = useAppTheme();
+
+  return (
+    <View style={styles.section}>
+      {title ? (
+        <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>{title}</Text>
+      ) : null}
+      <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]}>
+        {children}
+      </View>
+    </View>
+  );
+}
+
+function FormRow({
+  label,
+  children,
+  showSeparator = true,
+}: {
+  label: string;
+  children: ReactNode;
+  showSeparator?: boolean;
+}) {
+  const theme = useAppTheme();
+
+  return (
+    <View style={styles.rowOuter}>
+      <View style={styles.row}>
+        <Text numberOfLines={1} style={[styles.label, { color: theme.colors.text }]}>
+          {label}
+        </Text>
+        <View style={styles.inputSlot}>{children}</View>
+      </View>
+      {showSeparator ? (
+        <View style={[styles.separator, { backgroundColor: theme.colors.separator }]} />
+      ) : null}
+    </View>
+  );
+}
+
+function FormInput({
+  value,
+  onChangeText,
+  placeholder,
+  editable,
+  secureTextEntry,
+  ...props
+}: {
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+  editable: boolean;
+  secureTextEntry?: boolean;
+} & Omit<React.ComponentProps<typeof TextInput>, 'style' | 'value' | 'onChangeText'>) {
+  const theme = useAppTheme();
+
+  return (
+    <TextInput
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor={theme.colors.textTertiary}
+      editable={editable}
+      secureTextEntry={secureTextEntry}
+      selectionColor={theme.colors.tint}
+      underlineColorAndroid="transparent"
+      style={[
+        styles.input,
+        {
+          color: theme.colors.text,
+          opacity: editable ? 1 : theme.opacity.disabled,
+        },
+      ]}
+      {...props}
+    />
+  );
+}
+
 export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>(
   ({ serverType, onLoadingChange, onSuccess }, ref) => {
     const { authenticateAndAddServer } = useMediaServers();
+    const theme = useAppTheme();
     const [name, setName] = useState('');
     const [note, setNote] = useState('');
     const [address, setAddress] = useState('');
@@ -94,6 +177,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
     const [password, setPassword] = useState('');
     const [formError, setFormError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
     const setLoading = (nextLoading: boolean) => {
       setIsLoading(nextLoading);
@@ -147,118 +231,256 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
     useImperativeHandle(ref, () => ({ submit: handleSubmit }), [handleSubmit]);
 
     return (
-      <NativeSettingsForm testID="add-media-account-form">
-        <NativeSettingsSection>
-          <NativeSettingsItem
-            title="名称"
-            trailing={
-              <TextInput
-                defaultValue={name}
-                onChangeText={setName}
-                placeholder="可选"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-            }
-          />
-          <NativeSettingsItem
-            title="备注"
-            trailing={
-              <TextInput
-                defaultValue={note}
-                onChangeText={setNote}
-                placeholder="可选"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-            }
-          />
-        </NativeSettingsSection>
+      <PageScrollView
+        testID="add-media-account-form"
+        keyboardShouldPersistTaps="handled"
+        style={{ backgroundColor: theme.colors.backgroundGrouped }}
+        contentContainerStyle={styles.container}
+      >
+        <View style={[styles.identityCard, { backgroundColor: theme.colors.surface }]}>
+          <View style={[styles.identityIcon, { backgroundColor: theme.colors.surfaceMuted }]}>
+            <ServerTypeIcon type={serverType} size={30} />
+          </View>
+          <View style={styles.identityText}>
+            <Text style={[styles.identityTitle, { color: theme.colors.text }]}>
+              {serverTitleByType[serverType]} 账号
+            </Text>
+            <Text style={[styles.identitySubtitle, { color: theme.colors.textSecondary }]}>
+              {serverType === 'emby' ? '连接 Emby 媒体服务器' : '连接 Jellyfin 媒体服务器'}
+            </Text>
+          </View>
+        </View>
 
-        <NativeSettingsSection title="服务器地址">
-          <NativeSettingsItem
-            title="地址"
-            trailing={
-              <TextInput
-                defaultValue={address}
-                onChangeText={setAddress}
-                placeholder="IP、域名或完整链接"
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-                autoComplete="url"
-                editable={!isLoading}
-              />
-            }
-          />
-          <NativeSettingsItem
-            title="端口"
-            trailing={
-              <TextInput
-                defaultValue={port}
-                onChangeText={setPort}
-                placeholder={`默认 ${defaultPortByType[serverType]}`}
-                keyboardType="number-pad"
-                editable={!isLoading}
-              />
-            }
-          />
-          <NativeSettingsItem
-            title="路径"
-            trailing={
-              <TextInput
-                defaultValue={path}
-                onChangeText={setPath}
-                placeholder="可选，例如 /jellyfin"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-            }
-          />
-        </NativeSettingsSection>
+        <FormSection>
+          <FormRow label="名称">
+            <FormInput
+              value={name}
+              onChangeText={setName}
+              placeholder="可选"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!isLoading}
+            />
+          </FormRow>
+          <FormRow label="备注" showSeparator={false}>
+            <FormInput
+              value={note}
+              onChangeText={setNote}
+              placeholder="可选"
+              autoCorrect={false}
+              editable={!isLoading}
+            />
+          </FormRow>
+        </FormSection>
 
-        <NativeSettingsSection title="登录信息">
-          <NativeSettingsItem
-            title="用户"
-            trailing={
-              <TextInput
-                defaultValue={username}
-                onChangeText={setUsername}
-                placeholder="必填"
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete="username"
-                editable={!isLoading}
-              />
-            }
-          />
-          <NativeSettingsItem
-            title="密码"
-            trailing={
-              <TextInput
-                defaultValue={password}
+        <FormSection title="服务器地址">
+          <FormRow label="地址">
+            <FormInput
+              value={address}
+              onChangeText={setAddress}
+              placeholder="IP、域名或完整链接"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              autoComplete="url"
+              editable={!isLoading}
+            />
+          </FormRow>
+          <FormRow label="端口">
+            <FormInput
+              value={port}
+              onChangeText={setPort}
+              placeholder={`默认 ${defaultPortByType[serverType]}`}
+              keyboardType="number-pad"
+              editable={!isLoading}
+            />
+          </FormRow>
+          <FormRow label="路径" showSeparator={false}>
+            <FormInput
+              value={path}
+              onChangeText={setPath}
+              placeholder="可选，例如 /jellyfin"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!isLoading}
+            />
+          </FormRow>
+        </FormSection>
+
+        <FormSection title="登录信息">
+          <FormRow label="用户">
+            <FormInput
+              value={username}
+              onChangeText={setUsername}
+              placeholder="用户名"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="username"
+              editable={!isLoading}
+            />
+          </FormRow>
+          <FormRow label="密码" showSeparator={false}>
+            <View style={styles.passwordRow}>
+              <FormInput
+                value={password}
                 onChangeText={setPassword}
                 placeholder="可选"
-                secureTextEntry
+                secureTextEntry={!isPasswordVisible}
                 autoCapitalize="none"
                 autoCorrect={false}
                 autoComplete="password"
                 editable={!isLoading}
               />
-            }
-          />
-        </NativeSettingsSection>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={isPasswordVisible ? '隐藏密码' : '显示密码'}
+                hitSlop={8}
+                onPress={() => setIsPasswordVisible((visible) => !visible)}
+                style={({ pressed }) => [styles.passwordButton, pressed && styles.pressed]}
+              >
+                <Ionicons
+                  name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color={theme.colors.tint}
+                />
+              </Pressable>
+            </View>
+          </FormRow>
+        </FormSection>
 
         {formError ? (
-          <NativeSettingsSection>
-            <NativeSettingsItem title="错误" subtitle={formError} />
-          </NativeSettingsSection>
+          <View
+            style={[
+              styles.errorCard,
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.danger },
+            ]}
+          >
+            <Ionicons name="alert-circle-outline" size={20} color={theme.colors.danger} />
+            <Text style={[styles.errorText, { color: theme.colors.danger }]}>{formError}</Text>
+          </View>
         ) : null}
-      </NativeSettingsForm>
+      </PageScrollView>
     );
   },
 );
 
 AddServerForm.displayName = 'AddServerForm';
+
+const styles = StyleSheet.create({
+  container: {
+    gap: 18,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 32,
+  },
+  identityCard: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  identityIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  identityText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  identityTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 23,
+  },
+  identitySubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  section: {
+    gap: 8,
+  },
+  sectionTitle: {
+    paddingHorizontal: 14,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  sectionCard: {
+    overflow: 'hidden',
+    borderRadius: 24,
+  },
+  rowOuter: {
+    minHeight: 58,
+  },
+  row: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingLeft: 16,
+    paddingRight: 12,
+  },
+  label: {
+    width: 58,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  inputSlot: {
+    flex: 1,
+    minWidth: 0,
+  },
+  input: {
+    minHeight: 42,
+    paddingHorizontal: 0,
+    paddingVertical: 8,
+    backgroundColor: 'transparent',
+    fontSize: 16,
+    fontWeight: '400',
+    lineHeight: 22,
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 86,
+  },
+  passwordRow: {
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  passwordButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorCard: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  pressed: {
+    opacity: 0.68,
+  },
+});
