@@ -8,6 +8,9 @@ module.exports = defineConfig([
   },
   expoConfig,
   {
+    settings: {
+      'import/core-modules': ['react-native-ios-context-menu'],
+    },
     rules: {
       '@typescript-eslint/no-unused-vars': 'off',
       // SDK 56 enables stricter React Compiler lint rules through eslint-config-expo.

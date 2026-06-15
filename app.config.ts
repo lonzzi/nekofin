@@ -130,7 +130,10 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
       './plugins/withGradleJvmArgs',
       './plugins/withAndroidPip',
       ['./plugins/withDrawableAssets', './assets/drawables'],
-      ['./plugins/withIosImageAssets', ['./assets/icons/jellyfin.svg', './assets/icons/emby.svg']],
+      [
+        './plugins/withIosImageAssets',
+        ['./assets/icons/jellyfin-icon--color-on-light.png', './assets/icons/emby.svg'],
+      ],
       'expo-mpv',
     ],
     experiments: {

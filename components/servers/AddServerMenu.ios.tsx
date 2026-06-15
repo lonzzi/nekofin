@@ -1,14 +1,30 @@
 import { useAppTheme } from '@/lib/design-system';
 import type { MediaServerType } from '@/services/media/types';
-import {
-  Button as SwiftButton,
-  Host as SwiftHost,
-  Image as SwiftImage,
-  Label as SwiftLabel,
-  Menu as SwiftMenu,
-  Text as SwiftText,
-} from '@expo/ui/swift-ui';
-import { background, font, foregroundStyle, padding, shapes } from '@expo/ui/swift-ui/modifiers';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { StyleSheet, Text, View } from 'react-native';
+import { ContextMenuButton, type MenuConfig } from 'react-native-ios-context-menu';
+
+const addServerMenuConfig: MenuConfig = {
+  menuTitle: '',
+  menuItems: [
+    {
+      actionKey: 'jellyfin',
+      actionTitle: 'Jellyfin',
+      icon: {
+        type: 'IMAGE_ASSET',
+        imageValue: 'jellyfin-icon--color-on-light',
+      },
+    },
+    {
+      actionKey: 'emby',
+      actionTitle: 'Emby',
+      icon: {
+        type: 'IMAGE_ASSET',
+        imageValue: 'emby',
+      },
+    },
+  ],
+};
 
 type AddServerMenuProps = {
   onSelect: (serverType: MediaServerType) => void;
@@ -17,40 +33,79 @@ type AddServerMenuProps = {
 
 export function AddServerMenu({ onSelect, variant = 'icon' }: AddServerMenuProps) {
   const theme = useAppTheme();
-  const label =
-    variant === 'text' ? (
-      <SwiftText
-        modifiers={[
-          font({ size: 15, weight: 'semibold' }),
-          foregroundStyle(theme.colors.tint),
-          padding({ horizontal: 16, vertical: 9 }),
-          background(theme.colors.surfaceMuted, shapes.capsule()),
-        ]}
+
+  const handleSelect = ({ nativeEvent }: { nativeEvent: { actionKey: string } }) => {
+    onSelect(nativeEvent.actionKey as MediaServerType);
+  };
+
+  if (variant === 'text') {
+    return (
+      <ContextMenuButton
+        isMenuPrimaryAction
+        menuConfig={addServerMenuConfig}
+        onPressMenuItem={handleSelect}
       >
-        添加服务器
-      </SwiftText>
-    ) : (
-      <SwiftImage
-        systemName="plus"
-        size={22}
-        color={theme.colors.text}
-        modifiers={[
-          padding({ all: 17 }),
-          background(theme.colors.surfaceElevated, shapes.circle()),
-        ]}
-      />
+        <Text
+          style={[
+            styles.textTrigger,
+            { backgroundColor: theme.colors.surfaceMuted, color: theme.colors.tint },
+          ]}
+        >
+          添加服务器
+        </Text>
+      </ContextMenuButton>
     );
+  }
 
   return (
-    <SwiftHost matchContents>
-      <SwiftMenu label={label}>
-        <SwiftButton onPress={() => onSelect('jellyfin')}>
-          <SwiftLabel title="Jellyfin" icon={<SwiftImage assetName="jellyfin" size={18} />} />
-        </SwiftButton>
-        <SwiftButton onPress={() => onSelect('emby')}>
-          <SwiftLabel title="Emby" icon={<SwiftImage assetName="emby" size={18} />} />
-        </SwiftButton>
-      </SwiftMenu>
-    </SwiftHost>
+    <View style={styles.iconTrigger}>
+      <View style={[styles.iconCircle, { backgroundColor: theme.colors.surfaceElevated }]}>
+        <Ionicons name="add" size={22} color={theme.colors.text} />
+      </View>
+      <ContextMenuButton
+        accessibilityRole="button"
+        accessibilityLabel="添加媒体账号"
+        isMenuPrimaryAction
+        menuConfig={addServerMenuConfig}
+        onPressMenuItem={handleSelect}
+        style={styles.menuOverlay}
+      >
+        <View style={styles.menuOverlayContent} />
+      </ContextMenuButton>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  iconTrigger: {
+    width: 40,
+    height: 40,
+  },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  menuOverlayContent: {
+    flex: 1,
+  },
+  textTrigger: {
+    alignSelf: 'flex-start',
+    overflow: 'hidden',
+    borderRadius: 19,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+});
