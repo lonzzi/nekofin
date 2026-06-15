@@ -1,6 +1,7 @@
 import { useAppTheme } from '@/lib/design-system';
 import type { MediaServerType } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { StyleSheet, Text, View } from 'react-native';
 import { ContextMenuButton, type MenuConfig } from 'react-native-ios-context-menu';
 
@@ -33,6 +34,7 @@ type AddServerMenuProps = {
 
 export function AddServerMenu({ onSelect, variant = 'icon' }: AddServerMenuProps) {
   const theme = useAppTheme();
+  const useGlass = isLiquidGlassAvailable();
 
   const handleSelect = ({ nativeEvent }: { nativeEvent: { actionKey: string } }) => {
     onSelect(nativeEvent.actionKey as MediaServerType);
@@ -58,8 +60,13 @@ export function AddServerMenu({ onSelect, variant = 'icon' }: AddServerMenuProps
   }
 
   return (
-    <View style={styles.iconTrigger}>
-      <View style={[styles.iconCircle, { backgroundColor: theme.colors.surfaceElevated }]}>
+    <View>
+      <View
+        style={[
+          styles.iconCircle,
+          { backgroundColor: useGlass ? 'transparent' : theme.colors.surfaceMuted },
+        ]}
+      >
         <Ionicons name="add" size={22} color={theme.colors.text} />
       </View>
       <ContextMenuButton
@@ -77,13 +84,7 @@ export function AddServerMenu({ onSelect, variant = 'icon' }: AddServerMenuProps
 }
 
 const styles = StyleSheet.create({
-  iconTrigger: {
-    width: 40,
-    height: 40,
-  },
   iconCircle: {
-    width: 40,
-    height: 40,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
