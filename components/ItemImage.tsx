@@ -9,6 +9,7 @@ export const ItemImage = ({
   style,
   placeholderBlurhash,
   contentFit,
+  contentPosition,
   cachePolicy,
   fallback,
 }: {
@@ -16,6 +17,7 @@ export const ItemImage = ({
   style: StyleProp<ImageStyle>;
   placeholderBlurhash?: string;
   contentFit?: ImageProps['contentFit'];
+  contentPosition?: ImageProps['contentPosition'];
   cachePolicy?: ImageProps['cachePolicy'];
   fallback?: ReactNode;
 }) => {
@@ -41,6 +43,7 @@ export const ItemImage = ({
       placeholder={placeholderBlurhash ? { blurhash: placeholderBlurhash } : undefined}
       cachePolicy={cachePolicy}
       contentFit={contentFit}
+      contentPosition={contentPosition}
       onError={() => setFailed(true)}
     />
   );

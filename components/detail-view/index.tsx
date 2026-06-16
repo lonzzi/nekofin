@@ -2,11 +2,12 @@ import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { DetailBundle, useDetailBundle } from '@/hooks/useDetailBundle';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import useRefresh from '@/hooks/useRefresh';
-import { useThemeColor } from '@/hooks/useThemeColor';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useAppTheme, useMediaHeroHeight } from '@/lib/design-system';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { UseQueryResult } from '@tanstack/react-query';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from 'expo-router';
 import { HeaderButton } from 'expo-router/react-navigation';
 import { useEffect, useState } from 'react';
@@ -30,16 +31,18 @@ export type DetailViewProps = {
 function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const navigation = useNavigation();
   const { currentServer } = useMediaServers();
-  const backgroundColor = useThemeColor({ light: '#fff', dark: '#000' }, 'background');
-  const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
+  const theme = useAppTheme();
+  const backgroundColor = theme.colors.background;
+  const textColor = theme.colors.text;
   const { title, backgroundImageUrl, setItem, selectedItem } = useDetailView();
 
   const [isFavorite, setIsFavorite] = useState<boolean>(false);
   const [isWatched, setIsWatched] = useState<boolean>(false);
   const { data: bundle, isLoading, refetch } = query;
 
-  const { height: windowHeight } = useWindowDimensions();
-  const headerHeight = windowHeight * 0.6;
+  const { width: windowWidth } = useWindowDimensions();
+  const headerHeight = useMediaHeroHeight();
+  const detailLogoWidth = Math.min(windowWidth * 0.72, 300);
 
   const mediaAdapter = useMediaAdapter();
 
@@ -194,31 +197,54 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     <ParallaxScrollView
       headerHeight={headerHeight}
       showsVerticalScrollIndicator={false}
+      contentInsetAdjustmentBehavior="never"
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      headerBackgroundColor={{ light: '#eee', dark: '#222' }}
-      contentStyle={{ paddingBottom: 40, backgroundColor }}
+      headerBackgroundColor={{
+        light: theme.colors.surfaceMuted,
+        dark: theme.colors.surfaceMuted,
+      }}
+      contentStyle={{
+        paddingBottom: theme.spacing.xxxl,
+        paddingTop: theme.spacing.lg,
+        backgroundColor,
+      }}
       style={{ backgroundColor }}
       headerImage={
-        headerImageUrl ? (
-          <ItemImage
-            uri={headerImageUrl}
-            style={detailViewStyles.header}
-            placeholderBlurhash={headerImageInfo.blurhash}
-            contentFit="cover"
-          />
-        ) : (
-          <View style={[detailViewStyles.header, { backgroundColor: '#eee' }]} />
-        )
+        <View style={[detailViewStyles.header, { backgroundColor: theme.colors.surfaceMuted }]}>
+          {headerImageUrl && (
+            <ItemImage
+              uri={headerImageUrl}
+              style={detailViewStyles.headerMedia}
+              placeholderBlurhash={headerImageInfo.blurhash}
+              contentFit="cover"
+            />
+          )}
+          {!!logoImageUrl && (
+            <>
+              <LinearGradient
+                colors={[theme.colors.mediaScrimSoft, 'rgba(0,0,0,0.16)', theme.colors.mediaScrim]}
+                locations={[0, 0.52, 1]}
+                pointerEvents="none"
+                style={detailViewStyles.headerScrim}
+              />
+              <Image
+                source={{ uri: logoImageUrl }}
+                style={[
+                  detailViewStyles.headerLogo,
+                  {
+                    bottom: theme.spacing.xxxl,
+                    left: (windowWidth - detailLogoWidth) / 2,
+                    width: detailLogoWidth,
+                  },
+                ]}
+                contentFit="contain"
+              />
+            </>
+          )}
+        </View>
       }
     >
       <View style={detailViewStyles.content}>
-        {!!logoImageUrl && (
-          <Image
-            source={{ uri: logoImageUrl }}
-            style={detailViewStyles.logo}
-            contentFit="contain"
-          />
-        )}
         <Text style={{ fontSize: 24, fontWeight: 'bold', color: textColor }}>
           {title || item.name}
         </Text>
@@ -230,9 +256,10 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
 
 export default function DetailView({ itemId, mode, ...rest }: Omit<DetailViewProps, 'query'>) {
   const query = useDetailBundle(mode, itemId);
+  const detailViewKey = `${mode}:${itemId}:${rest.seasonId ?? ''}`;
 
   return (
-    <DetailViewProvider itemId={itemId} mode={mode} query={query} {...rest}>
+    <DetailViewProvider key={detailViewKey} itemId={itemId} mode={mode} query={query} {...rest}>
       <DetailViewContent itemId={itemId} mode={mode} query={query} {...rest} />
     </DetailViewProvider>
   );

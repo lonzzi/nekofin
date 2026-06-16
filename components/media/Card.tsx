@@ -84,6 +84,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
       : undefined;
 
   const isPlayed = currentUserData?.played === true;
+  const itemTitle = item.seriesName || item.name || '未知标题';
 
   const handleLongPressStart = useCallback(() => {
     setIsLongPressing(true);
@@ -112,6 +113,8 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   const CardComp = useCallback(
     () => (
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`打开 ${itemTitle}`}
         style={[styles.card, { width: 200 }, style]}
         disabled={disabled}
         onPress={onPress || handlePress}
@@ -219,6 +222,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
       imageUrl,
       isPlayed,
       item,
+      itemTitle,
       onPress,
       playedPercentage,
       showBorder,
@@ -299,6 +303,7 @@ export const SeriesCard = React.memo(function SeriesCard({
   );
 
   const imageUrl = imageInfo.url;
+  const itemTitle = item.seriesName || item.name || '未知标题';
 
   const handlePress = useCallback(() => {
     if (isLongPressing) return;
@@ -332,6 +337,8 @@ export const SeriesCard = React.memo(function SeriesCard({
     <Menu>
       <Trigger>
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`打开 ${itemTitle}`}
           style={[styles.card, { width: 120 }, style]}
           onPress={handlePress}
           onLongPress={handleLongPressStart}

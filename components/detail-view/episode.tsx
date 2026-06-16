@@ -1,7 +1,7 @@
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
-import { useThemeColor } from '@/hooks/useThemeColor';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useAppTheme } from '@/lib/design-system';
 import {
   episodesBySeasonQueryOptions,
   mediaSourcesQueryOptions,
@@ -43,8 +43,9 @@ export const EpisodeModeContent = ({
   item: MediaItem;
   seasonId?: string;
 }) => {
-  const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
-  const subtitleColor = useThemeColor({ light: '#666', dark: '#999' }, 'text');
+  const theme = useAppTheme();
+  const textColor = theme.colors.text;
+  const subtitleColor = theme.colors.textSecondary;
   const { setTitle, setBackgroundImageUrl, setSelectedItem } = useDetailView();
   const mediaAdapter = useMediaAdapter();
   const { currentServer } = useMediaServers();
@@ -104,8 +105,8 @@ export const EpisodeModeContent = ({
 
   return (
     <>
-      <View style={{ gap: 8 }}>
-        <ThemedText style={{ fontSize: 14, color: subtitleColor }}>
+      <View style={{ gap: theme.spacing.sm }}>
+        <ThemedText style={[theme.typography.footnote, { color: subtitleColor }]}>
           {getEpisodeHeaderText(selectedEpisode)}
         </ThemedText>
       </View>
@@ -118,7 +119,7 @@ export const EpisodeModeContent = ({
         <View
           style={[
             detailViewStyles.sectionBlock,
-            { flexDirection: 'row', alignItems: 'center', gap: 12 },
+            { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
           ]}
         >
           <MenuView
@@ -131,10 +132,10 @@ export const EpisodeModeContent = ({
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 6,
+                gap: theme.spacing.xs,
               }}
             >
-              <Text style={{ color: textColor, fontSize: 16 }}>
+              <Text style={[theme.typography.bodyEmphasized, { color: textColor }]}>
                 {getSeasonTitle(seasons.find((s) => s.id === selectedSeasonId))}
               </Text>
               <Ionicons name="chevron-down" size={16} color={textColor} />

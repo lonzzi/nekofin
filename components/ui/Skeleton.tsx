@@ -1,4 +1,4 @@
-import { useAppTheme } from '@/lib/design-system';
+import { layout, useAppTheme, useMediaHeroHeight } from '@/lib/design-system';
 import { useEffect, useRef } from 'react';
 import {
   Animated,
@@ -31,12 +31,12 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style 
         Animated.timing(shimmerAnimation, {
           toValue: 1,
           duration: 1000,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
         Animated.timing(shimmerAnimation, {
           toValue: 0,
           duration: 1000,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
       ]),
     );
@@ -53,7 +53,13 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style 
   };
 
   return (
-    <View style={[styles.container, { width, height, borderRadius, backgroundColor }, style]}>
+    <View
+      style={[
+        styles.container,
+        { width, height, borderRadius, backgroundColor, borderCurve: 'continuous' },
+        style,
+      ]}
+    >
       <Animated.View
         style={[
           styles.shimmer,
@@ -70,8 +76,14 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style 
 
 export function SkeletonCard({ type = 'episode' }: { type?: 'episode' | 'series' }) {
   const theme = useAppTheme();
-  const cardWidth = type === 'episode' ? 220 : 120;
-  const aspectRatio = type === 'episode' ? 16 / 9 : 2 / 3;
+  const cardWidth =
+    type === 'episode'
+      ? theme.layout.mediaRail.episodeCardWidth
+      : theme.layout.mediaRail.posterCardWidth;
+  const aspectRatio =
+    type === 'episode'
+      ? theme.layout.mediaRail.backdropAspectRatio
+      : theme.layout.mediaRail.posterAspectRatio;
 
   return (
     <View style={[styles.card, { width: cardWidth }]}>
@@ -94,10 +106,15 @@ export function SkeletonCard({ type = 'episode' }: { type?: 'episode' | 'series'
 
 export function SkeletonUserViewCard() {
   const theme = useAppTheme();
+  const cardWidth = 200;
 
   return (
     <View style={styles.userViewCard}>
-      <Skeleton width={200} height={200 / (16 / 9)} borderRadius={theme.radius.md} />
+      <Skeleton
+        width={cardWidth}
+        height={cardWidth / theme.layout.mediaRail.backdropAspectRatio}
+        borderRadius={theme.radius.md}
+      />
       <View style={styles.userViewInfo}>
         <Skeleton
           width="80%"
@@ -158,7 +175,10 @@ export function SkeletonGridItem({
   itemWidth: number;
 }) {
   const theme = useAppTheme();
-  const aspectRatio = type === 'episode' ? 16 / 9 : 2 / 3;
+  const aspectRatio =
+    type === 'episode'
+      ? theme.layout.mediaRail.backdropAspectRatio
+      : theme.layout.mediaRail.posterAspectRatio;
   const cardHeight = itemWidth / aspectRatio;
 
   return (
@@ -216,10 +236,30 @@ export function SkeletonItemGrid({
 }
 
 export function SkeletonDetailHeader() {
-  const { height: windowHeight } = useWindowDimensions();
-  const headerHeight = windowHeight * 0.6;
+  const theme = useAppTheme();
+  const { width: windowWidth } = useWindowDimensions();
+  const headerHeight = useMediaHeroHeight();
+  const logoWidth = Math.min(windowWidth * 0.72, 300);
 
-  return <View style={[styles.detailHeader, { height: headerHeight }]} />;
+  return (
+    <View
+      style={[
+        styles.detailHeader,
+        { height: headerHeight, backgroundColor: theme.colors.surfaceMuted },
+      ]}
+    >
+      <Skeleton
+        width={logoWidth}
+        height={72}
+        borderRadius={theme.radius.sm}
+        style={{
+          position: 'absolute',
+          left: (windowWidth - logoWidth) / 2,
+          bottom: theme.spacing.xxxl,
+        }}
+      />
+    </View>
+  );
 }
 
 export function SkeletonDetailContent({
@@ -227,27 +267,69 @@ export function SkeletonDetailContent({
 }: {
   mode?: 'series' | 'season' | 'movie' | 'episode';
 }) {
+  const theme = useAppTheme();
+
   return (
-    <View style={styles.detailContent}>
-      <Skeleton width="80%" height={32} borderRadius={4} style={styles.detailTitle} />
-      <Skeleton width="40%" height={16} borderRadius={4} style={styles.detailMeta} />
+    <View
+      style={[
+        styles.detailContent,
+        {
+          paddingHorizontal: theme.spacing.page,
+          paddingTop: theme.spacing.lg,
+          gap: theme.spacing.sm,
+        },
+      ]}
+    >
+      <Skeleton
+        width="80%"
+        height={theme.typography.title2.lineHeight}
+        borderRadius={theme.radius.xs}
+        style={styles.detailTitle}
+      />
+      <Skeleton
+        width="40%"
+        height={theme.typography.footnote.lineHeight}
+        borderRadius={theme.radius.xs}
+        style={styles.detailMeta}
+      />
 
       <View style={styles.detailOverview}>
-        <Skeleton width="100%" height={16} borderRadius={4} />
-        <Skeleton width="100%" height={16} borderRadius={4} />
-        <Skeleton width="100%" height={16} borderRadius={4} />
-        <Skeleton width="60%" height={16} borderRadius={4} />
+        <Skeleton
+          width="100%"
+          height={theme.typography.footnote.lineHeight}
+          borderRadius={theme.radius.xs}
+        />
+        <Skeleton
+          width="100%"
+          height={theme.typography.footnote.lineHeight}
+          borderRadius={theme.radius.xs}
+        />
+        <Skeleton
+          width="100%"
+          height={theme.typography.footnote.lineHeight}
+          borderRadius={theme.radius.xs}
+        />
+        <Skeleton
+          width="60%"
+          height={theme.typography.footnote.lineHeight}
+          borderRadius={theme.radius.xs}
+        />
       </View>
 
       <View style={styles.detailInfo}>
-        <Skeleton width="30%" height={14} borderRadius={4} />
-        <Skeleton width="70%" height={14} borderRadius={4} />
-        <Skeleton width="25%" height={14} borderRadius={4} />
-        <Skeleton width="75%" height={14} borderRadius={4} />
+        <Skeleton width="30%" height={14} borderRadius={theme.radius.xs} />
+        <Skeleton width="70%" height={14} borderRadius={theme.radius.xs} />
+        <Skeleton width="25%" height={14} borderRadius={theme.radius.xs} />
+        <Skeleton width="75%" height={14} borderRadius={theme.radius.xs} />
       </View>
 
       {(mode === 'movie' || mode === 'episode') && (
-        <Skeleton width={120} height={44} borderRadius={8} style={styles.detailPlayButton} />
+        <Skeleton
+          width={120}
+          height={44}
+          borderRadius={theme.radius.md}
+          style={styles.detailPlayButton}
+        />
       )}
 
       {mode === 'season' && <SkeletonEpisodeList />}
@@ -265,25 +347,39 @@ export function SkeletonDetailContent({
 }
 
 export function SkeletonHorizontalEpisodes() {
-  const cardWidth = 200;
-  const cardHeight = cardWidth / (16 / 9);
+  const theme = useAppTheme();
+  const cardWidth = layout.mediaRail.episodeCardWidth - theme.spacing.xl;
+  const cardHeight = cardWidth / theme.layout.mediaRail.backdropAspectRatio;
   return (
     <View style={styles.horizontalSection}>
-      <Skeleton width={120} height={24} borderRadius={4} style={styles.sectionTitle} />
+      <Skeleton
+        width={120}
+        height={theme.typography.title3.lineHeight}
+        borderRadius={theme.radius.xs}
+        style={styles.sectionTitle}
+      />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.horizontalScrollContent}
-        style={{ marginHorizontal: -20 }}
+        contentContainerStyle={[
+          styles.horizontalScrollContent,
+          { gap: theme.spacing.sm, paddingHorizontal: theme.spacing.page },
+        ]}
+        style={{ marginHorizontal: -theme.spacing.page }}
       >
         {Array.from({ length: 6 }).map((_, index) => (
           <View key={index} style={{ width: cardWidth }}>
-            <Skeleton width="100%" height={cardHeight} borderRadius={12} />
-            <Skeleton width="85%" height={16} borderRadius={4} style={styles.gridTitleSkeleton} />
+            <Skeleton width="100%" height={cardHeight} borderRadius={theme.radius.md} />
+            <Skeleton
+              width="85%"
+              height={theme.typography.footnote.lineHeight}
+              borderRadius={theme.radius.xs}
+              style={styles.gridTitleSkeleton}
+            />
             <Skeleton
               width="60%"
-              height={13}
-              borderRadius={4}
+              height={theme.typography.caption.lineHeight}
+              borderRadius={theme.radius.xs}
               style={styles.gridSubtitleSkeleton}
             />
           </View>
@@ -294,17 +390,34 @@ export function SkeletonHorizontalEpisodes() {
 }
 
 export function SkeletonHorizontalSection({ title }: { title: string }) {
+  const theme = useAppTheme();
+
   return (
     <View style={styles.horizontalSection}>
-      <Skeleton width={120} height={24} borderRadius={4} style={styles.sectionTitle} />
+      <Skeleton
+        width={120}
+        height={theme.typography.title3.lineHeight}
+        borderRadius={theme.radius.xs}
+        style={styles.sectionTitle}
+      />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.horizontalScrollContent}
-        style={{ marginHorizontal: -20 }}
+        contentContainerStyle={[
+          styles.horizontalScrollContent,
+          { gap: theme.spacing.md, paddingHorizontal: theme.spacing.page },
+        ]}
+        style={{ marginHorizontal: -theme.spacing.page }}
       >
         {Array.from({ length: 5 }).map((_, index) => (
-          <Skeleton width={140} height={200} borderRadius={12} key={index} />
+          <Skeleton
+            width={theme.layout.mediaRail.posterCardWidth}
+            height={
+              theme.layout.mediaRail.posterCardWidth / theme.layout.mediaRail.posterAspectRatio
+            }
+            borderRadius={theme.radius.md}
+            key={index}
+          />
         ))}
       </ScrollView>
     </View>
@@ -312,17 +425,36 @@ export function SkeletonHorizontalSection({ title }: { title: string }) {
 }
 
 export function SkeletonEpisodeList() {
+  const theme = useAppTheme();
+  const thumbWidth = 140;
+
   return (
     <View style={styles.episodeList}>
       {Array.from({ length: 6 }).map((_, index) => (
         <View key={index} style={styles.episodeItem}>
-          <Skeleton width={140} height={80} borderRadius={8} />
+          <Skeleton
+            width={thumbWidth}
+            height={thumbWidth / theme.layout.mediaRail.backdropAspectRatio}
+            borderRadius={theme.radius.md}
+          />
           <View style={styles.episodeInfo}>
-            <Skeleton width="85%" height={16} borderRadius={4} />
-            <Skeleton width="40%" height={12} borderRadius={4} />
-            <Skeleton width="30%" height={12} borderRadius={4} />
+            <Skeleton
+              width="85%"
+              height={theme.typography.footnote.lineHeight}
+              borderRadius={theme.radius.xs}
+            />
+            <Skeleton
+              width="40%"
+              height={theme.typography.caption.lineHeight}
+              borderRadius={theme.radius.xs}
+            />
+            <Skeleton
+              width="30%"
+              height={theme.typography.caption.lineHeight}
+              borderRadius={theme.radius.xs}
+            />
           </View>
-          <Skeleton width={24} height={24} borderRadius={12} />
+          <Skeleton width={24} height={24} borderRadius={theme.radius.pill} />
         </View>
       ))}
     </View>
@@ -397,13 +529,8 @@ const styles = StyleSheet.create({
   },
   detailHeader: {
     width: '100%',
-    height: 520,
   },
-  detailContent: {
-    top: -140,
-    padding: 20,
-    gap: 8,
-  },
+  detailContent: {},
   detailLogo: {},
   detailTitle: {
     marginTop: 8,

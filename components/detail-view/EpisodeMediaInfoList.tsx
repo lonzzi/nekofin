@@ -1,4 +1,4 @@
-import { useThemeColor } from '@/hooks/useThemeColor';
+import { useAppTheme } from '@/lib/design-system';
 import { MediaSource } from '@/services/media/types';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 
@@ -6,20 +6,36 @@ import { detailViewStyles } from './common';
 import { getAudioInfoRows, getVideoInfoRows, MediaInfoRow } from './episodeMediaInfo';
 
 const MediaInfoCard = ({ rows, title }: { rows: MediaInfoRow[]; title: string }) => {
-  const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
-  const subtitleColor = useThemeColor({ light: '#666', dark: '#999' }, 'text');
-  const bgColor = useThemeColor({ light: '#f5f5f5', dark: '#2a2a2a' }, 'background');
+  const theme = useAppTheme();
+  const textColor = theme.colors.text;
+  const subtitleColor = theme.colors.textSecondary;
 
   if (rows.length === 0) return null;
 
   return (
-    <View style={[styles.infoCard, { backgroundColor: bgColor }]}>
-      <Text style={[styles.cardTitle, { color: textColor }]}>{title}</Text>
+    <View
+      style={[
+        styles.infoCard,
+        {
+          backgroundColor: theme.colors.surface,
+          borderRadius: theme.radius.md,
+          padding: theme.spacing.md,
+          gap: theme.spacing.sm,
+        },
+      ]}
+    >
+      <Text style={[theme.typography.footnote, styles.cardTitle, { color: textColor }]}>
+        {title}
+      </Text>
       <View style={styles.infoGrid}>
         {rows.map((row) => (
           <View key={`${row.label}-${row.value}`} style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: subtitleColor }]}>{row.label}</Text>
-            <Text style={[styles.infoValue, { color: textColor }]}>{row.value}</Text>
+            <Text style={[theme.typography.caption, styles.infoLabel, { color: subtitleColor }]}>
+              {row.label}
+            </Text>
+            <Text style={[theme.typography.caption, styles.infoValue, { color: textColor }]}>
+              {row.value}
+            </Text>
           </View>
         ))}
       </View>
@@ -35,7 +51,8 @@ export const SourceMediaInfoCard = ({ source }: { source: MediaSource }) => (
 );
 
 export const EpisodeMediaInfoList = ({ mediaSources }: { mediaSources: MediaSource[] }) => {
-  const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
+  const theme = useAppTheme();
+  const textColor = theme.colors.text;
 
   if (mediaSources.length === 0) return null;
 
@@ -63,12 +80,9 @@ const styles = StyleSheet.create({
   infoCard: {
     width: 240,
     minHeight: 400,
-    padding: 12,
-    borderRadius: 12,
-    gap: 8,
+    borderCurve: 'continuous',
   },
   cardTitle: {
-    fontSize: 14,
     fontWeight: '600',
     marginBottom: 2,
   },
@@ -81,11 +95,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   infoLabel: {
-    fontSize: 12,
     minWidth: 60,
   },
   infoValue: {
-    fontSize: 12,
     fontWeight: '500',
     flex: 1,
   },

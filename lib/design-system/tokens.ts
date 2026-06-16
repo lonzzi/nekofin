@@ -41,6 +41,23 @@ export const sizes = {
   controlLg: 56,
 } as const;
 
+export const layout = {
+  mediaHero: {
+    aspectRatio: 16 / 9,
+    heightRatio: 0.54,
+    minHeight: 360,
+    maxHeight: 500,
+    scrimHeightRatio: 0.58,
+  },
+  mediaRail: {
+    episodeCardWidth: 220,
+    posterCardWidth: 120,
+    personCardWidth: 120,
+    posterAspectRatio: 2 / 3,
+    backdropAspectRatio: 16 / 9,
+  },
+} as const;
+
 export const typography = {
   caption: {
     fontSize: 12,
@@ -91,3 +108,10 @@ export const zIndex = {
   floating: 10,
   overlay: 100,
 } as const;
+
+export function resolveMediaHeroHeight(windowHeight: number) {
+  const { heightRatio, minHeight, maxHeight } = layout.mediaHero;
+  const nextHeight = windowHeight * heightRatio;
+
+  return Math.round(Math.min(Math.max(nextHeight, minHeight), maxHeight));
+}

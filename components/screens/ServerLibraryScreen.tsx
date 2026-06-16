@@ -7,22 +7,19 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { UserViewSection } from '@/components/user-view/UserViewSection';
 import { useHomeSections } from '@/hooks/useHomeSections';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { useAppTheme } from '@/lib/design-system';
+import { useAppTheme, useMediaHeroHeight } from '@/lib/design-system';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation, useRouter } from 'expo-router';
-import { useHeaderHeight, useIsFocused } from 'expo-router/react-navigation';
+import { useIsFocused } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useMemo } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 export default function HomeScreen() {
   const { servers, currentServer, isInitialized } = useMediaServers();
   const navigation = useNavigation();
   const theme = useAppTheme();
   const backgroundColor = theme.colors.background;
-
-  const headerHeight = useHeaderHeight();
-  const { height: windowHeight } = useWindowDimensions();
-  const carouselHeight = windowHeight * 0.6;
+  const carouselHeight = useMediaHeroHeight();
 
   const router = useRouter();
 
@@ -130,8 +127,7 @@ export default function HomeScreen() {
   return (
     <ParallaxScrollView
       showsVerticalScrollIndicator={false}
-      contentInsetAdjustmentBehavior="automatic"
-      contentInset={{ top: -headerHeight }}
+      contentInsetAdjustmentBehavior="never"
       style={{ flex: 1, backgroundColor }}
       headerHeight={carouselHeight}
       contentStyle={{ gap: theme.spacing.xxs, backgroundColor }}

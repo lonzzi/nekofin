@@ -1,4 +1,4 @@
-import { useThemeColor } from '@/hooks/useThemeColor';
+import { useAppTheme } from '@/lib/design-system';
 import { MediaItem, MediaPerson } from '@/services/media/types';
 import { FlatList, Text, View } from 'react-native';
 
@@ -19,7 +19,8 @@ export const SeriesModeContent = ({
   similarItems: MediaItem[];
   item: MediaItem;
 }) => {
-  const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
+  const theme = useAppTheme();
+  const textColor = theme.colors.text;
   return (
     <>
       <ItemMeta item={item} />

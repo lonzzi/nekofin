@@ -38,6 +38,7 @@ export function CarouselHeader({
         opts: {
           preferBackdrop: true,
           preferThumb: true,
+          width: 1200,
         },
       });
       const logoImageInfo = showLogo
@@ -71,8 +72,23 @@ export function CarouselHeader({
   useEffect(() => {
     if (items.length === 0) {
       setCarouselIndex(0);
+      return;
     }
-  }, [items.length]);
+    if (carouselIndex >= items.length) {
+      setCarouselIndex(0);
+    }
+  }, [carouselIndex, items.length]);
+
+  const updateCarouselIndex = useCallback(
+    (nextIndex: number) => {
+      if (items.length === 0) return;
+      const boundedIndex = Math.min(Math.max(nextIndex, 0), items.length - 1);
+      setCarouselIndex((currentIndex) =>
+        currentIndex === boundedIndex ? currentIndex : boundedIndex,
+      );
+    },
+    [items.length],
+  );
 
   const handleCarouselItemPress = useCallback(
     (item: MediaItem) => {
@@ -106,9 +122,20 @@ export function CarouselHeader({
     [router],
   );
 
-  const onPageSelected = useCallback((e: { nativeEvent: { position: number } }) => {
-    setCarouselIndex(e.nativeEvent.position);
-  }, []);
+  const onPageScroll = useCallback(
+    (e: { nativeEvent: { position: number; offset: number } }) => {
+      const { position, offset } = e.nativeEvent;
+      updateCarouselIndex(Math.round(position + offset));
+    },
+    [updateCarouselIndex],
+  );
+
+  const onPageSelected = useCallback(
+    (e: { nativeEvent: { position: number } }) => {
+      updateCarouselIndex(e.nativeEvent.position);
+    },
+    [updateCarouselIndex],
+  );
 
   const currentItem = items[carouselIndex];
   const currentImageInfo = carouselImageInfos[carouselIndex];
@@ -130,13 +157,17 @@ export function CarouselHeader({
           style={styles.pagerView}
           initialPage={0}
           overdrag
+          onPageScroll={onPageScroll}
           onPageSelected={onPageSelected}
         >
           {items.map((item, index) => {
             const imageInfo = carouselImageInfos[index];
+            const itemTitle = item.seriesName || item.name || '未知标题';
             return (
               <View key={item.id ?? `${item.type}-${item.seriesId ?? index}`} collapsable={false}>
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`打开 ${itemTitle}`}
                   style={styles.carouselCard}
                   onPress={() => handleCarouselItemPress(item)}
                 >
@@ -145,6 +176,7 @@ export function CarouselHeader({
                       uri={imageInfo.imageUrl}
                       style={[styles.carouselImage, { backgroundColor: theme.colors.background }]}
                       contentFit="cover"
+                      contentPosition="left center"
                       cachePolicy="memory-disk"
                       placeholderBlurhash={imageInfo.blurhash}
                     />
@@ -176,106 +208,110 @@ export function CarouselHeader({
           />
 
           <View pointerEvents="none" style={styles.bottomOverlay}>
-            {currentItem && (
-              <View style={styles.cardInner}>
-                {currentLogoUrl ? (
-                  <Image
-                    source={{ uri: currentLogoUrl }}
-                    style={styles.cardLogo}
-                    contentFit="contain"
-                  />
-                ) : (
-                  <ThemedText
-                    style={[
-                      theme.typography.title3,
-                      styles.cardTitle,
-                      { color: theme.colors.inverseText },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {currentTitle}
-                  </ThemedText>
-                )}
-                <View style={styles.cardMetaRow}>
-                  {currentItem.type === 'Movie' && (
-                    <View style={styles.cardTag}>
-                      <ThemedText
-                        style={[
-                          theme.typography.caption,
-                          styles.cardTagText,
-                          { color: theme.colors.inverseText },
-                        ]}
-                      >
-                        电影
-                      </ThemedText>
-                    </View>
-                  )}
-                  {currentItem.type === 'Series' && (
-                    <View style={styles.cardTag}>
-                      <ThemedText
-                        style={[
-                          theme.typography.caption,
-                          styles.cardTagText,
-                          { color: theme.colors.inverseText },
-                        ]}
-                      >
-                        剧集
-                      </ThemedText>
-                    </View>
-                  )}
-                  {currentItem.productionYear && (
-                    <ThemedText style={[theme.typography.footnote, styles.cardMeta]}>
-                      {currentItem.productionYear}
+            <View style={styles.overlayContent}>
+              {currentItem && (
+                <View style={styles.cardInner}>
+                  {currentLogoUrl ? (
+                    <Image
+                      source={{ uri: currentLogoUrl }}
+                      style={styles.cardLogo}
+                      contentFit="contain"
+                    />
+                  ) : (
+                    <ThemedText
+                      style={[
+                        theme.typography.title3,
+                        styles.cardTitle,
+                        { color: theme.colors.inverseText },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {currentTitle}
                     </ThemedText>
                   )}
-                  {currentItem.communityRating != null && (
-                    <ThemedText style={[theme.typography.footnote, styles.cardMeta]}>
-                      ★ {currentItem.communityRating.toFixed(1)}
-                    </ThemedText>
-                  )}
-                  {currentItem.officialRating && (
-                    <View style={[styles.cardTag, styles.cardTagOutline]}>
-                      <ThemedText
-                        style={[
-                          theme.typography.caption,
-                          styles.cardTagText,
-                          { color: theme.colors.inverseText },
-                        ]}
-                      >
-                        {currentItem.officialRating}
+                  <View style={styles.cardMetaRow}>
+                    {currentItem.type === 'Movie' && (
+                      <View style={styles.cardTag}>
+                        <ThemedText
+                          style={[
+                            theme.typography.caption,
+                            styles.cardTagText,
+                            { color: theme.colors.inverseText },
+                          ]}
+                        >
+                          电影
+                        </ThemedText>
+                      </View>
+                    )}
+                    {currentItem.type === 'Series' && (
+                      <View style={styles.cardTag}>
+                        <ThemedText
+                          style={[
+                            theme.typography.caption,
+                            styles.cardTagText,
+                            { color: theme.colors.inverseText },
+                          ]}
+                        >
+                          剧集
+                        </ThemedText>
+                      </View>
+                    )}
+                    {currentItem.productionYear && (
+                      <ThemedText style={[theme.typography.footnote, styles.cardMeta]}>
+                        {currentItem.productionYear}
                       </ThemedText>
-                    </View>
-                  )}
+                    )}
+                    {currentItem.communityRating != null && (
+                      <ThemedText style={[theme.typography.footnote, styles.cardMeta]}>
+                        ★ {currentItem.communityRating.toFixed(1)}
+                      </ThemedText>
+                    )}
+                    {currentItem.officialRating && (
+                      <View style={[styles.cardTag, styles.cardTagOutline]}>
+                        <ThemedText
+                          style={[
+                            theme.typography.caption,
+                            styles.cardTagText,
+                            { color: theme.colors.inverseText },
+                          ]}
+                        >
+                          {currentItem.officialRating}
+                        </ThemedText>
+                      </View>
+                    )}
+                  </View>
                 </View>
-              </View>
-            )}
+              )}
 
-            {/* Dot indicators */}
-            {items.length > 1 && (
-              <View style={styles.dotsRow}>
-                {items.map((item, index) => (
-                  <View
-                    key={item.id ?? `${item.type}-${item.seriesId ?? index}`}
-                    style={[
-                      styles.dot,
-                      index === carouselIndex && styles.dotActive,
-                      {
-                        backgroundColor:
-                          index === carouselIndex
-                            ? 'rgba(255,255,255,0.9)'
-                            : 'rgba(255,255,255,0.35)',
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
-            )}
+              {/* Dot indicators */}
+              {items.length > 1 && (
+                <View style={styles.dotsRow}>
+                  {items.map((item, index) => (
+                    <View
+                      key={item.id ?? `${item.type}-${item.seriesId ?? index}`}
+                      style={[
+                        styles.dot,
+                        index === carouselIndex && styles.dotActive,
+                        {
+                          backgroundColor:
+                            index === carouselIndex
+                              ? 'rgba(255,255,255,0.9)'
+                              : 'rgba(255,255,255,0.35)',
+                        },
+                      ]}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
           </View>
         </>
       )}
     </View>
   );
 }
+
+const CAROUSEL_OVERLAY_LEFT_INSET = 56;
 
 const TEXT_SHADOW = {
   textShadowColor: 'rgba(0, 0, 0, 0.75)',
@@ -286,6 +322,7 @@ const TEXT_SHADOW = {
 const styles = StyleSheet.create({
   pagerView: {
     flex: 1,
+    zIndex: 1,
   },
   carouselCard: {
     flex: 1,
@@ -305,6 +342,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: '40%',
+    zIndex: 2,
   },
   bottomOverlay: {
     position: 'absolute',
@@ -312,14 +350,19 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingBottom: 16,
-    paddingHorizontal: 18,
     justifyContent: 'flex-end',
+    zIndex: 3,
+  },
+  overlayContent: {
+    overflow: 'visible',
   },
   cardInner: {
     gap: 8,
   },
   cardTitle: {
     letterSpacing: 0,
+    marginLeft: CAROUSEL_OVERLAY_LEFT_INSET,
+    marginRight: 18,
     ...TEXT_SHADOW,
   },
   cardLogo: {
@@ -332,6 +375,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     flexWrap: 'wrap',
+    paddingLeft: CAROUSEL_OVERLAY_LEFT_INSET,
+    paddingRight: 18,
   },
   cardMeta: {
     color: 'rgba(255,255,255,0.85)',

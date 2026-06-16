@@ -1,5 +1,4 @@
-import { useThemeColor } from '@/hooks/useThemeColor';
-import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
+import { layout, radius, spacing, typography, useAppTheme } from '@/lib/design-system';
 import { formatDurationFromTicks } from '@/lib/utils';
 import { MediaItem } from '@/services/media/types';
 import { BottomSheet, RNHostView } from '@expo/ui';
@@ -14,8 +13,9 @@ import { ThemedText } from '../ThemedText';
 
 export const PlayButton = ({ item }: { item: MediaItem }) => {
   const router = useRouter();
-  const { accentColor } = useAccentColor();
-  const textColor = useThemeColor({ light: '#fff', dark: '#fff' }, 'text');
+  const theme = useAppTheme();
+  const accentColor = theme.colors.tint;
+  const textColor = theme.colors.inverseText;
 
   const progressPercent = useMemo(() => {
     const pct = item.userData?.playedPercentage ?? (item.userData?.played ? 100 : 0);
@@ -90,7 +90,8 @@ export const PlayButton = ({ item }: { item: MediaItem }) => {
 };
 
 export const ItemMeta = ({ item }: { item: MediaItem }) => {
-  const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
+  const theme = useAppTheme();
+  const textColor = theme.colors.text;
 
   const ratingText = useMemo(() => {
     if (typeof item?.communityRating === 'number') return item.communityRating.toFixed(1);
@@ -119,11 +120,11 @@ export const ItemMeta = ({ item }: { item: MediaItem }) => {
 };
 
 export const ItemOverview = ({ item }: { item: MediaItem }) => {
-  const textColor = useThemeColor({ light: '#000', dark: '#fff' }, 'text');
+  const theme = useAppTheme();
+  const textColor = theme.colors.text;
   const [isOverviewPresented, setIsOverviewPresented] = useState(false);
   const [textLines, setTextLines] = useState(0);
-
-  const { accentColor } = useAccentColor();
+  const accentColor = theme.colors.tint;
 
   const overview = item?.overview?.trim() ?? '';
 
@@ -173,7 +174,8 @@ export const ItemOverview = ({ item }: { item: MediaItem }) => {
 };
 
 export const ItemInfoList = ({ item }: { item: MediaItem }) => {
-  const subtitleColor = useThemeColor({ light: '#666', dark: '#999' }, 'text');
+  const theme = useAppTheme();
+  const subtitleColor = theme.colors.textSecondary;
 
   const genreText = useMemo(() => {
     const primary = item?.genres && item.genres.length > 0 ? item.genres : undefined;
@@ -230,48 +232,57 @@ export const detailViewStyles = StyleSheet.create({
   header: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#eee',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  headerMedia: {
+    width: '100%',
+    height: '100%',
+  },
+  headerScrim: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '52%',
+  },
+  headerLogo: {
+    position: 'absolute',
+    height: 76,
   },
   content: {
-    top: -140,
-    padding: 20,
-    gap: 8,
-    marginBottom: -60,
-  },
-  logo: {
-    width: '100%',
-    height: 120,
+    paddingHorizontal: spacing.page,
+    gap: spacing.sm,
   },
   meta: {
-    fontSize: 14,
+    ...typography.footnote,
   },
   star: {
     color: '#F5C518',
   },
   overview: {
-    fontSize: 14,
+    ...typography.footnote,
     lineHeight: 20,
   },
   overviewContainer: {
-    gap: 8,
-    marginBottom: 8,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   modalContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    gap: 16,
+    paddingHorizontal: spacing.page,
+    paddingBottom: spacing.page,
+    gap: spacing.lg,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...typography.title3,
   },
   modalOverview: {
-    fontSize: 16,
+    ...typography.body,
     lineHeight: 24,
   },
   infoBlock: {
-    marginTop: 6,
-    rowGap: 6,
+    marginTop: spacing.xs,
+    rowGap: spacing.xs,
   },
   infoRow: {
     flexDirection: 'row',
@@ -279,26 +290,26 @@ export const detailViewStyles = StyleSheet.create({
     alignItems: 'baseline',
   },
   infoLabel: {
-    fontSize: 14,
+    ...typography.footnote,
     width: 56,
   },
   infoValue: {
-    fontSize: 14,
+    ...typography.footnote,
     fontWeight: '600',
     flex: 1,
     textAlign: 'left',
   },
   playButton: {
-    borderRadius: 8,
-    marginTop: 8,
+    borderRadius: radius.md,
+    borderCurve: 'continuous',
+    marginTop: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     overflow: 'hidden',
   },
   playButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...typography.bodyEmphasized,
   },
   playButtonProgressFill: {
     position: 'absolute',
@@ -307,31 +318,30 @@ export const detailViewStyles = StyleSheet.create({
     bottom: 0,
   },
   sectionBlock: {
-    marginTop: 16,
+    marginTop: spacing.xl,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
+    ...typography.title3,
+    marginBottom: spacing.sm,
   },
   horizontalList: {
-    paddingVertical: 4,
-    paddingHorizontal: 20,
-    gap: 12,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.page,
+    gap: spacing.md,
   },
   edgeToEdge: {
-    marginHorizontal: -20,
+    marginHorizontal: -spacing.page,
   },
   horizontalCard: {
-    width: 200,
+    width: layout.mediaRail.episodeCardWidth - spacing.xl,
   },
   listContainer: {
-    marginTop: 16,
-    rowGap: 16,
+    marginTop: spacing.xl,
+    rowGap: spacing.xl,
   },
   listItem: {
     width: '100%',
-    gap: 8,
+    gap: spacing.sm,
   },
   emptyContainer: {
     flex: 1,
@@ -339,13 +349,13 @@ export const detailViewStyles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: 16,
+    ...typography.body,
     opacity: 0.6,
   },
   lastLineContainer: {
-    marginTop: -8,
+    marginTop: -spacing.sm,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
+    gap: spacing.sm,
   },
 });

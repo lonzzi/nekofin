@@ -1,7 +1,7 @@
 import { getSystemColor } from '@/constants/SystemColor';
 import type { ResolvedColorScheme } from '@/lib/contexts/ThemePreferenceContext';
 
-import { brandColors, opacity, radius, sizes, spacing, typography, zIndex } from './tokens';
+import { brandColors, layout, opacity, radius, sizes, spacing, typography, zIndex } from './tokens';
 
 export type AppColorRole =
   | 'background'
@@ -19,7 +19,12 @@ export type AppColorRole =
   | 'warning'
   | 'inverseText'
   | 'scrim'
-  | 'mediaChrome';
+  | 'mediaChrome'
+  | 'mediaScrim'
+  | 'mediaScrimSoft'
+  | 'mediaChromeSoft'
+  | 'mediaChromeBorder'
+  | 'mediaTextSecondary';
 
 export type AppTheme = ReturnType<typeof createAppTheme>;
 
@@ -52,12 +57,18 @@ export function createAppTheme({
       inverseText: '#FFFFFF',
       scrim: isDark ? 'rgba(0,0,0,0.72)' : 'rgba(0,0,0,0.46)',
       mediaChrome: 'rgba(0,0,0,0.62)',
+      mediaScrim: 'rgba(0,0,0,0.78)',
+      mediaScrimSoft: 'rgba(0,0,0,0)',
+      mediaChromeSoft: 'rgba(255,255,255,0.18)',
+      mediaChromeBorder: 'rgba(255,255,255,0.36)',
+      mediaTextSecondary: 'rgba(255,255,255,0.86)',
     },
     media: {
       jellyfin: brandColors.jellyfin,
       emby: brandColors.emby,
     },
     spacing,
+    layout,
     radius,
     sizes,
     typography,
