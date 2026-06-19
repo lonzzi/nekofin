@@ -30,6 +30,13 @@ export function CarouselHeader({
   const router = useRouter();
   const mediaAdapter = useMediaAdapter();
   const theme = useAppTheme();
+  const hasImages = items.length > 0;
+  const isLooping = items.length > 1;
+
+  const itemIdentity = useMemo(
+    () => items.map((item, index) => item.id ?? `${item.type}-${item.seriesId ?? index}`).join('|'),
+    [items],
+  );
 
   const carouselImageInfos = useMemo(() => {
     return items.map((item) => {
@@ -55,18 +62,41 @@ export function CarouselHeader({
     });
   }, [items, mediaAdapter, showLogo]);
 
+  const pagerItems = useMemo(() => {
+    if (!isLooping) return items;
+    return [items[items.length - 1], ...items, items[0]];
+  }, [isLooping, items]);
+
+  const getPagerPageForIndex = useCallback(
+    (index: number) => (isLooping ? index + 1 : index),
+    [isLooping],
+  );
+
+  const getCarouselIndexForPagerPage = useCallback(
+    (page: number) => {
+      if (items.length === 0) return 0;
+      if (!isLooping) return Math.min(Math.max(page, 0), items.length - 1);
+      if (page === 0) return items.length - 1;
+      if (page === items.length + 1) return 0;
+      return Math.min(Math.max(page - 1, 0), items.length - 1);
+    },
+    [isLooping, items.length],
+  );
+
   // Auto-play: advance to next page every 6.5s
   useEffect(() => {
     if (!isFocused || items.length <= 1) return;
     const timer = setInterval(() => {
       setCarouselIndex((prev) => {
         const next = (prev + 1) % items.length;
-        pagerRef.current?.setPage(next);
+        const nextPage =
+          isLooping && prev === items.length - 1 ? items.length + 1 : getPagerPageForIndex(next);
+        pagerRef.current?.setPage(nextPage);
         return next;
       });
     }, 6500);
     return () => clearInterval(timer);
-  }, [isFocused, items.length]);
+  }, [getPagerPageForIndex, isFocused, isLooping, items.length]);
 
   // Reset index when items change
   useEffect(() => {
@@ -74,10 +104,11 @@ export function CarouselHeader({
       setCarouselIndex(0);
       return;
     }
-    if (carouselIndex >= items.length) {
-      setCarouselIndex(0);
-    }
-  }, [carouselIndex, items.length]);
+    setCarouselIndex(0);
+    requestAnimationFrame(() => {
+      pagerRef.current?.setPageWithoutAnimation(getPagerPageForIndex(0));
+    });
+  }, [getPagerPageForIndex, itemIdentity, items.length]);
 
   const updateCarouselIndex = useCallback(
     (nextIndex: number) => {
@@ -125,24 +156,36 @@ export function CarouselHeader({
   const onPageScroll = useCallback(
     (e: { nativeEvent: { position: number; offset: number } }) => {
       const { position, offset } = e.nativeEvent;
-      updateCarouselIndex(Math.round(position + offset));
+      updateCarouselIndex(getCarouselIndexForPagerPage(Math.round(position + offset)));
     },
-    [updateCarouselIndex],
+    [getCarouselIndexForPagerPage, updateCarouselIndex],
   );
 
   const onPageSelected = useCallback(
     (e: { nativeEvent: { position: number } }) => {
-      updateCarouselIndex(e.nativeEvent.position);
+      const page = e.nativeEvent.position;
+      updateCarouselIndex(getCarouselIndexForPagerPage(page));
+
+      if (!isLooping) return;
+      if (page === 0) {
+        requestAnimationFrame(() => {
+          pagerRef.current?.setPageWithoutAnimation(items.length);
+        });
+        return;
+      }
+      if (page === items.length + 1) {
+        requestAnimationFrame(() => {
+          pagerRef.current?.setPageWithoutAnimation(1);
+        });
+      }
     },
-    [updateCarouselIndex],
+    [getCarouselIndexForPagerPage, isLooping, items.length, updateCarouselIndex],
   );
 
   const currentItem = items[carouselIndex];
   const currentImageInfo = carouselImageInfos[carouselIndex];
   const currentTitle = currentItem ? currentItem.seriesName || currentItem.name || '未知标题' : '';
   const currentLogoUrl = showLogo ? currentImageInfo?.logoImageUrl : undefined;
-
-  const hasImages = items.length > 0;
 
   return (
     <View style={{ height }}>
@@ -155,16 +198,20 @@ export function CarouselHeader({
         <PagerView
           ref={pagerRef}
           style={styles.pagerView}
-          initialPage={0}
+          initialPage={getPagerPageForIndex(0)}
           overdrag
           onPageScroll={onPageScroll}
           onPageSelected={onPageSelected}
         >
-          {items.map((item, index) => {
+          {pagerItems.map((item, pagerIndex) => {
+            const index = getCarouselIndexForPagerPage(pagerIndex);
             const imageInfo = carouselImageInfos[index];
             const itemTitle = item.seriesName || item.name || '未知标题';
             return (
-              <View key={item.id ?? `${item.type}-${item.seriesId ?? index}`} collapsable={false}>
+              <View
+                key={`${pagerIndex}-${item.id ?? `${item.type}-${item.seriesId ?? index}`}`}
+                collapsable={false}
+              >
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`打开 ${itemTitle}`}
@@ -211,24 +258,27 @@ export function CarouselHeader({
             <View style={styles.overlayContent}>
               {currentItem && (
                 <View style={styles.cardInner}>
-                  {currentLogoUrl ? (
-                    <Image
-                      source={{ uri: currentLogoUrl }}
-                      style={styles.cardLogo}
-                      contentFit="contain"
-                    />
-                  ) : (
-                    <ThemedText
-                      style={[
-                        theme.typography.title3,
-                        styles.cardTitle,
-                        { color: theme.colors.inverseText },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {currentTitle}
-                    </ThemedText>
-                  )}
+                  <View style={styles.titleBounds}>
+                    {currentLogoUrl ? (
+                      <Image
+                        source={{ uri: currentLogoUrl }}
+                        style={styles.cardLogo}
+                        contentFit="contain"
+                      />
+                    ) : (
+                      <ThemedText
+                        style={[
+                          theme.typography.title3,
+                          styles.cardTitle,
+                          { color: theme.colors.inverseText },
+                        ]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {currentTitle}
+                      </ThemedText>
+                    )}
+                  </View>
                   <View style={styles.cardMetaRow}>
                     {currentItem.type === 'Movie' && (
                       <View style={styles.cardTag}>
@@ -359,10 +409,16 @@ const styles = StyleSheet.create({
   cardInner: {
     gap: 8,
   },
+  titleBounds: {
+    width: '100%',
+    paddingLeft: CAROUSEL_OVERLAY_LEFT_INSET,
+    paddingRight: 18,
+    overflow: 'hidden',
+  },
   cardTitle: {
     letterSpacing: 0,
-    marginLeft: CAROUSEL_OVERLAY_LEFT_INSET,
-    marginRight: 18,
+    minWidth: 0,
+    flexShrink: 1,
     ...TEXT_SHADOW,
   },
   cardLogo: {
@@ -375,8 +431,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     flexWrap: 'wrap',
+    width: '100%',
     paddingLeft: CAROUSEL_OVERLAY_LEFT_INSET,
     paddingRight: 18,
+    overflow: 'hidden',
   },
   cardMeta: {
     color: 'rgba(255,255,255,0.85)',

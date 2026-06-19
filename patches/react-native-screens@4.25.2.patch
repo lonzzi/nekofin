@@ -1,0 +1,16 @@
+diff --git a/ios/RNSScreenStackHeaderConfig.mm b/ios/RNSScreenStackHeaderConfig.mm
+index 04e2b68..fb315a8 100644
+--- a/ios/RNSScreenStackHeaderConfig.mm
++++ b/ios/RNSScreenStackHeaderConfig.mm
+@@ -486,7 +486,11 @@
+     // when nav bar is not translucent we change edgesForExtendedLayout to avoid system laying out
+     // the screen underneath navigation controllers
+     vc.edgesForExtendedLayout = UIRectEdgeAll - UIRectEdgeTop;
++    vc.extendedLayoutIncludesOpaqueBars = NO;
+   } else {
+     // system default is UIRectEdgeAll
+     vc.edgesForExtendedLayout = UIRectEdgeAll;
++    // iOS 26 can temporarily treat a transparent navigation bar as opaque during
++    // repeated pushes. Keep translucent screen content extended beneath it.
++    vc.extendedLayoutIncludesOpaqueBars = !shouldHide && config.translucent;
+   }
