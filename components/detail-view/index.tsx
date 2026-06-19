@@ -197,6 +197,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     <ParallaxScrollView
       headerHeight={headerHeight}
       showsVerticalScrollIndicator={false}
+      contentInsetAdjustmentBehavior="never"
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       headerBackgroundColor={{
         light: theme.colors.surfaceMuted,

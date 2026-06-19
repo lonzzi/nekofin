@@ -7,7 +7,7 @@ export default function TabLayout() {
 
   return (
     <NativeTabs minimizeBehavior="onScrollDown">
-      <NativeTabs.Trigger name="(servers)">
+      <NativeTabs.Trigger name="(servers)" disableAutomaticContentInsets>
         <NativeTabs.Trigger.Label>服务器</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           drawable="storage"
@@ -15,7 +15,11 @@ export default function TabLayout() {
           selectedColor={accentColor}
         />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(search)" role={isLiquidGlassAvailable() ? 'search' : undefined}>
+      <NativeTabs.Trigger
+        name="(search)"
+        role={isLiquidGlassAvailable() ? 'search' : undefined}
+        disableAutomaticContentInsets
+      >
         <NativeTabs.Trigger.Label>搜索</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           drawable="search"

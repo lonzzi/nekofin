@@ -116,7 +116,6 @@
     }
   },
   "patchedDependencies": {
-    "react-native-ios-utilities@5.2.0": "patches/react-native-ios-utilities@5.2.0.patch",
-    "react-native-screens@4.25.2": "patches/react-native-screens@4.25.2.patch"
+    "react-native-ios-utilities@5.2.0": "patches/react-native-ios-utilities@5.2.0.patch"
   }
 }
