@@ -1,7 +1,6 @@
 import { AvatarImage } from '@/components/AvatarImage';
 import PageScrollView from '@/components/PageScrollView';
 import { AddServerMenu } from '@/components/servers/AddServerMenu';
-import { useGridLayout } from '@/hooks/useGridLayout';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/design-system';
 import { MediaServerInfo, type MediaServerType } from '@/services/media/types';
@@ -9,23 +8,24 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import {
+  Alert,
+  Animated,
+  Easing,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+
+const ONLINE_GREEN = '#34c759';
+const SERVER_GRID_MIN_COLUMNS = 2;
+const SERVER_CARD_MIN_WIDTH = 158;
 
 function ServerAvatar({ server }: { server: MediaServerInfo }) {
-  const theme = useAppTheme();
-
-  return (
-    <View style={styles.avatarWrap}>
-      <AvatarImage avatarUri={server.userAvatar} style={styles.avatarImage} />
-      <View
-        style={[
-          styles.serverDot,
-          { backgroundColor: theme.colors.tint, borderColor: theme.colors.surface },
-        ]}
-      />
-    </View>
-  );
+  return <AvatarImage avatarUri={server.userAvatar} style={styles.avatarImage} />;
 }
 
 function CardText({
@@ -87,9 +87,60 @@ function formatServerAge(createdAt: number) {
 
 function getServerGradient(server: MediaServerInfo, isCurrent: boolean): [string, string] {
   if (server.type === 'emby') {
-    return isCurrent ? ['#a9edcc', '#d4f8e6'] : ['#c8f4dd', '#e6fbef'];
+    return isCurrent ? ['#d8fae9', '#f6fff9'] : ['#ecfbf4', '#fbfffd'];
   }
-  return isCurrent ? ['#e6c4f6', '#f5e2fb'] : ['#edd7f7', '#faeefc'];
+  return isCurrent ? ['#f2e5fb', '#fff7ff'] : ['#f8f1fc', '#fffbff'];
+}
+
+function OnlineStatusDot() {
+  const glowAnimation = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnimation, {
+          toValue: 1,
+          duration: 1200,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowAnimation, {
+          toValue: 0,
+          duration: 1200,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    pulse.start();
+
+    return () => {
+      pulse.stop();
+    };
+  }, [glowAnimation]);
+
+  const glowStyle = {
+    opacity: glowAnimation.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.42, 0.08],
+    }),
+    transform: [
+      {
+        scale: glowAnimation.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.9, 1.75],
+        }),
+      },
+    ],
+  };
+
+  return (
+    <View style={styles.onlineDotWrap}>
+      <Animated.View style={[styles.onlineDotGlow, glowStyle]} />
+      <View style={styles.onlineDot} />
+    </View>
+  );
 }
 
 function ServerCard({
@@ -129,19 +180,21 @@ function ServerCard({
             <View style={styles.cardHeader}>
               <View style={styles.cardTitleWrap}>
                 <View style={styles.serverNameRow}>
-                  <Text numberOfLines={1} style={[styles.serverName, { color: theme.colors.text }]}>
+                  <OnlineStatusDot />
+                  <Text numberOfLines={2} style={[styles.serverName, { color: theme.colors.text }]}>
                     {server.name}
                   </Text>
-                  <View style={[styles.onlineDot, { backgroundColor: '#34c759' }]} />
                 </View>
-                <Text
-                  numberOfLines={1}
-                  style={[styles.serverSubtitle, { color: theme.colors.textSecondary }]}
-                >
-                  {server.username}
-                </Text>
+                <View style={styles.serverSubtitleRow}>
+                  <ServerAvatar server={server} />
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.serverSubtitle, { color: theme.colors.textSecondary }]}
+                  >
+                    {server.username}
+                  </Text>
+                </View>
               </View>
-              <ServerAvatar server={server} />
             </View>
           </View>
         </Pressable>
@@ -202,19 +255,21 @@ function ServerCard({
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleWrap}>
               <View style={styles.serverNameRow}>
-                <Text numberOfLines={1} style={[styles.serverName, { color: theme.colors.text }]}>
+                <OnlineStatusDot />
+                <Text numberOfLines={2} style={[styles.serverName, { color: theme.colors.text }]}>
                   {server.name}
                 </Text>
-                <View style={[styles.onlineDot, { backgroundColor: '#34c759' }]} />
               </View>
-              <Text
-                numberOfLines={1}
-                style={[styles.serverSubtitle, { color: theme.colors.textSecondary }]}
-              >
-                {server.username}
-              </Text>
+              <View style={styles.serverSubtitleRow}>
+                <ServerAvatar server={server} />
+                <Text
+                  numberOfLines={1}
+                  style={[styles.serverSubtitle, { color: theme.colors.textSecondary }]}
+                >
+                  {server.username}
+                </Text>
+              </View>
             </View>
-            <ServerAvatar server={server} />
           </View>
         </View>
       </Pressable>
@@ -265,7 +320,8 @@ export default function ServersScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { servers, removeServer, setCurrentServer, currentServer } = useMediaServers();
-  const { itemWidth, gap } = useGridLayout();
+  const { width: viewportWidth } = useWindowDimensions();
+  const serverGridGap = theme.spacing.md;
 
   const sortedServers = useMemo(
     () =>
@@ -276,6 +332,15 @@ export default function ServersScreen() {
       }),
     [currentServer?.id, servers],
   );
+  const serverCardWidth = useMemo(() => {
+    const availableWidth = Math.max(viewportWidth - theme.spacing.page * 2, 0);
+    const columnCount = Math.max(
+      SERVER_GRID_MIN_COLUMNS,
+      Math.floor((availableWidth + serverGridGap) / (SERVER_CARD_MIN_WIDTH + serverGridGap)),
+    );
+    return (availableWidth - (columnCount - 1) * serverGridGap) / columnCount;
+  }, [serverGridGap, theme.spacing.page, viewportWidth]);
+  const serverCardSlotStyle = useMemo(() => ({ width: serverCardWidth }), [serverCardWidth]);
 
   const openAddServer = useCallback(
     (serverType: MediaServerType) => {
@@ -319,9 +384,9 @@ export default function ServersScreen() {
         </View>
 
         {sortedServers.length > 0 ? (
-          <View style={[styles.serverGrid, { gap }]}>
+          <View style={[styles.serverGrid, { gap: serverGridGap }]}>
             {sortedServers.map((server) => (
-              <View key={server.id} style={{ width: itemWidth }}>
+              <View key={server.id} style={serverCardSlotStyle}>
                 <ServerCard
                   server={server}
                   isCurrent={currentServer?.id === server.id}
@@ -379,15 +444,16 @@ const styles = StyleSheet.create({
   serverGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'stretch',
   },
   serverCard: {
-    minHeight: 110,
+    height: 132,
     overflow: 'hidden',
-    borderRadius: 20,
+    borderRadius: 22,
     padding: 14,
   },
   gradientOverlay: {
-    opacity: 0.7,
+    opacity: 0.52,
   },
   cardOpenArea: {
     flex: 1,
@@ -396,62 +462,76 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 10,
+    flex: 1,
   },
   cardTitleWrap: {
     flex: 1,
     minWidth: 0,
+    gap: 4,
   },
   serverNameRow: {
-    minHeight: 22,
+    minHeight: 24,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 6,
   },
   serverName: {
+    flex: 1,
+    minWidth: 0,
     flexShrink: 1,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
-    lineHeight: 22,
+    lineHeight: 21,
+  },
+  onlineDotWrap: {
+    width: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 3,
+  },
+  onlineDotGlow: {
+    position: 'absolute',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: ONLINE_GREEN,
+    shadowColor: ONLINE_GREEN,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.7,
+    shadowRadius: 6,
   },
   onlineDot: {
     width: 7,
     height: 7,
     borderRadius: 4,
-    marginTop: -10,
+    backgroundColor: ONLINE_GREEN,
+    shadowColor: ONLINE_GREEN,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 3,
   },
   serverSubtitle: {
-    marginTop: 2,
+    flex: 1,
+    minWidth: 0,
     fontSize: 12,
     fontWeight: '500',
     lineHeight: 16,
   },
-  avatarWrap: {
-    width: 36,
-    height: 36,
-    justifyContent: 'center',
+  serverSubtitleRow: {
+    minHeight: 24,
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 5,
   },
   avatarImage: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-  },
-  serverDot: {
-    position: 'absolute',
-    right: 0,
-    bottom: 0,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    borderWidth: 1.5,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
   },
   cardFooter: {
     marginTop: 'auto',
-    minHeight: 28,
+    minHeight: 30,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -463,8 +543,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   ageText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
     lineHeight: 18,
   },
   iconAction: {
