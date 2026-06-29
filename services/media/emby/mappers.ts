@@ -12,14 +12,19 @@ export type EmbyBaseItemDto = {
   IndexNumber?: number | null;
   ParentIndexNumber?: number | null;
   ProductionYear?: number | null;
+  PremiereDate?: string | null;
+  DateCreated?: string | null;
   EndDate?: string | null;
   Status?: string | null;
   Overview?: string | null;
+  Taglines?: string[] | null;
+  Tags?: string[] | null;
   CommunityRating?: number | null;
   CriticRating?: number | null;
   OfficialRating?: string | null;
   Genres?: string[] | null;
   GenreItems?: { Name?: string | null }[] | null;
+  ProductionLocations?: string[] | null;
   People?:
     | {
         Id?: string | null;
@@ -38,8 +43,13 @@ export type EmbyBaseItemDto = {
     PlaybackPositionTicks?: number | null;
   } | null;
   RunTimeTicks?: number | null;
+  CumulativeRunTimeTicks?: number | null;
   OriginalTitle?: string | null;
   SeasonId?: string | null;
+  RecursiveItemCount?: number | null;
+  ChildCount?: number | null;
+  MediaSourceCount?: number | null;
+  Container?: string | null;
   CollectionType?: string | null;
 };
 
@@ -55,14 +65,19 @@ export function convertEmbyItemToMediaItem(item: EmbyBaseItemDto): MediaItem {
     indexNumber: item.IndexNumber,
     parentIndexNumber: item.ParentIndexNumber,
     productionYear: item.ProductionYear,
+    premiereDate: item.PremiereDate,
+    dateCreated: item.DateCreated,
     endDate: item.EndDate,
     status: item.Status as 'Continuing' | 'Ended' | undefined,
     overview: item.Overview,
+    taglines: item.Taglines,
+    tags: item.Tags,
     communityRating: item.CommunityRating,
     criticRating: item.CriticRating,
     officialRating: item.OfficialRating,
     genres: item.Genres,
     genreItems: item.GenreItems?.map((g) => ({ name: g.Name || '' })),
+    productionLocations: item.ProductionLocations,
     people: item.People?.map((p) => ({
       name: p.Name || '',
       id: p.Id || '',
@@ -82,8 +97,13 @@ export function convertEmbyItemToMediaItem(item: EmbyBaseItemDto): MediaItem {
         }
       : undefined,
     runTimeTicks: item.RunTimeTicks,
+    cumulativeRunTimeTicks: item.CumulativeRunTimeTicks,
     originalTitle: item.OriginalTitle,
     seasonId: item.SeasonId,
+    recursiveItemCount: item.RecursiveItemCount,
+    childCount: item.ChildCount,
+    mediaSourceCount: item.MediaSourceCount,
+    container: item.Container,
     collectionType: item.CollectionType ?? undefined,
   };
 }

@@ -12,6 +12,7 @@ import { useNavigation } from 'expo-router';
 import { HeaderButton } from 'expo-router/react-navigation';
 import { useEffect, useState } from 'react';
 import { RefreshControl, Text, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ItemImage } from '../ItemImage';
 import { SkeletonDetailContent, SkeletonDetailHeader } from '../ui/Skeleton';
@@ -20,6 +21,8 @@ import { DetailViewProvider, useDetailView } from './DetailViewContext';
 import { EpisodeModeContent } from './episode';
 import { MovieModeContent } from './movie';
 import { SeriesModeContent } from './series';
+
+const FLOATING_BOTTOM_CHROME_CLEARANCE = 44;
 
 export type DetailViewProps = {
   itemId: string;
@@ -30,6 +33,7 @@ export type DetailViewProps = {
 
 function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { currentServer } = useMediaServers();
   const theme = useAppTheme();
   const backgroundColor = theme.colors.background;
@@ -43,6 +47,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const { width: windowWidth } = useWindowDimensions();
   const headerHeight = useMediaHeroHeight();
   const detailLogoWidth = Math.min(windowWidth * 0.72, 300);
+  const bottomContentInset = insets.bottom + FLOATING_BOTTOM_CHROME_CLEARANCE;
 
   const mediaAdapter = useMediaAdapter();
 
@@ -198,6 +203,8 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
       headerHeight={headerHeight}
       showsVerticalScrollIndicator={false}
       contentInsetAdjustmentBehavior="never"
+      contentInset={{ bottom: bottomContentInset }}
+      scrollIndicatorInsets={{ bottom: bottomContentInset }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       headerBackgroundColor={{
         light: theme.colors.surfaceMuted,

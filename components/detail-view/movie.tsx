@@ -30,6 +30,7 @@ export const MovieModeContent = ({
           <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>演职人员</Text>
           <FlatList
             horizontal
+            removeClippedSubviews={false}
             data={people}
             style={detailViewStyles.edgeToEdge}
             renderItem={({ item }) => <PersonItem item={item} />}
@@ -45,6 +46,7 @@ export const MovieModeContent = ({
           <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>更多类似的</Text>
           <FlatList
             horizontal
+            removeClippedSubviews={false}
             data={similarItems}
             style={detailViewStyles.edgeToEdge}
             renderItem={({ item }) => <SeriesCard item={item} imgType="Primary" />}

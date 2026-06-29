@@ -61,20 +61,30 @@ export interface MediaItem {
   indexNumber?: number | null;
   parentIndexNumber?: number | null;
   productionYear?: number | null;
+  premiereDate?: string | null;
+  dateCreated?: string | null;
   endDate?: string | null;
   status?: 'Continuing' | 'Ended';
   overview?: string | null;
+  taglines?: string[] | null;
+  tags?: string[] | null;
   communityRating?: number | null;
   criticRating?: number | null;
   officialRating?: string | null;
   genres?: string[] | null;
   genreItems?: MediaGenre[] | null;
+  productionLocations?: string[] | null;
   people?: MediaPerson[] | null;
   studios?: MediaStudio[] | null;
   userData?: MediaUserData | null;
   runTimeTicks?: number | null;
+  cumulativeRunTimeTicks?: number | null;
   originalTitle?: string | null;
   seasonId?: string | null;
+  recursiveItemCount?: number | null;
+  childCount?: number | null;
+  mediaSourceCount?: number | null;
+  container?: string | null;
   collectionType?: string;
 }
 

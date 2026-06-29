@@ -32,6 +32,7 @@ export const SeriesModeContent = ({
           <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>接下来</Text>
           <FlatList
             horizontal
+            removeClippedSubviews={false}
             data={nextUpItems}
             style={detailViewStyles.edgeToEdge}
             renderItem={({ item }) => (
@@ -49,6 +50,7 @@ export const SeriesModeContent = ({
           <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>季度</Text>
           <FlatList
             horizontal
+            removeClippedSubviews={false}
             data={seasons}
             style={detailViewStyles.edgeToEdge}
             renderItem={({ item }) => <SeriesCard item={item} imgType="Primary" hideSubtitle />}
@@ -64,6 +66,7 @@ export const SeriesModeContent = ({
           <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>演职人员</Text>
           <FlatList
             horizontal
+            removeClippedSubviews={false}
             data={people}
             style={detailViewStyles.edgeToEdge}
             renderItem={({ item }) => <PersonItem item={item} />}
@@ -79,6 +82,7 @@ export const SeriesModeContent = ({
           <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>更多类似的</Text>
           <FlatList
             horizontal
+            removeClippedSubviews={false}
             data={similarItems}
             style={detailViewStyles.edgeToEdge}
             renderItem={({ item }) => <SeriesCard item={item} imgType="Primary" />}

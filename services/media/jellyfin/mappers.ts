@@ -23,14 +23,19 @@ export function convertBaseItemDtoToMediaItem(item: BaseItemDto): MediaItem {
     indexNumber: item.IndexNumber,
     parentIndexNumber: item.ParentIndexNumber,
     productionYear: item.ProductionYear,
+    premiereDate: item.PremiereDate,
+    dateCreated: item.DateCreated,
     endDate: item.EndDate,
     status: item.Status as 'Continuing' | 'Ended' | undefined,
     overview: item.Overview,
+    taglines: item.Taglines,
+    tags: item.Tags,
     communityRating: item.CommunityRating,
     criticRating: item.CriticRating,
     officialRating: item.OfficialRating,
     genres: item.Genres,
     genreItems: item.GenreItems?.map((g) => ({ name: g.Name || '' })),
+    productionLocations: item.ProductionLocations,
     people: item.People?.map((p) => ({
       name: p.Name || '',
       id: p.Id || '',
@@ -50,8 +55,13 @@ export function convertBaseItemDtoToMediaItem(item: BaseItemDto): MediaItem {
         }
       : undefined,
     runTimeTicks: item.RunTimeTicks,
+    cumulativeRunTimeTicks: item.CumulativeRunTimeTicks,
     originalTitle: item.OriginalTitle,
     seasonId: item.SeasonId,
+    recursiveItemCount: item.RecursiveItemCount,
+    childCount: item.ChildCount,
+    mediaSourceCount: item.MediaSourceCount,
+    container: item.Container,
     collectionType: item.CollectionType,
   };
 }

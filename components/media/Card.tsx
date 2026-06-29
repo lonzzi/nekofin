@@ -47,6 +47,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
 }) {
   const router = useRouter();
   const theme = useAppTheme();
+  const useLiquidGlass = isLiquidGlassAvailable();
   const { accentColor } = useAccentColor();
   const [isLongPressing, setIsLongPressing] = useState(false);
 
@@ -101,14 +102,14 @@ export const EpisodeCard = React.memo(function EpisodeCard({
       <Pressable
         style={[
           styles.playButton,
-          !isLiquidGlassAvailable() && { backgroundColor: theme.colors.mediaChrome },
+          !useLiquidGlass && { backgroundColor: theme.colors.mediaChrome },
         ]}
         onPress={handlePlay}
       >
         <Ionicons name="play" size={32} color="#fff" />
       </Pressable>
     );
-  }, [handlePlay, theme.colors.mediaChrome]);
+  }, [handlePlay, theme.colors.mediaChrome, useLiquidGlass]);
 
   const CardComp = useCallback(
     () => (
@@ -121,93 +122,94 @@ export const EpisodeCard = React.memo(function EpisodeCard({
         onLongPress={handleLongPressStart}
         onPressOut={handleLongPressEnd}
       >
-        <View
-          style={[
-            styles.coverContainer,
-            { backgroundColor: theme.colors.surfaceMuted, borderRadius: theme.radius.md },
-          ]}
+        <GlassView
+          style={[styles.cardGlass, !useLiquidGlass && { backgroundColor: theme.colors.surface }]}
+          glassEffectStyle="regular"
+          tintColor="rgba(255,255,255,0.10)"
         >
-          <ItemImage
-            uri={imageUrl}
-            style={[
-              styles.cover,
-              { backgroundColor: theme.colors.surfaceMuted },
-              showBorder && {
-                ...styles.cardBorder,
-                borderColor: theme.colors.separator,
-                borderRadius: theme.radius.md,
-              },
-            ]}
-            placeholderBlurhash={imageInfo.blurhash}
-            cachePolicy="memory-disk"
-            contentFit="cover"
-          />
-          {showPlayButton &&
-            (isLiquidGlassAvailable() ? (
-              <GlassView style={styles.playButton} glassEffectStyle="clear" isInteractive>
-                <PlayButton />
-              </GlassView>
-            ) : (
-              <PlayButton />
-            ))}
-          {isPlayed && (
-            <View
+          <View pointerEvents="none" style={styles.cardRim} />
+          <View style={[styles.coverContainer, { backgroundColor: theme.colors.surfaceMuted }]}>
+            <ItemImage
+              uri={imageUrl}
               style={[
-                styles.playedOverlay,
-                {
-                  backgroundColor: theme.colors.mediaChrome,
-                  borderRadius: theme.radius.pill,
-                  padding: theme.spacing.xxs,
-                  right: theme.spacing.sm,
-                  top: theme.spacing.sm,
+                styles.cover,
+                { backgroundColor: theme.colors.surfaceMuted },
+                showBorder && {
+                  ...styles.cardBorder,
+                  borderColor: theme.colors.separator,
                 },
               ]}
-            >
-              <Ionicons name="checkmark-circle" size={24} color={accentColor} />
-            </View>
-          )}
-          {playedPercentage !== undefined && (
-            <View style={styles.progressContainer}>
+              placeholderBlurhash={imageInfo.blurhash}
+              cachePolicy="memory-disk"
+              contentFit="cover"
+            />
+            {showPlayButton &&
+              (useLiquidGlass ? (
+                <GlassView style={styles.playButton} glassEffectStyle="regular" isInteractive>
+                  <PlayButton />
+                </GlassView>
+              ) : (
+                <PlayButton />
+              ))}
+            {isPlayed && (
               <View
-                style={[styles.progressBackground, { backgroundColor: theme.colors.mediaChrome }]}
+                style={[
+                  styles.playedOverlay,
+                  {
+                    backgroundColor: theme.colors.mediaChrome,
+                    borderRadius: theme.radius.pill,
+                    padding: theme.spacing.xxs,
+                    right: theme.spacing.sm,
+                    top: theme.spacing.sm,
+                  },
+                ]}
               >
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: `${playedPercentage}%`,
-                      backgroundColor: accentColor,
-                    },
-                  ]}
-                />
+                <Ionicons name="checkmark-circle" size={24} color={accentColor} />
               </View>
+            )}
+            {playedPercentage !== undefined && (
+              <View style={styles.progressContainer}>
+                <View
+                  style={[styles.progressBackground, { backgroundColor: theme.colors.mediaChrome }]}
+                >
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: `${playedPercentage}%`,
+                        backgroundColor: accentColor,
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+            )}
+          </View>
+          {!hideText && (
+            <View style={styles.cardCopy}>
+              <Text
+                style={[
+                  theme.typography.bodyEmphasized,
+                  styles.cardTitle,
+                  { color: theme.colors.text },
+                ]}
+                numberOfLines={1}
+              >
+                {item.seriesName || item.name || '未知标题'}
+              </Text>
+              <Text
+                style={[
+                  theme.typography.footnote,
+                  styles.subtitle,
+                  { color: theme.colors.textSecondary },
+                ]}
+                numberOfLines={1}
+              >
+                {getSubtitle(item)}
+              </Text>
             </View>
           )}
-        </View>
-        {!hideText && (
-          <>
-            <Text
-              style={[
-                theme.typography.bodyEmphasized,
-                styles.cardTitle,
-                { color: theme.colors.text },
-              ]}
-              numberOfLines={1}
-            >
-              {item.seriesName || item.name || '未知标题'}
-            </Text>
-            <Text
-              style={[
-                theme.typography.footnote,
-                styles.subtitle,
-                { color: theme.colors.textSecondary },
-              ]}
-              numberOfLines={1}
-            >
-              {getSubtitle(item)}
-            </Text>
-          </>
-        )}
+        </GlassView>
       </Pressable>
     ),
     [
@@ -229,6 +231,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
       showPlayButton,
       style,
       theme,
+      useLiquidGlass,
     ],
   );
 
@@ -281,6 +284,7 @@ export const SeriesCard = React.memo(function SeriesCard({
 }) {
   const theme = useAppTheme();
   const router = useRouter();
+  const useLiquidGlass = isLiquidGlassAvailable();
   const [isLongPressing, setIsLongPressing] = useState(false);
 
   const mediaAdapter = useMediaAdapter();
@@ -344,43 +348,51 @@ export const SeriesCard = React.memo(function SeriesCard({
           onLongPress={handleLongPressStart}
           onPressOut={handleLongPressEnd}
         >
-          <ItemImage
-            uri={imageUrl}
-            style={[
-              styles.posterCover,
-              { backgroundColor: theme.colors.surfaceMuted, borderRadius: theme.radius.md },
-              showBorder && {
-                ...styles.cardBorder,
-                borderColor: theme.colors.separator,
-                borderRadius: theme.radius.md,
-              },
-            ]}
-            placeholderBlurhash={imageInfo.blurhash}
-            cachePolicy="memory-disk"
-            contentFit="cover"
-          />
-          <Text
-            style={[
-              theme.typography.bodyEmphasized,
-              styles.cardTitle,
-              { color: theme.colors.text },
-            ]}
-            numberOfLines={1}
+          <GlassView
+            style={[styles.cardGlass, !useLiquidGlass && { backgroundColor: theme.colors.surface }]}
+            glassEffectStyle="regular"
+            tintColor="rgba(255,255,255,0.10)"
           >
-            {hideSubtitle ? item.name : item.seriesName || item.name || '未知标题'}
-          </Text>
-          {!hideSubtitle && (
-            <Text
+            <View pointerEvents="none" style={styles.cardRim} />
+            <ItemImage
+              uri={imageUrl}
               style={[
-                theme.typography.footnote,
-                styles.subtitle,
-                { color: theme.colors.textSecondary },
+                styles.posterCover,
+                { backgroundColor: theme.colors.surfaceMuted },
+                showBorder && {
+                  ...styles.cardBorder,
+                  borderColor: theme.colors.separator,
+                },
               ]}
-              numberOfLines={1}
-            >
-              {getSubtitle(item)}
-            </Text>
-          )}
+              placeholderBlurhash={imageInfo.blurhash}
+              cachePolicy="memory-disk"
+              contentFit="cover"
+            />
+            <View style={styles.cardCopy}>
+              <Text
+                style={[
+                  theme.typography.bodyEmphasized,
+                  styles.cardTitle,
+                  { color: theme.colors.text },
+                ]}
+                numberOfLines={1}
+              >
+                {hideSubtitle ? item.name : item.seriesName || item.name || '未知标题'}
+              </Text>
+              {!hideSubtitle && (
+                <Text
+                  style={[
+                    theme.typography.footnote,
+                    styles.subtitle,
+                    { color: theme.colors.textSecondary },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {getSubtitle(item)}
+                </Text>
+              )}
+            </View>
+          </GlassView>
         </Pressable>
       </Trigger>
       <Content>
@@ -410,7 +422,33 @@ export const SeriesCard = React.memo(function SeriesCard({
 
 const styles = StyleSheet.create({
   card: {
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    backgroundColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 3,
+  },
+  cardGlass: {
+    width: '100%',
+    borderRadius: 12,
+    borderCurve: 'continuous',
     overflow: 'hidden',
+  },
+  cardRim: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.68)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    zIndex: 2,
   },
   coverContainer: {
     position: 'relative',
@@ -462,12 +500,18 @@ const styles = StyleSheet.create({
     zIndex: 3,
     overflow: 'hidden',
   },
+  cardCopy: {
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 10,
+    gap: 2,
+  },
   cardTitle: {
-    marginTop: 8,
-    marginHorizontal: 8,
+    fontSize: 14,
+    lineHeight: 19,
   },
   subtitle: {
-    marginHorizontal: 8,
-    marginTop: 2,
+    fontSize: 12,
+    lineHeight: 16,
   },
 });

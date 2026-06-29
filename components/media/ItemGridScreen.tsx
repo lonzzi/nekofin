@@ -144,10 +144,11 @@ export function ItemGridScreen({
     if (!onChangeFilters) return null;
 
     return (
-      <View style={{ marginHorizontal: -theme.spacing.page, paddingBottom: theme.spacing.md }}>
+      <View style={[styles.filterBar, { marginHorizontal: -theme.spacing.page }]}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={styles.filterScroll}
           contentContainerStyle={[
             styles.filterScrollContent,
             { paddingHorizontal: theme.spacing.page },
@@ -292,14 +293,7 @@ export function ItemGridScreen({
         </ScrollView>
       </View>
     );
-  }, [
-    onChangeFilters,
-    availableFilters,
-    filters,
-    theme.spacing.page,
-    theme.spacing.md,
-    theme.spacing.sm,
-  ]);
+  }, [onChangeFilters, availableFilters, filters, theme.spacing.page, theme.spacing.sm]);
 
   const renderGroupSection = useCallback(
     (group: { key: string; title: string; items: MediaItem[] }, showTitle: boolean) => {
@@ -463,8 +457,16 @@ const styles = StyleSheet.create({
     columnGap: 8,
     alignItems: 'center',
   },
+  filterBar: {
+    paddingBottom: 10,
+    overflow: 'visible',
+  },
+  filterScroll: {
+    overflow: 'visible',
+  },
   filterScrollContent: {
-    paddingVertical: 4,
+    paddingTop: 4,
+    paddingBottom: 12,
   },
   loadingContainer: {
     flex: 1,

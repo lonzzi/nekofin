@@ -1,5 +1,6 @@
 import { useAppTheme } from '@/lib/design-system';
 import { MediaSource } from '@/services/media/types';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 
 import { detailViewStyles } from './common';
@@ -9,36 +10,34 @@ const MediaInfoCard = ({ rows, title }: { rows: MediaInfoRow[]; title: string })
   const theme = useAppTheme();
   const textColor = theme.colors.text;
   const subtitleColor = theme.colors.textSecondary;
+  const useLiquidGlass = isLiquidGlassAvailable();
 
   if (rows.length === 0) return null;
 
   return (
-    <View
-      style={[
-        styles.infoCard,
-        {
-          backgroundColor: theme.colors.surface,
-          borderRadius: theme.radius.md,
-          padding: theme.spacing.md,
-          gap: theme.spacing.sm,
-        },
-      ]}
-    >
-      <Text style={[theme.typography.footnote, styles.cardTitle, { color: textColor }]}>
-        {title}
-      </Text>
-      <View style={styles.infoGrid}>
-        {rows.map((row) => (
-          <View key={`${row.label}-${row.value}`} style={styles.infoRow}>
-            <Text style={[theme.typography.caption, styles.infoLabel, { color: subtitleColor }]}>
-              {row.label}
-            </Text>
-            <Text style={[theme.typography.caption, styles.infoValue, { color: textColor }]}>
-              {row.value}
-            </Text>
-          </View>
-        ))}
-      </View>
+    <View style={styles.infoCardShadow}>
+      <GlassView
+        style={[styles.infoCard, !useLiquidGlass && { backgroundColor: theme.colors.surface }]}
+        glassEffectStyle="regular"
+        tintColor="rgba(255,255,255,0.10)"
+      >
+        <View pointerEvents="none" style={styles.infoCardRim} />
+        <Text style={[theme.typography.footnote, styles.cardTitle, { color: textColor }]}>
+          {title}
+        </Text>
+        <View style={styles.infoGrid}>
+          {rows.map((row) => (
+            <View key={`${row.label}-${row.value}`} style={styles.infoRow}>
+              <Text style={[theme.typography.caption, styles.infoLabel, { color: subtitleColor }]}>
+                {row.label}
+              </Text>
+              <Text style={[theme.typography.caption, styles.infoValue, { color: textColor }]}>
+                {row.value}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </GlassView>
     </View>
   );
 };
@@ -61,6 +60,7 @@ export const EpisodeMediaInfoList = ({ mediaSources }: { mediaSources: MediaSour
       <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>媒体信息</Text>
       <FlatList
         horizontal
+        removeClippedSubviews={false}
         data={mediaSources}
         style={detailViewStyles.edgeToEdge}
         renderItem={({ item }) => <SourceMediaInfoCard source={item} />}
@@ -77,10 +77,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
-  infoCard: {
+  infoCardShadow: {
     width: 240,
-    minHeight: 400,
+    borderRadius: 16,
     borderCurve: 'continuous',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 4,
+  },
+  infoCard: {
+    width: '100%',
+    minHeight: 380,
+    borderRadius: 16,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+    padding: 12,
+    gap: 8,
+  },
+  infoCardRim: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: 16,
+    borderCurve: 'continuous',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.66)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   cardTitle: {
     fontWeight: '600',
