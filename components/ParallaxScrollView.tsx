@@ -45,7 +45,7 @@ export default function ParallaxScrollView({
   containerStyle,
   contentStyle,
   contentContainerStyle,
-  contentInsetAdjustmentBehavior,
+  contentInsetAdjustmentBehavior = 'never',
   maskViewStyle,
   gradientStyle,
   gradientColors,
@@ -106,7 +106,7 @@ export default function ParallaxScrollView({
       contentContainerStyle={[styles.scrollContent, contentContainerStyle]}
       contentInsetAdjustmentBehavior={contentInsetAdjustmentBehavior}
       ref={scrollRef}
-      scrollEventThrottle={16}
+      scrollEventThrottle={8}
       {...props}
     >
       <Animated.View
