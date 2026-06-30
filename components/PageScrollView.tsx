@@ -16,6 +16,10 @@ export default function PageScrollView({
   const flattenedContentStyle = StyleSheet.flatten(contentContainerStyle);
   const contentPaddingBottom = getNumericPaddingBottom(flattenedContentStyle);
   const safePaddingBottom = bottomTabBarHeight + (Platform.OS === 'android' ? 100 : 0);
+  const bottomContentInset = Platform.OS === 'ios' ? bottomTabBarHeight : 0;
+  const bottomContentPadding =
+    Platform.OS === 'ios' ? contentPaddingBottom : contentPaddingBottom + safePaddingBottom;
+  const { contentInset, scrollIndicatorInsets, ...scrollViewProps } = rest;
 
   return (
     <ScrollView
@@ -23,11 +27,16 @@ export default function PageScrollView({
       scrollToOverflowEnabled={true}
       nestedScrollEnabled
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={[
-        contentContainerStyle,
-        { paddingBottom: contentPaddingBottom + safePaddingBottom },
-      ]}
-      {...rest}
+      contentInset={{
+        ...contentInset,
+        bottom: (contentInset?.bottom ?? 0) + bottomContentInset,
+      }}
+      scrollIndicatorInsets={{
+        ...scrollIndicatorInsets,
+        bottom: (scrollIndicatorInsets?.bottom ?? 0) + bottomContentInset,
+      }}
+      contentContainerStyle={[contentContainerStyle, { paddingBottom: bottomContentPadding }]}
+      {...scrollViewProps}
     >
       {children}
     </ScrollView>

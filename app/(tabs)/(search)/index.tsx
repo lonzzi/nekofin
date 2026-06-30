@@ -191,19 +191,29 @@ export default function AggregateSearchScreen() {
 
   if (effectiveKeyword.length === 0) {
     return (
-      <View style={[styles.emptyContainer, { backgroundColor: theme.colors.background }]}>
+      <PageScrollView
+        style={{ backgroundColor: theme.colors.background }}
+        contentContainerStyle={styles.emptyContainer}
+        scrollEnabled={false}
+        alwaysBounceVertical={false}
+      >
         <Ionicons name="search" size={34} color={theme.colors.textTertiary} />
         <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>搜索所有服务器</Text>
         <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
           已连接 {servers.length} 个服务器，输入关键词后会聚合 Jellyfin 和 Emby 结果。
         </Text>
-      </View>
+      </PageScrollView>
     );
   }
 
   if (results.length === 0) {
     return (
-      <View style={[styles.emptyContainer, { backgroundColor: theme.colors.background }]}>
+      <PageScrollView
+        style={{ backgroundColor: theme.colors.background }}
+        contentContainerStyle={styles.emptyContainer}
+        scrollEnabled={false}
+        alwaysBounceVertical={false}
+      >
         {isLoading ? (
           <ActivityIndicator color={theme.colors.tint} />
         ) : (
@@ -224,7 +234,7 @@ export default function AggregateSearchScreen() {
             ) : null}
           </>
         )}
-      </View>
+      </PageScrollView>
     );
   }
 
@@ -278,7 +288,7 @@ function useDebouncedValue(value: string, delayMs: number) {
 
 const styles = StyleSheet.create({
   emptyContainer: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
