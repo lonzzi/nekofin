@@ -85,11 +85,37 @@ function formatServerAge(createdAt: number) {
   return `${Math.round(months / 12)}年前`;
 }
 
-function getServerGradient(server: MediaServerInfo, isCurrent: boolean): [string, string] {
+function getServerGradient(
+  server: MediaServerInfo,
+  isCurrent: boolean,
+  isDark: boolean,
+): [string, string] {
+  if (isDark) {
+    if (server.type === 'emby') {
+      return isCurrent
+        ? ['rgba(34, 139, 92, 0.28)', 'rgba(14, 24, 19, 0.14)']
+        : ['rgba(24, 108, 72, 0.20)', 'rgba(18, 23, 20, 0.10)'];
+    }
+    return isCurrent
+      ? ['rgba(115, 72, 169, 0.30)', 'rgba(31, 20, 43, 0.14)']
+      : ['rgba(88, 54, 132, 0.22)', 'rgba(25, 20, 32, 0.10)'];
+  }
+
   if (server.type === 'emby') {
     return isCurrent ? ['#d8fae9', '#f6fff9'] : ['#ecfbf4', '#fbfffd'];
   }
   return isCurrent ? ['#f2e5fb', '#fff7ff'] : ['#f8f1fc', '#fffbff'];
+}
+
+function getServerCardChrome(isDark: boolean) {
+  return {
+    fallbackBackgroundColor: isDark ? 'rgba(28, 28, 30, 0.72)' : undefined,
+    tintColor: isDark ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.10)',
+    rimStyle: {
+      borderColor: isDark ? 'rgba(255,255,255,0.13)' : 'rgba(255,255,255,0.68)',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.015)' : 'rgba(255,255,255,0.03)',
+    },
+  };
 }
 
 function OnlineStatusDot() {
@@ -152,8 +178,17 @@ function ServerCardAction({
   children: ReactNode;
   onPress: () => void;
 }) {
+  const theme = useAppTheme();
+  const chrome = getServerCardChrome(theme.isDark);
+
   return (
-    <GlassCard radius={15} style={styles.iconAction}>
+    <GlassCard
+      radius={15}
+      fallbackBackgroundColor={chrome.fallbackBackgroundColor}
+      rimStyle={chrome.rimStyle}
+      style={styles.iconAction}
+      tintColor={theme.isDark ? 'rgba(255,255,255,0.06)' : chrome.tintColor}
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
@@ -183,15 +218,25 @@ function ServerCard({
   onRemove: () => void;
 }) {
   const theme = useAppTheme();
-  const gradient = getServerGradient(server, isCurrent);
+  const gradient = getServerGradient(server, isCurrent, theme.isDark);
+  const chrome = getServerCardChrome(theme.isDark);
 
   return (
-    <GlassCard radius={22} style={styles.serverCard}>
+    <GlassCard
+      radius={22}
+      fallbackBackgroundColor={chrome.fallbackBackgroundColor}
+      rimStyle={chrome.rimStyle}
+      style={styles.serverCard}
+      tintColor={chrome.tintColor}
+    >
       <LinearGradient
         colors={gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[StyleSheet.absoluteFill, styles.gradientOverlay]}
+        style={[
+          StyleSheet.absoluteFill,
+          theme.isDark ? styles.darkGradientOverlay : styles.gradientOverlay,
+        ]}
         pointerEvents="none"
       />
       <Pressable
@@ -373,6 +418,9 @@ const styles = StyleSheet.create({
   },
   gradientOverlay: {
     opacity: 0.52,
+  },
+  darkGradientOverlay: {
+    opacity: 0.9,
   },
   cardOpenArea: {
     flex: 1,
