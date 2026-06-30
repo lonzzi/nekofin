@@ -22,8 +22,6 @@ import { EpisodeModeContent } from './episode';
 import { MovieModeContent } from './movie';
 import { SeriesModeContent } from './series';
 
-const FLOATING_BOTTOM_CHROME_CLEARANCE = 18;
-
 export type DetailViewProps = {
   itemId: string;
   mode: 'series' | 'movie' | 'episode';
@@ -46,8 +44,8 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
 
   const { width: windowWidth } = useWindowDimensions();
   const headerHeight = useMediaHeroHeight();
+  const bottomContentPadding = insets.bottom + theme.spacing.xxl + theme.spacing.xl;
   const detailLogoWidth = Math.min(windowWidth * 0.72, 300);
-  const bottomContentInset = insets.bottom + FLOATING_BOTTOM_CHROME_CLEARANCE;
 
   const mediaAdapter = useMediaAdapter();
 
@@ -202,17 +200,13 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     <ParallaxScrollView
       headerHeight={headerHeight}
       showsVerticalScrollIndicator={false}
-      contentInsetAdjustmentBehavior="never"
-      contentInset={{ bottom: bottomContentInset }}
-      scrollIndicatorInsets={{ bottom: bottomContentInset }}
-      contentContainerStyle={{ paddingBottom: bottomContentInset }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       headerBackgroundColor={{
         light: theme.colors.surfaceMuted,
         dark: theme.colors.surfaceMuted,
       }}
       contentStyle={{
-        paddingBottom: theme.spacing.lg,
+        paddingBottom: bottomContentPadding,
         paddingTop: theme.spacing.lg,
         backgroundColor,
       }}

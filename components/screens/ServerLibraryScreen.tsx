@@ -15,8 +15,6 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const HOME_BOTTOM_CHROME_CLEARANCE = 34;
-
 export default function HomeScreen() {
   const { servers, currentServer, isInitialized } = useMediaServers();
   const navigation = useNavigation();
@@ -24,7 +22,7 @@ export default function HomeScreen() {
   const theme = useAppTheme();
   const backgroundColor = theme.colors.background;
   const carouselHeight = useMediaHeroHeight();
-  const bottomContentInset = insets.bottom + HOME_BOTTOM_CHROME_CLEARANCE;
+  const bottomContentPadding = insets.bottom + theme.spacing.xxl + theme.spacing.xl;
 
   const router = useRouter();
 
@@ -139,13 +137,9 @@ export default function HomeScreen() {
   return (
     <ParallaxScrollView
       showsVerticalScrollIndicator={false}
-      contentInsetAdjustmentBehavior="never"
-      contentInset={{ bottom: bottomContentInset }}
-      scrollIndicatorInsets={{ bottom: bottomContentInset }}
-      contentContainerStyle={{ paddingBottom: bottomContentInset }}
       style={{ flex: 1, backgroundColor }}
       headerHeight={carouselHeight}
-      contentStyle={{ gap: theme.spacing.xs, paddingBottom: theme.spacing.lg, backgroundColor }}
+      contentStyle={{ gap: theme.spacing.xs, paddingBottom: bottomContentPadding, backgroundColor }}
       headerImage={headerImage}
     >
       <View style={[styles.content, { gap: theme.spacing.lg, marginTop: theme.spacing.md }]}>

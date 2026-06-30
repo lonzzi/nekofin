@@ -222,6 +222,7 @@ export function CarouselHeader({
 }: CarouselHeaderProps) {
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [autoTargetIndex, setAutoTargetIndex] = useState<number | null>(null);
+  const [isGestureOverlayVisible, setIsGestureOverlayVisible] = useState(false);
   const currentIndexRef = useRef(0);
   const router = useRouter();
   const mediaAdapter = useMediaAdapter();
@@ -230,6 +231,7 @@ export function CarouselHeader({
   const dragX = useSharedValue(0);
   const autoProgress = useSharedValue(0);
   const activeIndexValue = useSharedValue(0);
+  const isGestureAnimating = useSharedValue(false);
   const hasImages = items.length > 0;
   const canReveal = items.length > 1;
   const cardWidth = Math.max(viewportWidth, 1);
@@ -308,6 +310,7 @@ export function CarouselHeader({
       activeIndexValue.value = nextIndex;
       setCarouselIndex(nextIndex);
       setAutoTargetIndex(null);
+      setIsGestureOverlayVisible(false);
       autoProgress.value = 0;
       dragX.value = 0;
     },
@@ -320,6 +323,7 @@ export function CarouselHeader({
       activeIndexValue.value = nextIndex;
       setCarouselIndex(nextIndex);
       setAutoTargetIndex(null);
+      setIsGestureOverlayVisible(false);
       autoProgress.value = 0;
       dragX.value = 0;
     },
@@ -330,11 +334,20 @@ export function CarouselHeader({
     setAutoTargetIndex(null);
   }, []);
 
+  const showGestureOverlay = useCallback(() => {
+    setIsGestureOverlayVisible(true);
+  }, []);
+
+  const hideGestureOverlay = useCallback(() => {
+    setIsGestureOverlayVisible(false);
+  }, []);
+
   const startAutoAdvance = useCallback(() => {
     if (!canReveal || !items.length) return;
     const nextIndex = getRelativeIndex(currentIndexRef.current, 1, items.length);
 
     setAutoTargetIndex(nextIndex);
+    setIsGestureOverlayVisible(false);
     cancelAnimation(autoProgress);
     cancelAnimation(dragX);
     autoProgress.value = 0;
@@ -352,7 +365,9 @@ export function CarouselHeader({
         .enabled(canReveal)
         .activeOffsetX([-12, 12])
         .failOffsetY([-18, 18])
-        .onBegin(() => {
+        .onStart(() => {
+          isGestureAnimating.value = true;
+          runOnJS(showGestureOverlay)();
           cancelAnimation(autoProgress);
           autoProgress.value = 0;
           runOnJS(clearAutoTarget)();
@@ -373,6 +388,8 @@ export function CarouselHeader({
               { duration: CAROUSEL_GESTURE_SETTLE_MS },
               (finished) => {
                 if (finished) {
+                  isGestureAnimating.value = false;
+                  runOnJS(hideGestureOverlay)();
                   runOnJS(completeReveal)(1);
                 }
               },
@@ -386,6 +403,8 @@ export function CarouselHeader({
               { duration: CAROUSEL_GESTURE_SETTLE_MS },
               (finished) => {
                 if (finished) {
+                  isGestureAnimating.value = false;
+                  runOnJS(hideGestureOverlay)();
                   runOnJS(completeReveal)(-1);
                 }
               },
@@ -393,14 +412,34 @@ export function CarouselHeader({
             return;
           }
 
-          dragX.value = withTiming(0, { duration: CAROUSEL_CANCEL_SETTLE_MS });
+          dragX.value = withTiming(0, { duration: CAROUSEL_CANCEL_SETTLE_MS }, (finished) => {
+            if (finished) {
+              isGestureAnimating.value = false;
+              runOnJS(hideGestureOverlay)();
+            }
+          });
         })
         .onFinalize((_event, success) => {
           if (!success) {
-            dragX.value = withTiming(0, { duration: CAROUSEL_CANCEL_SETTLE_MS });
+            dragX.value = withTiming(0, { duration: CAROUSEL_CANCEL_SETTLE_MS }, (finished) => {
+              if (finished) {
+                isGestureAnimating.value = false;
+                runOnJS(hideGestureOverlay)();
+              }
+            });
           }
         }),
-    [autoProgress, canReveal, cardWidth, clearAutoTarget, completeReveal, dragX],
+    [
+      autoProgress,
+      canReveal,
+      cardWidth,
+      clearAutoTarget,
+      completeReveal,
+      dragX,
+      hideGestureOverlay,
+      isGestureAnimating,
+      showGestureOverlay,
+    ],
   );
 
   const tapGesture = useMemo(
@@ -421,6 +460,10 @@ export function CarouselHeader({
   );
 
   const nextRevealStyle = useAnimatedStyle(() => {
+    if (!isGestureAnimating.value) {
+      return { opacity: 0 };
+    }
+
     const revealOffset = Math.max(0, Math.min(cardWidth, cardWidth + Math.min(0, dragX.value)));
 
     return {
@@ -438,6 +481,10 @@ export function CarouselHeader({
   }, [cardWidth]);
 
   const previousRevealStyle = useAnimatedStyle(() => {
+    if (!isGestureAnimating.value) {
+      return { opacity: 0 };
+    }
+
     const revealOffset = Math.min(0, Math.max(-cardWidth, -cardWidth + Math.max(0, dragX.value)));
 
     return {
@@ -467,15 +514,22 @@ export function CarouselHeader({
   });
 
   const currentOverlayStyle = useAnimatedStyle(() => {
-    const dragProgress = Math.min(Math.abs(dragX.value) / cardWidth, 1);
+    const overlayOffset = isGestureAnimating.value ? dragX.value : 0;
+    const dragProgress = isGestureAnimating.value
+      ? Math.min(Math.abs(dragX.value) / cardWidth, 1)
+      : 0;
 
     return {
       opacity: (1 - dragProgress) * (1 - autoProgress.value),
-      transform: [{ translateX: dragX.value }],
+      transform: [{ translateX: overlayOffset }],
     };
   }, [cardWidth]);
 
   const nextOverlayStyle = useAnimatedStyle(() => {
+    if (!isGestureAnimating.value) {
+      return { opacity: 0 };
+    }
+
     const progress = dragX.value < 0 ? Math.min(Math.abs(dragX.value) / cardWidth, 1) : 0;
 
     return {
@@ -485,6 +539,10 @@ export function CarouselHeader({
   }, [cardWidth]);
 
   const previousOverlayStyle = useAnimatedStyle(() => {
+    if (!isGestureAnimating.value) {
+      return { opacity: 0 };
+    }
+
     const progress = dragX.value > 0 ? Math.min(Math.abs(dragX.value) / cardWidth, 1) : 0;
 
     return {
@@ -498,9 +556,11 @@ export function CarouselHeader({
     activeIndexValue.value = 0;
     autoProgress.value = 0;
     dragX.value = 0;
+    isGestureAnimating.value = false;
     setAutoTargetIndex(null);
+    setIsGestureOverlayVisible(false);
     setCarouselIndex(0);
-  }, [activeIndexValue, autoProgress, dragX, itemIdentity]);
+  }, [activeIndexValue, autoProgress, dragX, isGestureAnimating, itemIdentity]);
 
   useEffect(() => {
     activeIndexValue.value = carouselIndex;
@@ -555,7 +615,7 @@ export function CarouselHeader({
               </Animated.View>
             )}
 
-            {canReveal && (
+            {canReveal && isGestureOverlayVisible && (
               <>
                 <Animated.View pointerEvents="none" style={[styles.revealClip, nextRevealStyle]}>
                   <Animated.View style={[styles.revealImage, nextRevealImageStyle]}>
@@ -603,7 +663,7 @@ export function CarouselHeader({
               </Animated.View>
             )}
 
-            {canReveal && !!items[nextIndex] && (
+            {canReveal && isGestureOverlayVisible && !!items[nextIndex] && (
               <Animated.View pointerEvents="none" style={[styles.overlayFrame, nextOverlayStyle]}>
                 <CarouselOverlay
                   activeIndex={nextIndex}
@@ -615,7 +675,7 @@ export function CarouselHeader({
               </Animated.View>
             )}
 
-            {canReveal && !!items[previousIndex] && (
+            {canReveal && isGestureOverlayVisible && !!items[previousIndex] && (
               <Animated.View
                 pointerEvents="none"
                 style={[styles.overlayFrame, previousOverlayStyle]}
@@ -640,7 +700,7 @@ const CAROUSEL_AUTO_INTERVAL_MS = 6500;
 const CAROUSEL_AUTO_FADE_MS = 280;
 const CAROUSEL_GESTURE_SETTLE_MS = 240;
 const CAROUSEL_CANCEL_SETTLE_MS = 180;
-const CAROUSEL_OVERLAY_LEFT_INSET = 32;
+const CAROUSEL_OVERLAY_LEFT_INSET = 24;
 const CAROUSEL_OVERLAY_RIGHT_INSET = 20;
 
 const TEXT_SHADOW = {
@@ -711,8 +771,8 @@ const styles = StyleSheet.create({
   bottomOverlay: {
     position: 'absolute',
     bottom: 0,
-    left: 0,
-    right: 0,
+    left: CAROUSEL_OVERLAY_LEFT_INSET,
+    right: CAROUSEL_OVERLAY_RIGHT_INSET,
     paddingBottom: 16,
     justifyContent: 'flex-end',
   },
@@ -721,13 +781,12 @@ const styles = StyleSheet.create({
   },
   titleBounds: {
     width: '100%',
-    paddingLeft: CAROUSEL_OVERLAY_LEFT_INSET,
-    paddingRight: CAROUSEL_OVERLAY_RIGHT_INSET,
-    overflow: 'hidden',
+    minWidth: 0,
   },
   cardTitle: {
     letterSpacing: 0,
     minWidth: 0,
+    width: '100%',
     flexShrink: 1,
     ...TEXT_SHADOW,
   },
@@ -742,9 +801,7 @@ const styles = StyleSheet.create({
     gap: 8,
     flexWrap: 'wrap',
     width: '100%',
-    paddingLeft: CAROUSEL_OVERLAY_LEFT_INSET,
-    paddingRight: CAROUSEL_OVERLAY_RIGHT_INSET,
-    overflow: 'hidden',
+    minWidth: 0,
   },
   cardMeta: {
     color: 'rgba(255,255,255,0.85)',
