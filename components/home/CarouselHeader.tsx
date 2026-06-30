@@ -83,26 +83,13 @@ function CarouselImageLayer({ imageInfo }: CarouselImageLayerProps) {
 }
 
 type CarouselFrameProps = {
-  activeIndex: number;
   imageInfo?: CarouselImageInfo;
-  item?: MediaItem;
-  items: MediaItem[];
-  showLogo: boolean;
 };
 
-function CarouselFrame({ activeIndex, imageInfo, item, items, showLogo }: CarouselFrameProps) {
+function CarouselFrame({ imageInfo }: CarouselFrameProps) {
   return (
     <View style={styles.frame}>
       <CarouselImageLayer imageInfo={imageInfo} />
-      {!!item && (
-        <CarouselOverlay
-          activeIndex={activeIndex}
-          imageInfo={imageInfo}
-          item={item}
-          items={items}
-          showLogo={showLogo}
-        />
-      )}
     </View>
   );
 }
@@ -121,106 +108,108 @@ function CarouselOverlay({ activeIndex, imageInfo, item, items, showLogo }: Caro
   const logoUrl = showLogo ? imageInfo?.logoImageUrl : undefined;
 
   return (
-    <>
-      <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.78)']}
-        locations={[0.42, 1]}
-        style={styles.gradientScrim}
-        pointerEvents="none"
-      />
-
-      <View pointerEvents="none" style={styles.bottomOverlay}>
-        <View style={styles.cardInner}>
-          <View style={styles.titleBounds}>
-            {logoUrl ? (
-              <Image source={{ uri: logoUrl }} style={styles.cardLogo} contentFit="contain" />
-            ) : (
-              <ThemedText
-                style={[
-                  theme.typography.title3,
-                  styles.cardTitle,
-                  { color: theme.colors.inverseText },
-                ]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {title}
-              </ThemedText>
-            )}
-          </View>
-
-          <View style={styles.cardMetaRow}>
-            {item.type === 'Movie' && (
-              <View style={styles.cardTag}>
-                <ThemedText
-                  style={[
-                    theme.typography.caption,
-                    styles.cardTagText,
-                    { color: theme.colors.inverseText },
-                  ]}
-                >
-                  电影
-                </ThemedText>
-              </View>
-            )}
-            {item.type === 'Series' && (
-              <View style={styles.cardTag}>
-                <ThemedText
-                  style={[
-                    theme.typography.caption,
-                    styles.cardTagText,
-                    { color: theme.colors.inverseText },
-                  ]}
-                >
-                  剧集
-                </ThemedText>
-              </View>
-            )}
-            {!!item.productionYear && (
-              <ThemedText style={[theme.typography.footnote, styles.cardMeta]}>
-                {item.productionYear}
-              </ThemedText>
-            )}
-            {item.communityRating != null && (
-              <ThemedText style={[theme.typography.footnote, styles.cardMeta]}>
-                ★ {item.communityRating.toFixed(1)}
-              </ThemedText>
-            )}
-            {!!item.officialRating && (
-              <View style={[styles.cardTag, styles.cardTagOutline]}>
-                <ThemedText
-                  style={[
-                    theme.typography.caption,
-                    styles.cardTagText,
-                    { color: theme.colors.inverseText },
-                  ]}
-                >
-                  {item.officialRating}
-                </ThemedText>
-              </View>
-            )}
-          </View>
+    <View pointerEvents="none" style={styles.bottomOverlay}>
+      <View style={styles.cardInner}>
+        <View style={styles.titleBounds}>
+          {logoUrl ? (
+            <Image source={{ uri: logoUrl }} style={styles.cardLogo} contentFit="contain" />
+          ) : (
+            <ThemedText
+              style={[
+                theme.typography.title3,
+                styles.cardTitle,
+                { color: theme.colors.inverseText },
+              ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {title}
+            </ThemedText>
+          )}
         </View>
 
-        {items.length > 1 && (
-          <View style={styles.dotsRow}>
-            {items.map((carouselItem, index) => (
-              <View
-                key={getCarouselItemKey(carouselItem, index)}
+        <View style={styles.cardMetaRow}>
+          {item.type === 'Movie' && (
+            <View style={styles.cardTag}>
+              <ThemedText
                 style={[
-                  styles.dot,
-                  index === activeIndex && styles.dotActive,
-                  {
-                    backgroundColor:
-                      index === activeIndex ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.38)',
-                  },
+                  theme.typography.caption,
+                  styles.cardTagText,
+                  { color: theme.colors.inverseText },
                 ]}
-              />
-            ))}
-          </View>
-        )}
+              >
+                电影
+              </ThemedText>
+            </View>
+          )}
+          {item.type === 'Series' && (
+            <View style={styles.cardTag}>
+              <ThemedText
+                style={[
+                  theme.typography.caption,
+                  styles.cardTagText,
+                  { color: theme.colors.inverseText },
+                ]}
+              >
+                剧集
+              </ThemedText>
+            </View>
+          )}
+          {!!item.productionYear && (
+            <ThemedText style={[theme.typography.footnote, styles.cardMeta]}>
+              {item.productionYear}
+            </ThemedText>
+          )}
+          {item.communityRating != null && (
+            <ThemedText style={[theme.typography.footnote, styles.cardMeta]}>
+              ★ {item.communityRating.toFixed(1)}
+            </ThemedText>
+          )}
+          {!!item.officialRating && (
+            <View style={[styles.cardTag, styles.cardTagOutline]}>
+              <ThemedText
+                style={[
+                  theme.typography.caption,
+                  styles.cardTagText,
+                  { color: theme.colors.inverseText },
+                ]}
+              >
+                {item.officialRating}
+              </ThemedText>
+            </View>
+          )}
+        </View>
       </View>
-    </>
+
+      {items.length > 1 && (
+        <View style={styles.dotsRow}>
+          {items.map((carouselItem, index) => (
+            <View
+              key={getCarouselItemKey(carouselItem, index)}
+              style={[
+                styles.dot,
+                index === activeIndex && styles.dotActive,
+                {
+                  backgroundColor:
+                    index === activeIndex ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.38)',
+                },
+              ]}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function CarouselGradientScrim() {
+  return (
+    <LinearGradient
+      colors={['transparent', 'rgba(0,0,0,0.78)']}
+      locations={[0.42, 1]}
+      style={styles.gradientScrim}
+      pointerEvents="none"
+    />
   );
 }
 
@@ -322,7 +311,7 @@ export function CarouselHeader({
   );
 
   const revealTo = useCallback(
-    (direction: RevealDirection, duration = 620) => {
+    (direction: RevealDirection, duration = CAROUSEL_REVEAL_DURATION_MS) => {
       if (!canReveal) return;
       cancelAnimation(dragX);
       dragX.value = 0;
@@ -358,28 +347,36 @@ export function CarouselHeader({
           const wantsPrevious = dragX.value > threshold || event.velocityX > 650;
 
           if (wantsNext) {
-            dragX.value = withTiming(-cardWidth, { duration: 360 }, (finished) => {
-              if (finished) {
-                runOnJS(completeReveal)(1);
-              }
-            });
+            dragX.value = withTiming(
+              -cardWidth,
+              { duration: CAROUSEL_GESTURE_SETTLE_MS },
+              (finished) => {
+                if (finished) {
+                  runOnJS(completeReveal)(1);
+                }
+              },
+            );
             return;
           }
 
           if (wantsPrevious) {
-            dragX.value = withTiming(cardWidth, { duration: 360 }, (finished) => {
-              if (finished) {
-                runOnJS(completeReveal)(-1);
-              }
-            });
+            dragX.value = withTiming(
+              cardWidth,
+              { duration: CAROUSEL_GESTURE_SETTLE_MS },
+              (finished) => {
+                if (finished) {
+                  runOnJS(completeReveal)(-1);
+                }
+              },
+            );
             return;
           }
 
-          dragX.value = withTiming(0, { duration: 260 });
+          dragX.value = withTiming(0, { duration: CAROUSEL_CANCEL_SETTLE_MS });
         })
         .onFinalize((_event, success) => {
           if (!success) {
-            dragX.value = withTiming(0, { duration: 220 });
+            dragX.value = withTiming(0, { duration: CAROUSEL_CANCEL_SETTLE_MS });
           }
         }),
     [canReveal, cardWidth, completeReveal, dragX],
@@ -436,6 +433,33 @@ export function CarouselHeader({
     };
   }, [cardWidth]);
 
+  const currentOverlayStyle = useAnimatedStyle(() => {
+    const progress = Math.min(Math.abs(dragX.value) / cardWidth, 1);
+
+    return {
+      opacity: 1 - progress,
+      transform: [{ translateX: dragX.value }],
+    };
+  }, [cardWidth]);
+
+  const nextOverlayStyle = useAnimatedStyle(() => {
+    const progress = dragX.value < 0 ? Math.min(Math.abs(dragX.value) / cardWidth, 1) : 0;
+
+    return {
+      opacity: progress,
+      transform: [{ translateX: cardWidth + dragX.value }],
+    };
+  }, [cardWidth]);
+
+  const previousOverlayStyle = useAnimatedStyle(() => {
+    const progress = dragX.value > 0 ? Math.min(Math.abs(dragX.value) / cardWidth, 1) : 0;
+
+    return {
+      opacity: progress,
+      transform: [{ translateX: -cardWidth + dragX.value }],
+    };
+  }, [cardWidth]);
+
   useEffect(() => {
     currentIndexRef.current = 0;
     activeIndexValue.value = 0;
@@ -484,26 +508,14 @@ export function CarouselHeader({
             style={styles.gestureSurface}
           >
             <View style={StyleSheet.absoluteFill}>
-              <CarouselFrame
-                activeIndex={carouselIndex}
-                imageInfo={currentImageInfo}
-                item={currentItem}
-                items={items}
-                showLogo={showLogo}
-              />
+              <CarouselFrame imageInfo={currentImageInfo} />
             </View>
 
             {canReveal && (
               <>
                 <Animated.View pointerEvents="none" style={[styles.revealClip, nextRevealStyle]}>
                   <Animated.View style={[styles.revealImage, nextRevealImageStyle]}>
-                    <CarouselFrame
-                      activeIndex={nextIndex}
-                      imageInfo={carouselImageInfos[nextIndex]}
-                      item={items[nextIndex]}
-                      items={items}
-                      showLogo={showLogo}
-                    />
+                    <CarouselFrame imageInfo={carouselImageInfos[nextIndex]} />
                   </Animated.View>
                 </Animated.View>
 
@@ -512,16 +524,54 @@ export function CarouselHeader({
                   style={[styles.revealClip, previousRevealStyle]}
                 >
                   <Animated.View style={[styles.revealImage, previousRevealImageStyle]}>
-                    <CarouselFrame
-                      activeIndex={previousIndex}
-                      imageInfo={carouselImageInfos[previousIndex]}
-                      item={items[previousIndex]}
-                      items={items}
-                      showLogo={showLogo}
-                    />
+                    <CarouselFrame imageInfo={carouselImageInfos[previousIndex]} />
                   </Animated.View>
                 </Animated.View>
               </>
+            )}
+
+            <CarouselGradientScrim />
+
+            {!!currentItem && (
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.overlayFrame, currentOverlayStyle]}
+              >
+                <CarouselOverlay
+                  activeIndex={carouselIndex}
+                  imageInfo={currentImageInfo}
+                  item={currentItem}
+                  items={items}
+                  showLogo={showLogo}
+                />
+              </Animated.View>
+            )}
+
+            {canReveal && !!items[nextIndex] && (
+              <Animated.View pointerEvents="none" style={[styles.overlayFrame, nextOverlayStyle]}>
+                <CarouselOverlay
+                  activeIndex={nextIndex}
+                  imageInfo={carouselImageInfos[nextIndex]}
+                  item={items[nextIndex]}
+                  items={items}
+                  showLogo={showLogo}
+                />
+              </Animated.View>
+            )}
+
+            {canReveal && !!items[previousIndex] && (
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.overlayFrame, previousOverlayStyle]}
+              >
+                <CarouselOverlay
+                  activeIndex={previousIndex}
+                  imageInfo={carouselImageInfos[previousIndex]}
+                  item={items[previousIndex]}
+                  items={items}
+                  showLogo={showLogo}
+                />
+              </Animated.View>
             )}
           </View>
         </GestureDetector>
@@ -531,6 +581,9 @@ export function CarouselHeader({
 }
 
 const CAROUSEL_AUTO_INTERVAL_MS = 6500;
+const CAROUSEL_REVEAL_DURATION_MS = 340;
+const CAROUSEL_GESTURE_SETTLE_MS = 240;
+const CAROUSEL_CANCEL_SETTLE_MS = 180;
 const CAROUSEL_OVERLAY_LEFT_INSET = 56;
 const CAROUSEL_OVERLAY_RIGHT_INSET = 18;
 
@@ -575,12 +628,21 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
   },
+  overlayFrame: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 4,
+  },
   gradientScrim: {
     position: 'absolute',
     top: 0,
     right: 0,
     bottom: 0,
     left: 0,
+    zIndex: 3,
   },
   bottomOverlay: {
     position: 'absolute',
