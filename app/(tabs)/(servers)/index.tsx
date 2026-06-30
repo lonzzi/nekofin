@@ -534,8 +534,6 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     gap: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.64)',
     padding: 20,
   },
   pressed: {

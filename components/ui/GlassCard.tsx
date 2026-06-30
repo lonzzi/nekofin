@@ -8,6 +8,7 @@ type GlassCardProps = PropsWithChildren<
     fallbackBackgroundColor?: string;
     radius?: number;
     rimStyle?: StyleProp<ViewStyle>;
+    showRim?: boolean;
     style?: StyleProp<ViewStyle>;
   }
 >;
@@ -31,6 +32,7 @@ export function GlassCard({
   glassEffectStyle = 'regular',
   radius = 12,
   rimStyle,
+  showRim,
   style,
   tintColor = 'rgba(255,255,255,0.10)',
   ...props
@@ -38,6 +40,7 @@ export function GlassCard({
   const theme = useAppTheme();
   const useLiquidGlass = isLiquidGlassAvailable();
   const radiusStyle = { borderRadius: radius };
+  const shouldShowRim = showRim ?? !useLiquidGlass;
 
   return (
     <GlassView
@@ -51,7 +54,9 @@ export function GlassCard({
       tintColor={tintColor}
       {...props}
     >
-      <View pointerEvents="none" style={[styles.rim, radiusStyle, rimStyle]} />
+      {shouldShowRim ? (
+        <View pointerEvents="none" style={[styles.rim, radiusStyle, rimStyle]} />
+      ) : null}
       {children}
     </GlassView>
   );

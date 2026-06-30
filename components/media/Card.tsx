@@ -31,7 +31,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   onPress,
   disabled = false,
   showPlayButton = false,
-  showBorder = true,
+  showBorder = false,
   disableContextMenu = false,
 }: {
   item: MediaItem;
@@ -258,7 +258,7 @@ export const SeriesCard = React.memo(function SeriesCard({
   imgType = 'Primary',
   imgInfo,
   hideSubtitle = false,
-  showBorder = true,
+  showBorder = false,
   onPress,
 }: {
   item: MediaItem;

@@ -22,7 +22,7 @@ export default function HomeScreen() {
   const theme = useAppTheme();
   const backgroundColor = theme.colors.background;
   const carouselHeight = useMediaHeroHeight();
-  const bottomScrollInset = insets.bottom + theme.spacing.xxl + theme.spacing.xl;
+  const bottomScrollInset = insets.bottom + theme.spacing.xl;
 
   const router = useRouter();
 

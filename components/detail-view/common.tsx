@@ -72,9 +72,7 @@ export const PlayButton = ({ item }: { item: MediaItem }) => {
       containerStyle={detailViewStyles.playButtonShadow}
       style={[
         detailViewStyles.playButton,
-        useLiquidGlass
-          ? { borderColor: `${accentColor}55`, backgroundColor: 'transparent' }
-          : { borderColor: accentColor, backgroundColor: accentColor },
+        useLiquidGlass ? { backgroundColor: 'transparent' } : { backgroundColor: accentColor },
       ]}
       isInteractive
       tintColor={useLiquidGlass ? `${accentColor}18` : undefined}
@@ -381,7 +379,6 @@ export const detailViewStyles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
   },
   playButtonRim: {
     borderColor: 'rgba(255,255,255,0.72)',

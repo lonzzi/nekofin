@@ -95,9 +95,7 @@ function FormSection({ title, children }: { title?: string; children: ReactNode 
       {title ? (
         <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>{title}</Text>
       ) : null}
-      <GlassCard radius={24} style={styles.sectionCard}>
-        {children}
-      </GlassCard>
+      <GlassCard radius={24}>{children}</GlassCard>
     </View>
   );
 }
@@ -432,10 +430,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 19,
-  },
-  sectionCard: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.58)',
   },
   rowOuter: {
     minHeight: 58,

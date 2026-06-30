@@ -44,7 +44,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
 
   const { width: windowWidth } = useWindowDimensions();
   const headerHeight = useMediaHeroHeight();
-  const bottomScrollInset = insets.bottom + theme.spacing.xxl + theme.spacing.xl;
+  const bottomScrollInset = insets.bottom + theme.spacing.xl;
   const detailLogoWidth = Math.min(windowWidth * 0.72, 300);
 
   const mediaAdapter = useMediaAdapter();
