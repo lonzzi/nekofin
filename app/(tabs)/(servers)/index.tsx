@@ -321,6 +321,7 @@ export default function ServersScreen() {
   const navigation = useNavigation();
   const { servers, removeServer, setCurrentServer, currentServer } = useMediaServers();
   const { width: viewportWidth } = useWindowDimensions();
+  const useGlass = isLiquidGlassAvailable();
   const serverGridGap = theme.spacing.md;
 
   const sortedServers = useMemo(
@@ -406,20 +407,25 @@ export default function ServersScreen() {
             ))}
           </View>
         ) : (
-          <View
-            style={[
-              styles.emptyCard,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.separator,
-              },
-            ]}
-          >
-            <CardText variant="title">还没有服务器</CardText>
-            <CardText lines={2}>
-              添加 Jellyfin 或 Emby 账号后，就可以浏览媒体库和播放记录。
-            </CardText>
-            <AddServerMenu onSelect={openAddServer} variant="text" />
+          <View style={styles.emptyCardShadow}>
+            <GlassView
+              style={[
+                styles.emptyCard,
+                !useGlass && { backgroundColor: theme.colors.surface },
+                {
+                  borderColor: useGlass ? 'rgba(255,255,255,0.64)' : theme.colors.separator,
+                },
+              ]}
+              glassEffectStyle="regular"
+              tintColor="rgba(255,255,255,0.10)"
+            >
+              <View pointerEvents="none" style={styles.emptyCardRim} />
+              <CardText variant="title">还没有服务器</CardText>
+              <CardText lines={2}>
+                添加 Jellyfin 或 Emby 账号后，就可以浏览媒体库和播放记录。
+              </CardText>
+              <AddServerMenu onSelect={openAddServer} variant="text" />
+            </GlassView>
           </View>
         )}
       </PageScrollView>
@@ -561,11 +567,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  emptyCardShadow: {
+    borderRadius: 24,
+    borderCurve: 'continuous',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 22,
+    elevation: 3,
+  },
   emptyCard: {
     gap: 10,
     borderRadius: 24,
+    borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
     padding: 20,
+  },
+  emptyCardRim: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: 24,
+    borderCurve: 'continuous',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.72)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   pressed: {
     opacity: 0.72,

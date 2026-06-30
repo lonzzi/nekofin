@@ -4,8 +4,18 @@ import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/design-system';
 import type { MediaServerType } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { forwardRef, useImperativeHandle, useState, type ReactNode } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { forwardRef, useCallback, useImperativeHandle, useState, type ReactNode } from 'react';
+import {
+  Alert,
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  ViewStyle,
+} from 'react-native';
 import { z } from 'zod';
 
 export interface AddServerFormHandle {
@@ -93,10 +103,32 @@ function FormSection({ title, children }: { title?: string; children: ReactNode 
       {title ? (
         <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>{title}</Text>
       ) : null}
-      <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]}>
-        {children}
-      </View>
+      <GlassCard style={styles.sectionCard}>{children}</GlassCard>
     </View>
+  );
+}
+
+function GlassCard({
+  children,
+  style,
+  rimStyle,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  rimStyle?: StyleProp<ViewStyle>;
+}) {
+  const theme = useAppTheme();
+  const useLiquidGlass = isLiquidGlassAvailable();
+
+  return (
+    <GlassView
+      style={[style, !useLiquidGlass && { backgroundColor: theme.colors.surface }]}
+      glassEffectStyle="regular"
+      tintColor="rgba(255,255,255,0.10)"
+    >
+      <View pointerEvents="none" style={[styles.glassCardRim, rimStyle]} />
+      {children}
+    </GlassView>
   );
 }
 
@@ -179,12 +211,15 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
     const [isLoading, setIsLoading] = useState(false);
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
-    const setLoading = (nextLoading: boolean) => {
-      setIsLoading(nextLoading);
-      onLoadingChange?.(nextLoading);
-    };
+    const setLoading = useCallback(
+      (nextLoading: boolean) => {
+        setIsLoading(nextLoading);
+        onLoadingChange?.(nextLoading);
+      },
+      [onLoadingChange],
+    );
 
-    const handleSubmit = async () => {
+    const handleSubmit = useCallback(async () => {
       const result = addServerSchema.safeParse({
         name: name.trim(),
         note: note.trim(),
@@ -226,7 +261,19 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
       } finally {
         setLoading(false);
       }
-    };
+    }, [
+      address,
+      authenticateAndAddServer,
+      name,
+      note,
+      onSuccess,
+      password,
+      path,
+      port,
+      serverType,
+      setLoading,
+      username,
+    ]);
 
     useImperativeHandle(ref, () => ({ submit: handleSubmit }), [handleSubmit]);
 
@@ -237,7 +284,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
         style={{ backgroundColor: theme.colors.backgroundGrouped }}
         contentContainerStyle={styles.container}
       >
-        <View style={[styles.identityCard, { backgroundColor: theme.colors.surface }]}>
+        <GlassCard style={styles.identityCard}>
           <View style={[styles.identityIcon, { backgroundColor: theme.colors.surfaceMuted }]}>
             <ServerTypeIcon type={serverType} size={30} />
           </View>
@@ -249,7 +296,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
               {serverType === 'emby' ? '连接 Emby 媒体服务器' : '连接 Jellyfin 媒体服务器'}
             </Text>
           </View>
-        </View>
+        </GlassCard>
 
         <FormSection>
           <FormRow label="名称">
@@ -349,15 +396,18 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
         </FormSection>
 
         {formError ? (
-          <View
+          <GlassCard
             style={[
               styles.errorCard,
-              { backgroundColor: theme.colors.surface, borderColor: theme.colors.danger },
+              {
+                borderColor: theme.colors.danger,
+              },
             ]}
+            rimStyle={styles.errorCardRim}
           >
             <Ionicons name="alert-circle-outline" size={20} color={theme.colors.danger} />
             <Text style={[styles.errorText, { color: theme.colors.danger }]}>{formError}</Text>
-          </View>
+          </GlassCard>
         ) : null}
       </PageScrollView>
     );
@@ -379,6 +429,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
     borderRadius: 24,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
@@ -416,6 +468,21 @@ const styles = StyleSheet.create({
   sectionCard: {
     overflow: 'hidden',
     borderRadius: 24,
+    borderCurve: 'continuous',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.58)',
+  },
+  glassCardRim: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: 24,
+    borderCurve: 'continuous',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.72)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   rowOuter: {
     minHeight: 58,
@@ -472,8 +539,14 @@ const styles = StyleSheet.create({
     gap: 10,
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 18,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
     paddingHorizontal: 14,
     paddingVertical: 12,
+  },
+  errorCardRim: {
+    borderRadius: 18,
+    borderColor: 'rgba(255,255,255,0.48)',
   },
   errorText: {
     flex: 1,

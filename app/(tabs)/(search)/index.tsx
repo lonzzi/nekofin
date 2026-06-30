@@ -194,8 +194,6 @@ export default function AggregateSearchScreen() {
       <PageScrollView
         style={{ backgroundColor: theme.colors.background }}
         contentContainerStyle={styles.emptyContainer}
-        scrollEnabled={false}
-        alwaysBounceVertical={false}
       >
         <Ionicons name="search" size={34} color={theme.colors.textTertiary} />
         <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>搜索所有服务器</Text>
@@ -211,8 +209,6 @@ export default function AggregateSearchScreen() {
       <PageScrollView
         style={{ backgroundColor: theme.colors.background }}
         contentContainerStyle={styles.emptyContainer}
-        scrollEnabled={false}
-        alwaysBounceVertical={false}
       >
         {isLoading ? (
           <ActivityIndicator color={theme.colors.tint} />
