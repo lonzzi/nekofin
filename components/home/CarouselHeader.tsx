@@ -221,12 +221,14 @@ export function CarouselHeader({
   showLogo = false,
 }: CarouselHeaderProps) {
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const [autoTargetIndex, setAutoTargetIndex] = useState<number | null>(null);
   const currentIndexRef = useRef(0);
   const router = useRouter();
   const mediaAdapter = useMediaAdapter();
   const theme = useAppTheme();
   const { width: viewportWidth } = useWindowDimensions();
   const dragX = useSharedValue(0);
+  const autoProgress = useSharedValue(0);
   const activeIndexValue = useSharedValue(0);
   const hasImages = items.length > 0;
   const canReveal = items.length > 1;
@@ -305,28 +307,44 @@ export function CarouselHeader({
       currentIndexRef.current = nextIndex;
       activeIndexValue.value = nextIndex;
       setCarouselIndex(nextIndex);
+      setAutoTargetIndex(null);
+      autoProgress.value = 0;
       dragX.value = 0;
     },
-    [activeIndexValue, dragX, items.length],
+    [activeIndexValue, autoProgress, dragX, items.length],
   );
 
-  const revealTo = useCallback(
-    (direction: RevealDirection, duration = CAROUSEL_REVEAL_DURATION_MS) => {
-      if (!canReveal) return;
-      cancelAnimation(dragX);
+  const completeAutoAdvance = useCallback(
+    (nextIndex: number) => {
+      currentIndexRef.current = nextIndex;
+      activeIndexValue.value = nextIndex;
+      setCarouselIndex(nextIndex);
+      setAutoTargetIndex(null);
+      autoProgress.value = 0;
       dragX.value = 0;
-      dragX.value = withTiming(
-        direction === 1 ? -cardWidth : cardWidth,
-        { duration },
-        (finished) => {
-          if (finished) {
-            runOnJS(completeReveal)(direction);
-          }
-        },
-      );
     },
-    [canReveal, cardWidth, completeReveal, dragX],
+    [activeIndexValue, autoProgress, dragX],
   );
+
+  const clearAutoTarget = useCallback(() => {
+    setAutoTargetIndex(null);
+  }, []);
+
+  const startAutoAdvance = useCallback(() => {
+    if (!canReveal || !items.length) return;
+    const nextIndex = getRelativeIndex(currentIndexRef.current, 1, items.length);
+
+    setAutoTargetIndex(nextIndex);
+    cancelAnimation(autoProgress);
+    cancelAnimation(dragX);
+    autoProgress.value = 0;
+    dragX.value = 0;
+    autoProgress.value = withTiming(1, { duration: CAROUSEL_AUTO_FADE_MS }, (finished) => {
+      if (finished) {
+        runOnJS(completeAutoAdvance)(nextIndex);
+      }
+    });
+  }, [autoProgress, canReveal, completeAutoAdvance, dragX, items.length]);
 
   const panGesture = useMemo(
     () =>
@@ -335,6 +353,9 @@ export function CarouselHeader({
         .activeOffsetX([-12, 12])
         .failOffsetY([-18, 18])
         .onBegin(() => {
+          cancelAnimation(autoProgress);
+          autoProgress.value = 0;
+          runOnJS(clearAutoTarget)();
           cancelAnimation(dragX);
         })
         .onUpdate((event) => {
@@ -379,7 +400,7 @@ export function CarouselHeader({
             dragX.value = withTiming(0, { duration: CAROUSEL_CANCEL_SETTLE_MS });
           }
         }),
-    [canReveal, cardWidth, completeReveal, dragX],
+    [autoProgress, canReveal, cardWidth, clearAutoTarget, completeReveal, dragX],
   );
 
   const tapGesture = useMemo(
@@ -433,11 +454,23 @@ export function CarouselHeader({
     };
   }, [cardWidth]);
 
+  const autoFadeStyle = useAnimatedStyle(() => {
+    return {
+      opacity: autoProgress.value,
+    };
+  });
+
+  const autoOverlayStyle = useAnimatedStyle(() => {
+    return {
+      opacity: autoProgress.value,
+    };
+  });
+
   const currentOverlayStyle = useAnimatedStyle(() => {
-    const progress = Math.min(Math.abs(dragX.value) / cardWidth, 1);
+    const dragProgress = Math.min(Math.abs(dragX.value) / cardWidth, 1);
 
     return {
-      opacity: 1 - progress,
+      opacity: (1 - dragProgress) * (1 - autoProgress.value),
       transform: [{ translateX: dragX.value }],
     };
   }, [cardWidth]);
@@ -463,9 +496,11 @@ export function CarouselHeader({
   useEffect(() => {
     currentIndexRef.current = 0;
     activeIndexValue.value = 0;
+    autoProgress.value = 0;
     dragX.value = 0;
+    setAutoTargetIndex(null);
     setCarouselIndex(0);
-  }, [activeIndexValue, dragX, itemIdentity]);
+  }, [activeIndexValue, autoProgress, dragX, itemIdentity]);
 
   useEffect(() => {
     activeIndexValue.value = carouselIndex;
@@ -474,16 +509,19 @@ export function CarouselHeader({
   useEffect(() => {
     if (!isFocused || !canReveal) return;
     const timer = setInterval(() => {
-      if (Math.abs(dragX.value) > 1) return;
-      revealTo(1);
+      if (Math.abs(dragX.value) > 1 || autoProgress.value > 0) return;
+      startAutoAdvance();
     }, CAROUSEL_AUTO_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [canReveal, dragX, isFocused, revealTo]);
+  }, [autoProgress, canReveal, dragX, isFocused, startAutoAdvance]);
 
   const currentItem = items[carouselIndex];
   const currentImageInfo = carouselImageInfos[carouselIndex];
   const nextIndex = getRelativeIndex(carouselIndex, 1, items.length);
   const previousIndex = getRelativeIndex(carouselIndex, -1, items.length);
+  const autoTargetItem = autoTargetIndex != null ? items[autoTargetIndex] : undefined;
+  const autoTargetImageInfo =
+    autoTargetIndex != null ? carouselImageInfos[autoTargetIndex] : undefined;
   const showSkeleton = isLoading && !hasImages;
 
   return (
@@ -510,6 +548,12 @@ export function CarouselHeader({
             <View style={StyleSheet.absoluteFill}>
               <CarouselFrame imageInfo={currentImageInfo} />
             </View>
+
+            {autoTargetIndex != null && (
+              <Animated.View pointerEvents="none" style={[styles.autoFadeFrame, autoFadeStyle]}>
+                <CarouselFrame imageInfo={autoTargetImageInfo} />
+              </Animated.View>
+            )}
 
             {canReveal && (
               <>
@@ -541,6 +585,18 @@ export function CarouselHeader({
                   activeIndex={carouselIndex}
                   imageInfo={currentImageInfo}
                   item={currentItem}
+                  items={items}
+                  showLogo={showLogo}
+                />
+              </Animated.View>
+            )}
+
+            {autoTargetIndex != null && !!autoTargetItem && (
+              <Animated.View pointerEvents="none" style={[styles.overlayFrame, autoOverlayStyle]}>
+                <CarouselOverlay
+                  activeIndex={autoTargetIndex}
+                  imageInfo={autoTargetImageInfo}
+                  item={autoTargetItem}
                   items={items}
                   showLogo={showLogo}
                 />
@@ -581,11 +637,11 @@ export function CarouselHeader({
 }
 
 const CAROUSEL_AUTO_INTERVAL_MS = 6500;
-const CAROUSEL_REVEAL_DURATION_MS = 340;
+const CAROUSEL_AUTO_FADE_MS = 280;
 const CAROUSEL_GESTURE_SETTLE_MS = 240;
 const CAROUSEL_CANCEL_SETTLE_MS = 180;
-const CAROUSEL_OVERLAY_LEFT_INSET = 56;
-const CAROUSEL_OVERLAY_RIGHT_INSET = 18;
+const CAROUSEL_OVERLAY_LEFT_INSET = 32;
+const CAROUSEL_OVERLAY_RIGHT_INSET = 20;
 
 const TEXT_SHADOW = {
   textShadowColor: 'rgba(0, 0, 0, 0.75)',
@@ -627,6 +683,14 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
+  },
+  autoFadeFrame: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 2,
   },
   overlayFrame: {
     position: 'absolute',
