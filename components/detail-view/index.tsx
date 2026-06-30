@@ -205,6 +205,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
       contentInsetAdjustmentBehavior="never"
       contentInset={{ bottom: bottomContentInset }}
       scrollIndicatorInsets={{ bottom: bottomContentInset }}
+      contentContainerStyle={{ paddingBottom: bottomContentInset }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       headerBackgroundColor={{
         light: theme.colors.surfaceMuted,

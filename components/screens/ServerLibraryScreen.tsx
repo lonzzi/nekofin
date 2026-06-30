@@ -135,6 +135,7 @@ export default function HomeScreen() {
       contentInsetAdjustmentBehavior="never"
       contentInset={{ bottom: bottomContentInset }}
       scrollIndicatorInsets={{ bottom: bottomContentInset }}
+      contentContainerStyle={{ paddingBottom: bottomContentInset }}
       style={{ flex: 1, backgroundColor }}
       headerHeight={carouselHeight}
       contentStyle={{ gap: theme.spacing.xs, paddingBottom: theme.spacing.lg, backgroundColor }}

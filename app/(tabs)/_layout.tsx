@@ -7,7 +7,7 @@ export default function TabLayout() {
 
   return (
     <NativeTabs minimizeBehavior="onScrollDown">
-      <NativeTabs.Trigger name="(servers)">
+      <NativeTabs.Trigger name="(servers)" disableAutomaticContentInsets>
         <NativeTabs.Trigger.Label>服务器</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           drawable="storage"

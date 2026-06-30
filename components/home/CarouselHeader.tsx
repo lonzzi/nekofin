@@ -458,7 +458,8 @@ export function CarouselHeader({
   );
 }
 
-const CAROUSEL_OVERLAY_HORIZONTAL_INSET = 20;
+const CAROUSEL_OVERLAY_LEFT_INSET = 56;
+const CAROUSEL_OVERLAY_RIGHT_INSET = 18;
 
 const TEXT_SHADOW = {
   textShadowColor: 'rgba(0, 0, 0, 0.75)',
@@ -495,7 +496,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingBottom: 14,
+    paddingBottom: 16,
     justifyContent: 'flex-end',
   },
   cardInner: {
@@ -503,7 +504,8 @@ const styles = StyleSheet.create({
   },
   titleBounds: {
     width: '100%',
-    paddingHorizontal: CAROUSEL_OVERLAY_HORIZONTAL_INSET,
+    paddingLeft: CAROUSEL_OVERLAY_LEFT_INSET,
+    paddingRight: CAROUSEL_OVERLAY_RIGHT_INSET,
     overflow: 'hidden',
   },
   cardTitle: {
@@ -514,7 +516,7 @@ const styles = StyleSheet.create({
   },
   cardLogo: {
     height: 40,
-    width: '64%',
+    width: '60%',
     alignSelf: 'flex-start',
   },
   cardMetaRow: {
@@ -523,7 +525,8 @@ const styles = StyleSheet.create({
     gap: 8,
     flexWrap: 'wrap',
     width: '100%',
-    paddingHorizontal: CAROUSEL_OVERLAY_HORIZONTAL_INSET,
+    paddingLeft: CAROUSEL_OVERLAY_LEFT_INSET,
+    paddingRight: CAROUSEL_OVERLAY_RIGHT_INSET,
     overflow: 'hidden',
   },
   cardMeta: {
