@@ -82,6 +82,31 @@ function CarouselImageLayer({ imageInfo }: CarouselImageLayerProps) {
   );
 }
 
+type CarouselFrameProps = {
+  activeIndex: number;
+  imageInfo?: CarouselImageInfo;
+  item?: MediaItem;
+  items: MediaItem[];
+  showLogo: boolean;
+};
+
+function CarouselFrame({ activeIndex, imageInfo, item, items, showLogo }: CarouselFrameProps) {
+  return (
+    <View style={styles.frame}>
+      <CarouselImageLayer imageInfo={imageInfo} />
+      {!!item && (
+        <CarouselOverlay
+          activeIndex={activeIndex}
+          imageInfo={imageInfo}
+          item={item}
+          items={items}
+          showLogo={showLogo}
+        />
+      )}
+    </View>
+  );
+}
+
 type CarouselOverlayProps = {
   activeIndex: number;
   imageInfo?: CarouselImageInfo;
@@ -411,16 +436,6 @@ export function CarouselHeader({
     };
   }, [cardWidth]);
 
-  const revealBoundaryStyle = useAnimatedStyle(() => {
-    const boundaryX = dragX.value < 0 ? cardWidth + dragX.value : dragX.value;
-    const opacity = Math.min(Math.abs(dragX.value) / 56, 1);
-
-    return {
-      opacity,
-      transform: [{ translateX: boundaryX - 1 }],
-    };
-  }, [cardWidth]);
-
   useEffect(() => {
     currentIndexRef.current = 0;
     activeIndexValue.value = 0;
@@ -469,14 +484,26 @@ export function CarouselHeader({
             style={styles.gestureSurface}
           >
             <View style={StyleSheet.absoluteFill}>
-              <CarouselImageLayer imageInfo={currentImageInfo} />
+              <CarouselFrame
+                activeIndex={carouselIndex}
+                imageInfo={currentImageInfo}
+                item={currentItem}
+                items={items}
+                showLogo={showLogo}
+              />
             </View>
 
             {canReveal && (
               <>
                 <Animated.View pointerEvents="none" style={[styles.revealClip, nextRevealStyle]}>
                   <Animated.View style={[styles.revealImage, nextRevealImageStyle]}>
-                    <CarouselImageLayer imageInfo={carouselImageInfos[nextIndex]} />
+                    <CarouselFrame
+                      activeIndex={nextIndex}
+                      imageInfo={carouselImageInfos[nextIndex]}
+                      item={items[nextIndex]}
+                      items={items}
+                      showLogo={showLogo}
+                    />
                   </Animated.View>
                 </Animated.View>
 
@@ -485,27 +512,19 @@ export function CarouselHeader({
                   style={[styles.revealClip, previousRevealStyle]}
                 >
                   <Animated.View style={[styles.revealImage, previousRevealImageStyle]}>
-                    <CarouselImageLayer imageInfo={carouselImageInfos[previousIndex]} />
+                    <CarouselFrame
+                      activeIndex={previousIndex}
+                      imageInfo={carouselImageInfos[previousIndex]}
+                      item={items[previousIndex]}
+                      items={items}
+                      showLogo={showLogo}
+                    />
                   </Animated.View>
                 </Animated.View>
-
-                <Animated.View
-                  pointerEvents="none"
-                  style={[styles.revealBoundary, revealBoundaryStyle]}
-                />
               </>
             )}
           </View>
         </GestureDetector>
-      )}
-      {!showSkeleton && !!currentItem && (
-        <CarouselOverlay
-          activeIndex={carouselIndex}
-          imageInfo={currentImageInfo}
-          item={currentItem}
-          items={items}
-          showLogo={showLogo}
-        />
       )}
     </View>
   );
@@ -527,6 +546,10 @@ const styles = StyleSheet.create({
   },
   gestureSurface: {
     flex: 1,
+  },
+  frame: {
+    width: '100%',
+    height: '100%',
   },
   carouselImage: {
     width: '100%',
@@ -551,19 +574,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-  },
-  revealBoundary: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    width: 2,
-    zIndex: 3,
-    backgroundColor: 'rgba(255,255,255,0.86)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
   },
   gradientScrim: {
     position: 'absolute',
