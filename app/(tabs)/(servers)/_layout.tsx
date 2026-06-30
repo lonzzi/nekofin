@@ -1,5 +1,5 @@
 import { GroupedStackRoutes } from '@/components/GroupedStackRoutes';
-import { useAppTheme } from '@/lib/design-system';
+import { useAppTheme } from '@/lib/theme';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Stack } from 'expo-router';
 import { Platform } from 'react-native';

@@ -7,7 +7,7 @@ import {
 import PageScrollView from '@/components/PageScrollView';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { useAppTheme } from '@/lib/design-system';
+import { useAppTheme } from '@/lib/theme';
 import { createMediaAdapterWithApi, createMediaApiFromServerInfo } from '@/services/media';
 import { mediaQueryKeys } from '@/services/media/queryKeys';
 import { MediaItem, MediaServerInfo } from '@/services/media/types';

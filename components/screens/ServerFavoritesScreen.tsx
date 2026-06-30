@@ -3,7 +3,7 @@ import { useInfiniteQueryWithFocus } from '@/hooks/useInfiniteQueryWithFocus';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useMediaFilters } from '@/hooks/useMediaFilters';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { useAppTheme } from '@/lib/design-system';
+import { useAppTheme } from '@/lib/theme';
 import { favoritesQueryOptions } from '@/services/media/queryOptions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation, useRouter } from 'expo-router';

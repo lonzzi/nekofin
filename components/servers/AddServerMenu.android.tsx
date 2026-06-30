@@ -1,4 +1,4 @@
-import { useAppTheme } from '@/lib/design-system';
+import { useAppTheme } from '@/lib/theme';
 import type { MediaServerType } from '@/services/media/types';
 import { MenuView, type MenuAction } from '@expo/ui/community/menu';
 import Ionicons from '@expo/vector-icons/Ionicons';

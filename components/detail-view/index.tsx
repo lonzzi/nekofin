@@ -3,7 +3,7 @@ import { DetailBundle, useDetailBundle } from '@/hooks/useDetailBundle';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import useRefresh from '@/hooks/useRefresh';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { useAppTheme, useMediaHeroHeight } from '@/lib/design-system';
+import { useAppTheme, useMediaHeroHeight } from '@/lib/theme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { UseQueryResult } from '@tanstack/react-query';
 import { Image } from 'expo-image';

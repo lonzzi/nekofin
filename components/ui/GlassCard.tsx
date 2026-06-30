@@ -1,4 +1,4 @@
-import { useAppTheme } from '@/lib/design-system';
+import { useAppTheme } from '@/lib/theme';
 import { GlassView, isLiquidGlassAvailable, type GlassViewProps } from 'expo-glass-effect';
 import { PropsWithChildren } from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';

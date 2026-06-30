@@ -1,4 +1,4 @@
-import { useAppTheme } from '@/lib/design-system';
+import { useAppTheme } from '@/lib/theme';
 import { MediaSource } from '@/services/media/types';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 

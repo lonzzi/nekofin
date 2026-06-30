@@ -1,7 +1,7 @@
 import { useMediaActions } from '@/hooks/useMediaActions';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
-import { useAppTheme } from '@/lib/design-system';
+import { useAppTheme } from '@/lib/theme';
 import { ImageUrlInfo } from '@/lib/utils/image';
 import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';

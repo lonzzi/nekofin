@@ -1,4 +1,4 @@
-import { useAppTheme } from '@/lib/design-system';
+import { useAppTheme } from '@/lib/theme';
 import type { MediaServerType } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';

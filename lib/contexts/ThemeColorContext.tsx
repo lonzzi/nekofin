@@ -1,5 +1,5 @@
-import { brandColors } from '@/lib/design-system/tokens';
 import { storage } from '@/lib/storage';
+import { brandColors } from '@/lib/theme/tokens';
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 import { useMediaServers } from './MediaServerContext';

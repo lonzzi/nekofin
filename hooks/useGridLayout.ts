@@ -1,5 +1,5 @@
 import { useIsTablet } from '@/hooks/useIsTablet';
-import { spacing } from '@/lib/design-system';
+import { spacing } from '@/lib/theme';
 import { useMemo } from 'react';
 import { useWindowDimensions } from 'react-native';
 

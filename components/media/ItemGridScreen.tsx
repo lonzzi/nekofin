@@ -5,7 +5,7 @@ import { MediaFilters } from '@/hooks/useMediaFilters';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import useRefresh from '@/hooks/useRefresh';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { useAppTheme } from '@/lib/design-system';
+import { useAppTheme } from '@/lib/theme';
 import { availableFiltersQueryOptions } from '@/services/media/queryOptions';
 import { MediaItem, MediaSortBy } from '@/services/media/types';
 import { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query';

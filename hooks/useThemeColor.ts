@@ -5,7 +5,7 @@
 
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { AppColorRole, useAppTheme } from '@/lib/design-system';
+import { AppColorRole, useAppTheme } from '@/lib/theme';
 import { ColorValue } from 'react-native';
 
 export function useThemeColor(

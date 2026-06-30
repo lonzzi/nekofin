@@ -1,5 +1,5 @@
 import { AvatarImage } from '@/components/AvatarImage';
-import { useAppTheme } from '@/lib/design-system';
+import { useAppTheme } from '@/lib/theme';
 import { Text as NativeText } from '@expo/ui';
 import { Image as SwiftImage } from '@expo/ui/swift-ui';
 import { frame } from '@expo/ui/swift-ui/modifiers';

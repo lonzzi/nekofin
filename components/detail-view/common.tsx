@@ -1,4 +1,4 @@
-import { layout, radius, spacing, typography, useAppTheme } from '@/lib/design-system';
+import { layout, radius, spacing, typography, useAppTheme } from '@/lib/theme';
 import { formatChineseDurationFromTicks } from '@/lib/utils';
 import { MediaItem } from '@/services/media/types';
 import { BottomSheet, RNHostView } from '@expo/ui';
@@ -418,7 +418,7 @@ export const detailViewStyles = StyleSheet.create({
     bottom: 0,
   },
   sectionBlock: {
-    marginTop: spacing.lg,
+    marginTop: spacing.xs,
     overflow: 'visible',
   },
   sectionTitle: {
@@ -427,14 +427,14 @@ export const detailViewStyles = StyleSheet.create({
   },
   horizontalList: {
     paddingTop: spacing.sm,
-    paddingBottom: spacing.xxxl - spacing.xs,
+    paddingBottom: spacing.xl,
     paddingHorizontal: spacing.page + spacing.sm,
     gap: spacing.md,
     overflow: 'visible',
   },
   edgeToEdge: {
     marginTop: -spacing.xs,
-    marginBottom: -spacing.sm,
+    marginBottom: -spacing.md,
     marginHorizontal: -(spacing.page + spacing.sm),
     overflow: 'visible',
   },

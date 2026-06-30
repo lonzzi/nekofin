@@ -1,7 +1,7 @@
 import PageScrollView from '@/components/PageScrollView';
 import { ServerTypeIcon } from '@/components/servers/ServerTypeIcon';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { useAppTheme } from '@/lib/design-system';
+import { useAppTheme } from '@/lib/theme';
 import type { MediaServerType } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { forwardRef, useCallback, useImperativeHandle, useState, type ReactNode } from 'react';

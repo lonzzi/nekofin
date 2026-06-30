@@ -1,5 +1,5 @@
 import { AddServerForm, type AddServerFormHandle } from '@/components/AddServerForm';
-import { useAppTheme } from '@/lib/design-system';
+import { useAppTheme } from '@/lib/theme';
 import type { MediaServerType } from '@/services/media/types';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';

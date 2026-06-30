@@ -7,7 +7,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { UserViewSection } from '@/components/user-view/UserViewSection';
 import { useHomeSections } from '@/hooks/useHomeSections';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { useAppTheme, useMediaHeroHeight } from '@/lib/design-system';
+import { useAppTheme, useMediaHeroHeight } from '@/lib/theme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation, useRouter } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';

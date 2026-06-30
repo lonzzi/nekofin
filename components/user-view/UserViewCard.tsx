@@ -1,5 +1,5 @@
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
-import { useAppTheme } from '@/lib/design-system';
+import { useAppTheme } from '@/lib/theme';
 import { MediaItem } from '@/services/media/types';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';

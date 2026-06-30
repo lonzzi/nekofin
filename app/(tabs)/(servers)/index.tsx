@@ -3,7 +3,7 @@ import PageScrollView from '@/components/PageScrollView';
 import { AddServerMenu } from '@/components/servers/AddServerMenu';
 import { GlassCard, ShadowedGlassCard } from '@/components/ui/GlassCard';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { useAppTheme } from '@/lib/design-system';
+import { useAppTheme } from '@/lib/theme';
 import { MediaServerInfo, type MediaServerType } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';

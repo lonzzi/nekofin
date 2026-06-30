@@ -5,7 +5,7 @@ import { SkeletonHorizontalSection } from '@/components/ui/Skeleton';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { useAppTheme } from '@/lib/design-system';
+import { useAppTheme } from '@/lib/theme';
 import {
   recommendedSearchItemsQueryOptions,
   searchItemsQueryOptions,

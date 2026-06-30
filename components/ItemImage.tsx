@@ -1,4 +1,4 @@
-import { useAppTheme } from '@/lib/design-system';
+import { useAppTheme } from '@/lib/theme';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Image, ImageProps, ImageStyle } from 'expo-image';
 import { ReactNode, useState } from 'react';

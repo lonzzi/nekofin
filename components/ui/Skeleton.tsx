@@ -1,4 +1,4 @@
-import { layout, useAppTheme, useMediaHeroHeight } from '@/lib/design-system';
+import { layout, useAppTheme, useMediaHeroHeight } from '@/lib/theme';
 import { useEffect, useRef } from 'react';
 import {
   Animated,
