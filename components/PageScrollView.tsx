@@ -26,7 +26,7 @@ export default function PageScrollView({
       style={[{ flex: 1 }, style]}
       scrollToOverflowEnabled={true}
       nestedScrollEnabled
-      contentInsetAdjustmentBehavior="automatic"
+      contentInsetAdjustmentBehavior="always"
       contentInset={{
         ...contentInset,
         bottom: (contentInset?.bottom ?? 0) + bottomContentInset,
