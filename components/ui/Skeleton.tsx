@@ -11,6 +11,8 @@ import {
   ViewStyle,
 } from 'react-native';
 
+import { GlassCard, ShadowedGlassCard } from './GlassCard';
+
 interface SkeletonProps {
   width?: DimensionValue;
   height?: DimensionValue;
@@ -74,6 +76,29 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style 
   );
 }
 
+export function SkeletonMediaHero() {
+  const theme = useAppTheme();
+
+  return (
+    <View style={[styles.mediaHero, { backgroundColor: theme.colors.surfaceMuted }]}>
+      <Skeleton width="100%" height="100%" borderRadius={0} />
+      <View style={styles.mediaHeroOverlay}>
+        <Skeleton width="54%" height={40} borderRadius={theme.radius.sm} />
+        <View style={styles.mediaHeroMetaRow}>
+          <Skeleton width={42} height={20} borderRadius={theme.radius.sm} />
+          <Skeleton width={40} height={18} borderRadius={theme.radius.xs} />
+          <Skeleton width={54} height={20} borderRadius={theme.radius.sm} />
+        </View>
+        <View style={styles.mediaHeroDots}>
+          <Skeleton width={16} height={7} borderRadius={theme.radius.pill} />
+          <Skeleton width={7} height={7} borderRadius={theme.radius.pill} />
+          <Skeleton width={7} height={7} borderRadius={theme.radius.pill} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
 export function SkeletonCard({ type = 'episode' }: { type?: 'episode' | 'series' }) {
   const theme = useAppTheme();
   const cardWidth =
@@ -87,19 +112,21 @@ export function SkeletonCard({ type = 'episode' }: { type?: 'episode' | 'series'
 
   return (
     <View style={[styles.card, { width: cardWidth }]}>
-      <Skeleton width="100%" height={cardWidth / aspectRatio} borderRadius={theme.radius.md} />
-      <Skeleton
-        width="85%"
-        height={theme.typography.body.lineHeight}
-        borderRadius={theme.radius.xs}
-        style={styles.titleSkeleton}
-      />
-      <Skeleton
-        width="60%"
-        height={theme.typography.footnote.lineHeight}
-        borderRadius={theme.radius.xs}
-        style={styles.subtitleSkeleton}
-      />
+      <ShadowedGlassCard radius={theme.radius.md}>
+        <Skeleton width="100%" height={cardWidth / aspectRatio} borderRadius={theme.radius.md} />
+        <View style={styles.cardCopySkeleton}>
+          <Skeleton
+            width="85%"
+            height={theme.typography.body.lineHeight}
+            borderRadius={theme.radius.xs}
+          />
+          <Skeleton
+            width="60%"
+            height={theme.typography.footnote.lineHeight}
+            borderRadius={theme.radius.xs}
+          />
+        </View>
+      </ShadowedGlassCard>
     </View>
   );
 }
@@ -110,18 +137,20 @@ export function SkeletonUserViewCard() {
 
   return (
     <View style={styles.userViewCard}>
-      <Skeleton
-        width={cardWidth}
-        height={cardWidth / theme.layout.mediaRail.backdropAspectRatio}
-        borderRadius={theme.radius.md}
-      />
-      <View style={styles.userViewInfo}>
+      <ShadowedGlassCard radius={theme.radius.lg}>
         <Skeleton
-          width="80%"
-          height={theme.typography.footnote.lineHeight}
-          borderRadius={theme.radius.xs}
+          width={cardWidth}
+          height={cardWidth / theme.layout.mediaRail.backdropAspectRatio}
+          borderRadius={theme.radius.md}
         />
-      </View>
+        <View style={styles.userViewInfo}>
+          <Skeleton
+            width="80%"
+            height={theme.typography.footnote.lineHeight}
+            borderRadius={theme.radius.xs}
+          />
+        </View>
+      </ShadowedGlassCard>
     </View>
   );
 }
@@ -248,6 +277,7 @@ export function SkeletonDetailHeader() {
         { height: headerHeight, backgroundColor: theme.colors.surfaceMuted },
       ]}
     >
+      <Skeleton width="100%" height="100%" borderRadius={0} />
       <Skeleton
         width={logoWidth}
         height={72}
@@ -289,7 +319,7 @@ export function SkeletonDetailContent({
       <Skeleton
         width="40%"
         height={theme.typography.footnote.lineHeight}
-        borderRadius={theme.radius.xs}
+        borderRadius={theme.radius.pill}
         style={styles.detailMeta}
       />
 
@@ -316,20 +346,23 @@ export function SkeletonDetailContent({
         />
       </View>
 
-      <View style={styles.detailInfo}>
-        <Skeleton width="30%" height={14} borderRadius={theme.radius.xs} />
-        <Skeleton width="70%" height={14} borderRadius={theme.radius.xs} />
-        <Skeleton width="25%" height={14} borderRadius={theme.radius.xs} />
-        <Skeleton width="75%" height={14} borderRadius={theme.radius.xs} />
-      </View>
+      <SkeletonDetailInfoCard />
 
       {(mode === 'movie' || mode === 'episode') && (
-        <Skeleton
-          width={120}
-          height={44}
-          borderRadius={theme.radius.md}
+        <ShadowedGlassCard
+          radius={theme.radius.pill}
+          containerStyle={styles.detailPlayButtonShadow}
           style={styles.detailPlayButton}
-        />
+        >
+          <View style={styles.detailPlayButtonContent}>
+            <Skeleton width={26} height={26} borderRadius={theme.radius.pill} />
+            <Skeleton
+              width={112}
+              height={theme.typography.footnote.lineHeight}
+              borderRadius={theme.radius.xs}
+            />
+          </View>
+        </ShadowedGlassCard>
       )}
 
       {mode === 'season' && <SkeletonEpisodeList />}
@@ -343,6 +376,30 @@ export function SkeletonDetailContent({
         </>
       )}
     </View>
+  );
+}
+
+function SkeletonDetailInfoCard() {
+  const theme = useAppTheme();
+
+  return (
+    <GlassCard radius={theme.radius.lg} style={styles.detailInfo} rimStyle={styles.detailInfoRim}>
+      {Array.from({ length: 6 }).map((_, index) => (
+        <View key={index} style={styles.detailInfoRow}>
+          <Skeleton
+            width={48}
+            height={theme.typography.footnote.lineHeight}
+            borderRadius={theme.radius.xs}
+          />
+          <Skeleton
+            width={index % 2 === 0 ? '70%' : '54%'}
+            height={theme.typography.footnote.lineHeight}
+            borderRadius={theme.radius.xs}
+            style={styles.detailInfoValue}
+          />
+        </View>
+      ))}
+    </GlassCard>
   );
 }
 
@@ -473,22 +530,46 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  card: {
+  mediaHero: {
+    flex: 1,
     overflow: 'hidden',
   },
-  titleSkeleton: {
-    marginTop: 8,
-    marginHorizontal: 8,
+  mediaHeroOverlay: {
+    position: 'absolute',
+    left: 56,
+    right: 18,
+    bottom: 16,
+    gap: 8,
   },
-  subtitleSkeleton: {
-    marginTop: 2,
-    marginHorizontal: 8,
+  mediaHeroMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  mediaHeroDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  card: {
+    backgroundColor: 'transparent',
+  },
+  cardCopySkeleton: {
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 10,
+    gap: 2,
   },
   userViewCard: {
-    overflow: 'hidden',
+    width: 200,
+    backgroundColor: 'transparent',
   },
   userViewInfo: {
-    padding: 8,
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 10,
     alignItems: 'center',
   },
   sectionHeader: {
@@ -544,10 +625,39 @@ const styles = StyleSheet.create({
   },
   detailInfo: {
     marginTop: 6,
+    padding: 12,
     rowGap: 6,
   },
-  detailPlayButton: {
+  detailInfoRim: {
+    borderColor: 'rgba(255,255,255,0.64)',
+  },
+  detailInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  detailInfoValue: {
+    flex: 1,
+  },
+  detailPlayButtonShadow: {
     marginTop: 8,
+    width: '100%',
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 14,
+  },
+  detailPlayButton: {
+    width: '100%',
+  },
+  detailPlayButtonContent: {
+    minHeight: 46,
+    width: '100%',
+    paddingVertical: 9,
+    paddingLeft: 10,
+    paddingRight: 15,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
   },
   horizontalSection: {
     marginTop: 16,

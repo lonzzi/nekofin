@@ -1,6 +1,7 @@
 import { ItemImage } from '@/components/ItemImage';
 import { ThemedText } from '@/components/ThemedText';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { SkeletonMediaHero } from '@/components/ui/Skeleton';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useAppTheme } from '@/lib/theme';
 import { MediaItem } from '@/services/media/types';
@@ -9,20 +10,21 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  FlatList,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  Pressable,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  cancelAnimation,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 interface CarouselHeaderProps {
   items: MediaItem[];
   height: number;
   isFocused: boolean;
+  isLoading?: boolean;
   showLogo?: boolean;
 }
 
@@ -32,11 +34,7 @@ type CarouselImageInfo = {
   logoImageUrl?: string;
 };
 
-type CarouselPage = {
-  item: MediaItem;
-  logicalIndex: number;
-  key: string;
-};
+type RevealDirection = -1 | 1;
 
 function getCarouselItemKey(item: MediaItem, index: number) {
   return item.id ?? `${item.type}-${item.seriesId ?? index}`;
@@ -46,83 +44,40 @@ function getCarouselItemTitle(item: MediaItem) {
   return item.seriesName || item.name || '未知标题';
 }
 
-function buildCarouselPages(items: MediaItem[]): CarouselPage[] {
-  if (items.length <= 1) {
-    return items.map((item, logicalIndex) => ({
-      item,
-      logicalIndex,
-      key: `page-${getCarouselItemKey(item, logicalIndex)}`,
-    }));
-  }
-
-  const lastIndex = items.length - 1;
-  return [
-    {
-      item: items[lastIndex],
-      logicalIndex: lastIndex,
-      key: `clone-start-${getCarouselItemKey(items[lastIndex], lastIndex)}`,
-    },
-    ...items.map((item, logicalIndex) => ({
-      item,
-      logicalIndex,
-      key: `page-${getCarouselItemKey(item, logicalIndex)}`,
-    })),
-    {
-      item: items[0],
-      logicalIndex: 0,
-      key: `clone-end-${getCarouselItemKey(items[0], 0)}`,
-    },
-  ];
+function getRelativeIndex(index: number, direction: number, itemCount: number) {
+  if (itemCount <= 0) return 0;
+  return (index + direction + itemCount) % itemCount;
 }
 
-function getLogicalIndexForPage(page: number, itemCount: number) {
-  if (itemCount <= 1) return 0;
-  if (page === 0) return itemCount - 1;
-  if (page === itemCount + 1) return 0;
-  return Math.min(Math.max(page - 1, 0), itemCount - 1);
-}
-
-type CarouselSlideProps = {
+type CarouselImageLayerProps = {
   imageInfo?: CarouselImageInfo;
-  item: MediaItem;
-  cardWidth: number;
-  cardHeight: number;
-  onPress: (item: MediaItem) => void;
 };
 
-function CarouselSlide({ imageInfo, item, cardWidth, cardHeight, onPress }: CarouselSlideProps) {
+function CarouselImageLayer({ imageInfo }: CarouselImageLayerProps) {
   const theme = useAppTheme();
-  const title = getCarouselItemTitle(item);
+
+  if (imageInfo?.imageUrl) {
+    return (
+      <ItemImage
+        uri={imageInfo.imageUrl}
+        style={[styles.carouselImage, { backgroundColor: theme.colors.background }]}
+        contentFit="cover"
+        contentPosition="left center"
+        cachePolicy="memory-disk"
+        placeholderBlurhash={imageInfo.blurhash}
+      />
+    );
+  }
 
   return (
-    <View style={{ width: cardWidth, height: cardHeight }}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`打开 ${title}`}
-        style={styles.carouselCard}
-        onPress={() => onPress(item)}
-      >
-        {imageInfo?.imageUrl ? (
-          <ItemImage
-            uri={imageInfo.imageUrl}
-            style={[styles.carouselImage, { backgroundColor: theme.colors.background }]}
-            contentFit="cover"
-            contentPosition="left center"
-            cachePolicy="memory-disk"
-            placeholderBlurhash={imageInfo.blurhash}
-          />
-        ) : (
-          <View
-            style={[
-              styles.carouselImage,
-              styles.carouselPlaceholder,
-              { backgroundColor: theme.colors.surfaceMuted },
-            ]}
-          >
-            <IconSymbol name="video.fill" size={48} color={theme.colors.inverseText} />
-          </View>
-        )}
-      </Pressable>
+    <View
+      style={[
+        styles.carouselImage,
+        styles.carouselPlaceholder,
+        { backgroundColor: theme.colors.surfaceMuted },
+      ]}
+    >
+      <IconSymbol name="video.fill" size={48} color={theme.colors.inverseText} />
     </View>
   );
 }
@@ -248,20 +203,20 @@ export function CarouselHeader({
   items,
   height,
   isFocused,
+  isLoading = false,
   showLogo = false,
 }: CarouselHeaderProps) {
   const [carouselIndex, setCarouselIndex] = useState(0);
-  const listRef = useRef<FlatList<CarouselPage>>(null);
-  const currentPageRef = useRef(items.length > 1 ? 1 : 0);
+  const currentIndexRef = useRef(0);
   const router = useRouter();
   const mediaAdapter = useMediaAdapter();
   const theme = useAppTheme();
   const { width: viewportWidth } = useWindowDimensions();
+  const dragX = useSharedValue(0);
+  const activeIndexValue = useSharedValue(0);
   const hasImages = items.length > 0;
-  const isLooping = items.length > 1;
+  const canReveal = items.length > 1;
   const cardWidth = Math.max(viewportWidth, 1);
-  const cardHeight = Math.max(height, 1);
-  const pageStep = cardWidth;
 
   const itemIdentity = useMemo(() => items.map(getCarouselItemKey).join('|'), [items]);
 
@@ -288,16 +243,6 @@ export function CarouselHeader({
       };
     });
   }, [items, mediaAdapter, showLogo]);
-
-  const pages = useMemo(() => buildCarouselPages(items), [items]);
-
-  const updateDisplayedPage = useCallback(
-    (page: number) => {
-      const nextIndex = getLogicalIndexForPage(page, items.length);
-      setCarouselIndex((currentIndex) => (currentIndex === nextIndex ? currentIndex : nextIndex));
-    },
-    [items.length],
-  );
 
   const handleCarouselItemPress = useCallback(
     (item: MediaItem) => {
@@ -331,121 +276,229 @@ export function CarouselHeader({
     [router],
   );
 
-  const jumpToPage = useCallback(
-    (page: number) => {
-      currentPageRef.current = page;
-      updateDisplayedPage(page);
-      listRef.current?.scrollToOffset({
-        offset: page * pageStep,
-        animated: false,
-      });
+  const handleCarouselItemPressAtIndex = useCallback(
+    (index: number) => {
+      const item = items[index];
+      if (item) handleCarouselItemPress(item);
     },
-    [pageStep, updateDisplayedPage],
+    [handleCarouselItemPress, items],
   );
 
-  const settlePage = useCallback(
-    (offsetX: number) => {
-      const page = Math.round(offsetX / pageStep);
-      currentPageRef.current = page;
-      updateDisplayedPage(page);
-
-      if (!isLooping) return;
-      if (page === 0) {
-        requestAnimationFrame(() => jumpToPage(items.length));
-        return;
-      }
-      if (page === items.length + 1) {
-        requestAnimationFrame(() => jumpToPage(1));
-      }
+  const completeReveal = useCallback(
+    (direction: RevealDirection) => {
+      if (!items.length) return;
+      const nextIndex = getRelativeIndex(currentIndexRef.current, direction, items.length);
+      currentIndexRef.current = nextIndex;
+      activeIndexValue.value = nextIndex;
+      setCarouselIndex(nextIndex);
+      dragX.value = 0;
     },
-    [isLooping, items.length, jumpToPage, pageStep, updateDisplayedPage],
+    [activeIndexValue, dragX, items.length],
   );
 
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      updateDisplayedPage(Math.round(event.nativeEvent.contentOffset.x / pageStep));
+  const revealTo = useCallback(
+    (direction: RevealDirection, duration = 620) => {
+      if (!canReveal) return;
+      cancelAnimation(dragX);
+      dragX.value = 0;
+      dragX.value = withTiming(
+        direction === 1 ? -cardWidth : cardWidth,
+        { duration },
+        (finished) => {
+          if (finished) {
+            runOnJS(completeReveal)(direction);
+          }
+        },
+      );
     },
-    [pageStep, updateDisplayedPage],
+    [canReveal, cardWidth, completeReveal, dragX],
   );
 
-  const handleMomentumScrollEnd = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      settlePage(event.nativeEvent.contentOffset.x);
-    },
-    [settlePage],
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .enabled(canReveal)
+        .activeOffsetX([-12, 12])
+        .failOffsetY([-18, 18])
+        .onBegin(() => {
+          cancelAnimation(dragX);
+        })
+        .onUpdate((event) => {
+          const nextTranslation = Math.max(-cardWidth, Math.min(cardWidth, event.translationX));
+          dragX.value = nextTranslation;
+        })
+        .onEnd((event) => {
+          const threshold = cardWidth * 0.22;
+          const wantsNext = dragX.value < -threshold || event.velocityX < -650;
+          const wantsPrevious = dragX.value > threshold || event.velocityX > 650;
+
+          if (wantsNext) {
+            dragX.value = withTiming(-cardWidth, { duration: 360 }, (finished) => {
+              if (finished) {
+                runOnJS(completeReveal)(1);
+              }
+            });
+            return;
+          }
+
+          if (wantsPrevious) {
+            dragX.value = withTiming(cardWidth, { duration: 360 }, (finished) => {
+              if (finished) {
+                runOnJS(completeReveal)(-1);
+              }
+            });
+            return;
+          }
+
+          dragX.value = withTiming(0, { duration: 260 });
+        })
+        .onFinalize((_event, success) => {
+          if (!success) {
+            dragX.value = withTiming(0, { duration: 220 });
+          }
+        }),
+    [canReveal, cardWidth, completeReveal, dragX],
   );
+
+  const tapGesture = useMemo(
+    () =>
+      Gesture.Tap()
+        .maxDistance(10)
+        .onEnd((_event, success) => {
+          if (success) {
+            runOnJS(handleCarouselItemPressAtIndex)(activeIndexValue.value);
+          }
+        }),
+    [activeIndexValue, handleCarouselItemPressAtIndex],
+  );
+
+  const carouselGesture = useMemo(
+    () => (canReveal ? Gesture.Exclusive(panGesture, tapGesture) : tapGesture),
+    [canReveal, panGesture, tapGesture],
+  );
+
+  const nextRevealStyle = useAnimatedStyle(() => {
+    const revealOffset = Math.max(0, Math.min(cardWidth, cardWidth + Math.min(0, dragX.value)));
+
+    return {
+      opacity: dragX.value < 0 ? 1 : 0,
+      transform: [{ translateX: revealOffset }],
+    };
+  }, [cardWidth]);
+
+  const nextRevealImageStyle = useAnimatedStyle(() => {
+    const revealOffset = Math.max(0, Math.min(cardWidth, cardWidth + Math.min(0, dragX.value)));
+
+    return {
+      transform: [{ translateX: -revealOffset }],
+    };
+  }, [cardWidth]);
+
+  const previousRevealStyle = useAnimatedStyle(() => {
+    const revealOffset = Math.min(0, Math.max(-cardWidth, -cardWidth + Math.max(0, dragX.value)));
+
+    return {
+      opacity: dragX.value > 0 ? 1 : 0,
+      transform: [{ translateX: revealOffset }],
+    };
+  }, [cardWidth]);
+
+  const previousRevealImageStyle = useAnimatedStyle(() => {
+    const revealOffset = Math.min(0, Math.max(-cardWidth, -cardWidth + Math.max(0, dragX.value)));
+
+    return {
+      transform: [{ translateX: -revealOffset }],
+    };
+  }, [cardWidth]);
+
+  const revealBoundaryStyle = useAnimatedStyle(() => {
+    const boundaryX = dragX.value < 0 ? cardWidth + dragX.value : dragX.value;
+    const opacity = Math.min(Math.abs(dragX.value) / 56, 1);
+
+    return {
+      opacity,
+      transform: [{ translateX: boundaryX - 1 }],
+    };
+  }, [cardWidth]);
 
   useEffect(() => {
-    if (!isFocused || items.length <= 1) return;
+    currentIndexRef.current = 0;
+    activeIndexValue.value = 0;
+    dragX.value = 0;
+    setCarouselIndex(0);
+  }, [activeIndexValue, dragX, itemIdentity]);
+
+  useEffect(() => {
+    activeIndexValue.value = carouselIndex;
+  }, [activeIndexValue, carouselIndex]);
+
+  useEffect(() => {
+    if (!isFocused || !canReveal) return;
     const timer = setInterval(() => {
-      const nextPage = currentPageRef.current + 1;
-      currentPageRef.current = nextPage;
-      listRef.current?.scrollToOffset({
-        offset: nextPage * pageStep,
-        animated: true,
-      });
-    }, 6500);
+      if (Math.abs(dragX.value) > 1) return;
+      revealTo(1);
+    }, CAROUSEL_AUTO_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [isFocused, items.length, pageStep]);
-
-  useEffect(() => {
-    if (items.length === 0) {
-      currentPageRef.current = 0;
-      setCarouselIndex(0);
-      return;
-    }
-
-    const initialPage = isLooping ? 1 : 0;
-    requestAnimationFrame(() => jumpToPage(initialPage));
-  }, [isLooping, itemIdentity, items.length, jumpToPage, pageStep]);
-
-  const renderPage = useCallback(
-    ({ item: page }: { item: CarouselPage }) => (
-      <CarouselSlide
-        imageInfo={carouselImageInfos[page.logicalIndex]}
-        item={page.item}
-        cardWidth={cardWidth}
-        cardHeight={cardHeight}
-        onPress={handleCarouselItemPress}
-      />
-    ),
-    [cardHeight, cardWidth, carouselImageInfos, handleCarouselItemPress],
-  );
+  }, [canReveal, dragX, isFocused, revealTo]);
 
   const currentItem = items[carouselIndex];
   const currentImageInfo = carouselImageInfos[carouselIndex];
+  const nextIndex = getRelativeIndex(carouselIndex, 1, items.length);
+  const previousIndex = getRelativeIndex(carouselIndex, -1, items.length);
+  const showSkeleton = isLoading && !hasImages;
 
   return (
     <View style={[styles.container, { height }]}>
-      {!hasImages && (
+      {showSkeleton && <SkeletonMediaHero />}
+      {!showSkeleton && !hasImages && (
         <View style={[StyleSheet.absoluteFill, styles.carouselPlaceholder]}>
           <Ionicons name="film-outline" size={52} color={theme.colors.textTertiary} />
         </View>
       )}
-      {hasImages && (
-        <FlatList
-          ref={listRef}
-          horizontal
-          data={pages}
-          renderItem={renderPage}
-          keyExtractor={(page) => page.key}
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={pageStep}
-          snapToAlignment="start"
-          decelerationRate="fast"
-          disableIntervalMomentum
-          bounces={false}
-          scrollEventThrottle={16}
-          getItemLayout={(_, index) => ({
-            length: pageStep,
-            offset: pageStep * index,
-            index,
-          })}
-          onScroll={handleScroll}
-          onMomentumScrollEnd={handleMomentumScrollEnd}
-        />
+      {!showSkeleton && hasImages && (
+        <GestureDetector gesture={carouselGesture}>
+          <View
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={
+              currentItem ? `打开 ${getCarouselItemTitle(currentItem)}` : '打开媒体'
+            }
+            onAccessibilityTap={() => {
+              if (currentItem) handleCarouselItemPress(currentItem);
+            }}
+            style={styles.gestureSurface}
+          >
+            <View style={StyleSheet.absoluteFill}>
+              <CarouselImageLayer imageInfo={currentImageInfo} />
+            </View>
+
+            {canReveal && (
+              <>
+                <Animated.View pointerEvents="none" style={[styles.revealClip, nextRevealStyle]}>
+                  <Animated.View style={[styles.revealImage, nextRevealImageStyle]}>
+                    <CarouselImageLayer imageInfo={carouselImageInfos[nextIndex]} />
+                  </Animated.View>
+                </Animated.View>
+
+                <Animated.View
+                  pointerEvents="none"
+                  style={[styles.revealClip, previousRevealStyle]}
+                >
+                  <Animated.View style={[styles.revealImage, previousRevealImageStyle]}>
+                    <CarouselImageLayer imageInfo={carouselImageInfos[previousIndex]} />
+                  </Animated.View>
+                </Animated.View>
+
+                <Animated.View
+                  pointerEvents="none"
+                  style={[styles.revealBoundary, revealBoundaryStyle]}
+                />
+              </>
+            )}
+          </View>
+        </GestureDetector>
       )}
-      {!!currentItem && (
+      {!showSkeleton && !!currentItem && (
         <CarouselOverlay
           activeIndex={carouselIndex}
           imageInfo={currentImageInfo}
@@ -458,6 +511,7 @@ export function CarouselHeader({
   );
 }
 
+const CAROUSEL_AUTO_INTERVAL_MS = 6500;
 const CAROUSEL_OVERLAY_LEFT_INSET = 56;
 const CAROUSEL_OVERLAY_RIGHT_INSET = 18;
 
@@ -471,10 +525,8 @@ const styles = StyleSheet.create({
   container: {
     overflow: 'hidden',
   },
-  carouselCard: {
+  gestureSurface: {
     flex: 1,
-    overflow: 'hidden',
-    backgroundColor: '#000',
   },
   carouselImage: {
     width: '100%',
@@ -483,6 +535,35 @@ const styles = StyleSheet.create({
   carouselPlaceholder: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  revealClip: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    overflow: 'hidden',
+    zIndex: 2,
+  },
+  revealImage: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  revealBoundary: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: 2,
+    zIndex: 3,
+    backgroundColor: 'rgba(255,255,255,0.86)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
   },
   gradientScrim: {
     position: 'absolute',

@@ -90,8 +90,15 @@ export default function HomeScreen() {
   }, [sections, router]);
 
   const headerImage = useMemo(
-    () => <CarouselHeader items={carouselItems} height={carouselHeight} isFocused={isFocused} />,
-    [carouselItems, carouselHeight, isFocused],
+    () => (
+      <CarouselHeader
+        items={carouselItems}
+        height={carouselHeight}
+        isFocused={isFocused}
+        isLoading={randomItemsQuery.isLoading}
+      />
+    ),
+    [carouselItems, carouselHeight, isFocused, randomItemsQuery.isLoading],
   );
 
   if (servers.length === 0 && isInitialized) {
