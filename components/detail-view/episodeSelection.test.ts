@@ -76,4 +76,14 @@ describe('episodeSelection', () => {
       'Series 第3集',
     );
   });
+
+  it('does not render undefined episode or season numbers', () => {
+    expect(getSeasonTitle(item({ name: '', indexNumber: undefined }))).toBe('未知季度');
+    expect(getEpisodeHeaderText(item({ name: 'Episode Title', seriesName: 'Series' }))).toBe(
+      'Series',
+    );
+    expect(getEpisodeHeaderText(item({ name: 'Episode Title', seriesName: '' }))).toBe(
+      'Episode Title',
+    );
+  });
 });

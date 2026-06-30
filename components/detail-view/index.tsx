@@ -22,7 +22,7 @@ import { EpisodeModeContent } from './episode';
 import { MovieModeContent } from './movie';
 import { SeriesModeContent } from './series';
 
-const FLOATING_BOTTOM_CHROME_CLEARANCE = 44;
+const FLOATING_BOTTOM_CHROME_CLEARANCE = 18;
 
 export type DetailViewProps = {
   itemId: string;
@@ -211,7 +211,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
         dark: theme.colors.surfaceMuted,
       }}
       contentStyle={{
-        paddingBottom: theme.spacing.xxxl,
+        paddingBottom: theme.spacing.lg,
         paddingTop: theme.spacing.lg,
         backgroundColor,
       }}

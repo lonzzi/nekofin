@@ -38,6 +38,7 @@ export const PlayButton = ({ item }: { item: MediaItem }) => {
   const useLiquidGlass = isLiquidGlassAvailable();
   const textColor = useLiquidGlass ? accentColor : theme.colors.inverseText;
   const durationLabel = formatChineseDurationFromTicks(item.runTimeTicks, { largest: 2 });
+  const buttonLabel = durationLabel ? `播放 · ${durationLabel}` : '播放';
 
   const progressPercent = useMemo(() => {
     const pct = item.userData?.playedPercentage ?? (item.userData?.played ? 100 : 0);
@@ -97,17 +98,17 @@ export const PlayButton = ({ item }: { item: MediaItem }) => {
           }}
           style={detailViewStyles.playButtonPressable}
         >
-          <View style={detailViewStyles.playButtonContent}>
-            <Ionicons name="play-circle" size={24} color={textColor} />
-            <View style={detailViewStyles.playButtonCopy}>
-              <Text style={[detailViewStyles.playButtonText, { color: textColor }]}>播放</Text>
-              {!!durationLabel && (
-                <Text style={[detailViewStyles.playButtonSubtitle, { color: textColor }]}>
-                  {durationLabel}
-                </Text>
-              )}
-            </View>
+          <View
+            style={[
+              detailViewStyles.playButtonIcon,
+              { backgroundColor: useLiquidGlass ? `${accentColor}18` : 'rgba(255,255,255,0.2)' },
+            ]}
+          >
+            <Ionicons name="play" size={13} color={textColor} />
           </View>
+          <Text style={[detailViewStyles.playButtonLabel, { color: textColor }]} numberOfLines={1}>
+            {buttonLabel}
+          </Text>
         </Pressable>
       </GlassView>
     </View>
@@ -404,16 +405,18 @@ export const detailViewStyles = StyleSheet.create({
     textAlign: 'left',
   },
   playButtonShadow: {
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
+    width: '100%',
     borderRadius: radius.pill,
     borderCurve: 'continuous',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 3,
   },
   playButton: {
+    width: '100%',
     borderRadius: radius.pill,
     borderCurve: 'continuous',
     alignItems: 'center',
@@ -434,27 +437,28 @@ export const detailViewStyles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
   playButtonPressable: {
-    paddingVertical: 12,
+    minHeight: 46,
     width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  playButtonContent: {
+    paddingVertical: 9,
+    paddingLeft: 10,
+    paddingRight: 15,
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
     gap: spacing.sm,
   },
-  playButtonCopy: {
+  playButtonIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: radius.pill,
+    borderCurve: 'continuous',
     alignItems: 'center',
-    gap: spacing.xxs,
+    justifyContent: 'center',
   },
-  playButtonText: {
-    ...typography.bodyEmphasized,
-  },
-  playButtonSubtitle: {
-    ...typography.caption,
+  playButtonLabel: {
+    ...typography.footnote,
     fontWeight: '600',
-    opacity: 0.72,
+    flexShrink: 1,
   },
   playButtonProgressFill: {
     position: 'absolute',
@@ -463,31 +467,32 @@ export const detailViewStyles = StyleSheet.create({
     bottom: 0,
   },
   sectionBlock: {
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
     overflow: 'visible',
   },
   sectionTitle: {
     ...typography.title3,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   horizontalList: {
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xxxl,
-    paddingHorizontal: spacing.page + spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xxxl - spacing.xs,
+    paddingHorizontal: spacing.page + spacing.sm,
     gap: spacing.md,
     overflow: 'visible',
   },
   edgeToEdge: {
-    marginTop: -spacing.md,
-    marginHorizontal: -(spacing.page + spacing.md),
+    marginTop: -spacing.xs,
+    marginBottom: -spacing.sm,
+    marginHorizontal: -(spacing.page + spacing.sm),
     overflow: 'visible',
   },
   horizontalCard: {
     width: layout.mediaRail.episodeCardWidth - spacing.xl,
   },
   listContainer: {
-    marginTop: spacing.xl,
-    rowGap: spacing.xl,
+    marginTop: spacing.lg,
+    rowGap: spacing.lg,
   },
   listItem: {
     width: '100%',

@@ -13,13 +13,18 @@ import { useNavigation, useRouter } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const HOME_BOTTOM_CHROME_CLEARANCE = 34;
 
 export default function HomeScreen() {
   const { servers, currentServer, isInitialized } = useMediaServers();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const backgroundColor = theme.colors.background;
   const carouselHeight = useMediaHeroHeight();
+  const bottomContentInset = insets.bottom + HOME_BOTTOM_CHROME_CLEARANCE;
 
   const router = useRouter();
 
@@ -128,12 +133,14 @@ export default function HomeScreen() {
     <ParallaxScrollView
       showsVerticalScrollIndicator={false}
       contentInsetAdjustmentBehavior="never"
+      contentInset={{ bottom: bottomContentInset }}
+      scrollIndicatorInsets={{ bottom: bottomContentInset }}
       style={{ flex: 1, backgroundColor }}
       headerHeight={carouselHeight}
-      contentStyle={{ gap: theme.spacing.xxs, backgroundColor }}
+      contentStyle={{ gap: theme.spacing.xs, paddingBottom: theme.spacing.lg, backgroundColor }}
       headerImage={headerImage}
     >
-      <View style={[styles.content, { gap: theme.spacing.section, marginTop: theme.spacing.lg }]}>
+      <View style={[styles.content, { gap: theme.spacing.lg, marginTop: theme.spacing.md }]}>
         {sections.map((section) => {
           if (section.type === 'resume') {
             if (!section.isLoading && section.items.length === 0) return null;

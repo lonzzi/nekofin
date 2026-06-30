@@ -36,7 +36,9 @@ export const UserViewSection = React.memo(function UserViewSection({
           data={skeletonData}
           horizontal
           keyExtractor={skeletonKeyExtractor}
+          removeClippedSubviews={false}
           showsHorizontalScrollIndicator={false}
+          style={styles.userViewList}
           contentContainerStyle={[
             styles.userViewContainer,
             { gap: theme.spacing.md, paddingHorizontal: theme.spacing.page },
@@ -85,7 +87,9 @@ export const UserViewSection = React.memo(function UserViewSection({
         data={userViewItems}
         horizontal
         keyExtractor={itemKeyExtractor}
+        removeClippedSubviews={false}
         showsHorizontalScrollIndicator={false}
+        style={styles.userViewList}
         contentContainerStyle={[
           styles.userViewContainer,
           { gap: theme.spacing.md, paddingHorizontal: theme.spacing.page },
@@ -97,9 +101,15 @@ export const UserViewSection = React.memo(function UserViewSection({
 });
 
 const styles = StyleSheet.create({
+  userViewList: {
+    marginBottom: -8,
+    overflow: 'visible',
+  },
   userViewContainer: {
     flexDirection: 'row',
-    paddingVertical: 6,
+    paddingTop: 10,
+    paddingBottom: 26,
+    overflow: 'visible',
   },
   userViewContent: {
     marginBottom: 2,

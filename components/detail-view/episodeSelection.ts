@@ -33,11 +33,21 @@ export const findEpisodeIndex = (episodes: MediaItem[], selectedEpisodeId?: stri
 export const getSeasonTitle = (season?: MediaItem): string => {
   if (!season) return '';
 
-  return season.name || `第${season.indexNumber}季`;
+  if (season.name) return season.name;
+
+  return typeof season.indexNumber === 'number' ? `第${season.indexNumber}季` : '未知季度';
 };
 
-export const getEpisodeHeaderText = (episode: MediaItem): string =>
-  `${episode.seriesName} 第${episode.indexNumber}集`;
+export const getEpisodeHeaderText = (episode: MediaItem): string => {
+  const seriesName = episode.seriesName?.trim();
+  const episodeNumber = typeof episode.indexNumber === 'number' ? `第${episode.indexNumber}集` : '';
+
+  if (seriesName && episodeNumber) return `${seriesName} ${episodeNumber}`;
+  if (seriesName) return seriesName;
+  if (episodeNumber) return episodeNumber;
+
+  return episode.name ?? '';
+};
 
 export const getSeasonActions = (seasons: MediaItem[], selectedSeasonId: string) =>
   seasons.map((season) => ({

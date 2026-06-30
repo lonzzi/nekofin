@@ -62,7 +62,9 @@ export const Section = React.memo(function Section({
         <FlatList
           data={skeletonData}
           horizontal
+          removeClippedSubviews={false}
           showsHorizontalScrollIndicator={false}
+          style={styles.sectionList}
           contentContainerStyle={[
             styles.sectionListContent,
             { gap: theme.spacing.md, paddingHorizontal: theme.spacing.page },
@@ -74,7 +76,9 @@ export const Section = React.memo(function Section({
         <FlatList
           data={items}
           horizontal
+          removeClippedSubviews={false}
           showsHorizontalScrollIndicator={false}
+          style={styles.sectionList}
           contentContainerStyle={[
             styles.sectionListContent,
             { gap: theme.spacing.md, paddingHorizontal: theme.spacing.page },
@@ -118,8 +122,14 @@ const styles = StyleSheet.create({
   viewAllText: {
     fontSize: 16,
   },
+  sectionList: {
+    marginBottom: -8,
+    overflow: 'visible',
+  },
   sectionListContent: {
-    paddingVertical: 6,
+    paddingTop: 10,
+    paddingBottom: 26,
+    overflow: 'visible',
   },
   loadingContainer: {
     paddingHorizontal: 20,
