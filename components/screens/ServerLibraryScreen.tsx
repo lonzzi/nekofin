@@ -22,7 +22,7 @@ export default function HomeScreen() {
   const theme = useAppTheme();
   const backgroundColor = theme.colors.background;
   const carouselHeight = useMediaHeroHeight();
-  const bottomContentPadding = insets.bottom + theme.spacing.xxl + theme.spacing.xl;
+  const bottomScrollInset = insets.bottom + theme.spacing.xxl + theme.spacing.xl;
 
   const router = useRouter();
 
@@ -137,9 +137,11 @@ export default function HomeScreen() {
   return (
     <ParallaxScrollView
       showsVerticalScrollIndicator={false}
+      contentInset={{ bottom: bottomScrollInset }}
+      scrollIndicatorInsets={{ bottom: bottomScrollInset }}
       style={{ flex: 1, backgroundColor }}
       headerHeight={carouselHeight}
-      contentStyle={{ gap: theme.spacing.xs, paddingBottom: bottomContentPadding, backgroundColor }}
+      contentStyle={{ gap: theme.spacing.xs, paddingBottom: theme.spacing.lg, backgroundColor }}
       headerImage={headerImage}
     >
       <View style={[styles.content, { gap: theme.spacing.lg, marginTop: theme.spacing.md }]}>

@@ -44,7 +44,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
 
   const { width: windowWidth } = useWindowDimensions();
   const headerHeight = useMediaHeroHeight();
-  const bottomContentPadding = insets.bottom + theme.spacing.xxl + theme.spacing.xl;
+  const bottomScrollInset = insets.bottom + theme.spacing.xxl + theme.spacing.xl;
   const detailLogoWidth = Math.min(windowWidth * 0.72, 300);
 
   const mediaAdapter = useMediaAdapter();
@@ -200,13 +200,15 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     <ParallaxScrollView
       headerHeight={headerHeight}
       showsVerticalScrollIndicator={false}
+      contentInset={{ bottom: bottomScrollInset }}
+      scrollIndicatorInsets={{ bottom: bottomScrollInset }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       headerBackgroundColor={{
         light: theme.colors.surfaceMuted,
         dark: theme.colors.surfaceMuted,
       }}
       contentStyle={{
-        paddingBottom: bottomContentPadding,
+        paddingBottom: theme.spacing.lg,
         paddingTop: theme.spacing.lg,
         backgroundColor,
       }}
