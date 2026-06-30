@@ -6,13 +6,13 @@ import { ImageUrlInfo } from '@/lib/utils/image';
 import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Content, Item, ItemIcon, ItemTitle, Root as Menu, Trigger } from 'zeego/context-menu';
 
 import { ItemImage } from '../ItemImage';
+import { GlassCard, ShadowedGlassCard } from '../ui/GlassCard';
 import {
   getEpisodeCardRoute,
   getImagePreferenceOptions,
@@ -47,7 +47,6 @@ export const EpisodeCard = React.memo(function EpisodeCard({
 }) {
   const router = useRouter();
   const theme = useAppTheme();
-  const useLiquidGlass = isLiquidGlassAvailable();
   const { accentColor } = useAccentColor();
   const [isLongPressing, setIsLongPressing] = useState(false);
 
@@ -99,17 +98,18 @@ export const EpisodeCard = React.memo(function EpisodeCard({
 
   const PlayButton = useCallback(() => {
     return (
-      <Pressable
-        style={[
-          styles.playButton,
-          !useLiquidGlass && { backgroundColor: theme.colors.mediaChrome },
-        ]}
-        onPress={handlePlay}
+      <GlassCard
+        radius={9999}
+        style={styles.playButton}
+        fallbackBackgroundColor={theme.colors.mediaChrome}
+        isInteractive
       >
-        <Ionicons name="play" size={32} color="#fff" />
-      </Pressable>
+        <Pressable style={styles.playButtonInner} onPress={handlePlay}>
+          <Ionicons name="play" size={32} color="#fff" />
+        </Pressable>
+      </GlassCard>
     );
-  }, [handlePlay, theme.colors.mediaChrome, useLiquidGlass]);
+  }, [handlePlay, theme.colors.mediaChrome]);
 
   const CardComp = useCallback(
     () => (
@@ -122,12 +122,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
         onLongPress={handleLongPressStart}
         onPressOut={handleLongPressEnd}
       >
-        <GlassView
-          style={[styles.cardGlass, !useLiquidGlass && { backgroundColor: theme.colors.surface }]}
-          glassEffectStyle="regular"
-          tintColor="rgba(255,255,255,0.10)"
-        >
-          <View pointerEvents="none" style={styles.cardRim} />
+        <ShadowedGlassCard radius={12}>
           <View style={[styles.coverContainer, { backgroundColor: theme.colors.surfaceMuted }]}>
             <ItemImage
               uri={imageUrl}
@@ -143,14 +138,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
               cachePolicy="memory-disk"
               contentFit="cover"
             />
-            {showPlayButton &&
-              (useLiquidGlass ? (
-                <GlassView style={styles.playButton} glassEffectStyle="regular" isInteractive>
-                  <PlayButton />
-                </GlassView>
-              ) : (
-                <PlayButton />
-              ))}
+            {showPlayButton && <PlayButton />}
             {isPlayed && (
               <View
                 style={[
@@ -209,7 +197,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
               </Text>
             </View>
           )}
-        </GlassView>
+        </ShadowedGlassCard>
       </Pressable>
     ),
     [
@@ -231,7 +219,6 @@ export const EpisodeCard = React.memo(function EpisodeCard({
       showPlayButton,
       style,
       theme,
-      useLiquidGlass,
     ],
   );
 
@@ -284,7 +271,6 @@ export const SeriesCard = React.memo(function SeriesCard({
 }) {
   const theme = useAppTheme();
   const router = useRouter();
-  const useLiquidGlass = isLiquidGlassAvailable();
   const [isLongPressing, setIsLongPressing] = useState(false);
 
   const mediaAdapter = useMediaAdapter();
@@ -348,12 +334,7 @@ export const SeriesCard = React.memo(function SeriesCard({
           onLongPress={handleLongPressStart}
           onPressOut={handleLongPressEnd}
         >
-          <GlassView
-            style={[styles.cardGlass, !useLiquidGlass && { backgroundColor: theme.colors.surface }]}
-            glassEffectStyle="regular"
-            tintColor="rgba(255,255,255,0.10)"
-          >
-            <View pointerEvents="none" style={styles.cardRim} />
+          <ShadowedGlassCard radius={12}>
             <ItemImage
               uri={imageUrl}
               style={[
@@ -392,7 +373,7 @@ export const SeriesCard = React.memo(function SeriesCard({
                 </Text>
               )}
             </View>
-          </GlassView>
+          </ShadowedGlassCard>
         </Pressable>
       </Trigger>
       <Content>
@@ -425,30 +406,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderCurve: 'continuous',
     backgroundColor: 'transparent',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 3,
-  },
-  cardGlass: {
-    width: '100%',
-    borderRadius: 12,
-    borderCurve: 'continuous',
-    overflow: 'hidden',
-  },
-  cardRim: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    borderRadius: 12,
-    borderCurve: 'continuous',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.68)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    zIndex: 2,
   },
   coverContainer: {
     position: 'relative',
@@ -494,11 +451,13 @@ const styles = StyleSheet.create({
     transform: [{ translateX: '-50%' }, { translateY: '-50%' }],
     width: 48,
     height: 48,
-    borderRadius: 9999,
-    justifyContent: 'center',
-    alignItems: 'center',
     zIndex: 3,
-    overflow: 'hidden',
+  },
+  playButtonInner: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardCopy: {
     paddingHorizontal: 10,

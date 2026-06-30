@@ -1,14 +1,14 @@
 import { AvatarImage } from '@/components/AvatarImage';
 import PageScrollView from '@/components/PageScrollView';
 import { AddServerMenu } from '@/components/servers/AddServerMenu';
+import { GlassCard, ShadowedGlassCard } from '@/components/ui/GlassCard';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/design-system';
 import { MediaServerInfo, type MediaServerType } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   Alert,
   Animated,
@@ -143,6 +143,32 @@ function OnlineStatusDot() {
   );
 }
 
+function ServerCardAction({
+  accessibilityLabel,
+  children,
+  onPress,
+}: {
+  accessibilityLabel: string;
+  children: ReactNode;
+  onPress: () => void;
+}) {
+  return (
+    <GlassCard radius={15} style={styles.iconAction}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        onPress={(event) => {
+          event.stopPropagation();
+          onPress();
+        }}
+        style={({ pressed }) => [styles.iconActionInner, pressed && styles.pressed]}
+      >
+        {children}
+      </Pressable>
+    </GlassCard>
+  );
+}
+
 function ServerCard({
   server,
   isCurrent,
@@ -158,93 +184,16 @@ function ServerCard({
 }) {
   const theme = useAppTheme();
   const gradient = getServerGradient(server, isCurrent);
-  const useGlass = isLiquidGlassAvailable();
-
-  if (useGlass) {
-    return (
-      <GlassView style={styles.serverCard} glassEffectStyle="regular">
-        <LinearGradient
-          colors={gradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[StyleSheet.absoluteFill, styles.gradientOverlay]}
-          pointerEvents="none"
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`进入 ${server.name} 媒体库`}
-          onPress={onOpen}
-          style={({ pressed }) => [styles.cardOpenArea, pressed && styles.pressed]}
-        >
-          <View pointerEvents="none" style={styles.cardOpenContent}>
-            <View style={styles.cardHeader}>
-              <View style={styles.cardTitleWrap}>
-                <View style={styles.serverNameRow}>
-                  <OnlineStatusDot />
-                  <Text numberOfLines={2} style={[styles.serverName, { color: theme.colors.text }]}>
-                    {server.name}
-                  </Text>
-                </View>
-                <View style={styles.serverSubtitleRow}>
-                  <ServerAvatar server={server} />
-                  <Text
-                    numberOfLines={1}
-                    style={[styles.serverSubtitle, { color: theme.colors.textSecondary }]}
-                  >
-                    {server.username}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        </Pressable>
-
-        <View style={styles.cardFooter}>
-          <Text style={[styles.ageText, { color: theme.colors.textSecondary }]}>
-            {formatServerAge(server.createdAt)}
-          </Text>
-          <View style={styles.footerActions}>
-            <>
-              <GlassView glassEffectStyle="regular" style={styles.iconAction}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`配置 ${server.name}`}
-                  onPress={(event) => {
-                    event.stopPropagation();
-                    onConfig();
-                  }}
-                  style={({ pressed }) => [styles.iconActionInner, pressed && styles.pressed]}
-                >
-                  <Ionicons name="settings-outline" size={16} color={theme.colors.textSecondary} />
-                </Pressable>
-              </GlassView>
-              <GlassView glassEffectStyle="regular" style={styles.iconAction}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`删除 ${server.name}`}
-                  onPress={(event) => {
-                    event.stopPropagation();
-                    onRemove();
-                  }}
-                  style={({ pressed }) => [styles.iconActionInner, pressed && styles.pressed]}
-                >
-                  <Ionicons name="trash-outline" size={16} color={theme.colors.danger} />
-                </Pressable>
-              </GlassView>
-            </>
-          </View>
-        </View>
-      </GlassView>
-    );
-  }
 
   return (
-    <LinearGradient
-      colors={gradient}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[styles.serverCard, { borderRadius: 20 }]}
-    >
+    <GlassCard radius={22} style={styles.serverCard}>
+      <LinearGradient
+        colors={gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[StyleSheet.absoluteFill, styles.gradientOverlay]}
+        pointerEvents="none"
+      />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`进入 ${server.name} 媒体库`}
@@ -279,39 +228,15 @@ function ServerCard({
           {formatServerAge(server.createdAt)}
         </Text>
         <View style={styles.footerActions}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`配置 ${server.name}`}
-            onPress={(event) => {
-              event.stopPropagation();
-              onConfig();
-            }}
-            style={({ pressed }) => [
-              styles.iconAction,
-              { backgroundColor: theme.colors.surface },
-              pressed && styles.pressed,
-            ]}
-          >
+          <ServerCardAction accessibilityLabel={`配置 ${server.name}`} onPress={onConfig}>
             <Ionicons name="settings-outline" size={16} color={theme.colors.textSecondary} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`删除 ${server.name}`}
-            onPress={(event) => {
-              event.stopPropagation();
-              onRemove();
-            }}
-            style={({ pressed }) => [
-              styles.iconAction,
-              { backgroundColor: theme.colors.surface },
-              pressed && styles.pressed,
-            ]}
-          >
+          </ServerCardAction>
+          <ServerCardAction accessibilityLabel={`删除 ${server.name}`} onPress={onRemove}>
             <Ionicons name="trash-outline" size={16} color={theme.colors.danger} />
-          </Pressable>
+          </ServerCardAction>
         </View>
       </View>
-    </LinearGradient>
+    </GlassCard>
   );
 }
 
@@ -321,7 +246,6 @@ export default function ServersScreen() {
   const navigation = useNavigation();
   const { servers, removeServer, setCurrentServer, currentServer } = useMediaServers();
   const { width: viewportWidth } = useWindowDimensions();
-  const useGlass = isLiquidGlassAvailable();
   const serverGridGap = theme.spacing.md;
 
   const sortedServers = useMemo(
@@ -407,26 +331,17 @@ export default function ServersScreen() {
             ))}
           </View>
         ) : (
-          <View style={styles.emptyCardShadow}>
-            <GlassView
-              style={[
-                styles.emptyCard,
-                !useGlass && { backgroundColor: theme.colors.surface },
-                {
-                  borderColor: useGlass ? 'rgba(255,255,255,0.64)' : theme.colors.separator,
-                },
-              ]}
-              glassEffectStyle="regular"
-              tintColor="rgba(255,255,255,0.10)"
-            >
-              <View pointerEvents="none" style={styles.emptyCardRim} />
-              <CardText variant="title">还没有服务器</CardText>
-              <CardText lines={2}>
-                添加 Jellyfin 或 Emby 账号后，就可以浏览媒体库和播放记录。
-              </CardText>
-              <AddServerMenu onSelect={openAddServer} variant="text" />
-            </GlassView>
-          </View>
+          <ShadowedGlassCard
+            radius={24}
+            containerStyle={styles.emptyCardShadow}
+            style={styles.emptyCard}
+          >
+            <CardText variant="title">还没有服务器</CardText>
+            <CardText lines={2}>
+              添加 Jellyfin 或 Emby 账号后，就可以浏览媒体库和播放记录。
+            </CardText>
+            <AddServerMenu onSelect={openAddServer} variant="text" />
+          </ShadowedGlassCard>
         )}
       </PageScrollView>
     </>
@@ -454,8 +369,6 @@ const styles = StyleSheet.create({
   },
   serverCard: {
     height: 132,
-    overflow: 'hidden',
-    borderRadius: 22,
     padding: 14,
   },
   gradientOverlay: {
@@ -556,7 +469,6 @@ const styles = StyleSheet.create({
   iconAction: {
     width: 30,
     height: 30,
-    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -568,33 +480,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyCardShadow: {
-    borderRadius: 24,
-    borderCurve: 'continuous',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
     shadowRadius: 22,
     elevation: 3,
   },
   emptyCard: {
     gap: 10,
-    borderRadius: 24,
-    borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
+    borderColor: 'rgba(255,255,255,0.64)',
     padding: 20,
-  },
-  emptyCardRim: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    borderRadius: 24,
-    borderCurve: 'continuous',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.72)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   pressed: {
     opacity: 0.72,

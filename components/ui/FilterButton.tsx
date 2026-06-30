@@ -1,11 +1,11 @@
 import { useSettingsColors } from '@/hooks/useSettingsColors';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MenuAction, MenuView } from '@react-native-menu/menu';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '../ThemedText';
+import { GlassCard } from './GlassCard';
 
 const emptyFilterValue = '__all__';
 
@@ -21,7 +21,6 @@ export const FilterButton = ({
   onSelect: (value?: string) => void;
 }) => {
   const { secondaryTextColor } = useSettingsColors();
-  const useLiquidGlass = isLiquidGlassAvailable();
   const menuActions = useMemo<MenuAction[]>(
     () =>
       options.map((option) => ({
@@ -41,18 +40,13 @@ export const FilterButton = ({
         onSelect(nativeEvent.event === emptyFilterValue ? undefined : nativeEvent.event);
       }}
     >
-      <GlassView
-        style={[
-          styles.chip,
-          !useLiquidGlass && {
-            backgroundColor: 'rgba(127,127,127,0.14)',
-          },
-        ]}
-        glassEffectStyle="regular"
+      <GlassCard
+        radius={999}
+        style={styles.chip}
+        fallbackBackgroundColor="rgba(127,127,127,0.14)"
         isInteractive
         tintColor="rgba(255,255,255,0.12)"
       >
-        <View pointerEvents="none" style={styles.glassRim} />
         <Pressable style={styles.pressable}>
           <View style={styles.content}>
             <ThemedText style={styles.chipText} type="subtitle">
@@ -61,7 +55,7 @@ export const FilterButton = ({
             <Ionicons name="chevron-down" size={12} color={secondaryTextColor} />
           </View>
         </Pressable>
-      </GlassView>
+      </GlassCard>
     </MenuView>
   );
 };
@@ -77,11 +71,7 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     elevation: 4,
   },
-  chip: {
-    borderRadius: 999,
-    borderCurve: 'continuous',
-    overflow: 'hidden',
-  },
+  chip: {},
   pressable: {
     paddingHorizontal: 13,
     paddingVertical: 8,
@@ -93,17 +83,5 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 12,
-  },
-  glassRim: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    borderRadius: 999,
-    borderCurve: 'continuous',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.72)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
   },
 });

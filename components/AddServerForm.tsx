@@ -4,19 +4,11 @@ import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/design-system';
 import type { MediaServerType } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { forwardRef, useCallback, useImperativeHandle, useState, type ReactNode } from 'react';
-import {
-  Alert,
-  Pressable,
-  StyleProp,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { z } from 'zod';
+
+import { GlassCard } from './ui/GlassCard';
 
 export interface AddServerFormHandle {
   submit: () => Promise<void>;
@@ -103,32 +95,10 @@ function FormSection({ title, children }: { title?: string; children: ReactNode 
       {title ? (
         <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>{title}</Text>
       ) : null}
-      <GlassCard style={styles.sectionCard}>{children}</GlassCard>
+      <GlassCard radius={24} style={styles.sectionCard}>
+        {children}
+      </GlassCard>
     </View>
-  );
-}
-
-function GlassCard({
-  children,
-  style,
-  rimStyle,
-}: {
-  children: ReactNode;
-  style?: StyleProp<ViewStyle>;
-  rimStyle?: StyleProp<ViewStyle>;
-}) {
-  const theme = useAppTheme();
-  const useLiquidGlass = isLiquidGlassAvailable();
-
-  return (
-    <GlassView
-      style={[style, !useLiquidGlass && { backgroundColor: theme.colors.surface }]}
-      glassEffectStyle="regular"
-      tintColor="rgba(255,255,255,0.10)"
-    >
-      <View pointerEvents="none" style={[styles.glassCardRim, rimStyle]} />
-      {children}
-    </GlassView>
   );
 }
 
@@ -284,7 +254,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
         style={{ backgroundColor: theme.colors.backgroundGrouped }}
         contentContainerStyle={styles.container}
       >
-        <GlassCard style={styles.identityCard}>
+        <GlassCard radius={24} style={styles.identityCard}>
           <View style={[styles.identityIcon, { backgroundColor: theme.colors.surfaceMuted }]}>
             <ServerTypeIcon type={serverType} size={30} />
           </View>
@@ -397,6 +367,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
 
         {formError ? (
           <GlassCard
+            radius={18}
             style={[
               styles.errorCard,
               {
@@ -428,9 +399,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    borderRadius: 24,
-    borderCurve: 'continuous',
-    overflow: 'hidden',
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
@@ -466,23 +434,8 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   sectionCard: {
-    overflow: 'hidden',
-    borderRadius: 24,
-    borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.58)',
-  },
-  glassCardRim: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    borderRadius: 24,
-    borderCurve: 'continuous',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.72)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   rowOuter: {
     minHeight: 58,
@@ -538,14 +491,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 18,
-    borderCurve: 'continuous',
-    overflow: 'hidden',
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
   errorCardRim: {
-    borderRadius: 18,
     borderColor: 'rgba(255,255,255,0.48)',
   },
   errorText: {

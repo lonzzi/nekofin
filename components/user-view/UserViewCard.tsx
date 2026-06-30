@@ -1,12 +1,12 @@
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useAppTheme } from '@/lib/design-system';
 import { MediaItem } from '@/services/media/types';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ShadowedGlassCard } from '../ui/GlassCard';
 import { IconSymbol } from '../ui/IconSymbol';
 
 export const UserViewCard = React.memo(function UserViewCard({
@@ -18,7 +18,6 @@ export const UserViewCard = React.memo(function UserViewCard({
 }) {
   const router = useRouter();
   const theme = useAppTheme();
-  const useLiquidGlass = isLiquidGlassAvailable();
 
   const mediaAdapter = useMediaAdapter();
 
@@ -38,12 +37,7 @@ export const UserViewCard = React.memo(function UserViewCard({
 
   return (
     <Pressable style={styles.userViewCard} onPress={handlePress}>
-      <GlassView
-        style={[styles.cardGlass, !useLiquidGlass && { backgroundColor: theme.colors.surface }]}
-        glassEffectStyle="regular"
-        tintColor="rgba(255,255,255,0.10)"
-      >
-        <View pointerEvents="none" style={styles.cardRim} />
+      <ShadowedGlassCard radius={14}>
         {imageInfo.url ? (
           <Image
             source={{ uri: imageInfo.url }}
@@ -76,7 +70,7 @@ export const UserViewCard = React.memo(function UserViewCard({
             {title}
           </Text>
         </View>
-      </GlassView>
+      </ShadowedGlassCard>
     </Pressable>
   );
 });
@@ -84,33 +78,6 @@ export const UserViewCard = React.memo(function UserViewCard({
 const styles = StyleSheet.create({
   userViewCard: {
     width: 200,
-    borderRadius: 14,
-    borderCurve: 'continuous',
-    backgroundColor: 'transparent',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 3,
-  },
-  cardGlass: {
-    width: '100%',
-    borderRadius: 14,
-    borderCurve: 'continuous',
-    overflow: 'hidden',
-  },
-  cardRim: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    borderRadius: 14,
-    borderCurve: 'continuous',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.68)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    zIndex: 2,
   },
   userViewInfo: {
     paddingHorizontal: 10,

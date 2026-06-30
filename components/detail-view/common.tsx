@@ -3,13 +3,14 @@ import { formatChineseDurationFromTicks } from '@/lib/utils';
 import { MediaItem } from '@/services/media/types';
 import { BottomSheet, RNHostView } from '@expo/ui';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextLayoutEvent, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { ThemedText } from '../ThemedText';
+import { GlassCard, ShadowedGlassCard } from '../ui/GlassCard';
 
 const detailDateFormatter = new Intl.DateTimeFormat('zh-CN', {
   year: 'numeric',
@@ -66,59 +67,57 @@ export const PlayButton = ({ item }: { item: MediaItem }) => {
   }));
 
   return (
-    <View style={detailViewStyles.playButtonShadow}>
-      <GlassView
-        style={[
-          detailViewStyles.playButton,
-          useLiquidGlass
-            ? { borderColor: `${accentColor}55`, backgroundColor: 'transparent' }
-            : { borderColor: accentColor, backgroundColor: accentColor },
-        ]}
-        glassEffectStyle="regular"
-        isInteractive
-        tintColor={useLiquidGlass ? `${accentColor}18` : undefined}
+    <ShadowedGlassCard
+      radius={radius.pill}
+      containerStyle={detailViewStyles.playButtonShadow}
+      style={[
+        detailViewStyles.playButton,
+        useLiquidGlass
+          ? { borderColor: `${accentColor}55`, backgroundColor: 'transparent' }
+          : { borderColor: accentColor, backgroundColor: accentColor },
+      ]}
+      isInteractive
+      tintColor={useLiquidGlass ? `${accentColor}18` : undefined}
+      rimStyle={detailViewStyles.playButtonRim}
+    >
+      {progressPercent > 0 && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            detailViewStyles.playButtonProgressFill,
+            {
+              backgroundColor: useLiquidGlass ? `${accentColor}26` : accentColor,
+              borderRadius: 999,
+            },
+            animatedStyle,
+          ]}
+        />
+      )}
+      <Pressable
+        onPress={() => {
+          router.push({ pathname: '/player', params: { itemId: item.id! } });
+        }}
+        style={detailViewStyles.playButtonPressable}
       >
-        <View pointerEvents="none" style={detailViewStyles.playButtonRim} />
-        {progressPercent > 0 && (
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              detailViewStyles.playButtonProgressFill,
-              {
-                backgroundColor: useLiquidGlass ? `${accentColor}26` : accentColor,
-                borderRadius: 999,
-              },
-              animatedStyle,
-            ]}
-          />
-        )}
-        <Pressable
-          onPress={() => {
-            router.push({ pathname: '/player', params: { itemId: item.id! } });
-          }}
-          style={detailViewStyles.playButtonPressable}
+        <View
+          style={[
+            detailViewStyles.playButtonIcon,
+            { backgroundColor: useLiquidGlass ? `${accentColor}18` : 'rgba(255,255,255,0.2)' },
+          ]}
         >
-          <View
-            style={[
-              detailViewStyles.playButtonIcon,
-              { backgroundColor: useLiquidGlass ? `${accentColor}18` : 'rgba(255,255,255,0.2)' },
-            ]}
-          >
-            <Ionicons name="play" size={13} color={textColor} />
-          </View>
-          <Text style={[detailViewStyles.playButtonLabel, { color: textColor }]} numberOfLines={1}>
-            {buttonLabel}
-          </Text>
-        </Pressable>
-      </GlassView>
-    </View>
+          <Ionicons name="play" size={13} color={textColor} />
+        </View>
+        <Text style={[detailViewStyles.playButtonLabel, { color: textColor }]} numberOfLines={1}>
+          {buttonLabel}
+        </Text>
+      </Pressable>
+    </ShadowedGlassCard>
   );
 };
 
 export const ItemMeta = ({ item }: { item: MediaItem }) => {
   const theme = useAppTheme();
   const textColor = theme.colors.text;
-  const useLiquidGlass = isLiquidGlassAvailable();
 
   const ratingText = useMemo(() => {
     if (typeof item?.communityRating === 'number') return item.communityRating.toFixed(1);
@@ -134,15 +133,11 @@ export const ItemMeta = ({ item }: { item: MediaItem }) => {
   if (!ratingText && !yearText) return null;
 
   return (
-    <GlassView
-      style={[
-        detailViewStyles.metaPill,
-        !useLiquidGlass && { backgroundColor: theme.colors.surface },
-      ]}
-      glassEffectStyle="regular"
-      tintColor="rgba(255,255,255,0.10)"
+    <GlassCard
+      radius={radius.pill}
+      style={detailViewStyles.metaPill}
+      rimStyle={detailViewStyles.metaPillRim}
     >
-      <View pointerEvents="none" style={detailViewStyles.metaPillRim} />
       <Text style={[detailViewStyles.meta, { color: textColor }]}>
         {ratingText ? (
           <>
@@ -154,7 +149,7 @@ export const ItemMeta = ({ item }: { item: MediaItem }) => {
           <>{yearText}</>
         )}
       </Text>
-    </GlassView>
+    </GlassCard>
   );
 };
 
@@ -215,7 +210,6 @@ export const ItemOverview = ({ item }: { item: MediaItem }) => {
 export const ItemInfoList = ({ item }: { item: MediaItem }) => {
   const theme = useAppTheme();
   const subtitleColor = theme.colors.textSecondary;
-  const useLiquidGlass = isLiquidGlassAvailable();
 
   const infoRows = useMemo(() => {
     const primary = item?.genres && item.genres.length > 0 ? item.genres : undefined;
@@ -269,22 +263,18 @@ export const ItemInfoList = ({ item }: { item: MediaItem }) => {
   if (infoRows.length === 0) return null;
 
   return (
-    <GlassView
-      style={[
-        detailViewStyles.infoBlock,
-        !useLiquidGlass && { backgroundColor: theme.colors.surface },
-      ]}
-      glassEffectStyle="regular"
-      tintColor="rgba(255,255,255,0.10)"
+    <GlassCard
+      radius={radius.lg}
+      style={detailViewStyles.infoBlock}
+      rimStyle={detailViewStyles.infoBlockRim}
     >
-      <View pointerEvents="none" style={detailViewStyles.infoBlockRim} />
       {infoRows.map((row) => (
         <View key={row.label} style={detailViewStyles.infoRow}>
           <Text style={[detailViewStyles.infoLabel, { color: subtitleColor }]}>{row.label}</Text>
           <ThemedText style={detailViewStyles.infoValue}>{row.value}</ThemedText>
         </View>
       ))}
-    </GlassView>
+    </GlassCard>
   );
 };
 
@@ -324,21 +314,10 @@ export const detailViewStyles = StyleSheet.create({
   },
   metaPill: {
     alignSelf: 'flex-start',
-    borderRadius: radius.pill,
-    borderCurve: 'continuous',
-    overflow: 'hidden',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
   },
   metaPillRim: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    borderRadius: radius.pill,
-    borderCurve: 'continuous',
-    borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.68)',
     backgroundColor: 'rgba(255,255,255,0.03)',
   },
@@ -371,23 +350,11 @@ export const detailViewStyles = StyleSheet.create({
   },
   infoBlock: {
     marginTop: spacing.xs,
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    overflow: 'hidden',
     padding: spacing.md,
     rowGap: spacing.sm,
   },
   infoBlockRim: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.64)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   infoRow: {
     flexDirection: 'row',
@@ -407,32 +374,16 @@ export const detailViewStyles = StyleSheet.create({
   playButtonShadow: {
     marginTop: spacing.xs,
     width: '100%',
-    borderRadius: radius.pill,
-    borderCurve: 'continuous',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
     shadowRadius: 14,
-    elevation: 3,
   },
   playButton: {
     width: '100%',
-    borderRadius: radius.pill,
-    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    overflow: 'hidden',
   },
   playButtonRim: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    borderRadius: radius.pill,
-    borderCurve: 'continuous',
-    borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.72)',
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
