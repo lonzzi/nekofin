@@ -400,12 +400,15 @@ export function ItemGridScreen({
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.4}
-        contentContainerStyle={{
-          paddingBottom: Platform.OS === 'android' ? 100 : 0,
-          paddingHorizontal: theme.spacing.page,
-          paddingVertical: theme.spacing.xl,
-          rowGap: theme.spacing.lg,
-        }}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingBottom: Platform.OS === 'android' ? 100 : 0,
+            paddingHorizontal: theme.spacing.page,
+            paddingVertical: theme.spacing.xl,
+            rowGap: theme.spacing.lg,
+          },
+        ]}
         ListHeaderComponent={renderFilterBar()}
         ListFooterComponent={listFooter}
         ListEmptyComponent={
@@ -423,10 +426,13 @@ export function ItemGridScreen({
   return (
     <ScrollView
       style={{ backgroundColor }}
-      contentContainerStyle={{
-        paddingHorizontal: theme.spacing.page,
-        paddingVertical: theme.spacing.xl,
-      }}
+      contentContainerStyle={[
+        styles.scrollContent,
+        {
+          paddingHorizontal: theme.spacing.page,
+          paddingVertical: theme.spacing.xl,
+        },
+      ]}
       showsVerticalScrollIndicator={false}
       contentInsetAdjustmentBehavior="automatic"
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -451,6 +457,9 @@ export function ItemGridScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   filterRow: {
     flexDirection: 'row',

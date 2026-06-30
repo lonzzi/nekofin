@@ -44,10 +44,12 @@ export default function ParallaxScrollView({
   blurTint = Platform.OS === 'ios' ? 'systemChromeMaterialDark' : 'systemMaterialDark',
   containerStyle,
   contentStyle,
+  contentContainerStyle,
   maskViewStyle,
   gradientStyle,
   gradientColors,
   gradientLocations,
+  style,
   ...props
 }: Props) {
   const colorScheme = useColorScheme() ?? 'light';
@@ -99,7 +101,8 @@ export default function ParallaxScrollView({
 
   return (
     <Animated.ScrollView
-      style={[styles.container, containerStyle]}
+      style={[styles.container, containerStyle, style]}
+      contentContainerStyle={[styles.scrollContent, contentContainerStyle]}
       ref={scrollRef}
       scrollEventThrottle={16}
       {...props}
@@ -183,6 +186,9 @@ export default function ParallaxScrollView({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   header: {
     overflow: 'hidden',

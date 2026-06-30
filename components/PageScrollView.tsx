@@ -35,7 +35,11 @@ export default function PageScrollView({
         ...scrollIndicatorInsets,
         bottom: (scrollIndicatorInsets?.bottom ?? 0) + bottomContentInset,
       }}
-      contentContainerStyle={[contentContainerStyle, { paddingBottom: bottomContentPadding }]}
+      contentContainerStyle={[
+        styles.contentContainer,
+        contentContainerStyle,
+        { paddingBottom: bottomContentPadding },
+      ]}
       {...scrollViewProps}
     >
       {children}
@@ -53,3 +57,9 @@ function getNumericPaddingBottom(style?: {
   if (typeof style?.padding === 'number') return style.padding;
   return 0;
 }
+
+const styles = StyleSheet.create({
+  contentContainer: {
+    flexGrow: 1,
+  },
+});
