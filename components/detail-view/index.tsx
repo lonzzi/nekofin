@@ -12,7 +12,6 @@ import { useNavigation } from 'expo-router';
 import { HeaderButton } from 'expo-router/react-navigation';
 import { useEffect, useState } from 'react';
 import { RefreshControl, Text, useWindowDimensions, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ItemImage } from '../ItemImage';
 import { SkeletonDetailContent, SkeletonDetailHeader } from '../ui/Skeleton';
@@ -31,7 +30,6 @@ export type DetailViewProps = {
 
 function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const navigation = useNavigation();
-  const insets = useSafeAreaInsets();
   const { currentServer } = useMediaServers();
   const theme = useAppTheme();
   const backgroundColor = theme.colors.background;
@@ -44,7 +42,6 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
 
   const { width: windowWidth } = useWindowDimensions();
   const headerHeight = useMediaHeroHeight();
-  const bottomScrollInset = insets.bottom + theme.spacing.xl;
   const detailLogoWidth = Math.min(windowWidth * 0.72, 300);
 
   const mediaAdapter = useMediaAdapter();
@@ -200,8 +197,6 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     <ParallaxScrollView
       headerHeight={headerHeight}
       showsVerticalScrollIndicator={false}
-      contentInset={{ bottom: bottomScrollInset }}
-      scrollIndicatorInsets={{ bottom: bottomScrollInset }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       headerBackgroundColor={{
         light: theme.colors.surfaceMuted,

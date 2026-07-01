@@ -1,4 +1,4 @@
-import { CarouselHeader } from '@/components/home/CarouselHeader';
+import { useCarouselHeaderLayers } from '@/components/home/CarouselHeader';
 import { Section } from '@/components/media/Section';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
@@ -13,16 +13,13 @@ import { useNavigation, useRouter } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const { servers, currentServer, isInitialized } = useMediaServers();
   const navigation = useNavigation();
-  const insets = useSafeAreaInsets();
   const theme = useAppTheme();
   const backgroundColor = theme.colors.background;
   const carouselHeight = useMediaHeroHeight();
-  const bottomScrollInset = insets.bottom + theme.spacing.xl;
 
   const router = useRouter();
 
@@ -87,17 +84,12 @@ export default function HomeScreen() {
     return handlers;
   }, [sections, router]);
 
-  const headerImage = useMemo(
-    () => (
-      <CarouselHeader
-        items={carouselItems}
-        height={carouselHeight}
-        isFocused={isFocused}
-        isLoading={randomItemsQuery.isLoading}
-      />
-    ),
-    [carouselItems, carouselHeight, isFocused, randomItemsQuery.isLoading],
-  );
+  const { headerImage, headerOverlay } = useCarouselHeaderLayers({
+    items: carouselItems,
+    height: carouselHeight,
+    isFocused,
+    isLoading: randomItemsQuery.isLoading,
+  });
 
   if (servers.length === 0 && isInitialized) {
     return (
@@ -137,12 +129,11 @@ export default function HomeScreen() {
   return (
     <ParallaxScrollView
       showsVerticalScrollIndicator={false}
-      contentInset={{ bottom: bottomScrollInset }}
-      scrollIndicatorInsets={{ bottom: bottomScrollInset }}
       style={{ flex: 1, backgroundColor }}
       headerHeight={carouselHeight}
       contentStyle={{ gap: theme.spacing.xs, paddingBottom: theme.spacing.lg, backgroundColor }}
       headerImage={headerImage}
+      headerOverlay={headerOverlay}
     >
       <View style={[styles.content, { gap: theme.spacing.lg, marginTop: theme.spacing.md }]}>
         {sections.map((section) => {

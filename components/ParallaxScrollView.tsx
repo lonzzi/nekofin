@@ -4,7 +4,15 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import { BlurTint, BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { PropsWithChildren, ReactElement } from 'react';
-import { Easing, Platform, ScrollViewProps, StyleProp, StyleSheet, ViewStyle } from 'react-native';
+import {
+  Easing,
+  Platform,
+  ScrollViewProps,
+  StyleProp,
+  StyleSheet,
+  View,
+  ViewStyle,
+} from 'react-native';
 import { easeGradient } from 'react-native-easing-gradient';
 import Animated, {
   Extrapolation,
@@ -18,6 +26,7 @@ const HEADER_HEIGHT = 450;
 
 type Props = PropsWithChildren<{
   headerImage: ReactElement;
+  headerOverlay?: ReactElement | null;
   headerBackgroundColor?: { dark: string; light: string };
   headerHeight?: number;
   enableMaskView?: boolean;
@@ -36,6 +45,7 @@ type Props = PropsWithChildren<{
 export default function ParallaxScrollView({
   children,
   headerImage,
+  headerOverlay,
   headerBackgroundColor,
   headerHeight = HEADER_HEIGHT,
   enableMaskView = false,
@@ -45,6 +55,8 @@ export default function ParallaxScrollView({
   containerStyle,
   contentStyle,
   contentContainerStyle,
+  automaticallyAdjustContentInsets = false,
+  automaticallyAdjustsScrollIndicatorInsets = false,
   contentInsetAdjustmentBehavior = 'never',
   maskViewStyle,
   gradientStyle,
@@ -104,23 +116,31 @@ export default function ParallaxScrollView({
     <Animated.ScrollView
       style={[styles.container, containerStyle, style]}
       contentContainerStyle={[styles.scrollContent, contentContainerStyle]}
+      automaticallyAdjustContentInsets={automaticallyAdjustContentInsets}
+      automaticallyAdjustsScrollIndicatorInsets={automaticallyAdjustsScrollIndicatorInsets}
       contentInsetAdjustmentBehavior={contentInsetAdjustmentBehavior}
       ref={scrollRef}
       scrollEventThrottle={8}
       {...props}
     >
-      <Animated.View
+      <View
         style={[
           styles.header,
           {
             backgroundColor: headerBackgroundColor?.[colorScheme === 'dark' ? 'dark' : 'light'],
             height: headerHeight,
           },
-          headerAnimatedStyle,
         ]}
       >
-        {headerImage}
-      </Animated.View>
+        <Animated.View style={[styles.headerMedia, headerAnimatedStyle]}>
+          {headerImage}
+        </Animated.View>
+        {!!headerOverlay && (
+          <View pointerEvents="box-none" style={styles.headerOverlay}>
+            {headerOverlay}
+          </View>
+        )}
+      </View>
       {enableMaskView ? (
         <ThemedView
           style={[
@@ -193,11 +213,21 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   header: {
-    overflow: 'hidden',
     position: 'relative',
   },
+  headerMedia: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
   headerOverlay: {
-    ...StyleSheet.absoluteFill,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
   },
   content: {
     flex: 1,

@@ -213,7 +213,7 @@ function CarouselGradientScrim() {
   );
 }
 
-export function CarouselHeader({
+export function useCarouselHeaderLayers({
   items,
   height,
   isFocused,
@@ -584,7 +584,7 @@ export function CarouselHeader({
     autoTargetIndex != null ? carouselImageInfos[autoTargetIndex] : undefined;
   const showSkeleton = isLoading && !hasImages;
 
-  return (
+  const headerImage = (
     <View style={[styles.container, { height }]}>
       {showSkeleton && <SkeletonMediaHero />}
       {!showSkeleton && !hasImages && (
@@ -635,62 +635,78 @@ export function CarouselHeader({
             )}
 
             <CarouselGradientScrim />
-
-            {!!currentItem && (
-              <Animated.View
-                pointerEvents="none"
-                style={[styles.overlayFrame, currentOverlayStyle]}
-              >
-                <CarouselOverlay
-                  activeIndex={carouselIndex}
-                  imageInfo={currentImageInfo}
-                  item={currentItem}
-                  items={items}
-                  showLogo={showLogo}
-                />
-              </Animated.View>
-            )}
-
-            {autoTargetIndex != null && !!autoTargetItem && (
-              <Animated.View pointerEvents="none" style={[styles.overlayFrame, autoOverlayStyle]}>
-                <CarouselOverlay
-                  activeIndex={autoTargetIndex}
-                  imageInfo={autoTargetImageInfo}
-                  item={autoTargetItem}
-                  items={items}
-                  showLogo={showLogo}
-                />
-              </Animated.View>
-            )}
-
-            {canReveal && isGestureOverlayVisible && !!items[nextIndex] && (
-              <Animated.View pointerEvents="none" style={[styles.overlayFrame, nextOverlayStyle]}>
-                <CarouselOverlay
-                  activeIndex={nextIndex}
-                  imageInfo={carouselImageInfos[nextIndex]}
-                  item={items[nextIndex]}
-                  items={items}
-                  showLogo={showLogo}
-                />
-              </Animated.View>
-            )}
-
-            {canReveal && isGestureOverlayVisible && !!items[previousIndex] && (
-              <Animated.View
-                pointerEvents="none"
-                style={[styles.overlayFrame, previousOverlayStyle]}
-              >
-                <CarouselOverlay
-                  activeIndex={previousIndex}
-                  imageInfo={carouselImageInfos[previousIndex]}
-                  item={items[previousIndex]}
-                  items={items}
-                  showLogo={showLogo}
-                />
-              </Animated.View>
-            )}
           </View>
         </GestureDetector>
+      )}
+    </View>
+  );
+
+  const headerOverlay =
+    !showSkeleton && hasImages ? (
+      <View pointerEvents="none" style={[styles.container, { height }]}>
+        {!!currentItem && (
+          <Animated.View pointerEvents="none" style={[styles.overlayFrame, currentOverlayStyle]}>
+            <CarouselOverlay
+              activeIndex={carouselIndex}
+              imageInfo={currentImageInfo}
+              item={currentItem}
+              items={items}
+              showLogo={showLogo}
+            />
+          </Animated.View>
+        )}
+
+        {autoTargetIndex != null && !!autoTargetItem && (
+          <Animated.View pointerEvents="none" style={[styles.overlayFrame, autoOverlayStyle]}>
+            <CarouselOverlay
+              activeIndex={autoTargetIndex}
+              imageInfo={autoTargetImageInfo}
+              item={autoTargetItem}
+              items={items}
+              showLogo={showLogo}
+            />
+          </Animated.View>
+        )}
+
+        {canReveal && isGestureOverlayVisible && !!items[nextIndex] && (
+          <Animated.View pointerEvents="none" style={[styles.overlayFrame, nextOverlayStyle]}>
+            <CarouselOverlay
+              activeIndex={nextIndex}
+              imageInfo={carouselImageInfos[nextIndex]}
+              item={items[nextIndex]}
+              items={items}
+              showLogo={showLogo}
+            />
+          </Animated.View>
+        )}
+
+        {canReveal && isGestureOverlayVisible && !!items[previousIndex] && (
+          <Animated.View pointerEvents="none" style={[styles.overlayFrame, previousOverlayStyle]}>
+            <CarouselOverlay
+              activeIndex={previousIndex}
+              imageInfo={carouselImageInfos[previousIndex]}
+              item={items[previousIndex]}
+              items={items}
+              showLogo={showLogo}
+            />
+          </Animated.View>
+        )}
+      </View>
+    ) : null;
+
+  return { headerImage, headerOverlay };
+}
+
+export function CarouselHeader(props: CarouselHeaderProps) {
+  const { headerImage, headerOverlay } = useCarouselHeaderLayers(props);
+
+  return (
+    <View style={[styles.container, { height: props.height }]}>
+      <View style={StyleSheet.absoluteFill}>{headerImage}</View>
+      {!!headerOverlay && (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          {headerOverlay}
+        </View>
       )}
     </View>
   );
