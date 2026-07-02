@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, type ComponentProps, type PropsWithChildren, type ReactElement } from 'react';
 import { Easing, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { easeGradient } from 'react-native-easing-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function getGradientColors(colors: string[]) {
   return colors as unknown as readonly [string, string, ...string[]];
@@ -65,6 +66,9 @@ export function HomeAtmosphereScrollView({
   isDark,
   style,
 }: HomeAtmosphereScrollViewProps) {
+  const insets = useSafeAreaInsets();
+  const headerOverscrollExtent = Math.max(insets.top + 160, 220);
+
   return (
     <View collapsable={false} style={[styles.container, { backgroundColor }, style]}>
       <View pointerEvents="none" style={styles.backdropLayer}>
@@ -77,12 +81,14 @@ export function HomeAtmosphereScrollView({
       </View>
 
       <ParallaxScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom }}
         showsVerticalScrollIndicator={false}
         style={styles.scroller}
         headerHeight={headerHeight}
         contentStyle={[styles.content, contentStyle]}
         headerImage={headerImage}
         headerMediaMaskElement={<HeaderMediaFadeMask />}
+        headerOverscrollExtent={headerOverscrollExtent}
         headerOverlay={headerOverlay}
       >
         {children}

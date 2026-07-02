@@ -42,6 +42,7 @@ type Props = PropsWithChildren<{
   gradientColors?: readonly [string, string, ...string[]];
   gradientLocations?: readonly [number, number, ...number[]];
   headerMediaMaskElement?: ReactElement | null;
+  headerOverscrollExtent?: number;
 }> &
   ScrollViewProps;
 
@@ -68,6 +69,7 @@ export default function ParallaxScrollView({
   gradientColors,
   gradientLocations,
   headerMediaMaskElement,
+  headerOverscrollExtent = 0,
   style,
   ...props
 }: Props) {
@@ -130,7 +132,15 @@ export default function ParallaxScrollView({
   );
 
   const headerMedia = (
-    <Animated.View style={[styles.headerMedia, headerAnimatedStyle]}>{headerImage}</Animated.View>
+    <Animated.View
+      style={[
+        styles.headerMedia,
+        { height: headerHeight, top: headerOverscrollExtent },
+        headerAnimatedStyle,
+      ]}
+    >
+      {headerImage}
+    </Animated.View>
   );
 
   return (
@@ -155,7 +165,8 @@ export default function ParallaxScrollView({
             styles.header,
             {
               backgroundColor: headerBackgroundColor?.[colorScheme === 'dark' ? 'dark' : 'light'],
-              height: headerHeight,
+              height: headerHeight + headerOverscrollExtent,
+              marginTop: -headerOverscrollExtent,
             },
           ]}
         >
@@ -167,7 +178,10 @@ export default function ParallaxScrollView({
             headerMedia
           )}
           {!!headerOverlay && (
-            <View pointerEvents="box-none" style={styles.headerOverlay}>
+            <View
+              pointerEvents="box-none"
+              style={[styles.headerOverlay, { top: headerOverscrollExtent }]}
+            >
               {headerOverlay}
             </View>
           )}
@@ -265,9 +279,7 @@ const styles = StyleSheet.create({
   },
   headerMedia: {
     position: 'absolute',
-    top: 0,
     right: 0,
-    bottom: 0,
     left: 0,
   },
   headerMediaMask: {
