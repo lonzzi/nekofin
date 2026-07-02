@@ -25,7 +25,7 @@ export function HomeAtmosphereBackdrop({
   imageUrl,
   isDark,
 }: HomeAtmosphereBackdropProps) {
-  const imageOpacity = isDark ? 0.42 : 0.52;
+  const imageOpacity = isDark ? 0.42 : 0.58;
 
   const atmosphereGradient = useMemo(
     () =>
@@ -39,9 +39,9 @@ export function HomeAtmosphereBackdrop({
             }
           : {
               0: { color: 'rgba(255,255,255,0.03)' },
-              0.34: { color: 'rgba(255,255,255,0.12)' },
-              0.72: { color: 'rgba(255,255,255,0.3)' },
-              1: { color: 'rgba(255,255,255,0.46)' },
+              0.34: { color: 'rgba(255,255,255,0.08)' },
+              0.72: { color: 'rgba(255,255,255,0.2)' },
+              1: { color: 'rgba(255,255,255,0.32)' },
             },
         easing: Easing.bezier(0.16, 0.0, 0.18, 1),
         extraColorStopsPerTransition: 36,
