@@ -24,8 +24,8 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HEADER_HEIGHT = 450;
-const HEADER_OVERSCROLL_SAFE_AREA_OFFSET = 160;
-const HEADER_OVERSCROLL_MIN = 220;
+const HEADER_OVERSCROLL_SAFE_AREA_OFFSET = 260;
+const HEADER_OVERSCROLL_MIN = 240;
 
 function getGradientColors(colors: string[]) {
   return colors as unknown as readonly [string, string, ...string[]];
@@ -51,11 +51,11 @@ export function ParallaxHeaderFadeMask() {
       easeGradient({
         colorStops: {
           0: { color: 'rgba(0,0,0,1)' },
-          0.5: { color: 'rgba(0,0,0,1)' },
-          0.78: { color: 'rgba(0,0,0,0.5)' },
+          0.66: { color: 'rgba(0,0,0,1)' },
+          0.82: { color: 'rgba(0,0,0,0.96)' },
           1: { color: 'rgba(0,0,0,0)' },
         },
-        easing: Easing.bezier(0.16, 0.0, 0.18, 1),
+        easing: Easing.bezier(0.33, 0.0, 0.67, 1),
         extraColorStopsPerTransition: 36,
       }),
     [],

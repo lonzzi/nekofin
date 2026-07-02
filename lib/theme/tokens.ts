@@ -44,9 +44,9 @@ export const sizes = {
 export const layout = {
   mediaHero: {
     aspectRatio: 16 / 9,
-    heightRatio: 0.54,
+    heightRatio: 0.75,
     minHeight: 360,
-    maxHeight: 460,
+    maxHeight: 520,
     scrimHeightRatio: 0.58,
   },
   mediaRail: {
