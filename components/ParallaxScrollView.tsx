@@ -3,7 +3,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { BlurTint, BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import type { PropsWithChildren, ReactElement } from 'react';
+import { useMemo, type PropsWithChildren, type ReactElement } from 'react';
 import {
   Easing,
   Platform,
@@ -21,8 +21,54 @@ import Animated, {
   useAnimatedStyle,
   useScrollOffset,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HEADER_HEIGHT = 450;
+const HEADER_OVERSCROLL_SAFE_AREA_OFFSET = 160;
+const HEADER_OVERSCROLL_MIN = 220;
+
+function getGradientColors(colors: string[]) {
+  return colors as unknown as readonly [string, string, ...string[]];
+}
+
+function getGradientLocations(locations: number[]) {
+  return locations as unknown as readonly [number, number, ...number[]];
+}
+
+export function resolveParallaxHeaderOverscrollExtent(topInset: number) {
+  return Math.max(topInset + HEADER_OVERSCROLL_SAFE_AREA_OFFSET, HEADER_OVERSCROLL_MIN);
+}
+
+export function useParallaxHeaderOverscrollExtent() {
+  const insets = useSafeAreaInsets();
+
+  return resolveParallaxHeaderOverscrollExtent(insets.top);
+}
+
+export function ParallaxHeaderFadeMask() {
+  const fadeGradient = useMemo(
+    () =>
+      easeGradient({
+        colorStops: {
+          0: { color: 'rgba(0,0,0,1)' },
+          0.5: { color: 'rgba(0,0,0,1)' },
+          0.78: { color: 'rgba(0,0,0,0.5)' },
+          1: { color: 'rgba(0,0,0,0)' },
+        },
+        easing: Easing.bezier(0.16, 0.0, 0.18, 1),
+        extraColorStopsPerTransition: 36,
+      }),
+    [],
+  );
+
+  return (
+    <LinearGradient
+      colors={getGradientColors(fadeGradient.colors)}
+      locations={getGradientLocations(fadeGradient.locations)}
+      style={StyleSheet.absoluteFill}
+    />
+  );
+}
 
 type Props = PropsWithChildren<{
   headerImage: ReactElement;

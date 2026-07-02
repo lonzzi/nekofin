@@ -1,4 +1,4 @@
-import ParallaxScrollView from '@/components/ParallaxScrollView';
+import { HomeAtmosphereScrollView } from '@/components/home/HomeAtmosphereScrollView';
 import { DetailBundle, useDetailBundle } from '@/hooks/useDetailBundle';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import useRefresh from '@/hooks/useRefresh';
@@ -142,28 +142,22 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     selectedItem,
   ]);
 
-  const parallaxHeaderBackgroundColor = {
-    light: theme.colors.surfaceMuted,
-    dark: theme.colors.surfaceMuted,
-  };
-  const parallaxContentStyle = {
+  const atmosphereContentStyle = {
     paddingBottom: theme.spacing.lg,
     paddingTop: theme.spacing.lg,
-    backgroundColor,
   };
 
   if (isLoading || !item) {
     return (
-      <ParallaxScrollView
+      <HomeAtmosphereScrollView
+        backgroundColor={backgroundColor}
+        contentStyle={atmosphereContentStyle}
         headerHeight={headerHeight}
-        showsVerticalScrollIndicator={false}
-        headerBackgroundColor={parallaxHeaderBackgroundColor}
-        contentStyle={parallaxContentStyle}
-        style={{ backgroundColor }}
         headerImage={<SkeletonDetailHeader />}
+        isDark={theme.isDark}
       >
         <SkeletonDetailContent mode={mode} includeTopPadding={false} />
-      </ParallaxScrollView>
+      </HomeAtmosphereScrollView>
     );
   }
 
@@ -210,13 +204,13 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   };
 
   return (
-    <ParallaxScrollView
+    <HomeAtmosphereScrollView
+      backgroundColor={backgroundColor}
+      contentStyle={atmosphereContentStyle}
       headerHeight={headerHeight}
-      showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      headerBackgroundColor={parallaxHeaderBackgroundColor}
-      contentStyle={parallaxContentStyle}
-      style={{ backgroundColor }}
+      imageInfo={{ blurhash: headerImageInfo.blurhash, imageUrl: headerImageUrl }}
+      isDark={theme.isDark}
       headerImage={
         <View style={[detailViewStyles.header, { backgroundColor: theme.colors.surfaceMuted }]}>
           {headerImageUrl && (
@@ -228,28 +222,30 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
             />
           )}
           {!!logoImageUrl && (
-            <>
-              <LinearGradient
-                colors={[theme.colors.mediaScrimSoft, 'rgba(0,0,0,0.16)', theme.colors.mediaScrim]}
-                locations={[0, 0.52, 1]}
-                pointerEvents="none"
-                style={detailViewStyles.headerScrim}
-              />
-              <Image
-                source={{ uri: logoImageUrl }}
-                style={[
-                  detailViewStyles.headerLogo,
-                  {
-                    bottom: theme.spacing.xxxl,
-                    left: (windowWidth - detailLogoWidth) / 2,
-                    width: detailLogoWidth,
-                  },
-                ]}
-                contentFit="contain"
-              />
-            </>
+            <LinearGradient
+              colors={[theme.colors.mediaScrimSoft, 'rgba(0,0,0,0.16)', theme.colors.mediaScrim]}
+              locations={[0, 0.52, 1]}
+              pointerEvents="none"
+              style={detailViewStyles.headerScrim}
+            />
           )}
         </View>
+      }
+      headerOverlay={
+        logoImageUrl ? (
+          <Image
+            source={{ uri: logoImageUrl }}
+            style={[
+              detailViewStyles.headerLogo,
+              {
+                bottom: theme.spacing.xxxl,
+                left: (windowWidth - detailLogoWidth) / 2,
+                width: detailLogoWidth,
+              },
+            ]}
+            contentFit="contain"
+          />
+        ) : null
       }
     >
       <View style={detailViewStyles.content}>
@@ -258,7 +254,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
         </Text>
         {renderModeContent()}
       </View>
-    </ParallaxScrollView>
+    </HomeAtmosphereScrollView>
   );
 }
 

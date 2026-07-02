@@ -1,18 +1,11 @@
 import { HomeAtmosphereBackdrop } from '@/components/home/HomeAtmosphereBackdrop';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo, type ComponentProps, type PropsWithChildren, type ReactElement } from 'react';
-import { Easing, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import { easeGradient } from 'react-native-easing-gradient';
+import ParallaxScrollView, {
+  ParallaxHeaderFadeMask,
+  resolveParallaxHeaderOverscrollExtent,
+} from '@/components/ParallaxScrollView';
+import type { ComponentProps, PropsWithChildren, ReactElement } from 'react';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-function getGradientColors(colors: string[]) {
-  return colors as unknown as readonly [string, string, ...string[]];
-}
-
-function getGradientLocations(locations: number[]) {
-  return locations as unknown as readonly [number, number, ...number[]];
-}
 
 type HomeAtmosphereImageInfo = {
   blurhash?: string;
@@ -27,33 +20,9 @@ type HomeAtmosphereScrollViewProps = PropsWithChildren<{
   headerOverlay?: ReactElement | null;
   imageInfo?: HomeAtmosphereImageInfo;
   isDark: boolean;
+  refreshControl?: ComponentProps<typeof ParallaxScrollView>['refreshControl'];
   style?: ComponentProps<typeof ParallaxScrollView>['style'];
 }>;
-
-function HeaderMediaFadeMask() {
-  const fadeGradient = useMemo(
-    () =>
-      easeGradient({
-        colorStops: {
-          0: { color: 'rgba(0,0,0,1)' },
-          0.5: { color: 'rgba(0,0,0,1)' },
-          0.78: { color: 'rgba(0,0,0,0.5)' },
-          1: { color: 'rgba(0,0,0,0)' },
-        },
-        easing: Easing.bezier(0.16, 0.0, 0.18, 1),
-        extraColorStopsPerTransition: 36,
-      }),
-    [],
-  );
-
-  return (
-    <LinearGradient
-      colors={getGradientColors(fadeGradient.colors)}
-      locations={getGradientLocations(fadeGradient.locations)}
-      style={StyleSheet.absoluteFill}
-    />
-  );
-}
 
 export function HomeAtmosphereScrollView({
   backgroundColor,
@@ -64,10 +33,11 @@ export function HomeAtmosphereScrollView({
   headerOverlay,
   imageInfo,
   isDark,
+  refreshControl,
   style,
 }: HomeAtmosphereScrollViewProps) {
   const insets = useSafeAreaInsets();
-  const headerOverscrollExtent = Math.max(insets.top + 160, 220);
+  const headerOverscrollExtent = resolveParallaxHeaderOverscrollExtent(insets.top);
 
   return (
     <View collapsable={false} style={[styles.container, { backgroundColor }, style]}>
@@ -87,9 +57,10 @@ export function HomeAtmosphereScrollView({
         headerHeight={headerHeight}
         contentStyle={[styles.content, contentStyle]}
         headerImage={headerImage}
-        headerMediaMaskElement={<HeaderMediaFadeMask />}
+        headerMediaMaskElement={<ParallaxHeaderFadeMask />}
         headerOverscrollExtent={headerOverscrollExtent}
         headerOverlay={headerOverlay}
+        refreshControl={refreshControl}
       >
         {children}
       </ParallaxScrollView>
