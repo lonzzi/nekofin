@@ -142,12 +142,28 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     selectedItem,
   ]);
 
+  const parallaxHeaderBackgroundColor = {
+    light: theme.colors.surfaceMuted,
+    dark: theme.colors.surfaceMuted,
+  };
+  const parallaxContentStyle = {
+    paddingBottom: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
+    backgroundColor,
+  };
+
   if (isLoading || !item) {
     return (
-      <View style={[detailViewStyles.container, { backgroundColor }]}>
-        <SkeletonDetailHeader />
-        <SkeletonDetailContent mode={mode} />
-      </View>
+      <ParallaxScrollView
+        headerHeight={headerHeight}
+        showsVerticalScrollIndicator={false}
+        headerBackgroundColor={parallaxHeaderBackgroundColor}
+        contentStyle={parallaxContentStyle}
+        style={{ backgroundColor }}
+        headerImage={<SkeletonDetailHeader />}
+      >
+        <SkeletonDetailContent mode={mode} includeTopPadding={false} />
+      </ParallaxScrollView>
     );
   }
 
@@ -198,15 +214,8 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
       headerHeight={headerHeight}
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      headerBackgroundColor={{
-        light: theme.colors.surfaceMuted,
-        dark: theme.colors.surfaceMuted,
-      }}
-      contentStyle={{
-        paddingBottom: theme.spacing.lg,
-        paddingTop: theme.spacing.lg,
-        backgroundColor,
-      }}
+      headerBackgroundColor={parallaxHeaderBackgroundColor}
+      contentStyle={parallaxContentStyle}
       style={{ backgroundColor }}
       headerImage={
         <View style={[detailViewStyles.header, { backgroundColor: theme.colors.surfaceMuted }]}>

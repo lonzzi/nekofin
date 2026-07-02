@@ -9,7 +9,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -223,6 +223,7 @@ export function useCarouselHeaderLayers({
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [autoTargetIndex, setAutoTargetIndex] = useState<number | null>(null);
   const [isGestureOverlayVisible, setIsGestureOverlayVisible] = useState(false);
+  const [pendingGestureSettleIndex, setPendingGestureSettleIndex] = useState<number | null>(null);
   const currentIndexRef = useRef(0);
   const router = useRouter();
   const mediaAdapter = useMediaAdapter();
@@ -308,13 +309,12 @@ export function useCarouselHeaderLayers({
       const nextIndex = getRelativeIndex(currentIndexRef.current, direction, items.length);
       currentIndexRef.current = nextIndex;
       activeIndexValue.value = nextIndex;
+      setPendingGestureSettleIndex(nextIndex);
       setCarouselIndex(nextIndex);
       setAutoTargetIndex(null);
-      setIsGestureOverlayVisible(false);
       autoProgress.value = 0;
-      dragX.value = 0;
     },
-    [activeIndexValue, autoProgress, dragX, items.length],
+    [activeIndexValue, autoProgress, items.length],
   );
 
   const completeAutoAdvance = useCallback(
@@ -322,12 +322,10 @@ export function useCarouselHeaderLayers({
       currentIndexRef.current = nextIndex;
       activeIndexValue.value = nextIndex;
       setCarouselIndex(nextIndex);
-      setAutoTargetIndex(null);
       setIsGestureOverlayVisible(false);
-      autoProgress.value = 0;
       dragX.value = 0;
     },
-    [activeIndexValue, autoProgress, dragX],
+    [activeIndexValue, dragX],
   );
 
   const clearAutoTarget = useCallback(() => {
@@ -388,8 +386,6 @@ export function useCarouselHeaderLayers({
               { duration: CAROUSEL_GESTURE_SETTLE_MS },
               (finished) => {
                 if (finished) {
-                  isGestureAnimating.value = false;
-                  runOnJS(hideGestureOverlay)();
                   runOnJS(completeReveal)(1);
                 }
               },
@@ -403,8 +399,6 @@ export function useCarouselHeaderLayers({
               { duration: CAROUSEL_GESTURE_SETTLE_MS },
               (finished) => {
                 if (finished) {
-                  isGestureAnimating.value = false;
-                  runOnJS(hideGestureOverlay)();
                   runOnJS(completeReveal)(-1);
                 }
               },
@@ -559,12 +553,29 @@ export function useCarouselHeaderLayers({
     isGestureAnimating.value = false;
     setAutoTargetIndex(null);
     setIsGestureOverlayVisible(false);
+    setPendingGestureSettleIndex(null);
     setCarouselIndex(0);
   }, [activeIndexValue, autoProgress, dragX, isGestureAnimating, itemIdentity]);
 
   useEffect(() => {
     activeIndexValue.value = carouselIndex;
   }, [activeIndexValue, carouselIndex]);
+
+  useLayoutEffect(() => {
+    if (autoTargetIndex == null || carouselIndex !== autoTargetIndex) return;
+
+    setAutoTargetIndex(null);
+    autoProgress.value = 0;
+  }, [autoProgress, autoTargetIndex, carouselIndex]);
+
+  useLayoutEffect(() => {
+    if (pendingGestureSettleIndex == null || carouselIndex !== pendingGestureSettleIndex) return;
+
+    setPendingGestureSettleIndex(null);
+    setIsGestureOverlayVisible(false);
+    dragX.value = 0;
+    isGestureAnimating.value = false;
+  }, [carouselIndex, dragX, isGestureAnimating, pendingGestureSettleIndex]);
 
   useEffect(() => {
     if (!isFocused || !canReveal) return;

@@ -294,8 +294,10 @@ export function SkeletonDetailHeader() {
 
 export function SkeletonDetailContent({
   mode = 'series',
+  includeTopPadding = true,
 }: {
   mode?: 'series' | 'season' | 'movie' | 'episode';
+  includeTopPadding?: boolean;
 }) {
   const theme = useAppTheme();
 
@@ -305,7 +307,7 @@ export function SkeletonDetailContent({
         styles.detailContent,
         {
           paddingHorizontal: theme.spacing.page,
-          paddingTop: theme.spacing.lg,
+          paddingTop: includeTopPadding ? theme.spacing.lg : 0,
           gap: theme.spacing.sm,
         },
       ]}
