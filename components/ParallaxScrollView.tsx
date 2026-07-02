@@ -34,11 +34,13 @@ type Props = PropsWithChildren<{
   blurIntensity?: number;
   blurTint?: BlurTint;
   containerStyle?: StyleProp<ViewStyle>;
+  contentBackground?: ReactElement | null;
   contentStyle?: StyleProp<ViewStyle>;
+  scrollBackground?: ReactElement | null;
   maskViewStyle?: StyleProp<ViewStyle>;
   gradientStyle?: StyleProp<ViewStyle>;
-  gradientColors?: [string, string];
-  gradientLocations?: [number, number];
+  gradientColors?: readonly [string, string, ...string[]];
+  gradientLocations?: readonly [number, number, ...number[]];
 }> &
   ScrollViewProps;
 
@@ -53,8 +55,10 @@ export default function ParallaxScrollView({
   blurIntensity = 100,
   blurTint = Platform.OS === 'ios' ? 'systemChromeMaterialDark' : 'systemMaterialDark',
   containerStyle,
+  contentBackground,
   contentStyle,
   contentContainerStyle,
+  scrollBackground,
   automaticallyAdjustContentInsets = false,
   automaticallyAdjustsScrollIndicatorInsets = false,
   contentInsetAdjustmentBehavior = 'never',
@@ -112,6 +116,17 @@ export default function ParallaxScrollView({
     };
   });
 
+  const content = (
+    <ThemedView style={[styles.content, contentStyle]}>
+      {!!contentBackground && (
+        <View pointerEvents="none" style={styles.contentBackground}>
+          {contentBackground}
+        </View>
+      )}
+      {children}
+    </ThemedView>
+  );
+
   return (
     <Animated.ScrollView
       style={[styles.container, containerStyle, style]}
@@ -123,84 +138,95 @@ export default function ParallaxScrollView({
       scrollEventThrottle={8}
       {...props}
     >
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor: headerBackgroundColor?.[colorScheme === 'dark' ? 'dark' : 'light'],
-            height: headerHeight,
-          },
-        ]}
-      >
-        <Animated.View style={[styles.headerMedia, headerAnimatedStyle]}>
-          {headerImage}
-        </Animated.View>
-        {!!headerOverlay && (
-          <View pointerEvents="box-none" style={styles.headerOverlay}>
-            {headerOverlay}
+      <View style={styles.scrollBody}>
+        {!!scrollBackground && (
+          <View pointerEvents="none" style={styles.scrollBackground}>
+            {scrollBackground}
           </View>
         )}
-      </View>
-      {enableMaskView ? (
-        <ThemedView
+        <View
           style={[
+            styles.header,
             {
-              position: 'relative',
-              flex: 1,
-              top: -50,
-              backgroundColor: 'transparent',
+              backgroundColor: headerBackgroundColor?.[colorScheme === 'dark' ? 'dark' : 'light'],
+              height: headerHeight,
             },
-            maskViewStyle,
           ]}
         >
-          {enableBlurEffect ? (
-            <MaskedView
-              maskElement={
-                <LinearGradient
-                  locations={locations as unknown as readonly [number, number, ...number[]]}
-                  colors={colors as unknown as readonly [string, string, ...string[]]}
+          <Animated.View style={[styles.headerMedia, headerAnimatedStyle]}>
+            {headerImage}
+          </Animated.View>
+          {!!headerOverlay && (
+            <View pointerEvents="box-none" style={styles.headerOverlay}>
+              {headerOverlay}
+            </View>
+          )}
+        </View>
+        {enableMaskView ? (
+          <ThemedView
+            style={[
+              {
+                position: 'relative',
+                flex: 1,
+                top: -50,
+                backgroundColor: 'transparent',
+              },
+              maskViewStyle,
+            ]}
+          >
+            {enableBlurEffect ? (
+              <MaskedView
+                maskElement={
+                  <LinearGradient
+                    locations={locations as unknown as readonly [number, number, ...number[]]}
+                    colors={colors as unknown as readonly [string, string, ...string[]]}
+                    style={StyleSheet.absoluteFill}
+                  />
+                }
+                style={[
+                  {
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    top: -180,
+                    height: 200,
+                  },
+                  gradientStyle,
+                ]}
+              >
+                <BlurView
+                  intensity={blurIntensity}
+                  tint={blurTint}
                   style={StyleSheet.absoluteFill}
                 />
-              }
-              style={[
-                {
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  top: -180,
-                  height: 200,
-                },
-                gradientStyle,
-              ]}
-            >
-              <BlurView intensity={blurIntensity} tint={blurTint} style={StyleSheet.absoluteFill} />
-            </MaskedView>
-          ) : (
-            <LinearGradient
-              colors={
-                gradientColors ?? (colors as unknown as readonly [string, string, ...string[]])
-              }
-              locations={
-                gradientLocations ??
-                (locations as unknown as readonly [number, number, ...number[]])
-              }
-              style={[
-                {
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  top: -180,
-                  height: 200,
-                },
-                gradientStyle,
-              ]}
-            />
-          )}
-          <ThemedView style={[styles.content, contentStyle]}>{children}</ThemedView>
-        </ThemedView>
-      ) : (
-        <ThemedView style={[styles.content, contentStyle]}>{children}</ThemedView>
-      )}
+              </MaskedView>
+            ) : (
+              <LinearGradient
+                colors={
+                  gradientColors ?? (colors as unknown as readonly [string, string, ...string[]])
+                }
+                locations={
+                  gradientLocations ??
+                  (locations as unknown as readonly [number, number, ...number[]])
+                }
+                style={[
+                  {
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    top: -180,
+                    height: 200,
+                  },
+                  gradientStyle,
+                ]}
+              />
+            )}
+            {content}
+          </ThemedView>
+        ) : (
+          content
+        )}
+      </View>
     </Animated.ScrollView>
   );
 }
@@ -212,7 +238,19 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
   },
+  scrollBody: {
+    flexGrow: 1,
+    position: 'relative',
+  },
+  scrollBackground: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
   header: {
+    overflow: 'hidden',
     position: 'relative',
   },
   headerMedia: {
@@ -232,5 +270,14 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     gap: 16,
+    position: 'relative',
+  },
+  contentBackground: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    overflow: 'hidden',
   },
 });

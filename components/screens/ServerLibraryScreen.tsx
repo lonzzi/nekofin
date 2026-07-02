@@ -1,6 +1,6 @@
 import { useCarouselHeaderLayers } from '@/components/home/CarouselHeader';
+import { HomeAtmosphereScrollView } from '@/components/home/HomeAtmosphereScrollView';
 import { Section } from '@/components/media/Section';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -32,6 +32,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     navigation.setOptions({
+      headerBlurEffect: 'none',
       headerRight: () => (
         <View style={styles.headerActions}>
           <Pressable
@@ -54,8 +55,12 @@ export default function HomeScreen() {
           </Pressable>
         </View>
       ),
+      headerShadowVisible: false,
+      headerStyle: { backgroundColor: 'transparent' },
+      headerTintColor: theme.colors.text,
+      headerTransparent: true,
     });
-  }, [navigation, router, theme.colors.surface, theme.colors.text]);
+  }, [navigation, router, theme.colors.text]);
 
   // Stabilize onViewAll callbacks
   const handleViewAllResume = useCallback(
@@ -84,7 +89,7 @@ export default function HomeScreen() {
     return handlers;
   }, [sections, router]);
 
-  const { headerImage, headerOverlay } = useCarouselHeaderLayers({
+  const { backgroundImageInfo, headerImage, headerOverlay } = useCarouselHeaderLayers({
     items: carouselItems,
     height: carouselHeight,
     isFocused,
@@ -127,13 +132,17 @@ export default function HomeScreen() {
   }
 
   return (
-    <ParallaxScrollView
-      showsVerticalScrollIndicator={false}
-      style={{ flex: 1, backgroundColor }}
+    <HomeAtmosphereScrollView
+      backgroundColor={backgroundColor}
+      contentStyle={{
+        gap: theme.spacing.xs,
+        paddingBottom: theme.spacing.lg,
+      }}
       headerHeight={carouselHeight}
-      contentStyle={{ gap: theme.spacing.xs, paddingBottom: theme.spacing.lg, backgroundColor }}
       headerImage={headerImage}
       headerOverlay={headerOverlay}
+      imageInfo={backgroundImageInfo}
+      isDark={theme.isDark}
     >
       <View style={[styles.content, { gap: theme.spacing.lg, marginTop: theme.spacing.md }]}>
         {sections.map((section) => {
@@ -187,12 +196,14 @@ export default function HomeScreen() {
           return null;
         })}
       </View>
-    </ParallaxScrollView>
+    </HomeAtmosphereScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {},
+  content: {
+    position: 'relative',
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',

@@ -35,6 +35,14 @@ export default function ServersLayout() {
         name="library"
         options={{
           title: '',
+          contentStyle: {
+            backgroundColor: 'transparent',
+          },
+          headerBlurEffect: 'none',
+          headerShadowVisible: false,
+          headerStyle: {
+            backgroundColor: 'transparent',
+          },
           headerTransparent: true,
         }}
       />

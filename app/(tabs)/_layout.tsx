@@ -6,8 +6,13 @@ export default function TabLayout() {
   const { accentColor } = useAccentColor();
 
   return (
-    <NativeTabs minimizeBehavior="onScrollDown">
-      <NativeTabs.Trigger name="(servers)">
+    <NativeTabs
+      backgroundColor="transparent"
+      blurEffect="systemUltraThinMaterial"
+      minimizeBehavior="onScrollDown"
+      shadowColor="transparent"
+    >
+      <NativeTabs.Trigger name="(servers)" contentStyle={{ backgroundColor: 'transparent' }}>
         <NativeTabs.Trigger.Label>服务器</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           drawable="storage"

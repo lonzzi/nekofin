@@ -705,7 +705,11 @@ export function useCarouselHeaderLayers({
       </View>
     ) : null;
 
-  return { headerImage, headerOverlay };
+  return {
+    backgroundImageInfo: autoTargetImageInfo ?? currentImageInfo,
+    headerImage,
+    headerOverlay,
+  };
 }
 
 export function CarouselHeader(props: CarouselHeaderProps) {
