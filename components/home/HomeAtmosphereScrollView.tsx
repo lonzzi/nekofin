@@ -1,6 +1,5 @@
 import { HomeAtmosphereBackdrop } from '@/components/home/HomeAtmosphereBackdrop';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
-import MaskedView from '@react-native-masked-view/masked-view';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, type ComponentProps, type PropsWithChildren, type ReactElement } from 'react';
 import { Easing, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
@@ -30,14 +29,14 @@ type HomeAtmosphereScrollViewProps = PropsWithChildren<{
   style?: ComponentProps<typeof ParallaxScrollView>['style'];
 }>;
 
-function HeaderImageFade({ children }: PropsWithChildren) {
+function HeaderMediaFadeMask() {
   const fadeGradient = useMemo(
     () =>
       easeGradient({
         colorStops: {
           0: { color: 'rgba(0,0,0,1)' },
-          0.58: { color: 'rgba(0,0,0,1)' },
-          0.86: { color: 'rgba(0,0,0,0.48)' },
+          0.5: { color: 'rgba(0,0,0,1)' },
+          0.78: { color: 'rgba(0,0,0,0.5)' },
           1: { color: 'rgba(0,0,0,0)' },
         },
         easing: Easing.bezier(0.16, 0.0, 0.18, 1),
@@ -47,18 +46,11 @@ function HeaderImageFade({ children }: PropsWithChildren) {
   );
 
   return (
-    <MaskedView
-      style={styles.headerImageFade}
-      maskElement={
-        <LinearGradient
-          colors={getGradientColors(fadeGradient.colors)}
-          locations={getGradientLocations(fadeGradient.locations)}
-          style={StyleSheet.absoluteFill}
-        />
-      }
-    >
-      {children}
-    </MaskedView>
+    <LinearGradient
+      colors={getGradientColors(fadeGradient.colors)}
+      locations={getGradientLocations(fadeGradient.locations)}
+      style={StyleSheet.absoluteFill}
+    />
   );
 }
 
@@ -89,7 +81,8 @@ export function HomeAtmosphereScrollView({
         style={styles.scroller}
         headerHeight={headerHeight}
         contentStyle={[styles.content, contentStyle]}
-        headerImage={<HeaderImageFade>{headerImage}</HeaderImageFade>}
+        headerImage={headerImage}
+        headerMediaMaskElement={<HeaderMediaFadeMask />}
         headerOverlay={headerOverlay}
       >
         {children}
@@ -108,13 +101,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     flex: 1,
     zIndex: 1,
-  },
-  headerImageFade: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
   },
   backdropLayer: {
     position: 'absolute',
