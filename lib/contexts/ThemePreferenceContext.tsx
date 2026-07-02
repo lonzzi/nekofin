@@ -16,12 +16,14 @@ const DEFAULT_THEME: ThemePreference = 'system';
 
 const ThemePreferenceContext = createContext<ThemePreferenceContextValue | undefined>(undefined);
 
-function applyTheme(preference: ThemePreference) {
-  Appearance.setColorScheme((preference === 'system' ? 'auto' : preference) as ColorSchemeName);
-}
-
 function resolveColorScheme(colorScheme: ColorSchemeName | null | undefined): ResolvedColorScheme {
   return colorScheme === 'dark' ? 'dark' : 'light';
+}
+
+function applyTheme(preference: ThemePreference): ResolvedColorScheme {
+  const colorScheme: ColorSchemeName = preference === 'system' ? 'unspecified' : preference;
+  Appearance.setColorScheme(colorScheme);
+  return resolveColorScheme(Appearance.getColorScheme());
 }
 
 // Apply theme synchronously at module load time, before any component renders
@@ -45,7 +47,7 @@ export function ThemePreferenceProvider({ children }: { children: React.ReactNod
   const setThemePreference = useCallback((preference: ThemePreference) => {
     setThemePreferenceState(preference);
     storage.set(STORAGE_KEY, preference);
-    applyTheme(preference);
+    setSystemColorScheme(applyTheme(preference));
   }, []);
 
   const contextValue = useMemo<ThemePreferenceContextValue>(
