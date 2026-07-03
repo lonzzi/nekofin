@@ -6,8 +6,8 @@ import {
   NativeSettingsSwitch,
 } from '@/components/ui/NativeSettings';
 import {
+  SettingsActionTitle,
   SettingsSubtitle,
-  SettingsSymbol,
   SettingsTitle,
   SettingsValue,
 } from '@/components/ui/SettingsVisual';
@@ -201,26 +201,24 @@ export default function PerformanceSettingsScreen() {
 
       <NativeSettingsSection title="数据">
         <NativeSettingsItem
-          leading={<SettingsSymbol name="square.and.arrow.up" />}
-          title={<SettingsTitle>导出 JSON</SettingsTitle>}
+          title={
+            <SettingsActionTitle tone={hasDiagnosticLogs ? 'accent' : 'muted'}>
+              导出 JSON
+            </SettingsActionTitle>
+          }
           subtitle={
             <SettingsSubtitle primary="分享当前保存的采样、路由、网络和 Query trace。" lines={2} />
           }
-          trailing={<SettingsValue label={hasDiagnosticLogs ? '导出' : '无数据'} tone="accent" />}
           onPress={hasDiagnosticLogs ? handleExport : undefined}
         />
         <NativeSettingsItem
-          leading={<SettingsSymbol name="trash" tone="danger" />}
-          title={<SettingsTitle>清空诊断记录</SettingsTitle>}
+          title={<SettingsActionTitle>清空诊断记录</SettingsActionTitle>}
           subtitle={<SettingsSubtitle primary="清除当前内存记录和已保存的性能日志。" lines={2} />}
-          trailing={<SettingsValue label="清空" tone="danger" />}
           onPress={handleClearDiagnostics}
         />
         <NativeSettingsItem
-          leading={<SettingsSymbol name="eye.slash" tone="muted" />}
-          title={<SettingsTitle>隐藏诊断入口</SettingsTitle>}
+          title={<SettingsActionTitle tone="muted">隐藏诊断入口</SettingsActionTitle>}
           subtitle={<SettingsSubtitle primary="关闭采样并从设置页移除性能分析入口。" lines={2} />}
-          trailing={<SettingsValue label="隐藏" tone="muted" />}
           onPress={handleHideDiagnostics}
         />
       </NativeSettingsSection>

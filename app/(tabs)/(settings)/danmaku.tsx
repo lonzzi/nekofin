@@ -5,7 +5,11 @@ import {
   NativeSettingsSlider,
   NativeSettingsSwitch,
 } from '@/components/ui/NativeSettings';
-import { SettingsSubtitle, SettingsTitle, SettingsValue } from '@/components/ui/SettingsVisual';
+import {
+  SettingsActionTitle,
+  SettingsSubtitle,
+  SettingsTitle,
+} from '@/components/ui/SettingsVisual';
 import { defaultSettings, useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { Alert } from 'react-native';
 
@@ -115,9 +119,7 @@ export default function DanmakuSettingsScreen() {
 
       <NativeSettingsSection>
         <NativeSettingsItem
-          title={<SettingsTitle>恢复默认设置</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary="将弹幕显示、来源和类型过滤恢复为默认值" />}
-          trailing={<SettingsValue label="恢复" tone="danger" />}
+          title={<SettingsActionTitle>恢复默认设置</SettingsActionTitle>}
           onPress={handleResetToDefault}
         />
       </NativeSettingsSection>

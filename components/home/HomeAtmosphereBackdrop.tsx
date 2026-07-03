@@ -61,6 +61,7 @@ export function HomeAtmosphereBackdrop({
             contentFit="cover"
             contentPosition="center"
             blurRadius={88}
+            recyclingKey={imageUrl}
             transition={260}
           />
         </>

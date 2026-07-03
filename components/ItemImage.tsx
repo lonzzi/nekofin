@@ -13,6 +13,9 @@ export const ItemImage = ({
   cachePolicy,
   enforceEarlyResizing = true,
   fallback,
+  priority,
+  recyclingKey,
+  transition,
 }: {
   uri?: string;
   style: StyleProp<ImageStyle>;
@@ -22,11 +25,15 @@ export const ItemImage = ({
   cachePolicy?: ImageProps['cachePolicy'];
   enforceEarlyResizing?: ImageProps['enforceEarlyResizing'];
   fallback?: ReactNode;
+  priority?: ImageProps['priority'];
+  recyclingKey?: ImageProps['recyclingKey'];
+  transition?: ImageProps['transition'];
 }) => {
-  const [failed, setFailed] = useState(false);
+  const [failedUri, setFailedUri] = useState<string | null>(null);
   const theme = useAppTheme();
+  const didFail = !!uri && failedUri === uri;
 
-  if (!uri || failed) {
+  if (!uri || didFail) {
     return (
       <>
         {fallback ?? (
@@ -47,7 +54,10 @@ export const ItemImage = ({
       contentFit={contentFit}
       contentPosition={contentPosition}
       enforceEarlyResizing={enforceEarlyResizing}
-      onError={() => setFailed(true)}
+      priority={priority}
+      recyclingKey={recyclingKey ?? uri}
+      transition={transition}
+      onError={() => setFailedUri(uri)}
     />
   );
 };

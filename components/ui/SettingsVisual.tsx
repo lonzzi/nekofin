@@ -62,6 +62,36 @@ export function SettingsTitle({ children }: { children: string }) {
   );
 }
 
+export function SettingsActionTitle({
+  children,
+  tone = 'danger',
+}: {
+  children: string;
+  tone?: ValueTone;
+}) {
+  const theme = useAppTheme();
+  const color =
+    tone === 'danger'
+      ? theme.colors.danger
+      : tone === 'muted'
+        ? theme.colors.textSecondary
+        : theme.colors.tint;
+
+  return (
+    <NativeText
+      numberOfLines={1}
+      textStyle={{
+        color,
+        fontSize: 16,
+        fontWeight: '500',
+        lineHeight: 22,
+      }}
+    >
+      {children}
+    </NativeText>
+  );
+}
+
 export function SettingsSubtitle({
   primary,
   secondary,

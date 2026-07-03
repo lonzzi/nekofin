@@ -3,7 +3,12 @@ import {
   NativeSettingsItem,
   NativeSettingsSection,
 } from '@/components/ui/NativeSettings';
-import { SettingsSubtitle, SettingsTitle, SettingsValue } from '@/components/ui/SettingsVisual';
+import {
+  SettingsActionTitle,
+  SettingsSubtitle,
+  SettingsTitle,
+  SettingsValue,
+} from '@/components/ui/SettingsVisual';
 import { getStoredPerformanceLogBytes } from '@/lib/performance/performanceLogStorage';
 import { usePerformanceMonitor } from '@/lib/performance/PerformanceMonitorContext';
 import {
@@ -294,8 +299,11 @@ export default function CacheSettingsScreen() {
           }
         />
         <NativeSettingsItem
-          title={<SettingsTitle>一键清理</SettingsTitle>}
-          trailing={<SettingsValue label={clearingLabel('all')} tone="danger" />}
+          title={
+            <SettingsActionTitle>
+              {clearingTarget === 'all' ? '清理中' : '一键清理'}
+            </SettingsActionTitle>
+          }
           onPress={() => void clearTarget('all', clearAllCaches)}
         />
       </NativeSettingsSection>

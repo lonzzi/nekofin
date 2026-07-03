@@ -64,8 +64,10 @@ function CarouselImageLayer({ imageInfo }: CarouselImageLayerProps) {
         style={[styles.carouselImage, { backgroundColor: theme.colors.background }]}
         contentFit="cover"
         contentPosition="left center"
-        cachePolicy="disk"
+        cachePolicy="memory-disk"
+        priority="high"
         placeholderBlurhash={imageInfo.blurhash}
+        recyclingKey={imageInfo.imageUrl}
       />
     );
   }
@@ -113,7 +115,13 @@ function CarouselOverlay({ activeIndex, imageInfo, item, items, showLogo }: Caro
       <View style={styles.cardInner}>
         <View style={styles.titleBounds}>
           {logoUrl ? (
-            <Image source={{ uri: logoUrl }} style={styles.cardLogo} contentFit="contain" />
+            <Image
+              source={{ uri: logoUrl }}
+              style={styles.cardLogo}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+              recyclingKey={logoUrl}
+            />
           ) : (
             <ThemedText
               style={[
@@ -324,6 +332,7 @@ export function useCarouselHeaderLayers({
       currentIndexRef.current = nextIndex;
       activeIndexValue.value = nextIndex;
       setCarouselIndex(nextIndex);
+      setAutoTargetIndex(null);
       setIsGestureOverlayVisible(false);
       dragX.value = 0;
     },
@@ -348,16 +357,25 @@ export function useCarouselHeaderLayers({
 
     setAutoTargetIndex(nextIndex);
     setIsGestureOverlayVisible(false);
+  }, [canReveal, items.length]);
+
+  useEffect(() => {
+    if (autoTargetIndex == null) return;
+
     cancelAnimation(autoProgress);
     cancelAnimation(dragX);
     autoProgress.value = 0;
     dragX.value = 0;
     autoProgress.value = withTiming(1, { duration: CAROUSEL_AUTO_FADE_MS }, (finished) => {
       if (finished) {
-        runOnJS(completeAutoAdvance)(nextIndex);
+        runOnJS(completeAutoAdvance)(autoTargetIndex);
       }
     });
-  }, [autoProgress, canReveal, completeAutoAdvance, dragX, items.length]);
+
+    return () => {
+      cancelAnimation(autoProgress);
+    };
+  }, [autoProgress, autoTargetIndex, completeAutoAdvance, dragX]);
 
   const panGesture = useMemo(
     () =>
@@ -576,9 +594,8 @@ export function useCarouselHeaderLayers({
   }, [activeIndexValue, carouselIndex]);
 
   useLayoutEffect(() => {
-    if (autoTargetIndex == null || carouselIndex !== autoTargetIndex) return;
+    if (autoTargetIndex != null) return;
 
-    setAutoTargetIndex(null);
     autoProgress.value = 0;
   }, [autoProgress, autoTargetIndex, carouselIndex]);
 
@@ -594,11 +611,22 @@ export function useCarouselHeaderLayers({
   useEffect(() => {
     if (!isFocused || !canReveal) return;
     const timer = setInterval(() => {
-      if (Math.abs(dragX.value) > 1 || autoProgress.value > 0) return;
+      if (autoTargetIndex != null || Math.abs(dragX.value) > 1 || autoProgress.value > 0) return;
       startAutoAdvance();
     }, CAROUSEL_AUTO_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [autoProgress, canReveal, dragX, isFocused, startAutoAdvance]);
+  }, [autoProgress, autoTargetIndex, canReveal, dragX, isFocused, startAutoAdvance]);
+
+  useEffect(() => {
+    const imageUrls = carouselImageInfos
+      .map((imageInfo) => imageInfo.imageUrl)
+      .filter((imageUrl): imageUrl is string => Boolean(imageUrl));
+    if (imageUrls.length === 0) return;
+
+    void Image.prefetch(imageUrls, { cachePolicy: 'memory-disk' }).catch((error) => {
+      console.warn('Failed to prefetch carousel images', error);
+    });
+  }, [carouselImageInfos]);
 
   const currentItem = items[carouselIndex];
   const currentImageInfo = carouselImageInfos[carouselIndex];
