@@ -63,6 +63,19 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Free Android runner disk space
+        run: |
+          echo "Disk before cleanup:"
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/local/.ghcup
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker system prune --all --force || true
+          echo "Disk after cleanup:"
+          df -h
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -95,9 +108,10 @@ jobs:
         continue-on-error: true
         with:
           path: |
-            ~/.gradle/caches
+            ~/.gradle/caches/modules-2
+            ~/.gradle/caches/jars-*
+            ~/.gradle/caches/transforms-*
             ~/.gradle/wrapper
-            ~/.android/build-cache
             .expo
           key: ${{ runner.os }}-eas-android-${{ hashFiles('**/eas.json', '**/app.config.ts', '**/package.json') }}
           restore-keys: |
