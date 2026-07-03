@@ -7,7 +7,7 @@ import {
 import { SettingsSubtitle, SettingsSymbol, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { ThemePreference, useThemePreference } from '@/lib/contexts/ThemePreferenceContext';
-import { usePerformanceMonitor } from '@/lib/performance/PerformanceMonitorContext';
+import { usePerformanceMonitorActions } from '@/lib/performance/PerformanceMonitorContext';
 import { usePerformanceDiagnosticsUnlock } from '@/lib/performance/usePerformanceDiagnosticsUnlock';
 import Constants from 'expo-constants';
 import { useNavigation } from 'expo-router';
@@ -16,7 +16,7 @@ import { useCallback, useEffect } from 'react';
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const { themePreference, setThemePreference } = useThemePreference();
-  const { updateSettings } = usePerformanceMonitor();
+  const { updateSettings } = usePerformanceMonitorActions();
   const { isUnlocked, registerVersionTap } = usePerformanceDiagnosticsUnlock();
   const router = useTracedRouter('settings');
 

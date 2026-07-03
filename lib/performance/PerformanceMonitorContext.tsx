@@ -67,6 +67,11 @@ type PerformanceMonitorContextValue = {
   updateSettings: (patch: Partial<PerformanceMonitorSettings>) => void;
 };
 
+type PerformanceMonitorActionsContextValue = Omit<
+  PerformanceMonitorContextValue,
+  'settings' | 'snapshot'
+>;
+
 type ActiveTrace = {
   detail?: string;
   name: string;
@@ -107,7 +112,11 @@ const LOCKED_SETTINGS: PerformanceMonitorSettings = {
   overlayVisible: false,
   persistentLogsEnabled: false,
 };
-const PerformanceMonitorContext = createContext<PerformanceMonitorContextValue | null>(null);
+// Keep high-frequency sample snapshots out of route/action subscribers.
+const PerformanceMonitorActionsContext =
+  createContext<PerformanceMonitorActionsContextValue | null>(null);
+const PerformanceMonitorSettingsContext = createContext<PerformanceMonitorSettings | null>(null);
+const PerformanceMonitorSnapshotContext = createContext<PerformanceMonitorSnapshot | null>(null);
 
 function now() {
   return globalThis.performance?.now?.() ?? Date.now();
@@ -539,7 +548,7 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
     };
   }, [beginTrace, effectiveSettings.enabled, effectiveSettings.networkCaptureEnabled]);
 
-  const contextValue = useMemo<PerformanceMonitorContextValue>(
+  const actionsValue = useMemo<PerformanceMonitorActionsContextValue>(
     () => ({
       beginTrace,
       clear,
@@ -548,8 +557,6 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
       onRouteChanged,
       recordInteractionStart,
       recordEvent,
-      settings: effectiveSettings,
-      snapshot,
       traceNavigation,
       updateSettings,
     }),
@@ -561,24 +568,27 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
       onRouteChanged,
       recordInteractionStart,
       recordEvent,
-      effectiveSettings,
-      snapshot,
       traceNavigation,
       updateSettings,
     ],
   );
 
   return (
-    <PerformanceMonitorContext.Provider value={contextValue}>
-      {children}
-    </PerformanceMonitorContext.Provider>
+    <PerformanceMonitorActionsContext.Provider value={actionsValue}>
+      <PerformanceMonitorSettingsContext.Provider value={effectiveSettings}>
+        <PerformanceMonitorSnapshotContext.Provider value={snapshot}>
+          {children}
+        </PerformanceMonitorSnapshotContext.Provider>
+      </PerformanceMonitorSettingsContext.Provider>
+    </PerformanceMonitorActionsContext.Provider>
   );
 }
 
 export function PerformanceRouteObserver() {
   const pathname = usePathname();
   const params = useGlobalSearchParams();
-  const { onRouteChanged, settings } = usePerformanceMonitor();
+  const { onRouteChanged } = usePerformanceMonitorActions();
+  const settings = usePerformanceMonitorSettings();
   const lastRouteKeyRef = useRef('');
 
   useEffect(() => {
@@ -596,7 +606,8 @@ export function PerformanceRouteObserver() {
 }
 
 export function PerformanceInteractionCapture({ children }: PropsWithChildren) {
-  const { recordInteractionStart, settings } = usePerformanceMonitor();
+  const { recordInteractionStart } = usePerformanceMonitorActions();
+  const settings = usePerformanceMonitorSettings();
 
   return (
     <View
@@ -608,12 +619,43 @@ export function PerformanceInteractionCapture({ children }: PropsWithChildren) {
   );
 }
 
-export function usePerformanceMonitor() {
-  const context = useContext(PerformanceMonitorContext);
+export function usePerformanceMonitorActions() {
+  const context = useContext(PerformanceMonitorActionsContext);
   if (!context) {
-    throw new Error('usePerformanceMonitor must be used within PerformanceMonitorProvider');
+    throw new Error('usePerformanceMonitorActions must be used within PerformanceMonitorProvider');
   }
   return context;
+}
+
+export function usePerformanceMonitorSettings() {
+  const context = useContext(PerformanceMonitorSettingsContext);
+  if (!context) {
+    throw new Error('usePerformanceMonitorSettings must be used within PerformanceMonitorProvider');
+  }
+  return context;
+}
+
+export function usePerformanceMonitorSnapshot() {
+  const context = useContext(PerformanceMonitorSnapshotContext);
+  if (!context) {
+    throw new Error('usePerformanceMonitorSnapshot must be used within PerformanceMonitorProvider');
+  }
+  return context;
+}
+
+export function usePerformanceMonitor() {
+  const actions = usePerformanceMonitorActions();
+  const settings = usePerformanceMonitorSettings();
+  const snapshot = usePerformanceMonitorSnapshot();
+
+  return useMemo<PerformanceMonitorContextValue>(
+    () => ({
+      ...actions,
+      settings,
+      snapshot,
+    }),
+    [actions, settings, snapshot],
+  );
 }
 
 const styles = StyleSheet.create({

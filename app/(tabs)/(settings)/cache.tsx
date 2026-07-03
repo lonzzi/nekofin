@@ -10,7 +10,7 @@ import {
   SettingsValue,
 } from '@/components/ui/SettingsVisual';
 import { getStoredPerformanceLogBytes } from '@/lib/performance/performanceLogStorage';
-import { usePerformanceMonitor } from '@/lib/performance/PerformanceMonitorContext';
+import { usePerformanceMonitorActions } from '@/lib/performance/PerformanceMonitorContext';
 import {
   clearPersistedQueryCache,
   formatStorageBytes,
@@ -124,7 +124,7 @@ async function measureFileCacheSizes(): Promise<FileCacheSizes> {
 
 export default function CacheSettingsScreen() {
   const queryClient = useQueryClient();
-  const { clear: clearDiagnosticsCache } = usePerformanceMonitor();
+  const { clear: clearDiagnosticsCache } = usePerformanceMonitorActions();
   const [fileCacheSizes, setFileCacheSizes] = useState<FileCacheSizes>(emptyFileCacheSizes);
   const [revision, setRevision] = useState(0);
   const [measuring, setMeasuring] = useState(true);

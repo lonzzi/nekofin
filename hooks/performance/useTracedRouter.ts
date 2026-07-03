@@ -1,5 +1,5 @@
 import { formatRouteTarget } from '@/lib/performance/performanceMetrics';
-import { usePerformanceMonitor } from '@/lib/performance/PerformanceMonitorContext';
+import { usePerformanceMonitorActions } from '@/lib/performance/PerformanceMonitorContext';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 
@@ -7,7 +7,7 @@ type Router = ReturnType<typeof useRouter>;
 
 export function useTracedRouter(scope?: string): Router {
   const router = useRouter();
-  const { traceNavigation } = usePerformanceMonitor();
+  const { traceNavigation } = usePerformanceMonitorActions();
 
   const getLabel = useCallback(
     (action: string, target?: unknown) => {
