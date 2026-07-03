@@ -1,12 +1,16 @@
 import {
-  NativeSettingsButton,
   NativeSettingsForm,
   NativeSettingsItem,
   NativeSettingsSection,
   NativeSettingsSlider,
   NativeSettingsSwitch,
 } from '@/components/ui/NativeSettings';
-import { SettingsSubtitle, SettingsTitle, SettingsValue } from '@/components/ui/SettingsVisual';
+import {
+  SettingsSubtitle,
+  SettingsSymbol,
+  SettingsTitle,
+  SettingsValue,
+} from '@/components/ui/SettingsVisual';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { formatDurationMs } from '@/lib/performance/performanceMetrics';
 import { usePerformanceMonitor } from '@/lib/performance/PerformanceMonitorContext';
@@ -39,6 +43,7 @@ export default function PerformanceSettingsScreen() {
   const monitor = usePerformanceMonitor();
   const { clear, exportText, settings, snapshot, updateSettings } = monitor;
   const { lock } = usePerformanceDiagnosticsUnlock();
+  const hasDiagnosticLogs = snapshot.samples.length > 0 || snapshot.events.length > 0;
 
   const handleExport = useCallback(() => {
     void Share.share({
@@ -49,10 +54,13 @@ export default function PerformanceSettingsScreen() {
 
   const handleHideDiagnostics = useCallback(() => {
     updateSettings({ enabled: false, overlayVisible: false });
-    clear();
     lock();
     router.back();
-  }, [clear, lock, router, updateSettings]);
+  }, [lock, router, updateSettings]);
+
+  const handleClearDiagnostics = useCallback(() => {
+    clear();
+  }, [clear]);
 
   const latestSample = snapshot.latestSample;
   const nativeStatus = latestSample?.nativeMetricsError
@@ -98,6 +106,14 @@ export default function PerformanceSettingsScreen() {
           value={settings.networkCaptureEnabled}
           disabled={!settings.enabled}
           onValueChange={(networkCaptureEnabled) => updateSettings({ networkCaptureEnabled })}
+        />
+        <NativeSettingsSwitch
+          title={<SettingsTitle>保存诊断日志</SettingsTitle>}
+          subtitle={
+            <SettingsSubtitle primary="默认保存最近的采样和 trace，方便复现后再导出。" lines={2} />
+          }
+          value={settings.persistentLogsEnabled}
+          onValueChange={(persistentLogsEnabled) => updateSettings({ persistentLogsEnabled })}
         />
         <NativeSettingsSlider
           title={<SettingsTitle>采样间隔</SettingsTitle>}
@@ -184,16 +200,28 @@ export default function PerformanceSettingsScreen() {
       </NativeSettingsSection>
 
       <NativeSettingsSection title="数据">
-        <NativeSettingsButton
-          label="导出 JSON"
-          onPress={handleExport}
-          disabled={!settings.enabled}
+        <NativeSettingsItem
+          leading={<SettingsSymbol name="square.and.arrow.up" />}
+          title={<SettingsTitle>导出 JSON</SettingsTitle>}
+          subtitle={
+            <SettingsSubtitle primary="分享当前保存的采样、路由、网络和 Query trace。" lines={2} />
+          }
+          trailing={<SettingsValue label={hasDiagnosticLogs ? '导出' : '无数据'} tone="accent" />}
+          onPress={hasDiagnosticLogs ? handleExport : undefined}
         />
-        <NativeSettingsButton label="清空记录" onPress={clear} variant="outlined" />
-        <NativeSettingsButton
-          label="隐藏入口并关闭诊断"
+        <NativeSettingsItem
+          leading={<SettingsSymbol name="trash" tone="danger" />}
+          title={<SettingsTitle>清空诊断记录</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary="清除当前内存记录和已保存的性能日志。" lines={2} />}
+          trailing={<SettingsValue label="清空" tone="danger" />}
+          onPress={handleClearDiagnostics}
+        />
+        <NativeSettingsItem
+          leading={<SettingsSymbol name="eye.slash" tone="muted" />}
+          title={<SettingsTitle>隐藏诊断入口</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary="关闭采样并从设置页移除性能分析入口。" lines={2} />}
+          trailing={<SettingsValue label="隐藏" tone="muted" />}
           onPress={handleHideDiagnostics}
-          variant="outlined"
         />
       </NativeSettingsSection>
     </NativeSettingsForm>

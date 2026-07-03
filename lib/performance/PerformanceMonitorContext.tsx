@@ -15,6 +15,11 @@ import { StyleSheet, View } from 'react-native';
 
 import { readNativePerformanceSnapshot } from './nativePerformance';
 import {
+  clearStoredPerformanceLogs,
+  loadStoredPerformanceLogs,
+  saveStoredPerformanceLogs,
+} from './performanceLogStorage';
+import {
   createRingBuffer,
   formatRouteTarget,
   PerformanceEvent,
@@ -31,6 +36,7 @@ export type PerformanceMonitorSettings = {
   enabled: boolean;
   networkCaptureEnabled: boolean;
   overlayVisible: boolean;
+  persistentLogsEnabled: boolean;
   sampleIntervalMs: number;
   slowTraceThresholdMs: number;
 };
@@ -83,10 +89,12 @@ type LastInteraction = {
 const STORAGE_KEY = 'performanceMonitor.settings.v1';
 const SAMPLE_BUFFER_SIZE = 300;
 const EVENT_BUFFER_SIZE = 240;
+const LOG_PERSIST_THROTTLE_MS = 5000;
 const DEFAULT_SETTINGS: PerformanceMonitorSettings = {
   enabled: false,
   networkCaptureEnabled: true,
   overlayVisible: false,
+  persistentLogsEnabled: true,
   sampleIntervalMs: 1000,
   slowTraceThresholdMs: 700,
 };
@@ -97,6 +105,7 @@ const LOCKED_SETTINGS: PerformanceMonitorSettings = {
   enabled: false,
   networkCaptureEnabled: false,
   overlayVisible: false,
+  persistentLogsEnabled: false,
 };
 const PerformanceMonitorContext = createContext<PerformanceMonitorContextValue | null>(null);
 
@@ -157,23 +166,56 @@ function makeEventId(prefix: PerformanceEventType) {
 export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
   const queryClient = useQueryClient();
   const { isUnlocked } = usePerformanceDiagnosticsUnlock();
+  const storedLogs = useMemo(() => {
+    const logs = loadStoredPerformanceLogs();
+    return {
+      ...logs,
+      events: logs.events.slice(-EVENT_BUFFER_SIZE),
+      samples: logs.samples.slice(-SAMPLE_BUFFER_SIZE),
+    };
+  }, []);
   const [settings, setSettings] = useState(loadSettings);
   const effectiveSettings = isUnlocked ? settings : LOCKED_SETTINGS;
   const sampleBufferRef = useRef(createRingBuffer<PerformanceSample>(SAMPLE_BUFFER_SIZE));
   const eventBufferRef = useRef(createRingBuffer<PerformanceEvent>(EVENT_BUFFER_SIZE));
+  const didHydrateStoredLogsRef = useRef(false);
   const activeTracesRef = useRef(new Map<string, ActiveTrace>());
   const pendingNavigationRef = useRef<PendingNavigationTrace | null>(null);
   const lastInteractionRef = useRef<LastInteraction | null>(null);
-  const sampleIdRef = useRef(0);
+  const sampleIdRef = useRef((storedLogs.samples[storedLogs.samples.length - 1]?.id ?? -1) + 1);
+  const lastLogPersistedAtRef = useRef(0);
   const [snapshot, setSnapshot] = useState<PerformanceMonitorSnapshot>(() => ({
-    events: [],
-    samples: [],
-    summary: EMPTY_SUMMARY,
+    events: storedLogs.events,
+    latestSample: storedLogs.samples[storedLogs.samples.length - 1],
+    samples: storedLogs.samples,
+    summary: summarizePerformanceSamples(storedLogs.samples),
   }));
+
+  if (!didHydrateStoredLogsRef.current) {
+    storedLogs.samples.forEach((sample) => sampleBufferRef.current.push(sample));
+    storedLogs.events.forEach((event) => eventBufferRef.current.push(event));
+    didHydrateStoredLogsRef.current = true;
+  }
 
   useEffect(() => {
     storage.set(STORAGE_KEY, JSON.stringify(settings));
   }, [settings]);
+
+  const persistLogs = useCallback(
+    (force = false) => {
+      if (!effectiveSettings.enabled || !effectiveSettings.persistentLogsEnabled) return;
+
+      const timestamp = Date.now();
+      if (!force && timestamp - lastLogPersistedAtRef.current < LOG_PERSIST_THROTTLE_MS) return;
+
+      lastLogPersistedAtRef.current = timestamp;
+      saveStoredPerformanceLogs({
+        events: eventBufferRef.current.toArray(),
+        samples: sampleBufferRef.current.toArray(),
+      });
+    },
+    [effectiveSettings.enabled, effectiveSettings.persistentLogsEnabled],
+  );
 
   const recordEvent = useCallback(
     (event: Omit<PerformanceEvent, 'id' | 'timestamp'>) => {
@@ -339,6 +381,8 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
     activeTracesRef.current.clear();
     pendingNavigationRef.current = null;
     lastInteractionRef.current = null;
+    clearStoredPerformanceLogs();
+    lastLogPersistedAtRef.current = 0;
     setSnapshot({
       events: [],
       samples: [],
@@ -347,7 +391,17 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
   }, []);
 
   const updateSettings = useCallback((patch: Partial<PerformanceMonitorSettings>) => {
-    setSettings((current) => ({ ...current, ...patch }));
+    setSettings((current) => {
+      if (current.enabled && patch.enabled === false && current.persistentLogsEnabled) {
+        saveStoredPerformanceLogs({
+          events: eventBufferRef.current.toArray(),
+          samples: sampleBufferRef.current.toArray(),
+        });
+        lastLogPersistedAtRef.current = Date.now();
+      }
+
+      return { ...current, ...patch };
+    });
   }, []);
 
   const exportText = useCallback(() => {
@@ -442,6 +496,7 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
         samples,
         summary: summarizePerformanceSamples(samples),
       });
+      persistLogs();
 
       frameCount = 0;
       maxFrameMs = 0;
@@ -454,7 +509,7 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
       cancelAnimationFrame(rafId);
       clearInterval(timer);
     };
-  }, [effectiveSettings.enabled, effectiveSettings.sampleIntervalMs, queryClient]);
+  }, [effectiveSettings.enabled, effectiveSettings.sampleIntervalMs, persistLogs, queryClient]);
 
   useEffect(() => {
     if (!effectiveSettings.enabled || !effectiveSettings.networkCaptureEnabled) return;

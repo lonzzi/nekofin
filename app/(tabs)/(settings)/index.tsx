@@ -4,7 +4,7 @@ import {
   NativeSettingsPicker,
   NativeSettingsSection,
 } from '@/components/ui/NativeSettings';
-import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
+import { SettingsSubtitle, SettingsSymbol, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { ThemePreference, useThemePreference } from '@/lib/contexts/ThemePreferenceContext';
 import { usePerformanceMonitor } from '@/lib/performance/PerformanceMonitorContext';
@@ -16,7 +16,7 @@ import { useCallback, useEffect } from 'react';
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const { themePreference, setThemePreference } = useThemePreference();
-  const { clear, updateSettings } = usePerformanceMonitor();
+  const { updateSettings } = usePerformanceMonitor();
   const { isUnlocked, registerVersionTap } = usePerformanceDiagnosticsUnlock();
   const router = useTracedRouter('settings');
 
@@ -30,10 +30,9 @@ export default function SettingsScreen() {
     const didUnlock = registerVersionTap();
     if (didUnlock) {
       updateSettings({ enabled: false, overlayVisible: false });
-      clear();
       router.push('/performance');
     }
-  }, [clear, registerVersionTap, router, updateSettings]);
+  }, [registerVersionTap, router, updateSettings]);
 
   return (
     <NativeSettingsForm testID="settings-form">
@@ -73,6 +72,16 @@ export default function SettingsScreen() {
           />
         </NativeSettingsSection>
       ) : null}
+
+      <NativeSettingsSection title="存储空间">
+        <NativeSettingsItem
+          leading={<SettingsSymbol name="externaldrive" tone="muted" />}
+          title={<SettingsTitle>缓存管理</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary="清理图片、媒体库、下载和诊断日志缓存" />}
+          disclosure
+          onPress={() => router.push('/cache')}
+        />
+      </NativeSettingsSection>
 
       <NativeSettingsSection title="关于">
         <NativeSettingsItem

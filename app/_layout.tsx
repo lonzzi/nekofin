@@ -8,7 +8,11 @@ import {
   PerformanceMonitorProvider,
   PerformanceRouteObserver,
 } from '@/lib/performance/PerformanceMonitorContext';
-import { storage } from '@/lib/storage';
+import {
+  QUERY_CACHE_BUSTER,
+  QUERY_CACHE_STORAGE_KEY,
+  queryPersistenceStorage,
+} from '@/lib/queryPersistence';
 import { useAppTheme } from '@/lib/theme';
 import { mediaQueryKeys } from '@/services/media/queryKeys';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
@@ -23,8 +27,6 @@ import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import 'react-native-reanimated';
-
-const QUERY_CACHE_BUSTER = 'media-cache-v2';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,11 +46,8 @@ function shouldPersistQuery(query: Query) {
 }
 
 const persister = createAsyncStoragePersister({
-  storage: {
-    getItem: (key: string) => storage.getString(key) ?? null,
-    setItem: (key: string, value: string) => storage.set(key, value),
-    removeItem: (key: string) => storage.delete(key),
-  },
+  key: QUERY_CACHE_STORAGE_KEY,
+  storage: queryPersistenceStorage,
 });
 
 export default function RootLayout() {

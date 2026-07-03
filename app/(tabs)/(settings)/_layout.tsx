@@ -48,6 +48,12 @@ export default function HomeLayout() {
           headerTitle: '性能分析',
         }}
       />
+      <Stack.Screen
+        name="cache"
+        options={{
+          headerTitle: '缓存管理',
+        }}
+      />
     </Stack>
   );
 }
