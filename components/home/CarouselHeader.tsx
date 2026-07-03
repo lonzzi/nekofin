@@ -8,6 +8,8 @@ import { useAppTheme } from '@/lib/theme';
 import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -203,10 +205,12 @@ function CarouselOverlay({ activeIndex, imageInfo, item, items, showLogo }: Caro
 
 function CarouselGradientScrim() {
   return (
-    <View style={styles.gradientScrim} pointerEvents="none">
-      <View style={styles.gradientScrimMid} />
-      <View style={styles.gradientScrimBottom} />
-    </View>
+    <LinearGradient
+      colors={['transparent', 'rgba(0,0,0,0.78)']}
+      locations={[0.42, 1]}
+      style={styles.gradientScrim}
+      pointerEvents="none"
+    />
   );
 }
 
