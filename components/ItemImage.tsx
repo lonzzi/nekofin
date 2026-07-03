@@ -1,7 +1,7 @@
 import { useAppTheme } from '@/lib/theme';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Image, ImageProps, ImageStyle } from 'expo-image';
-import { ReactNode, useState } from 'react';
+import { ReactNode, useMemo, useState } from 'react';
 import { StyleProp, View } from 'react-native';
 
 export const ItemImage = ({
@@ -32,6 +32,11 @@ export const ItemImage = ({
   const [failedUri, setFailedUri] = useState<string | null>(null);
   const theme = useAppTheme();
   const didFail = !!uri && failedUri === uri;
+  const source = useMemo(() => (uri ? { uri } : undefined), [uri]);
+  const placeholder = useMemo(
+    () => (placeholderBlurhash ? { blurhash: placeholderBlurhash } : undefined),
+    [placeholderBlurhash],
+  );
 
   if (!uri || didFail) {
     return (
@@ -47,9 +52,9 @@ export const ItemImage = ({
 
   return (
     <Image
-      source={{ uri: uri }}
+      source={source}
       style={style}
-      placeholder={placeholderBlurhash ? { blurhash: placeholderBlurhash } : undefined}
+      placeholder={placeholder}
       cachePolicy={cachePolicy}
       contentFit={contentFit}
       contentPosition={contentPosition}

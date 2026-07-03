@@ -10,7 +10,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from 'expo-router';
 import { HeaderButton } from 'expo-router/react-navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { RefreshControl, Text, useWindowDimensions, View } from 'react-native';
 
 import { ItemImage } from '../ItemImage';
@@ -147,6 +147,15 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     paddingTop: theme.spacing.lg,
   };
 
+  const logoImageUrl = useMemo(() => {
+    if (!item) return undefined;
+    return mediaAdapter.getImageInfo({ item, opts: { preferLogo: true, width: 400 } }).url;
+  }, [item, mediaAdapter]);
+  const logoImageSource = useMemo(
+    () => (logoImageUrl ? { uri: logoImageUrl } : undefined),
+    [logoImageUrl],
+  );
+
   if (isLoading || !item) {
     return (
       <HomeAtmosphereScrollView
@@ -166,9 +175,6 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     opts: { preferBackdrop: true, width: 1200 },
   });
   const headerImageUrl = backgroundImageUrl || headerImageInfo.url;
-
-  const logoImageInfo = mediaAdapter.getImageInfo({ item, opts: { preferLogo: true, width: 400 } });
-  const logoImageUrl = logoImageInfo.url;
 
   const renderModeContent = () => {
     const modeComponents = {
@@ -234,7 +240,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
       headerOverlay={
         logoImageUrl ? (
           <Image
-            source={{ uri: logoImageUrl }}
+            source={logoImageSource}
             style={[
               detailViewStyles.headerLogo,
               {
@@ -243,7 +249,9 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
                 width: detailLogoWidth,
               },
             ]}
+            cachePolicy="memory-disk"
             contentFit="contain"
+            recyclingKey={logoImageUrl}
           />
         ) : null
       }

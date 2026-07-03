@@ -26,6 +26,8 @@ export function HomeAtmosphereBackdrop({
   isDark,
 }: HomeAtmosphereBackdropProps) {
   const imageOpacity = isDark ? 0.42 : 0.58;
+  const source = useMemo(() => (imageUrl ? { uri: imageUrl } : undefined), [imageUrl]);
+  const placeholder = useMemo(() => (blurhash ? { blurhash } : undefined), [blurhash]);
 
   const atmosphereGradient = useMemo(
     () =>
@@ -54,9 +56,9 @@ export function HomeAtmosphereBackdrop({
       {!!imageUrl && (
         <>
           <Image
-            source={{ uri: imageUrl }}
+            source={source}
             style={[styles.baseImage, { opacity: imageOpacity }]}
-            placeholder={blurhash ? { blurhash } : undefined}
+            placeholder={placeholder}
             cachePolicy="memory-disk"
             contentFit="cover"
             contentPosition="center"

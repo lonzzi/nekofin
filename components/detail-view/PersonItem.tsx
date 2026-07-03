@@ -1,20 +1,22 @@
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useAppTheme } from '@/lib/theme';
 import { MediaPerson } from '@/services/media/types';
-import { Image } from 'expo-image';
-import { useState } from 'react';
+import { memo, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { ItemImage } from '../ItemImage';
 import { ThemedText } from '../ThemedText';
 import { ShadowedGlassCard } from '../ui/GlassCard';
 import { IconSymbol } from '../ui/IconSymbol';
 
-export const PersonItem = ({ item }: { item: MediaPerson }) => {
+export const PersonItem = memo(function PersonItem({ item }: { item: MediaPerson }) {
   const mediaAdapter = useMediaAdapter();
   const theme = useAppTheme();
 
-  const imageInfo = mediaAdapter.getImageInfo({ item, opts: { width: 300 } });
-  const [imageFailed, setImageFailed] = useState(false);
+  const imageInfo = useMemo(
+    () => mediaAdapter.getImageInfo({ item, opts: { width: 300 } }),
+    [item, mediaAdapter],
+  );
 
   return (
     <ShadowedGlassCard
@@ -22,27 +24,24 @@ export const PersonItem = ({ item }: { item: MediaPerson }) => {
       containerStyle={{ width: theme.layout.mediaRail.personCardWidth }}
       disableLiquidGlass
     >
-      {imageFailed || !imageInfo.url ? (
-        <View
-          style={[
-            styles.personPoster,
-            styles.personPlaceholder,
-            { backgroundColor: theme.colors.surfaceMuted },
-          ]}
-        >
-          <IconSymbol name="person.crop.rectangle" size={36} color={theme.colors.textTertiary} />
-        </View>
-      ) : (
-        <Image
-          source={{ uri: imageInfo.url }}
-          style={[styles.personPoster, { backgroundColor: theme.colors.surfaceMuted }]}
-          placeholder={imageInfo.blurhash ? { blurhash: imageInfo.blurhash } : undefined}
-          cachePolicy="disk"
-          contentFit="cover"
-          enforceEarlyResizing
-          onError={() => setImageFailed(true)}
-        />
-      )}
+      <ItemImage
+        uri={imageInfo.url}
+        style={[styles.personPoster, { backgroundColor: theme.colors.surfaceMuted }]}
+        placeholderBlurhash={imageInfo.blurhash}
+        cachePolicy="memory-disk"
+        contentFit="cover"
+        fallback={
+          <View
+            style={[
+              styles.personPoster,
+              styles.personPlaceholder,
+              { backgroundColor: theme.colors.surfaceMuted },
+            ]}
+          >
+            <IconSymbol name="person.crop.rectangle" size={36} color={theme.colors.textTertiary} />
+          </View>
+        }
+      />
       <View style={styles.personCopy}>
         <ThemedText style={[theme.typography.footnote, styles.personName]} numberOfLines={1}>
           {item.name}
@@ -62,7 +61,7 @@ export const PersonItem = ({ item }: { item: MediaPerson }) => {
       </View>
     </ShadowedGlassCard>
   );
-};
+});
 
 const styles = StyleSheet.create({
   personPoster: {

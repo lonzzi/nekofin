@@ -2,6 +2,7 @@ import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/theme';
+import { ImageUrlInfo } from '@/lib/utils/image';
 import {
   episodesBySeasonQueryOptions,
   mediaSourcesQueryOptions,
@@ -9,8 +10,8 @@ import {
 import { MediaItem, MediaPerson } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MenuView } from '@react-native-menu/menu';
-import { useEffect, useRef, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { EpisodeCard, SeriesCard } from '../media/Card';
 import { ThemedText } from '../ThemedText';
@@ -27,6 +28,45 @@ import {
   getSelectedEpisodeOrFallback,
 } from './episodeSelection';
 import { PersonItem } from './PersonItem';
+
+const episodeCardStyles = StyleSheet.create({
+  selected: {
+    opacity: 1,
+  },
+  unselected: {
+    opacity: 0.8,
+  },
+});
+
+const EpisodeSelectorItem = memo(function EpisodeSelectorItem({
+  episode,
+  imageInfo,
+  isSelected,
+  onSelect,
+}: {
+  episode: MediaItem;
+  imageInfo?: ImageUrlInfo;
+  isSelected: boolean;
+  onSelect: (episode: MediaItem) => void;
+}) {
+  const handlePress = useCallback(() => {
+    onSelect(episode);
+  }, [episode, onSelect]);
+
+  return (
+    <EpisodeCard
+      item={episode}
+      style={[
+        detailViewStyles.horizontalCard,
+        isSelected ? episodeCardStyles.selected : episodeCardStyles.unselected,
+      ]}
+      imgType="Primary"
+      onPress={handlePress}
+      disableContextMenu
+      imgInfo={imageInfo}
+    />
+  );
+});
 
 export const EpisodeModeContent = ({
   seasons,
@@ -80,6 +120,40 @@ export const EpisodeModeContent = ({
     currentSeasonEpisodes,
     fallbackEpisodes: episodes,
   });
+  const selectedEpisodeId = selectedEpisode.id;
+
+  const episodeImageInfoById = useMemo(() => {
+    const imageInfoById = new Map<string, ImageUrlInfo>();
+    for (const episode of displayEpisodes) {
+      if (!episode.id) continue;
+      imageInfoById.set(
+        episode.id,
+        mediaAdapter.getImageInfo({
+          item: episode,
+          opts: { width: 400 },
+        }),
+      );
+    }
+    return imageInfoById;
+  }, [displayEpisodes, mediaAdapter]);
+
+  const handleSelectEpisode = useCallback((episode: MediaItem) => {
+    setSelectedEpisode(episode);
+  }, []);
+
+  const renderEpisodeItem = useCallback(
+    ({ item: episode }: { item: MediaItem }) => (
+      <EpisodeSelectorItem
+        episode={episode}
+        imageInfo={episode.id ? episodeImageInfoById.get(episode.id) : undefined}
+        isSelected={episode.id === selectedEpisodeId}
+        onSelect={handleSelectEpisode}
+      />
+    ),
+    [episodeImageInfoById, handleSelectEpisode, selectedEpisodeId],
+  );
+
+  const extractEpisodeKey = useCallback((episode: MediaItem) => episode.id!, []);
 
   useEffect(() => {
     const nextEpisode = getSelectedEpisodeOrFallback(displayEpisodes, selectedEpisode);
@@ -160,25 +234,8 @@ export const EpisodeModeContent = ({
                 }
               }, 50);
             }}
-            renderItem={({ item: ep }) => {
-              const isSelected = ep.id === selectedEpisode.id;
-              return (
-                <EpisodeCard
-                  item={ep}
-                  style={[detailViewStyles.horizontalCard, { opacity: isSelected ? 1 : 0.8 }]}
-                  imgType="Primary"
-                  onPress={() => {
-                    setSelectedEpisode(ep);
-                  }}
-                  disableContextMenu
-                  imgInfo={mediaAdapter.getImageInfo({
-                    item: ep,
-                    opts: { width: 400 },
-                  })}
-                />
-              );
-            }}
-            keyExtractor={(item) => item.id!}
+            renderItem={renderEpisodeItem}
+            keyExtractor={extractEpisodeKey}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={detailViewStyles.horizontalList}
           />
