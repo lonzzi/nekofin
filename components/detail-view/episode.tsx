@@ -113,7 +113,7 @@ export const EpisodeModeContent = ({
 
       {!!selectedEpisode?.id && <PlayButton item={selectedEpisode} />}
 
-      <ItemOverview item={selectedEpisode} />
+      <ItemOverview item={selectedEpisode} reserveCollapsedSpace />
 
       {seasons && seasons.length > 0 && (
         <View

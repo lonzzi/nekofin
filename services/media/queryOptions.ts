@@ -511,6 +511,7 @@ export function mediaSourcesQueryOptions({
   return queryOptions({
     enabled: !!itemId,
     queryKey: mediaQueryKeys.mediaSources(currentServer?.id, itemId, currentServer?.userId),
+    placeholderData: (previousData) => previousData,
     queryFn: async (): Promise<MediaPlaybackInfo | null> => {
       if (!itemId) return null;
       return await adapter.getItemMediaSources({

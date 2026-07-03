@@ -17,6 +17,10 @@ const detailDateFormatter = new Intl.DateTimeFormat('zh-CN', {
   day: 'numeric',
 });
 
+const OVERVIEW_COLLAPSED_LINES = 5;
+const OVERVIEW_LINE_HEIGHT = 20;
+const OVERVIEW_RESERVED_HEIGHT = OVERVIEW_COLLAPSED_LINES * OVERVIEW_LINE_HEIGHT;
+
 function formatDetailDate(value?: string | null) {
   if (!value) return '';
   const date = new Date(value);
@@ -154,24 +158,58 @@ export const ItemMeta = ({ item }: { item: MediaItem }) => {
   );
 };
 
-export const ItemOverview = ({ item }: { item: MediaItem }) => {
+export const ItemOverview = ({
+  item,
+  reserveCollapsedSpace = false,
+}: {
+  item: MediaItem;
+  reserveCollapsedSpace?: boolean;
+}) => {
   const theme = useAppTheme();
   const textColor = theme.colors.text;
   const [isOverviewPresented, setIsOverviewPresented] = useState(false);
-  const [textLines, setTextLines] = useState(0);
+  const [measuredOverview, setMeasuredOverview] = useState({ lines: 0, text: '' });
   const accentColor = theme.colors.tint;
 
   const overview = item?.overview?.trim() ?? '';
+  const textLines = measuredOverview.text === overview ? measuredOverview.lines : 0;
+  const reservedTextStyle = reserveCollapsedSpace ? { minHeight: OVERVIEW_RESERVED_HEIGHT } : null;
 
   const handleShowMore = () => {
     setIsOverviewPresented(true);
   };
 
   const handleTextLayout = (event: TextLayoutEvent) => {
-    setTextLines(event.nativeEvent.lines.length);
+    setMeasuredOverview({
+      lines: event.nativeEvent.lines.length,
+      text: overview,
+    });
   };
 
-  if (!overview) return null;
+  if (!overview) {
+    if (!reserveCollapsedSpace) return null;
+
+    return (
+      <View style={detailViewStyles.overviewContainer}>
+        <Text
+          style={[
+            detailViewStyles.overview,
+            reservedTextStyle,
+            { color: theme.colors.textTertiary },
+          ]}
+          numberOfLines={OVERVIEW_COLLAPSED_LINES}
+        >
+          暂无简介
+        </Text>
+        <Text
+          accessible={false}
+          style={[detailViewStyles.overview, { color: accentColor, opacity: 0 }]}
+        >
+          查看更多
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <>
@@ -182,14 +220,24 @@ export const ItemOverview = ({ item }: { item: MediaItem }) => {
         >
           {overview}
         </Text>
-        <Text style={[detailViewStyles.overview, { color: textColor }]} numberOfLines={5}>
+        <Text
+          style={[detailViewStyles.overview, reservedTextStyle, { color: textColor }]}
+          numberOfLines={OVERVIEW_COLLAPSED_LINES}
+        >
           {overview}
         </Text>
-        {textLines > 5 && (
+        {textLines > OVERVIEW_COLLAPSED_LINES ? (
           <Pressable onPress={handleShowMore}>
             <Text style={[detailViewStyles.overview, { color: accentColor }]}>查看更多</Text>
           </Pressable>
-        )}
+        ) : reserveCollapsedSpace ? (
+          <Text
+            accessible={false}
+            style={[detailViewStyles.overview, { color: accentColor, opacity: 0 }]}
+          >
+            查看更多
+          </Text>
+        ) : null}
       </View>
 
       <BottomSheet
