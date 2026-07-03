@@ -14,7 +14,6 @@ import {
 import { StyleSheet, View } from 'react-native';
 
 import { readNativePerformanceSnapshot } from './nativePerformance';
-import { isPerformanceDiagnosticsEnabled } from './performanceConfig';
 import {
   createRingBuffer,
   formatRouteTarget,
@@ -26,6 +25,7 @@ import {
   sanitizeNetworkUrl,
   summarizePerformanceSamples,
 } from './performanceMetrics';
+import { usePerformanceDiagnosticsUnlock } from './usePerformanceDiagnosticsUnlock';
 
 export type PerformanceMonitorSettings = {
   enabled: boolean;
@@ -92,47 +92,13 @@ const DEFAULT_SETTINGS: PerformanceMonitorSettings = {
 };
 
 const EMPTY_SUMMARY = summarizePerformanceSamples([]);
-const DISABLED_SETTINGS: PerformanceMonitorSettings = {
+const LOCKED_SETTINGS: PerformanceMonitorSettings = {
   ...DEFAULT_SETTINGS,
   enabled: false,
   networkCaptureEnabled: false,
   overlayVisible: false,
 };
-const DISABLED_SNAPSHOT: PerformanceMonitorSnapshot = {
-  events: [],
-  samples: [],
-  summary: EMPTY_SUMMARY,
-};
-
 const PerformanceMonitorContext = createContext<PerformanceMonitorContextValue | null>(null);
-
-const DISABLED_CONTEXT_VALUE: PerformanceMonitorContextValue = {
-  beginTrace: (_name, type = 'trace') => ({
-    end: () => undefined,
-    id: `disabled-${type}`,
-  }),
-  clear: () => undefined,
-  exportText: () =>
-    JSON.stringify(
-      {
-        events: [],
-        generatedAt: new Date().toISOString(),
-        samples: [],
-        settings: DISABLED_SETTINGS,
-        summary: EMPTY_SUMMARY,
-      },
-      null,
-      2,
-    ),
-  mark: () => undefined,
-  onRouteChanged: () => undefined,
-  recordEvent: () => undefined,
-  recordInteractionStart: () => undefined,
-  settings: DISABLED_SETTINGS,
-  snapshot: DISABLED_SNAPSHOT,
-  traceNavigation: () => undefined,
-  updateSettings: () => undefined,
-};
 
 function now() {
   return globalThis.performance?.now?.() ?? Date.now();
@@ -190,8 +156,9 @@ function makeEventId(prefix: PerformanceEventType) {
 
 export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
   const queryClient = useQueryClient();
+  const { isUnlocked } = usePerformanceDiagnosticsUnlock();
   const [settings, setSettings] = useState(loadSettings);
-  const effectiveSettings = isPerformanceDiagnosticsEnabled ? settings : DISABLED_SETTINGS;
+  const effectiveSettings = isUnlocked ? settings : LOCKED_SETTINGS;
   const sampleBufferRef = useRef(createRingBuffer<PerformanceSample>(SAMPLE_BUFFER_SIZE));
   const eventBufferRef = useRef(createRingBuffer<PerformanceEvent>(EVENT_BUFFER_SIZE));
   const activeTracesRef = useRef(new Map<string, ActiveTrace>());
@@ -205,7 +172,6 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
   }));
 
   useEffect(() => {
-    if (!isPerformanceDiagnosticsEnabled) return;
     storage.set(STORAGE_KEY, JSON.stringify(settings));
   }, [settings]);
 
@@ -381,7 +347,6 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
   }, []);
 
   const updateSettings = useCallback((patch: Partial<PerformanceMonitorSettings>) => {
-    if (!isPerformanceDiagnosticsEnabled) return;
     setSettings((current) => ({ ...current, ...patch }));
   }, []);
 
@@ -576,10 +541,13 @@ export function PerformanceRouteObserver() {
 }
 
 export function PerformanceInteractionCapture({ children }: PropsWithChildren) {
-  const { recordInteractionStart } = usePerformanceMonitor();
+  const { recordInteractionStart, settings } = usePerformanceMonitor();
 
   return (
-    <View style={styles.interactionCapture} onTouchStart={() => recordInteractionStart()}>
+    <View
+      style={styles.interactionCapture}
+      onTouchStart={settings.enabled ? () => recordInteractionStart() : undefined}
+    >
       {children}
     </View>
   );

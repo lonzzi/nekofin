@@ -7,9 +7,10 @@ import {
   NativeSettingsSwitch,
 } from '@/components/ui/NativeSettings';
 import { SettingsSubtitle, SettingsTitle, SettingsValue } from '@/components/ui/SettingsVisual';
-import { isPerformanceDiagnosticsEnabled } from '@/lib/performance/performanceConfig';
+import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { formatDurationMs } from '@/lib/performance/performanceMetrics';
 import { usePerformanceMonitor } from '@/lib/performance/PerformanceMonitorContext';
+import { usePerformanceDiagnosticsUnlock } from '@/lib/performance/usePerformanceDiagnosticsUnlock';
 import { useCallback } from 'react';
 import { Share } from 'react-native';
 
@@ -34,8 +35,10 @@ function formatHz(value?: number) {
 }
 
 export default function PerformanceSettingsScreen() {
+  const router = useTracedRouter('performance-settings');
   const monitor = usePerformanceMonitor();
   const { clear, exportText, settings, snapshot, updateSettings } = monitor;
+  const { lock } = usePerformanceDiagnosticsUnlock();
 
   const handleExport = useCallback(() => {
     void Share.share({
@@ -44,9 +47,12 @@ export default function PerformanceSettingsScreen() {
     });
   }, [exportText]);
 
-  if (!isPerformanceDiagnosticsEnabled) {
-    return null;
-  }
+  const handleHideDiagnostics = useCallback(() => {
+    updateSettings({ enabled: false, overlayVisible: false });
+    clear();
+    lock();
+    router.back();
+  }, [clear, lock, router, updateSettings]);
 
   const latestSample = snapshot.latestSample;
   const nativeStatus = latestSample?.nativeMetricsError
@@ -184,6 +190,11 @@ export default function PerformanceSettingsScreen() {
           disabled={!settings.enabled}
         />
         <NativeSettingsButton label="清空记录" onPress={clear} variant="outlined" />
+        <NativeSettingsButton
+          label="隐藏入口并关闭诊断"
+          onPress={handleHideDiagnostics}
+          variant="outlined"
+        />
       </NativeSettingsSection>
     </NativeSettingsForm>
   );

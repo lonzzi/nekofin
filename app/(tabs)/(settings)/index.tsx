@@ -7,14 +7,17 @@ import {
 import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { ThemePreference, useThemePreference } from '@/lib/contexts/ThemePreferenceContext';
-import { isPerformanceDiagnosticsEnabled } from '@/lib/performance/performanceConfig';
+import { usePerformanceMonitor } from '@/lib/performance/PerformanceMonitorContext';
+import { usePerformanceDiagnosticsUnlock } from '@/lib/performance/usePerformanceDiagnosticsUnlock';
 import Constants from 'expo-constants';
 import { useNavigation } from 'expo-router';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const { themePreference, setThemePreference } = useThemePreference();
+  const { clear, updateSettings } = usePerformanceMonitor();
+  const { isUnlocked, registerVersionTap } = usePerformanceDiagnosticsUnlock();
   const router = useTracedRouter('settings');
 
   useEffect(() => {
@@ -22,6 +25,15 @@ export default function SettingsScreen() {
       headerLargeTitle: true,
     });
   }, [navigation]);
+
+  const handleVersionPress = useCallback(() => {
+    const didUnlock = registerVersionTap();
+    if (didUnlock) {
+      updateSettings({ enabled: false, overlayVisible: false });
+      clear();
+      router.push('/performance');
+    }
+  }, [clear, registerVersionTap, router, updateSettings]);
 
   return (
     <NativeSettingsForm testID="settings-form">
@@ -51,7 +63,7 @@ export default function SettingsScreen() {
         />
       </NativeSettingsSection>
 
-      {isPerformanceDiagnosticsEnabled ? (
+      {isUnlocked ? (
         <NativeSettingsSection title="开发诊断">
           <NativeSettingsItem
             title={<SettingsTitle>性能分析</SettingsTitle>}
@@ -68,6 +80,7 @@ export default function SettingsScreen() {
           subtitle={
             <SettingsSubtitle primary={`nekofin v${Constants.expoConfig?.version || '1.0.0'}`} />
           }
+          onPress={handleVersionPress}
         />
         <NativeSettingsItem
           title={<SettingsTitle>开源协议</SettingsTitle>}

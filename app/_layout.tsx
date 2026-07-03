@@ -3,7 +3,6 @@ import { DanmakuSettingsProvider } from '@/lib/contexts/DanmakuSettingsContext';
 import { MediaServerProvider } from '@/lib/contexts/MediaServerContext';
 import { ThemeColorProvider } from '@/lib/contexts/ThemeColorContext';
 import { ThemePreferenceProvider } from '@/lib/contexts/ThemePreferenceContext';
-import { isPerformanceDiagnosticsEnabled } from '@/lib/performance/performanceConfig';
 import {
   PerformanceInteractionCapture,
   PerformanceMonitorProvider,
@@ -80,14 +79,10 @@ export default function RootLayout() {
             <DanmakuSettingsProvider>
               <ThemeColorProvider>
                 <PerformanceMonitorProvider>
-                  {isPerformanceDiagnosticsEnabled ? (
-                    <PerformanceInteractionCapture>
-                      <RootNavigation />
-                      <PerformanceOverlay />
-                    </PerformanceInteractionCapture>
-                  ) : (
+                  <PerformanceInteractionCapture>
                     <RootNavigation />
-                  )}
+                    <PerformanceOverlay />
+                  </PerformanceInteractionCapture>
                 </PerformanceMonitorProvider>
               </ThemeColorProvider>
             </DanmakuSettingsProvider>
