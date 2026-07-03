@@ -1,3 +1,4 @@
+import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
@@ -7,7 +8,6 @@ import { getDeviceId, ticksToSeconds } from '@/lib/utils';
 import { DandanComment } from '@/services/dandanplay';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { ExpoMpvView, type ExpoMpvViewRef } from 'expo-mpv';
-import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
@@ -35,7 +35,7 @@ const LoadingIndicator = ({ title }: { title?: string }) => {
 
 export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   const { currentServer, currentApi } = useMediaServers();
-  const router = useRouter();
+  const router = useTracedRouter('player');
   const mediaAdapter = useMediaAdapter();
   const { settings } = useDanmakuSettings();
 

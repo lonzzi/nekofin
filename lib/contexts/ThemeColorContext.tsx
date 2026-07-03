@@ -16,8 +16,9 @@ const STORAGE_KEY = 'theme.accentColor';
 const ThemeColorContext = createContext<ThemeColorContextValue | undefined>(undefined);
 
 export function ThemeColorProvider({ children }: { children: React.ReactNode }) {
-  const initialAccentColor = storage.getString(STORAGE_KEY) || DEFAULT_ACCENT_COLOR;
-  const [accentColorState, setAccentColorState] = useState<string>(initialAccentColor);
+  const [accentColorState, setAccentColorState] = useState<string>(
+    () => storage.getString(STORAGE_KEY) || DEFAULT_ACCENT_COLOR,
+  );
 
   const { currentServer } = useMediaServers();
 

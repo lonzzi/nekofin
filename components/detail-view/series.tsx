@@ -36,7 +36,12 @@ export const SeriesModeContent = ({
             data={nextUpItems}
             style={detailViewStyles.edgeToEdge}
             renderItem={({ item }) => (
-              <EpisodeCard item={item} style={detailViewStyles.horizontalCard} imgType="Primary" />
+              <EpisodeCard
+                item={item}
+                style={detailViewStyles.horizontalCard}
+                imgType="Primary"
+                disableContextMenu
+              />
             )}
             keyExtractor={(item) => item.id!}
             showsHorizontalScrollIndicator={false}
@@ -53,7 +58,9 @@ export const SeriesModeContent = ({
             removeClippedSubviews={false}
             data={seasons}
             style={detailViewStyles.edgeToEdge}
-            renderItem={({ item }) => <SeriesCard item={item} imgType="Primary" hideSubtitle />}
+            renderItem={({ item }) => (
+              <SeriesCard item={item} imgType="Primary" hideSubtitle disableContextMenu />
+            )}
             keyExtractor={(item) => item.id!}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={detailViewStyles.horizontalList}
@@ -85,7 +92,9 @@ export const SeriesModeContent = ({
             removeClippedSubviews={false}
             data={similarItems}
             style={detailViewStyles.edgeToEdge}
-            renderItem={({ item }) => <SeriesCard item={item} imgType="Primary" />}
+            renderItem={({ item }) => (
+              <SeriesCard item={item} imgType="Primary" disableContextMenu />
+            )}
             keyExtractor={(item) => item.id!}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={detailViewStyles.horizontalList}

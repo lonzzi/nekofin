@@ -49,7 +49,9 @@ export const MovieModeContent = ({
             removeClippedSubviews={false}
             data={similarItems}
             style={detailViewStyles.edgeToEdge}
-            renderItem={({ item }) => <SeriesCard item={item} imgType="Primary" />}
+            renderItem={({ item }) => (
+              <SeriesCard item={item} imgType="Primary" disableContextMenu />
+            )}
             keyExtractor={(item) => item.id!}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={detailViewStyles.horizontalList}

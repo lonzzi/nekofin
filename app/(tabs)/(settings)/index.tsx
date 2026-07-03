@@ -5,15 +5,17 @@ import {
   NativeSettingsSection,
 } from '@/components/ui/NativeSettings';
 import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
+import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { ThemePreference, useThemePreference } from '@/lib/contexts/ThemePreferenceContext';
+import { isPerformanceDiagnosticsEnabled } from '@/lib/performance/performanceConfig';
 import Constants from 'expo-constants';
-import { useNavigation, useRouter } from 'expo-router';
+import { useNavigation } from 'expo-router';
 import { useEffect } from 'react';
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const { themePreference, setThemePreference } = useThemePreference();
-  const router = useRouter();
+  const router = useTracedRouter('settings');
 
   useEffect(() => {
     navigation.setOptions({
@@ -48,6 +50,17 @@ export default function SettingsScreen() {
           onValueChange={(value) => setThemePreference(value as ThemePreference)}
         />
       </NativeSettingsSection>
+
+      {isPerformanceDiagnosticsEnabled ? (
+        <NativeSettingsSection title="开发诊断">
+          <NativeSettingsItem
+            title={<SettingsTitle>性能分析</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary="Native FPS、CPU、内存、路由和网络 trace" />}
+            disclosure
+            onPress={() => router.push('/performance')}
+          />
+        </NativeSettingsSection>
+      ) : null}
 
       <NativeSettingsSection title="关于">
         <NativeSettingsItem

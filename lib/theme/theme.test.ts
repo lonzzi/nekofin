@@ -23,14 +23,14 @@ describe('createAppTheme', () => {
     const theme = createAppTheme({ accentColor: '#123456', colorScheme: 'light' });
 
     expect(theme.spacing.page).toBe(20);
-    expect(theme.layout.mediaHero.heightRatio).toBe(0.54);
+    expect(theme.layout.mediaHero.heightRatio).toBe(0.75);
     expect(theme.radius.pill).toBe(999);
     expect(theme.typography.body.fontSize).toBe(16);
   });
 
   it('keeps media hero height within the shared app bounds', () => {
-    expect(resolveMediaHeroHeight(640)).toBe(360);
-    expect(resolveMediaHeroHeight(852)).toBe(460);
-    expect(resolveMediaHeroHeight(1200)).toBe(460);
+    expect(resolveMediaHeroHeight(640)).toBe(480);
+    expect(resolveMediaHeroHeight(852)).toBe(520);
+    expect(resolveMediaHeroHeight(1200)).toBe(520);
   });
 });

@@ -11,6 +11,7 @@ export const ItemImage = ({
   contentFit,
   contentPosition,
   cachePolicy,
+  enforceEarlyResizing = true,
   fallback,
 }: {
   uri?: string;
@@ -19,6 +20,7 @@ export const ItemImage = ({
   contentFit?: ImageProps['contentFit'];
   contentPosition?: ImageProps['contentPosition'];
   cachePolicy?: ImageProps['cachePolicy'];
+  enforceEarlyResizing?: ImageProps['enforceEarlyResizing'];
   fallback?: ReactNode;
 }) => {
   const [failed, setFailed] = useState(false);
@@ -44,6 +46,7 @@ export const ItemImage = ({
       cachePolicy={cachePolicy}
       contentFit={contentFit}
       contentPosition={contentPosition}
+      enforceEarlyResizing={enforceEarlyResizing}
       onError={() => setFailed(true)}
     />
   );

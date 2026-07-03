@@ -1,3 +1,4 @@
+import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaActions } from '@/hooks/useMediaActions';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
@@ -6,7 +7,6 @@ import { ImageUrlInfo } from '@/lib/utils/image';
 import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
-import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Content, Item, ItemIcon, ItemTitle, Root as Menu, Trigger } from 'zeego/context-menu';
@@ -21,6 +21,86 @@ import {
 } from './cardHelpers';
 
 export { getSubtitle } from './cardHelpers';
+
+function EpisodeCardActionMenu({ item, children }: { item: MediaItem; children: React.ReactNode }) {
+  const {
+    currentUserData,
+    handlePlay,
+    handleAddToFavorites,
+    handleMarkAsWatched,
+    handleMarkAsUnwatched,
+  } = useMediaActions(item);
+  const isPlayed = currentUserData?.played === true;
+
+  return (
+    <Menu>
+      <Trigger>{children}</Trigger>
+      <Content>
+        <Item key="play" onSelect={handlePlay}>
+          <ItemIcon ios={{ name: 'play.circle' }} />
+          <ItemTitle>播放</ItemTitle>
+        </Item>
+        <Item key="addToFavorites" onSelect={handleAddToFavorites}>
+          <ItemIcon ios={{ name: 'heart' }} />
+          <ItemTitle>添加到收藏</ItemTitle>
+        </Item>
+        <Item
+          key={isPlayed ? 'markAsUnwatched' : 'markAsWatched'}
+          onSelect={isPlayed ? handleMarkAsUnwatched : handleMarkAsWatched}
+        >
+          <ItemIcon ios={{ name: isPlayed ? 'eye.slash' : 'eye' }} />
+          <ItemTitle>{isPlayed ? '标记为未看' : '标记为已看'}</ItemTitle>
+        </Item>
+      </Content>
+    </Menu>
+  );
+}
+
+function SeriesCardActionMenu({
+  item,
+  children,
+  onViewDetails,
+}: {
+  item: MediaItem;
+  children: React.ReactNode;
+  onViewDetails: () => void;
+}) {
+  const {
+    currentUserData,
+    handlePlay,
+    handleAddToFavorites,
+    handleMarkAsWatched,
+    handleMarkAsUnwatched,
+  } = useMediaActions(item);
+  const isPlayed = currentUserData?.played === true;
+
+  return (
+    <Menu>
+      <Trigger>{children}</Trigger>
+      <Content>
+        <Item key="play" onSelect={handlePlay}>
+          <ItemIcon ios={{ name: 'play.circle' }} />
+          <ItemTitle>播放</ItemTitle>
+        </Item>
+        <Item key="viewDetails" onSelect={onViewDetails}>
+          <ItemIcon ios={{ name: 'info.circle' }} />
+          <ItemTitle>查看详情</ItemTitle>
+        </Item>
+        <Item key="addToFavorites" onSelect={handleAddToFavorites}>
+          <ItemIcon ios={{ name: 'heart' }} />
+          <ItemTitle>添加到收藏</ItemTitle>
+        </Item>
+        <Item
+          key={isPlayed ? 'markAsUnwatched' : 'markAsWatched'}
+          onSelect={isPlayed ? handleMarkAsUnwatched : handleMarkAsWatched}
+        >
+          <ItemIcon ios={{ name: isPlayed ? 'eye.slash' : 'eye' }} />
+          <ItemTitle>{isPlayed ? '标记为未看' : '标记为已看'}</ItemTitle>
+        </Item>
+      </Content>
+    </Menu>
+  );
+}
 
 export const EpisodeCard = React.memo(function EpisodeCard({
   item,
@@ -45,19 +125,12 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   showBorder?: boolean;
   disableContextMenu?: boolean;
 }) {
-  const router = useRouter();
+  const router = useTracedRouter('episode-card');
   const theme = useAppTheme();
   const { accentColor } = useAccentColor();
   const [isLongPressing, setIsLongPressing] = useState(false);
 
   const mediaAdapter = useMediaAdapter();
-  const {
-    currentUserData,
-    handlePlay,
-    handleAddToFavorites,
-    handleMarkAsWatched,
-    handleMarkAsUnwatched,
-  } = useMediaActions(item);
 
   const imageInfo = useMemo(
     () =>
@@ -71,13 +144,25 @@ export const EpisodeCard = React.memo(function EpisodeCard({
 
   const imageUrl = imageInfo.url;
 
-  const handlePress = useCallback(async () => {
-    if (isLongPressing) return;
-
+  const openDetails = useCallback(() => {
     const route = getEpisodeCardRoute(item);
     if (route) router.push(route);
-  }, [item, isLongPressing, router]);
+  }, [item, router]);
 
+  const handlePress = useCallback(() => {
+    if (isLongPressing) return;
+    openDetails();
+  }, [isLongPressing, openDetails]);
+
+  const handlePlay = useCallback(() => {
+    if (!item.id) return;
+    router.push({
+      pathname: '/player',
+      params: { itemId: item.id },
+    });
+  }, [item.id, router]);
+
+  const currentUserData = item.userData;
   const playedPercentage =
     typeof currentUserData?.playedPercentage === 'number'
       ? currentUserData.playedPercentage
@@ -102,6 +187,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
         radius={9999}
         style={styles.playButton}
         fallbackBackgroundColor={theme.colors.mediaChrome}
+        disableLiquidGlass
         isInteractive
       >
         <Pressable style={styles.playButtonInner} onPress={handlePlay}>
@@ -119,10 +205,10 @@ export const EpisodeCard = React.memo(function EpisodeCard({
         style={[styles.card, { width: 200 }, style]}
         disabled={disabled}
         onPress={onPress || handlePress}
-        onLongPress={handleLongPressStart}
-        onPressOut={handleLongPressEnd}
+        onLongPress={disableContextMenu ? undefined : handleLongPressStart}
+        onPressOut={disableContextMenu ? undefined : handleLongPressEnd}
       >
-        <ShadowedGlassCard radius={12}>
+        <ShadowedGlassCard radius={12} disableLiquidGlass>
           <View style={[styles.coverContainer, { backgroundColor: theme.colors.surfaceMuted }]}>
             <ItemImage
               uri={imageUrl}
@@ -135,7 +221,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
                 },
               ]}
               placeholderBlurhash={imageInfo.blurhash}
-              cachePolicy="memory-disk"
+              cachePolicy="disk"
               contentFit="cover"
             />
             {showPlayButton && <PlayButton />}
@@ -203,6 +289,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
     [
       PlayButton,
       accentColor,
+      disableContextMenu,
       disabled,
       handleLongPressEnd,
       handleLongPressStart,
@@ -227,28 +314,9 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   }
 
   return (
-    <Menu>
-      <Trigger>
-        <CardComp />
-      </Trigger>
-      <Content>
-        <Item key="play" onSelect={handlePlay}>
-          <ItemIcon ios={{ name: 'play.circle' }} />
-          <ItemTitle>播放</ItemTitle>
-        </Item>
-        <Item key="addToFavorites" onSelect={handleAddToFavorites}>
-          <ItemIcon ios={{ name: 'heart' }} />
-          <ItemTitle>添加到收藏</ItemTitle>
-        </Item>
-        <Item
-          key={isPlayed ? 'markAsUnwatched' : 'markAsWatched'}
-          onSelect={isPlayed ? handleMarkAsUnwatched : handleMarkAsWatched}
-        >
-          <ItemIcon ios={{ name: isPlayed ? 'eye.slash' : 'eye' }} />
-          <ItemTitle>{isPlayed ? '标记为未看' : '标记为已看'}</ItemTitle>
-        </Item>
-      </Content>
-    </Menu>
+    <EpisodeCardActionMenu item={item}>
+      <CardComp />
+    </EpisodeCardActionMenu>
   );
 });
 
@@ -260,6 +328,7 @@ export const SeriesCard = React.memo(function SeriesCard({
   hideSubtitle = false,
   showBorder = false,
   onPress,
+  disableContextMenu = false,
 }: {
   item: MediaItem;
   style?: StyleProp<ViewStyle>;
@@ -268,19 +337,13 @@ export const SeriesCard = React.memo(function SeriesCard({
   hideSubtitle?: boolean;
   showBorder?: boolean;
   onPress?: () => void;
+  disableContextMenu?: boolean;
 }) {
   const theme = useAppTheme();
-  const router = useRouter();
+  const router = useTracedRouter('series-card');
   const [isLongPressing, setIsLongPressing] = useState(false);
 
   const mediaAdapter = useMediaAdapter();
-  const {
-    currentUserData,
-    handlePlay,
-    handleAddToFavorites,
-    handleMarkAsWatched,
-    handleMarkAsUnwatched,
-  } = useMediaActions(item);
 
   const imageInfo = useMemo(
     () =>
@@ -295,9 +358,7 @@ export const SeriesCard = React.memo(function SeriesCard({
   const imageUrl = imageInfo.url;
   const itemTitle = item.seriesName || item.name || '未知标题';
 
-  const handlePress = useCallback(() => {
-    if (isLongPressing) return;
-
+  const openDetails = useCallback(() => {
     if (onPress) {
       onPress();
       return;
@@ -309,9 +370,12 @@ export const SeriesCard = React.memo(function SeriesCard({
     } else {
       console.warn('Unknown type:', item.type);
     }
-  }, [isLongPressing, item, onPress, router]);
+  }, [item, onPress, router]);
 
-  const isPlayed = currentUserData?.played === true;
+  const handlePress = useCallback(() => {
+    if (isLongPressing) return;
+    openDetails();
+  }, [isLongPressing, openDetails]);
 
   const handleLongPressStart = useCallback(() => {
     setIsLongPressing(true);
@@ -323,81 +387,64 @@ export const SeriesCard = React.memo(function SeriesCard({
     }, 10);
   }, []);
 
-  return (
-    <Menu>
-      <Trigger>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`打开 ${itemTitle}`}
-          style={[styles.card, { width: 120 }, style]}
-          onPress={handlePress}
-          onLongPress={handleLongPressStart}
-          onPressOut={handleLongPressEnd}
-        >
-          <ShadowedGlassCard radius={12}>
-            <ItemImage
-              uri={imageUrl}
+  const card = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`打开 ${itemTitle}`}
+      style={[styles.card, { width: 120 }, style]}
+      onPress={handlePress}
+      onLongPress={disableContextMenu ? undefined : handleLongPressStart}
+      onPressOut={disableContextMenu ? undefined : handleLongPressEnd}
+    >
+      <ShadowedGlassCard radius={12} disableLiquidGlass>
+        <ItemImage
+          uri={imageUrl}
+          style={[
+            styles.posterCover,
+            { backgroundColor: theme.colors.surfaceMuted },
+            showBorder && {
+              ...styles.cardBorder,
+              borderColor: theme.colors.separator,
+            },
+          ]}
+          placeholderBlurhash={imageInfo.blurhash}
+          cachePolicy="disk"
+          contentFit="cover"
+        />
+        <View style={styles.cardCopy}>
+          <Text
+            style={[
+              theme.typography.bodyEmphasized,
+              styles.cardTitle,
+              { color: theme.colors.text },
+            ]}
+            numberOfLines={1}
+          >
+            {hideSubtitle ? item.name : item.seriesName || item.name || '未知标题'}
+          </Text>
+          {!hideSubtitle && (
+            <Text
               style={[
-                styles.posterCover,
-                { backgroundColor: theme.colors.surfaceMuted },
-                showBorder && {
-                  ...styles.cardBorder,
-                  borderColor: theme.colors.separator,
-                },
+                theme.typography.footnote,
+                styles.subtitle,
+                { color: theme.colors.textSecondary },
               ]}
-              placeholderBlurhash={imageInfo.blurhash}
-              cachePolicy="memory-disk"
-              contentFit="cover"
-            />
-            <View style={styles.cardCopy}>
-              <Text
-                style={[
-                  theme.typography.bodyEmphasized,
-                  styles.cardTitle,
-                  { color: theme.colors.text },
-                ]}
-                numberOfLines={1}
-              >
-                {hideSubtitle ? item.name : item.seriesName || item.name || '未知标题'}
-              </Text>
-              {!hideSubtitle && (
-                <Text
-                  style={[
-                    theme.typography.footnote,
-                    styles.subtitle,
-                    { color: theme.colors.textSecondary },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {getSubtitle(item)}
-                </Text>
-              )}
-            </View>
-          </ShadowedGlassCard>
-        </Pressable>
-      </Trigger>
-      <Content>
-        <Item key="play" onSelect={handlePlay}>
-          <ItemIcon ios={{ name: 'play.circle' }} />
-          <ItemTitle>播放</ItemTitle>
-        </Item>
-        <Item key="viewDetails" onSelect={handlePress}>
-          <ItemIcon ios={{ name: 'info.circle' }} />
-          <ItemTitle>查看详情</ItemTitle>
-        </Item>
-        <Item key="addToFavorites" onSelect={handleAddToFavorites}>
-          <ItemIcon ios={{ name: 'heart' }} />
-          <ItemTitle>添加到收藏</ItemTitle>
-        </Item>
-        <Item
-          key={isPlayed ? 'markAsUnwatched' : 'markAsWatched'}
-          onSelect={isPlayed ? handleMarkAsUnwatched : handleMarkAsWatched}
-        >
-          <ItemIcon ios={{ name: isPlayed ? 'eye.slash' : 'eye' }} />
-          <ItemTitle>{isPlayed ? '标记为未看' : '标记为已看'}</ItemTitle>
-        </Item>
-      </Content>
-    </Menu>
+              numberOfLines={1}
+            >
+              {getSubtitle(item)}
+            </Text>
+          )}
+        </View>
+      </ShadowedGlassCard>
+    </Pressable>
+  );
+
+  if (disableContextMenu) return card;
+
+  return (
+    <SeriesCardActionMenu item={item} onViewDetails={openDetails}>
+      {card}
+    </SeriesCardActionMenu>
   );
 });
 

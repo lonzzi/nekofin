@@ -1,8 +1,9 @@
 import * as NavigationBar from 'expo-navigation-bar';
 import { Stack } from 'expo-router';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import * as StatusBar from 'expo-status-bar';
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 export default function Layout() {
   useEffect(() => {
@@ -10,7 +11,22 @@ export default function Layout() {
       NavigationBar.setVisibilityAsync('hidden');
     }
     StatusBar.setStatusBarHidden(true);
+
+    const lockLandscape = () => {
+      void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+    };
+
+    lockLandscape();
+
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        lockLandscape();
+      }
+    });
+
     return () => {
+      subscription.remove();
+      void ScreenOrientation.unlockAsync();
       if (Platform.OS === 'android') {
         NavigationBar.setVisibilityAsync('visible');
       }
@@ -26,7 +42,6 @@ export default function Layout() {
           headerShown: false,
           autoHideHomeIndicator: true,
           title: '',
-          orientation: 'landscape',
           animation: 'fade',
         }}
       />

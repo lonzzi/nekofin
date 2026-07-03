@@ -2,13 +2,12 @@ import { ItemImage } from '@/components/ItemImage';
 import { ThemedText } from '@/components/ThemedText';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { SkeletonMediaHero } from '@/components/ui/Skeleton';
+import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useAppTheme } from '@/lib/theme';
 import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -63,7 +62,7 @@ function CarouselImageLayer({ imageInfo }: CarouselImageLayerProps) {
         style={[styles.carouselImage, { backgroundColor: theme.colors.background }]}
         contentFit="cover"
         contentPosition="left center"
-        cachePolicy="memory-disk"
+        cachePolicy="disk"
         placeholderBlurhash={imageInfo.blurhash}
       />
     );
@@ -204,12 +203,10 @@ function CarouselOverlay({ activeIndex, imageInfo, item, items, showLogo }: Caro
 
 function CarouselGradientScrim() {
   return (
-    <LinearGradient
-      colors={['transparent', 'rgba(0,0,0,0.78)']}
-      locations={[0.42, 1]}
-      style={styles.gradientScrim}
-      pointerEvents="none"
-    />
+    <View style={styles.gradientScrim} pointerEvents="none">
+      <View style={styles.gradientScrimMid} />
+      <View style={styles.gradientScrimBottom} />
+    </View>
   );
 }
 
@@ -225,13 +222,14 @@ export function useCarouselHeaderLayers({
   const [isGestureOverlayVisible, setIsGestureOverlayVisible] = useState(false);
   const [pendingGestureSettleIndex, setPendingGestureSettleIndex] = useState<number | null>(null);
   const currentIndexRef = useRef(0);
-  const router = useRouter();
+  const router = useTracedRouter('carousel');
   const mediaAdapter = useMediaAdapter();
   const theme = useAppTheme();
   const { width: viewportWidth } = useWindowDimensions();
   const dragX = useSharedValue(0);
   const autoProgress = useSharedValue(0);
   const activeIndexValue = useSharedValue(0);
+  const tapStartIndexValue = useSharedValue(0);
   const isGestureAnimating = useSharedValue(false);
   const hasImages = items.length > 0;
   const canReveal = items.length > 1;
@@ -440,12 +438,24 @@ export function useCarouselHeaderLayers({
     () =>
       Gesture.Tap()
         .maxDistance(10)
+        .onBegin(() => {
+          tapStartIndexValue.value = activeIndexValue.value;
+          cancelAnimation(autoProgress);
+          autoProgress.value = 0;
+          runOnJS(clearAutoTarget)();
+        })
         .onEnd((_event, success) => {
           if (success) {
-            runOnJS(handleCarouselItemPressAtIndex)(activeIndexValue.value);
+            runOnJS(handleCarouselItemPressAtIndex)(tapStartIndexValue.value);
           }
         }),
-    [activeIndexValue, handleCarouselItemPressAtIndex],
+    [
+      activeIndexValue,
+      autoProgress,
+      clearAutoTarget,
+      handleCarouselItemPressAtIndex,
+      tapStartIndexValue,
+    ],
   );
 
   const carouselGesture = useMemo(
@@ -798,6 +808,22 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     zIndex: 3,
+  },
+  gradientScrimMid: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 116,
+    height: 96,
+    backgroundColor: 'rgba(0,0,0,0.24)',
+  },
+  gradientScrimBottom: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 136,
+    backgroundColor: 'rgba(0,0,0,0.72)',
   },
   bottomOverlay: {
     position: 'absolute',

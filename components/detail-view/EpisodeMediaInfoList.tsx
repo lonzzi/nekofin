@@ -14,7 +14,12 @@ const MediaInfoCard = ({ rows, title }: { rows: MediaInfoRow[]; title: string })
   if (rows.length === 0) return null;
 
   return (
-    <ShadowedGlassCard radius={16} containerStyle={styles.infoCardShadow} style={styles.infoCard}>
+    <ShadowedGlassCard
+      radius={16}
+      containerStyle={styles.infoCardShadow}
+      style={styles.infoCard}
+      disableLiquidGlass
+    >
       <Text style={[theme.typography.footnote, styles.cardTitle, { color: textColor }]}>
         {title}
       </Text>

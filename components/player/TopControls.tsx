@@ -1,11 +1,11 @@
-import { formatBitrate, sleep } from '@/lib/utils';
+import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
+import { formatBitrate } from '@/lib/utils';
 import { DandanComment } from '@/services/dandanplay';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Network from 'expo-network';
 import { useNetworkState } from 'expo-network';
-import { useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -28,8 +28,7 @@ export function TopControls() {
     danmakuComments,
   } = usePlayer();
 
-  const router = useRouter();
-  const navigation = useNavigation();
+  const router = useTracedRouter('player-top-controls');
   const [now, setNow] = useState<string>('');
   const { type: networkType } = useNetworkState();
   const danmakuSearchModalRef = useRef<DanmakuSearchModalRef>(null);
@@ -56,10 +55,6 @@ export function TopControls() {
 
   const handleBackPress = async () => {
     setShowControls(false);
-    navigation.setOptions({
-      orientation: 'portrait',
-    });
-    await sleep(Platform.OS === 'ios' ? 300 : 0);
     router.back();
   };
 

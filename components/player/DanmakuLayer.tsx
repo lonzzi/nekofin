@@ -40,6 +40,27 @@ type DanmakuLayerProps = {
   playbackRate?: number;
 } & Partial<DanmakuSettingsType>;
 
+type TimedDanmakuComment = {
+  comment: DandanComment;
+  timeMs: number;
+};
+
+function findFirstTimedCommentAtOrAfter(comments: TimedDanmakuComment[], timeMs: number) {
+  let low = 0;
+  let high = comments.length;
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (comments[mid].timeMs < timeMs) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+
+  return low;
+}
+
 export function DanmakuLayer({
   ref,
   currentTime,
@@ -75,6 +96,7 @@ export function DanmakuLayer({
   const [active, setActive] = useState<ActiveBullet[]>([]);
   const lastTimeMsRef = useRef<number>(-1);
   const processedCommentsRef = useRef<Set<number>>(new Set());
+  const nextCommentIndexRef = useRef(0);
 
   const widthCacheRef = useRef<Map<string, number>>(new Map());
   const lineHeight = fontSize + 8;
@@ -113,6 +135,7 @@ export function DanmakuLayer({
       bottomLaneNextAvailableRef.current[i] = 0;
     }
     lastTimeMsRef.current = -1;
+    nextCommentIndexRef.current = 0;
   }, [ensureLanes]);
 
   const handleSeek = useCallback(
@@ -421,6 +444,25 @@ export function DanmakuLayer({
     ],
   );
 
+  const timedComments = useMemo(
+    () =>
+      filteredComments
+        .map((comment) => ({
+          comment,
+          timeMs: Math.round(comment.timeInSeconds * 1000),
+        }))
+        .sort((a, b) => a.timeMs - b.timeMs),
+    [filteredComments],
+  );
+
+  useEffect(() => {
+    processedCommentsRef.current.clear();
+    nextCommentIndexRef.current = findFirstTimedCommentAtOrAfter(
+      timedComments,
+      Math.max(0, lastTimeMsRef.current),
+    );
+  }, [timedComments]);
+
   useEffect(() => {
     sync(videoTime);
   }, [sync, videoTime]);
@@ -434,21 +476,38 @@ export function DanmakuLayer({
     const fromMs = Math.min(prevMs, currentTimeMs);
     const toMs = Math.max(prevMs, currentTimeMs);
 
-    const slice = filteredComments.filter((c) => {
-      const tMs = Math.round(c.timeInSeconds * 1000);
-      const timeDiff = Math.abs(tMs - currentTimeMs);
-      const maxTimeDiff = 5000; // 最多显示前后5秒的弹幕
+    const maxTimeDiff = 5000; // 最多显示前后5秒的弹幕
+    const windowStartMs = Math.max(fromMs, currentTimeMs - maxTimeDiff);
+    const shouldResetCursor = prevMs < 0 || currentTimeMs < prevMs || toMs - fromMs > 300;
+    const lowerBoundIndex = findFirstTimedCommentAtOrAfter(timedComments, windowStartMs);
+    let nextIndex = shouldResetCursor
+      ? lowerBoundIndex
+      : Math.max(nextCommentIndexRef.current, lowerBoundIndex);
+    const slice: DandanComment[] = [];
 
-      return (
+    while (nextIndex < timedComments.length) {
+      const { comment, timeMs: tMs } = timedComments[nextIndex];
+      if (tMs > toMs) break;
+
+      const timeDiff = Math.abs(tMs - currentTimeMs);
+      if (
         tMs > fromMs &&
-        tMs <= toMs &&
         timeDiff <= maxTimeDiff &&
-        !processedCommentsRef.current.has(c.id)
-      );
-    });
+        !processedCommentsRef.current.has(comment.id)
+      ) {
+        slice.push(comment);
+      }
+
+      nextIndex++;
+    }
+
+    nextCommentIndexRef.current = nextIndex;
+
     if (slice.length === 0) return;
 
     const windowMs = toMs - fromMs;
+    const nextActiveBullets: ActiveBullet[] = [];
+
     if (windowMs > 300) {
       for (const c of slice) {
         const tMs = Math.round(c.timeInSeconds * 1000);
@@ -510,11 +569,11 @@ export function DanmakuLayer({
             const startOffsetMs = Math.min(lateOffset, maxOffset);
 
             const bullet = createDanmakuBullet(c, rowIndex, startOffsetMs, scheduledMs);
-            setActive((prev) => [...prev, bullet]);
+            nextActiveBullets.push(bullet);
             processedCommentsRef.current.add(c.id);
           } else {
             const bullet = createDanmakuBullet(c, rowIndex, 0, scheduledMs);
-            setActive((prev) => [...prev, bullet]);
+            nextActiveBullets.push(bullet);
             processedCommentsRef.current.add(c.id);
           }
         }
@@ -555,20 +614,24 @@ export function DanmakuLayer({
 
           if (extraDelay === 0) {
             const bullet = createDanmakuBullet(c, rowIndex, 0, tMs);
-            setActive((prev) => [...prev, bullet]);
+            nextActiveBullets.push(bullet);
             processedCommentsRef.current.add(c.id);
           } else {
             const bullet = createDanmakuBullet(c, rowIndex, 0, tMs + extraDelay);
-            setActive((prev) => [...prev, bullet]);
+            nextActiveBullets.push(bullet);
             processedCommentsRef.current.add(c.id);
           }
         }
       }
     }
+
+    if (nextActiveBullets.length > 0) {
+      setActive((prev) => [...prev, ...nextActiveBullets]);
+    }
   }, [
     currentTimeMs,
     isPlaying,
-    filteredComments,
+    timedComments,
     rows,
     layout,
     height,

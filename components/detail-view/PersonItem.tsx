@@ -20,6 +20,7 @@ export const PersonItem = ({ item }: { item: MediaPerson }) => {
     <ShadowedGlassCard
       radius={14}
       containerStyle={{ width: theme.layout.mediaRail.personCardWidth }}
+      disableLiquidGlass
     >
       {imageFailed || !imageInfo.url ? (
         <View
@@ -36,7 +37,9 @@ export const PersonItem = ({ item }: { item: MediaPerson }) => {
           source={{ uri: imageInfo.url }}
           style={[styles.personPoster, { backgroundColor: theme.colors.surfaceMuted }]}
           placeholder={imageInfo.blurhash ? { blurhash: imageInfo.blurhash } : undefined}
+          cachePolicy="disk"
           contentFit="cover"
+          enforceEarlyResizing
           onError={() => setImageFailed(true)}
         />
       )}

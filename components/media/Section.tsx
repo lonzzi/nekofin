@@ -23,12 +23,14 @@ export const Section = React.memo(function Section({
   const theme = useAppTheme();
 
   const renderEpisodeItem: ListRenderItem<MediaItem> = useCallback(
-    ({ item }) => <EpisodeCard item={item} style={episodeCardStyle} showPlayButton />,
+    ({ item }) => (
+      <EpisodeCard item={item} style={episodeCardStyle} showPlayButton disableContextMenu />
+    ),
     [],
   );
 
   const renderSeriesItem: ListRenderItem<MediaItem> = useCallback(
-    ({ item }) => <SeriesCard item={item} />,
+    ({ item }) => <SeriesCard item={item} disableContextMenu />,
     [],
   );
 

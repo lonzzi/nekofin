@@ -5,6 +5,7 @@ import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 type GlassCardProps = PropsWithChildren<
   Omit<GlassViewProps, 'children' | 'style'> & {
+    disableLiquidGlass?: boolean;
     fallbackBackgroundColor?: string;
     radius?: number;
     rimStyle?: StyleProp<ViewStyle>;
@@ -28,6 +29,7 @@ export function GlassShadow({ children, radius = 12, style }: GlassShadowProps) 
 
 export function GlassCard({
   children,
+  disableLiquidGlass = false,
   fallbackBackgroundColor,
   glassEffectStyle = 'regular',
   radius = 12,
@@ -38,18 +40,30 @@ export function GlassCard({
   ...props
 }: GlassCardProps) {
   const theme = useAppTheme();
-  const useLiquidGlass = isLiquidGlassAvailable();
+  const useLiquidGlass = !disableLiquidGlass && isLiquidGlassAvailable();
   const radiusStyle = { borderRadius: radius };
   const shouldShowRim = showRim ?? !useLiquidGlass;
+  const surfaceStyle = [
+    styles.surface,
+    radiusStyle,
+    !useLiquidGlass && { backgroundColor: fallbackBackgroundColor ?? theme.colors.surface },
+    style,
+  ];
+
+  if (!useLiquidGlass) {
+    return (
+      <View style={surfaceStyle}>
+        {shouldShowRim ? (
+          <View pointerEvents="none" style={[styles.rim, radiusStyle, rimStyle]} />
+        ) : null}
+        {children}
+      </View>
+    );
+  }
 
   return (
     <GlassView
-      style={[
-        styles.surface,
-        radiusStyle,
-        !useLiquidGlass && { backgroundColor: fallbackBackgroundColor ?? theme.colors.surface },
-        style,
-      ]}
+      style={surfaceStyle}
       glassEffectStyle={glassEffectStyle}
       tintColor={tintColor}
       {...props}

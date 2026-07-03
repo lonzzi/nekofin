@@ -1,7 +1,8 @@
 import { AddServerForm, type AddServerFormHandle } from '@/components/AddServerForm';
+import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useAppTheme } from '@/lib/theme';
 import type { MediaServerType } from '@/services/media/types';
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
@@ -19,7 +20,7 @@ export default function AddServerScreen() {
   const serverType = getServerType(serverTypeParam);
   const formRef = useRef<AddServerFormHandle>(null);
   const navigation = useNavigation();
-  const router = useRouter();
+  const router = useTracedRouter('add-server');
   const theme = useAppTheme();
   const [isSaving, setIsSaving] = useState(false);
 

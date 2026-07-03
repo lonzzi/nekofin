@@ -1,11 +1,19 @@
+import { PerformanceOverlay } from '@/components/performance/PerformanceOverlay';
 import { DanmakuSettingsProvider } from '@/lib/contexts/DanmakuSettingsContext';
 import { MediaServerProvider } from '@/lib/contexts/MediaServerContext';
 import { ThemeColorProvider } from '@/lib/contexts/ThemeColorContext';
 import { ThemePreferenceProvider } from '@/lib/contexts/ThemePreferenceContext';
+import { isPerformanceDiagnosticsEnabled } from '@/lib/performance/performanceConfig';
+import {
+  PerformanceInteractionCapture,
+  PerformanceMonitorProvider,
+  PerformanceRouteObserver,
+} from '@/lib/performance/PerformanceMonitorContext';
 import { storage } from '@/lib/storage';
 import { useAppTheme } from '@/lib/theme';
+import { mediaQueryKeys } from '@/services/media/queryKeys';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { QueryClient } from '@tanstack/react-query';
+import { defaultShouldDehydrateQuery, QueryClient, type Query } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
@@ -16,6 +24,8 @@ import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import 'react-native-reanimated';
+
+const QUERY_CACHE_BUSTER = 'media-cache-v2';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,6 +39,10 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+function shouldPersistQuery(query: Query) {
+  return defaultShouldDehydrateQuery(query) && query.queryKey[0] !== mediaQueryKeys.all[0];
+}
 
 const persister = createAsyncStoragePersister({
   storage: {
@@ -53,7 +67,11 @@ export default function RootLayout() {
       client={queryClient}
       persistOptions={{
         persister,
+        buster: QUERY_CACHE_BUSTER,
         maxAge: 1000 * 60 * 60 * 24,
+        dehydrateOptions: {
+          shouldDehydrateQuery: shouldPersistQuery,
+        },
       }}
     >
       <GestureHandlerRootView style={{ flex: 1 }}>
@@ -61,7 +79,16 @@ export default function RootLayout() {
           <MediaServerProvider>
             <DanmakuSettingsProvider>
               <ThemeColorProvider>
-                <RootNavigation />
+                <PerformanceMonitorProvider>
+                  {isPerformanceDiagnosticsEnabled ? (
+                    <PerformanceInteractionCapture>
+                      <RootNavigation />
+                      <PerformanceOverlay />
+                    </PerformanceInteractionCapture>
+                  ) : (
+                    <RootNavigation />
+                  )}
+                </PerformanceMonitorProvider>
               </ThemeColorProvider>
             </DanmakuSettingsProvider>
           </MediaServerProvider>
@@ -99,10 +126,11 @@ function RootNavigation() {
           headerBackButtonDisplayMode: 'minimal',
         }}
       >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false, orientation: 'portrait_up' }} />
-        <Stack.Screen name="player" options={{ headerShown: false, orientation: 'landscape' }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="player" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
+      <PerformanceRouteObserver />
       <StatusBar style={appTheme.isDark ? 'light' : 'dark'} />
     </ThemeProvider>
   );

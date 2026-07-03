@@ -1,8 +1,8 @@
+import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useAppTheme } from '@/lib/theme';
 import { MediaItem } from '@/services/media/types';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -16,12 +16,15 @@ export const UserViewCard = React.memo(function UserViewCard({
   item: MediaItem;
   title: string;
 }) {
-  const router = useRouter();
+  const router = useTracedRouter('user-view-card');
   const theme = useAppTheme();
 
   const mediaAdapter = useMediaAdapter();
 
-  const imageInfo = useMemo(() => mediaAdapter.getImageInfo({ item }), [mediaAdapter, item]);
+  const imageInfo = useMemo(
+    () => mediaAdapter.getImageInfo({ item, opts: { width: 400 } }),
+    [mediaAdapter, item],
+  );
 
   const handlePress = useCallback(() => {
     if (!item) return;
@@ -37,7 +40,7 @@ export const UserViewCard = React.memo(function UserViewCard({
 
   return (
     <Pressable style={styles.userViewCard} onPress={handlePress}>
-      <ShadowedGlassCard radius={14}>
+      <ShadowedGlassCard radius={14} disableLiquidGlass>
         {imageInfo.url ? (
           <Image
             source={{ uri: imageInfo.url }}
@@ -45,7 +48,9 @@ export const UserViewCard = React.memo(function UserViewCard({
               blurhash: imageInfo.blurhash,
             }}
             style={[styles.cover, { backgroundColor: theme.colors.surfaceMuted }]}
+            cachePolicy="disk"
             contentFit="cover"
+            enforceEarlyResizing
           />
         ) : (
           <View

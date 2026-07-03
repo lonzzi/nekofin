@@ -5,6 +5,7 @@ import {
   getSeriesCardRoute,
 } from '@/components/media/cardHelpers';
 import PageScrollView from '@/components/PageScrollView';
+import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/theme';
@@ -14,7 +15,7 @@ import { MediaItem, MediaServerInfo } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
 import { queryOptions } from '@tanstack/react-query';
-import { useNavigation, useRouter } from 'expo-router';
+import { useNavigation } from 'expo-router';
 import React, { RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -95,7 +96,7 @@ export default function AggregateSearchScreen() {
   const [keyword, setKeyword] = useState('');
   const theme = useAppTheme();
   const navigation = useNavigation();
-  const router = useRouter();
+  const router = useTracedRouter('aggregate-search');
   const searchBarRef = useRef<SearchBarCommands>(null);
 
   const debouncedKeyword = useDebouncedValue(keyword, 300);
@@ -170,6 +171,7 @@ export default function AggregateSearchScreen() {
             item={result.item}
             imgInfo={imgInfo}
             onPress={() => handleOpenResult(result)}
+            disableContextMenu
           />
         );
       }
@@ -178,6 +180,7 @@ export default function AggregateSearchScreen() {
           item={result.item}
           imgInfo={imgInfo}
           onPress={() => handleOpenResult(result)}
+          disableContextMenu
         />
       );
     },

@@ -1,5 +1,5 @@
 import { layout, useAppTheme, useMediaHeroHeight } from '@/lib/theme';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import {
   Animated,
   DimensionValue,
@@ -13,6 +13,38 @@ import {
 
 import { GlassCard, ShadowedGlassCard } from './GlassCard';
 
+const sharedShimmerAnimation = new Animated.Value(0);
+let shimmerLoop: Animated.CompositeAnimation | null = null;
+let shimmerSubscriberCount = 0;
+
+function startSharedShimmer() {
+  if (shimmerLoop) return;
+
+  sharedShimmerAnimation.setValue(0);
+  shimmerLoop = Animated.loop(
+    Animated.sequence([
+      Animated.timing(sharedShimmerAnimation, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.timing(sharedShimmerAnimation, {
+        toValue: 0,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+    ]),
+  );
+  shimmerLoop.start();
+}
+
+function stopSharedShimmer() {
+  if (shimmerSubscriberCount > 0 || !shimmerLoop) return;
+
+  shimmerLoop.stop();
+  shimmerLoop = null;
+}
+
 interface SkeletonProps {
   width?: DimensionValue;
   height?: DimensionValue;
@@ -25,30 +57,18 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style 
   const backgroundColor = theme.colors.surfaceMuted;
   const shimmerColor = theme.colors.surfaceElevated;
 
-  const shimmerAnimation = useRef(new Animated.Value(0)).current;
-
   useEffect(() => {
-    const shimmer = Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmerAnimation, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(shimmerAnimation, {
-          toValue: 0,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    shimmer.start();
+    shimmerSubscriberCount += 1;
+    startSharedShimmer();
 
-    return () => shimmer.stop();
-  }, [shimmerAnimation]);
+    return () => {
+      shimmerSubscriberCount = Math.max(0, shimmerSubscriberCount - 1);
+      stopSharedShimmer();
+    };
+  }, []);
 
   const shimmerStyle = {
-    opacity: shimmerAnimation.interpolate({
+    opacity: sharedShimmerAnimation.interpolate({
       inputRange: [0, 1],
       outputRange: [0.3, 0.7],
     }),

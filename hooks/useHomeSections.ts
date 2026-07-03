@@ -22,6 +22,8 @@ export type HomeSection = {
 
 export type HomeSectionWithStatus = HomeSection & { isLoading: boolean };
 
+const HOME_LATEST_SECTION_LIMIT = 4;
+
 export function useHomeSections(currentServer: MediaServerInfo | null) {
   const mediaAdapter = useMediaAdapter();
 
@@ -72,8 +74,13 @@ export function useHomeSections(currentServer: MediaServerInfo | null) {
       }));
   }, [userViewQuery.data, hiddenUserViewIds]);
 
+  const visibleLatestFolders = useMemo(
+    () => latestFolders.slice(0, HOME_LATEST_SECTION_LIMIT),
+    [latestFolders],
+  );
+
   const latestQueries = useQueries({
-    queries: latestFolders.map((folder) =>
+    queries: visibleLatestFolders.map((folder) =>
       homeLatestByFolderQueryOptions({
         adapter: mediaAdapter,
         currentServer,
@@ -122,7 +129,7 @@ export function useHomeSections(currentServer: MediaServerInfo | null) {
 
   const latestSections = useMemo<HomeSectionWithStatus[]>(
     () =>
-      latestFolders.map((folder, index) => {
+      visibleLatestFolders.map((folder, index) => {
         const query = latestQueries[index];
         const items = query?.data ?? [];
 
@@ -134,7 +141,7 @@ export function useHomeSections(currentServer: MediaServerInfo | null) {
           isLoading: query?.isPending ?? false,
         } satisfies HomeSectionWithStatus;
       }),
-    [latestFolders, latestQueries],
+    [visibleLatestFolders, latestQueries],
   );
 
   const sections = useMemo<HomeSectionWithStatus[]>(

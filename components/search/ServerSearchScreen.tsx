@@ -89,9 +89,9 @@ export default function ServerSearchScreen() {
 
   const renderItem: ListRenderItem<MediaItem> = useCallback(({ item }) => {
     if (item.type === 'Series') {
-      return <SeriesCard item={item} />;
+      return <SeriesCard item={item} disableContextMenu />;
     }
-    return <EpisodeCard item={item} />;
+    return <EpisodeCard item={item} disableContextMenu />;
   }, []);
 
   const keyExtractor = useCallback((item: MediaItem) => item.id!, []);

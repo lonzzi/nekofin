@@ -7,7 +7,6 @@ import { useAppTheme, useMediaHeroHeight } from '@/lib/theme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { UseQueryResult } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from 'expo-router';
 import { HeaderButton } from 'expo-router/react-navigation';
 import { useEffect, useState } from 'react';
@@ -222,11 +221,9 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
             />
           )}
           {!!logoImageUrl && (
-            <LinearGradient
-              colors={[theme.colors.mediaScrimSoft, 'rgba(0,0,0,0.16)', theme.colors.mediaScrim]}
-              locations={[0, 0.52, 1]}
+            <View
               pointerEvents="none"
-              style={detailViewStyles.headerScrim}
+              style={[detailViewStyles.headerScrim, { backgroundColor: theme.colors.mediaScrim }]}
             />
           )}
         </View>

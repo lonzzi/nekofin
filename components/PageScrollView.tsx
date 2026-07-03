@@ -19,14 +19,19 @@ export default function PageScrollView({
   const bottomContentInset = Platform.OS === 'ios' ? bottomTabBarHeight : 0;
   const bottomContentPadding =
     Platform.OS === 'ios' ? contentPaddingBottom : contentPaddingBottom + safePaddingBottom;
-  const { contentInset, scrollIndicatorInsets, ...scrollViewProps } = rest;
+  const {
+    contentInset,
+    contentInsetAdjustmentBehavior = 'automatic',
+    scrollIndicatorInsets,
+    ...scrollViewProps
+  } = rest;
 
   return (
     <ScrollView
       style={[{ flex: 1 }, style]}
       scrollToOverflowEnabled={true}
       nestedScrollEnabled
-      contentInsetAdjustmentBehavior="always"
+      contentInsetAdjustmentBehavior={contentInsetAdjustmentBehavior}
       contentInset={{
         ...contentInset,
         bottom: (contentInset?.bottom ?? 0) + bottomContentInset,

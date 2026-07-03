@@ -5,11 +5,12 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { UserViewSection } from '@/components/user-view/UserViewSection';
+import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useHomeSections } from '@/hooks/useHomeSections';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme, useMediaHeroHeight } from '@/lib/theme';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useNavigation, useRouter } from 'expo-router';
+import { useNavigation } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -21,7 +22,7 @@ export default function HomeScreen() {
   const backgroundColor = theme.colors.background;
   const carouselHeight = useMediaHeroHeight();
 
-  const router = useRouter();
+  const router = useTracedRouter('server-library');
 
   const { sections, randomItemsQuery } = useHomeSections(currentServer);
   const isFocused = useIsFocused();

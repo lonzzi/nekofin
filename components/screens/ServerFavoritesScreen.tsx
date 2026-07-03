@@ -1,4 +1,5 @@
 import { ItemGridScreen } from '@/components/media/ItemGridScreen';
+import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useInfiniteQueryWithFocus } from '@/hooks/useInfiniteQueryWithFocus';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useMediaFilters } from '@/hooks/useMediaFilters';
@@ -6,7 +7,7 @@ import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/theme';
 import { favoritesQueryOptions } from '@/services/media/queryOptions';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useNavigation, useRouter } from 'expo-router';
+import { useNavigation } from 'expo-router';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -14,7 +15,7 @@ export default function FavoritesScreen() {
   const { currentServer } = useMediaServers();
   const mediaAdapter = useMediaAdapter();
   const navigation = useNavigation();
-  const router = useRouter();
+  const router = useTracedRouter('favorites');
   const theme = useAppTheme();
 
   const { filters, setFilters } = useMediaFilters();

@@ -2,13 +2,14 @@ import { AvatarImage } from '@/components/AvatarImage';
 import PageScrollView from '@/components/PageScrollView';
 import { AddServerMenu } from '@/components/servers/AddServerMenu';
 import { GlassCard, ShadowedGlassCard } from '@/components/ui/GlassCard';
+import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/theme';
 import { MediaServerInfo, type MediaServerType } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useNavigation } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Alert,
   Animated,
@@ -118,10 +119,16 @@ function getServerCardChrome(isDark: boolean) {
   };
 }
 
-function OnlineStatusDot() {
+function OnlineStatusDot({ isActive }: { isActive: boolean }) {
   const glowAnimation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (!isActive) {
+      glowAnimation.stopAnimation();
+      glowAnimation.setValue(0);
+      return;
+    }
+
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(glowAnimation, {
@@ -144,7 +151,7 @@ function OnlineStatusDot() {
     return () => {
       pulse.stop();
     };
-  }, [glowAnimation]);
+  }, [glowAnimation, isActive]);
 
   const glowStyle = {
     opacity: glowAnimation.interpolate({
@@ -163,7 +170,11 @@ function OnlineStatusDot() {
 
   return (
     <View style={styles.onlineDotWrap}>
-      <Animated.View style={[styles.onlineDotGlow, glowStyle]} />
+      {isActive ? (
+        <Animated.View style={[styles.onlineDotGlow, glowStyle]} />
+      ) : (
+        <View style={[styles.onlineDotGlow, styles.onlineDotGlowIdle]} />
+      )}
       <View style={styles.onlineDot} />
     </View>
   );
@@ -207,12 +218,14 @@ function ServerCardAction({
 function ServerCard({
   server,
   isCurrent,
+  isScreenFocused,
   onOpen,
   onConfig,
   onRemove,
 }: {
   server: MediaServerInfo;
   isCurrent: boolean;
+  isScreenFocused: boolean;
   onOpen: () => void;
   onConfig: () => void;
   onRemove: () => void;
@@ -249,7 +262,7 @@ function ServerCard({
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleWrap}>
               <View style={styles.serverNameRow}>
-                <OnlineStatusDot />
+                <OnlineStatusDot isActive={isScreenFocused} />
                 <Text numberOfLines={2} style={[styles.serverName, { color: theme.colors.text }]}>
                   {server.name}
                 </Text>
@@ -287,9 +300,11 @@ function ServerCard({
 
 export default function ServersScreen() {
   const theme = useAppTheme();
-  const router = useRouter();
+  const router = useTracedRouter('servers');
   const navigation = useNavigation();
-  const { servers, removeServer, setCurrentServer, currentServer } = useMediaServers();
+  const { servers, removeServer, setCurrentServer, currentServer, isInitialized } =
+    useMediaServers();
+  const [isFocused, setIsFocused] = useState(() => navigation.isFocused());
   const { width: viewportWidth } = useWindowDimensions();
   const serverGridGap = theme.spacing.md;
 
@@ -328,6 +343,16 @@ export default function ServersScreen() {
     });
   }, [navigation, openAddServer]);
 
+  useEffect(() => {
+    const removeFocusListener = navigation.addListener('focus', () => setIsFocused(true));
+    const removeBlurListener = navigation.addListener('blur', () => setIsFocused(false));
+
+    return () => {
+      removeFocusListener();
+      removeBlurListener();
+    };
+  }, [navigation]);
+
   const handleRemoveServer = (server: MediaServerInfo) => {
     Alert.alert('删除服务器', `从 Nekofin 移除 ${server.name} / ${server.username}？`, [
       { text: '取消', style: 'cancel' },
@@ -342,54 +367,51 @@ export default function ServersScreen() {
   };
 
   return (
-    <>
-      <PageScrollView
-        style={{ backgroundColor: theme.colors.backgroundGrouped }}
-        contentContainerStyle={styles.container}
-      >
-        <View style={styles.headerRow}>
-          <View>
-            <CardText variant="body">{`${servers.length} 个服务器账号`}</CardText>
-          </View>
+    <PageScrollView
+      style={{ backgroundColor: theme.colors.backgroundGrouped }}
+      contentContainerStyle={styles.container}
+    >
+      <View style={styles.headerRow}>
+        <View>
+          <CardText variant="body">{`${servers.length} 个服务器账号`}</CardText>
         </View>
+      </View>
 
-        {sortedServers.length > 0 ? (
-          <View style={[styles.serverGrid, { gap: serverGridGap }]}>
-            {sortedServers.map((server) => (
-              <View key={server.id} style={serverCardSlotStyle}>
-                <ServerCard
-                  server={server}
-                  isCurrent={currentServer?.id === server.id}
-                  onOpen={() => {
-                    setCurrentServer(server);
-                    router.push('/(tabs)/(servers)/library');
-                  }}
-                  onConfig={() =>
-                    router.push({
-                      pathname: '/(tabs)/(servers)/server-config/[serverId]',
-                      params: { serverId: server.id },
-                    })
-                  }
-                  onRemove={() => handleRemoveServer(server)}
-                />
-              </View>
-            ))}
-          </View>
-        ) : (
-          <ShadowedGlassCard
-            radius={24}
-            containerStyle={styles.emptyCardShadow}
-            style={styles.emptyCard}
-          >
-            <CardText variant="title">还没有服务器</CardText>
-            <CardText lines={2}>
-              添加 Jellyfin 或 Emby 账号后，就可以浏览媒体库和播放记录。
-            </CardText>
-            <AddServerMenu onSelect={openAddServer} variant="text" />
-          </ShadowedGlassCard>
-        )}
-      </PageScrollView>
-    </>
+      {sortedServers.length > 0 ? (
+        <View style={[styles.serverGrid, { gap: serverGridGap }]}>
+          {sortedServers.map((server) => (
+            <View key={server.id} style={serverCardSlotStyle}>
+              <ServerCard
+                server={server}
+                isCurrent={currentServer?.id === server.id}
+                isScreenFocused={isFocused}
+                onOpen={() => {
+                  setCurrentServer(server);
+                  router.push('/(tabs)/(servers)/library');
+                }}
+                onConfig={() =>
+                  router.push({
+                    pathname: '/(tabs)/(servers)/server-config/[serverId]',
+                    params: { serverId: server.id },
+                  })
+                }
+                onRemove={() => handleRemoveServer(server)}
+              />
+            </View>
+          ))}
+        </View>
+      ) : (
+        <ShadowedGlassCard
+          radius={24}
+          containerStyle={styles.emptyCardShadow}
+          style={styles.emptyCard}
+        >
+          <CardText variant="title">还没有服务器</CardText>
+          <CardText lines={2}>添加 Jellyfin 或 Emby 账号后，就可以浏览媒体库和播放记录。</CardText>
+          <AddServerMenu onSelect={openAddServer} variant="text" />
+        </ShadowedGlassCard>
+      )}
+    </PageScrollView>
   );
 }
 
@@ -467,6 +489,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.7,
     shadowRadius: 6,
+  },
+  onlineDotGlowIdle: {
+    opacity: 0.16,
+    transform: [{ scale: 1 }],
   },
   onlineDot: {
     width: 7,

@@ -4,8 +4,14 @@ import { ExpoConfig } from '@expo/config';
 
 import packageJson from './package.json';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { isPerformanceDiagnosticsEnabled } = require('./config/performanceDiagnostics.cjs') as {
+  isPerformanceDiagnosticsEnabled: () => boolean;
+};
+
 const IS_DEV = process.env.APP_VARIANT === 'development';
 const IS_PREVIEW = process.env.APP_VARIANT === 'preview';
+const ENABLE_PERFORMANCE_DIAGNOSTICS = isPerformanceDiagnosticsEnabled();
 
 const getUniqueIdentifier = () => {
   if (IS_DEV) {
@@ -140,6 +146,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
       typedRoutes: true,
     },
     extra: {
+      enablePerformanceDiagnostics: ENABLE_PERFORMANCE_DIAGNOSTICS,
       router: {},
       eas: {
         projectId: 'b00bc9a1-4286-4cdc-ba7e-fb321575a32b',

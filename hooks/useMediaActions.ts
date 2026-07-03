@@ -1,14 +1,14 @@
+import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { updateCachedMediaItemUserData } from '@/services/media/cache';
 import { mediaQueryKeys } from '@/services/media/queryKeys';
 import { MediaItem, MediaUserData } from '@/services/media/types';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
 export function useMediaActions(item: MediaItem) {
-  const router = useRouter();
+  const router = useTracedRouter('media-actions');
   const queryClient = useQueryClient();
   const { currentServer } = useMediaServers();
   const mediaAdapter = useMediaAdapter();

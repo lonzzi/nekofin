@@ -99,7 +99,7 @@ export const EpisodeModeContent = ({
     setTitle(selectedEpisode.name);
     setSelectedItem(selectedEpisode);
 
-    const imageInfo = mediaAdapter.getImageInfo({ item: selectedEpisode });
+    const imageInfo = mediaAdapter.getImageInfo({ item: selectedEpisode, opts: { width: 1200 } });
     setBackgroundImageUrl(imageInfo.url);
   }, [selectedEpisode, setTitle, setSelectedItem, mediaAdapter, setBackgroundImageUrl]);
 
@@ -170,8 +170,10 @@ export const EpisodeModeContent = ({
                   onPress={() => {
                     setSelectedEpisode(ep);
                   }}
+                  disableContextMenu
                   imgInfo={mediaAdapter.getImageInfo({
                     item: ep,
+                    opts: { width: 400 },
                   })}
                 />
               );
@@ -209,7 +211,9 @@ export const EpisodeModeContent = ({
             removeClippedSubviews={false}
             data={similarItems}
             style={detailViewStyles.edgeToEdge}
-            renderItem={({ item }) => <SeriesCard item={item} imgType="Primary" />}
+            renderItem={({ item }) => (
+              <SeriesCard item={item} imgType="Primary" disableContextMenu />
+            )}
             keyExtractor={(item) => item.id!}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={detailViewStyles.horizontalList}
