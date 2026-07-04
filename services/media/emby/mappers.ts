@@ -72,6 +72,7 @@ export type EmbyBaseItemDto = {
   SeriesPrimaryImageTag?: string | null;
   SeriesThumbImageTag?: string | null;
   ImageBlurHashes?: BaseItemDtoImageBlurHashes | null;
+  Subviews?: string[] | null;
 };
 
 export function convertEmbyItemToMediaItem(item: EmbyBaseItemDto): MediaItem {
@@ -149,5 +150,14 @@ export function convertEmbyItemToMediaItem(item: EmbyBaseItemDto): MediaItem {
     seriesPrimaryImageTag: item.SeriesPrimaryImageTag,
     seriesThumbImageTag: item.SeriesThumbImageTag,
     imageBlurHashes: item.ImageBlurHashes,
+    subviews: item.Subviews,
   };
+}
+
+/**
+ * Get the subviews (available view types) for a library folder.
+ * Returns an array of view type strings like ["series","folders","tags","genres",...]
+ */
+export function getSubviews(item: EmbyBaseItemDto): string[] {
+  return item.Subviews ?? [];
 }

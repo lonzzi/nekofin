@@ -62,3 +62,17 @@ export type EmbyPlaybackInfoResponse = {
 };
 
 export type EmbyFiltersResponse = { Years?: number[]; Tags?: string[]; Genres?: string[] };
+
+export type EmbyHomeSection = {
+  Name?: string;
+  Id?: string;
+  SectionType?: string;
+  CollectionType?: string;
+  ParentId?: string;
+  ParentItem?: { Id?: string; Name?: string; [key: string]: unknown };
+  CardSizeOffset?: number;
+  IncludeNextUpInResume?: boolean;
+  Query?: Record<string, unknown>;
+};
+
+export type EmbyPrefix = { Name?: string; ItemCount?: number };

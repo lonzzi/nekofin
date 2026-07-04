@@ -7,7 +7,7 @@ import useRefresh from '@/hooks/useRefresh';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/theme';
 import { availableFiltersQueryOptions } from '@/services/media/queryOptions';
-import { MediaItem, MediaSortBy } from '@/services/media/types';
+import { MediaItem, MediaItemType, MediaSortBy } from '@/services/media/types';
 import { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query';
 import { GlassContainer } from 'expo-glass-effect';
 import { useNavigation } from 'expo-router';
@@ -156,6 +156,53 @@ export function ItemGridScreen({
           contentInsetAdjustmentBehavior="never"
         >
           <GlassContainer spacing={theme.spacing.sm} style={styles.filterRow}>
+            <FilterButton
+              label="类型"
+              title="选择类型"
+              options={[
+                { label: '全部', value: '' },
+                {
+                  label: '电影',
+                  value: 'Movie',
+                  active: !!filters?.includeItemTypes?.includes('Movie'),
+                },
+                {
+                  label: '剧集',
+                  value: 'Series',
+                  active: !!filters?.includeItemTypes?.includes('Series'),
+                },
+                {
+                  label: '剧集',
+                  value: 'Episode',
+                  active: !!filters?.includeItemTypes?.includes('Episode'),
+                },
+                {
+                  label: '文件夹',
+                  value: 'Folder',
+                  active: !!filters?.includeItemTypes?.includes('Folder'),
+                },
+                {
+                  label: '合集',
+                  value: 'BoxSet',
+                  active: !!filters?.includeItemTypes?.includes('BoxSet'),
+                },
+                {
+                  label: '播放列表',
+                  value: 'Playlist',
+                  active: !!filters?.includeItemTypes?.includes('Playlist'),
+                },
+              ]}
+              onSelect={(v) => {
+                onChangeFilters?.({
+                  includeItemTypes: v ? [v as MediaItemType] : undefined,
+                  sortBy: filters?.sortBy,
+                  sortOrder: filters?.sortOrder,
+                  year: filters?.year,
+                  tags: filters?.tags,
+                  onlyUnplayed: filters?.onlyUnplayed,
+                });
+              }}
+            />
             <FilterButton
               label="年份"
               title="选择年份"

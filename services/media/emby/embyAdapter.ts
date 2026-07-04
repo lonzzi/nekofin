@@ -55,12 +55,14 @@ import { buildEmbyStreamUrl, mapEmbyPlaybackInfo } from './playback';
 import type {
   EmbyApi,
   EmbyAuthenticateResponse,
+  EmbyHomeSection,
   EmbyPlaybackInfoResponse,
+  EmbyPrefix,
   EmbyPublicSystemInfo,
   EmbyPublicUser,
 } from './types';
 
-export class EmbyAdapter implements MediaAdapter {
+export class EmbyAdapter extends MediaAdapter {
   _api: EmbyApi | null = null;
 
   setApi(api: EmbyApi | null): void {
@@ -83,10 +85,20 @@ export class EmbyAdapter implements MediaAdapter {
 
   async discoverServers({ host }: DiscoverServersParams): Promise<RecommendedServerInfo[]> {
     const address = host.replace(/\/$/, '');
-    const res = await fetch(`${address}/System/Info/Public`);
-    if (!res.ok) return [];
-    const data = (await res.json()) as { ServerName?: string };
-    return [toRecommendedServerInfo(address, data?.ServerName || address)];
+    // Try /emby/ prefix first (standard Emby server path), then fall back to root
+    for (const basePath of [`${address}/emby`, address]) {
+      try {
+        const res = await fetch(`${basePath}/System/Info/Public`);
+        if (!res.ok) continue;
+        const data = (await res.json()) as { ServerName?: string };
+        if (data?.ServerName) {
+          return [toRecommendedServerInfo(basePath, data.ServerName)];
+        }
+      } catch {
+        continue;
+      }
+    }
+    return [];
   }
 
   findBestServer({ servers }: FindBestServerParams): RecommendedServerInfo | null {
@@ -133,16 +145,40 @@ export class EmbyAdapter implements MediaAdapter {
 
   async login({ username, password }: LoginParams): Promise<{ data: EmbyAuthenticateResponse }> {
     const client = this.getClient();
-    const res = await client.post<EmbyAuthenticateResponse>(
-      '/Users/AuthenticateByName',
-      { Username: username, Pw: password },
-      {
-        headers: { 'Content-Type': 'application/json' },
+    const body = new URLSearchParams({ Username: username, Pw: password }).toString();
+    const res = await client.request<EmbyAuthenticateResponse>('/Users/AuthenticateByName', {
+      method: 'POST',
+      body,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
       },
-    );
+    });
     const data = res.data;
     if (data?.AccessToken) this.requireApi().accessToken = data.AccessToken;
     return { data };
+  }
+
+  /**
+   * Detect whether the Emby server uses /emby/ prefix by probing System/Info/Public.
+   * Returns the correct basePath for API calls.
+   */
+  private async detectEmbyBasePath(address: string): Promise<string> {
+    const normalized = address.replace(/\/$/, '');
+    // If address already ends with /emby, use as-is
+    if (normalized.toLowerCase().endsWith('/emby')) return normalized;
+    // Try /emby/ prefix first (standard Emby path), then fall back to root
+    for (const candidate of [`${normalized}/emby`, normalized]) {
+      try {
+        const res = await fetch(`${candidate}/System/Info/Public`);
+        if (res.ok) {
+          const data = (await res.json()) as { ServerName?: string };
+          if (data?.ServerName) return candidate;
+        }
+      } catch {
+        continue;
+      }
+    }
+    return normalized;
   }
 
   async authenticateAndSaveServer({
@@ -153,20 +189,21 @@ export class EmbyAdapter implements MediaAdapter {
     note,
     addServer,
   }: AuthenticateAndSaveServerParams): Promise<unknown> {
-    this.createApi({ address });
+    // Auto-detect /emby/ prefix before creating API
+    const basePath = await this.detectEmbyBasePath(address);
+    this.createApi({ address: basePath });
     const loginRes = await this.login({ username, password });
     const token = loginRes?.data?.AccessToken;
     const userId = loginRes?.data?.User?.Id;
     if (userId && token) {
-      const normalizedAddress = address.replace(/\/$/, '');
       const sys = await this.getSystemInfo();
       const serverInfo: Omit<MediaServerInfo, 'id' | 'createdAt'> = {
-        address: normalizedAddress,
-        name: name?.trim() || sys.serverName || normalizedAddress,
+        address: basePath,
+        name: name?.trim() || sys.serverName || basePath,
         note: note?.trim() || undefined,
         userId: userId,
         username: loginRes.data?.User?.Name || username,
-        userAvatar: `${normalizedAddress}/Users/${userId}/Images/Primary?quality=90`,
+        userAvatar: `${basePath}/Users/${userId}/Images/Primary?quality=90`,
         accessToken: token,
         type: 'emby',
       };
@@ -421,13 +458,80 @@ export class EmbyAdapter implements MediaAdapter {
     userId,
     parentId,
   }: GetAvailableFiltersParams): Promise<MediaFilters> {
+    // Emby does not have a dedicated /Items/Filters endpoint (that's Jellyfin).
+    // We fetch genres and tags from their respective endpoints, and generate years.
     const currentYear = new Date().getFullYear();
-    const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
-    return {
-      years,
-      tags: [],
-      genres: [],
-    };
+    const years = Array.from({ length: 15 }, (_, i) => currentYear - i);
+
+    const [genresRes, tagsRes] = await Promise.all([
+      embyItems
+        .getGenres(this.getClient(), { userId, parentId })
+        .catch(() => ({ data: { Items: [] } })),
+      embyItems
+        .getTags(this.getClient(), { userId, parentId })
+        .catch(() => ({ data: { Items: [] } })),
+    ]);
+
+    const genres = (genresRes.data?.Items ?? [])
+      .map((i) => i.Name)
+      .filter((v): v is string => Boolean(v));
+    const tags = (tagsRes.data?.Items ?? [])
+      .map((i) => i.Name)
+      .filter((v): v is string => Boolean(v));
+
+    return { years, tags, genres };
+  }
+
+  // ── Home Sections ─────────────────────────────────────────────
+
+  async getHomeSections(userId: string): Promise<EmbyHomeSection[]> {
+    const res = await embyItems.getHomeSections(this.getClient(), userId);
+    return res.data ?? [];
+  }
+
+  async getSectionItems(
+    userId: string,
+    sectionId: string,
+    limit?: number,
+  ): Promise<MediaPage<MediaItem>> {
+    const res = await embyItems.getSectionItems(this.getClient(), { userId, sectionId, limit });
+    return await parseItemsWithCount(res);
+  }
+
+  // ── Items Prefixes ────────────────────────────────────────────
+
+  async getItemsPrefixes(
+    userId: string,
+    parentId?: string,
+    includeItemTypes?: string,
+  ): Promise<EmbyPrefix[]> {
+    const res = await embyItems.getItemsPrefixes(this.getClient(), {
+      userId,
+      parentId,
+      includeItemTypes,
+    });
+    return res.data ?? [];
+  }
+
+  // ── Folder Browsing ───────────────────────────────────────────
+
+  async getFoldersByParent(userId: string, parentId: string): Promise<MediaPage<MediaItem>> {
+    const res = await embyItems.getFoldersByParent(this.getClient(), { userId, parentId });
+    return await parseItemsWithCount(res);
+  }
+
+  // ── Box Sets (Collections) ────────────────────────────────────
+
+  async getBoxSets(userId: string, limit?: number): Promise<MediaPage<MediaItem>> {
+    const res = await embyItems.getBoxSets(this.getClient(), { userId, limit });
+    return await parseItemsWithCount(res);
+  }
+
+  // ── Playlists ─────────────────────────────────────────────────
+
+  async getPlaylists(userId: string, limit?: number): Promise<MediaPage<MediaItem>> {
+    const res = await embyItems.getPlaylists(this.getClient(), { userId, limit });
+    return await parseItemsWithCount(res);
   }
 
   getImageInfo({ item, opts }: GetImageInfoParams): ImageUrlInfo {
@@ -511,7 +615,7 @@ export class EmbyAdapter implements MediaAdapter {
     isPaused,
     PlaySessionId,
   }: ReportPlaybackProgressParams): Promise<void> {
-    await this.getClient().post(`/emby/Sessions/Playing/Progress`, {
+    await this.getClient().post(`/Sessions/Playing/Progress`, {
       ItemId: itemId,
       PositionTicks: Math.floor(positionTicks * 10000),
       IsPaused: isPaused ?? false,
@@ -526,7 +630,7 @@ export class EmbyAdapter implements MediaAdapter {
     positionTicks,
     PlaySessionId,
   }: ReportPlaybackStartParams): Promise<void> {
-    await this.getClient().post(`/emby/Sessions/Playing`, {
+    await this.getClient().post(`/Sessions/Playing`, {
       ItemId: itemId,
       PositionTicks: Math.floor((positionTicks ?? 0) * 10000),
       CanSeek: true,
@@ -540,7 +644,7 @@ export class EmbyAdapter implements MediaAdapter {
     positionTicks,
     PlaySessionId,
   }: ReportPlaybackStopParams): Promise<void> {
-    await this.getClient().post(`/emby/Sessions/Playing/Stopped`, {
+    await this.getClient().post(`/Sessions/Playing/Stopped`, {
       ItemId: itemId,
       PositionTicks: Math.floor(positionTicks * 10000),
       PlaySessionId,

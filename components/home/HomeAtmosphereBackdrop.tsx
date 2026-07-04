@@ -62,7 +62,7 @@ export function HomeAtmosphereBackdrop({
             cachePolicy="memory-disk"
             contentFit="cover"
             contentPosition="center"
-            blurRadius={88}
+            blurRadius={60}
             recyclingKey={imageUrl}
             transition={260}
           />

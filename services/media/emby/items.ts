@@ -262,3 +262,146 @@ export const getRandomItems = async (
       'BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,Status,EndDate,Path,ParentId',
     ),
   });
+
+// ── Home Sections ────────────────────────────────────────────────
+
+export type EmbyHomeSection = {
+  Name?: string;
+  Id?: string;
+  SectionType?: string;
+  CollectionType?: string;
+  ParentId?: string;
+  ParentItem?: { Id?: string; Name?: string; [key: string]: unknown };
+  CardSizeOffset?: number;
+  IncludeNextUpInResume?: boolean;
+  Query?: Record<string, unknown>;
+};
+
+export const getHomeSections = async (client: ApiClient, userId: string) =>
+  await client.get<EmbyHomeSection[]>(`/Users/${userId}/HomeSections`, {
+    displayMode: 'mobile,desktop',
+  });
+
+export const getSectionItems = async (
+  client: ApiClient,
+  { userId, sectionId, limit }: { userId: string; sectionId: string; limit?: number },
+) =>
+  await client.get<EmbyItemsResponse>(`/Users/${userId}/Sections/${sectionId}/Items`, {
+    Fields:
+      'BasicSyncInfo,CanDelete,CanDownload,PrimaryImageAspectRatio,ProgramPrimaryImageAspectRatio,ProductionYear,Status,EndDate',
+    ImageTypeLimit: 1,
+    EnableImageTypes: 'Primary,Backdrop,Thumb,Logo',
+    Limit: limit ?? 12,
+  });
+
+// ── Folders (browse library subfolders) ───────────────────────────
+
+export const getFoldersByParent = async (
+  client: ApiClient,
+  { userId, parentId }: { userId: string; parentId: string },
+) =>
+  await client.get<EmbyItemsResponse>(`/Users/${userId}/Items`, {
+    UserId: userId,
+    ParentId: parentId,
+    Recursive: false,
+    IncludeItemTypes: 'Folder,CollectionFolder',
+    SortBy: 'SortName',
+    SortOrder: 'Ascending',
+    Fields: 'BasicSyncInfo,PrimaryImageAspectRatio,ProductionYear,Path',
+    ImageTypeLimit: 1,
+    EnableImageTypes: 'Primary,Backdrop,Thumb',
+  });
+
+// ── Box Sets (collections) ────────────────────────────────────────
+
+export const getBoxSets = async (
+  client: ApiClient,
+  { userId, limit }: { userId: string; limit?: number },
+) =>
+  await client.get<EmbyItemsResponse>(`/Users/${userId}/Items`, {
+    UserId: userId,
+    Recursive: true,
+    IncludeItemTypes: 'BoxSet',
+    SortBy: 'SortName',
+    SortOrder: 'Ascending',
+    Fields: 'BasicSyncInfo,PrimaryImageAspectRatio,ProductionYear,Overview',
+    ImageTypeLimit: 1,
+    EnableImageTypes: 'Primary,Backdrop,Thumb',
+    Limit: limit,
+  });
+
+// ── Playlists ─────────────────────────────────────────────────────
+
+export const getPlaylists = async (
+  client: ApiClient,
+  { userId, limit }: { userId: string; limit?: number },
+) =>
+  await client.get<EmbyItemsResponse>(`/Users/${userId}/Items`, {
+    UserId: userId,
+    Recursive: true,
+    IncludeItemTypes: 'Playlist',
+    SortBy: 'SortName',
+    SortOrder: 'Ascending',
+    Fields: 'BasicSyncInfo,PrimaryImageAspectRatio,ProductionYear,Overview',
+    ImageTypeLimit: 1,
+    EnableImageTypes: 'Primary,Backdrop,Thumb',
+    Limit: limit,
+  });
+
+// ── Genres ────────────────────────────────────────────────────────
+
+export const getGenres = async (
+  client: ApiClient,
+  { userId, parentId }: { userId: string; parentId?: string },
+) => {
+  const params: Record<string, unknown> = {
+    UserId: userId,
+    Recursive: true,
+    SortBy: 'SortName',
+    SortOrder: 'Ascending',
+    EnableImages: false,
+    EnableTotalRecordCount: false,
+  };
+  if (parentId) params.ParentId = parentId;
+  return await client.get<EmbyItemsResponse>(`/Genres`, params);
+};
+
+// ── Tags ──────────────────────────────────────────────────────────
+
+export const getTags = async (
+  client: ApiClient,
+  { userId, parentId }: { userId: string; parentId?: string },
+) => {
+  const params: Record<string, unknown> = {
+    UserId: userId,
+    Recursive: true,
+    SortBy: 'SortName',
+    SortOrder: 'Ascending',
+    EnableImages: false,
+    EnableTotalRecordCount: false,
+  };
+  if (parentId) params.ParentId = parentId;
+  return await client.get<EmbyItemsResponse>(`/Tags`, params);
+};
+
+// ── Items Prefixes (alphabetical index) ──────────────────────────
+
+export type EmbyPrefix = { Name?: string; ItemCount?: number };
+
+export const getItemsPrefixes = async (
+  client: ApiClient,
+  {
+    userId,
+    parentId,
+    includeItemTypes,
+  }: { userId: string; parentId?: string; includeItemTypes?: string },
+) => {
+  const params: Record<string, unknown> = {
+    SortOrder: 'Ascending',
+    Recursive: true,
+    userId,
+  };
+  if (parentId) params.ParentId = parentId;
+  if (includeItemTypes) params.IncludeItemTypes = includeItemTypes;
+  return await client.get<EmbyPrefix[]>(`/Items/Prefixes`, params);
+};

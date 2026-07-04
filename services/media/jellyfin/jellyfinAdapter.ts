@@ -105,7 +105,7 @@ function convertItemTypesToJellyfin(itemTypes: MediaItemType[]): BaseItemKind[] 
   return normalizeMediaItemTypeList(itemTypes);
 }
 
-export class JellyfinAdapter implements MediaAdapter {
+export class JellyfinAdapter extends MediaAdapter {
   _api: Api | null = null;
 
   setApi(api: Api | null): void {

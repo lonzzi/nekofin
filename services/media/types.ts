@@ -113,6 +113,7 @@ export interface MediaItem {
   seriesPrimaryImageTag?: string | null;
   seriesThumbImageTag?: string | null;
   imageBlurHashes?: BaseItemDtoImageBlurHashes | null;
+  subviews?: string[] | null;
 }
 
 export interface MediaUser {
@@ -380,6 +381,18 @@ export abstract class MediaAdapter {
   ): Promise<string[]>;
   abstract getRandomItems(params: GetRandomItemsParams): Promise<MediaItem[]>;
   abstract getAvailableFilters(params: GetAvailableFiltersParams): Promise<MediaFilters>;
+
+  // ── Optional extended browsing (Emby-specific, default implementations) ──
+  async getFoldersByParent(_userId: string, _parentId: string): Promise<MediaPage<MediaItem>> {
+    return { items: [], total: 0 };
+  }
+  async getBoxSets(_userId: string, _limit?: number): Promise<MediaPage<MediaItem>> {
+    return { items: [], total: 0 };
+  }
+  async getPlaylists(_userId: string, _limit?: number): Promise<MediaPage<MediaItem>> {
+    return { items: [], total: 0 };
+  }
+
   abstract getImageInfo(params: GetImageInfoParams): ImageUrlInfo;
   abstract getStreamInfo(params: GetStreamInfoParams): Promise<StreamInfo | null>;
   abstract addFavoriteItem(params: UpdateFavoriteItemParams): Promise<void>;

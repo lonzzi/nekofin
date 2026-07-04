@@ -126,22 +126,24 @@ export default function ParallaxScrollView({
   const gradientStartColor = colorScheme === 'light' ? 'rgba(252,255,255,0)' : 'rgba(0,0,0,0)';
   const gradientEndColor = colorScheme === 'light' ? 'rgba(252,255,255,1)' : 'rgba(0,0,0,1)';
 
-  const blurGradientColors = enableBlurEffect
-    ? {
-        0: { color: 'transparent' },
-        0.5: { color: 'rgba(0,0,0,0.99)' },
-        1: { color: 'black' },
-      }
-    : {
-        0: { color: gradientStartColor },
-        1: { color: gradientEndColor },
-      };
+  const { colors, locations } = useMemo(() => {
+    const blurGradientColors = enableBlurEffect
+      ? {
+          0: { color: 'transparent' },
+          0.5: { color: 'rgba(0,0,0,0.99)' },
+          1: { color: 'black' },
+        }
+      : {
+          0: { color: gradientStartColor },
+          1: { color: gradientEndColor },
+        };
 
-  const { colors, locations } = easeGradient({
-    colorStops: blurGradientColors as any,
-    easing: Easing.bezier(0.4, 0.0, 0.2, 1),
-    extraColorStopsPerTransition: 24,
-  });
+    return easeGradient({
+      colorStops: blurGradientColors as any,
+      easing: Easing.bezier(0.4, 0.0, 0.2, 1),
+      extraColorStopsPerTransition: 24,
+    });
+  }, [enableBlurEffect, gradientStartColor, gradientEndColor]);
 
   const headerAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -197,7 +199,7 @@ export default function ParallaxScrollView({
       automaticallyAdjustsScrollIndicatorInsets={automaticallyAdjustsScrollIndicatorInsets}
       contentInsetAdjustmentBehavior={contentInsetAdjustmentBehavior}
       ref={scrollRef}
-      scrollEventThrottle={8}
+      scrollEventThrottle={16}
       {...props}
     >
       <View style={styles.scrollBody}>
