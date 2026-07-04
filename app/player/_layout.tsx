@@ -26,7 +26,7 @@ export default function Layout() {
 
     return () => {
       subscription.remove();
-      void ScreenOrientation.unlockAsync();
+      void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
       if (Platform.OS === 'android') {
         NavigationBar.setVisibilityAsync('visible');
       }
@@ -43,6 +43,7 @@ export default function Layout() {
           autoHideHomeIndicator: true,
           title: '',
           animation: 'fade',
+          orientation: 'landscape',
         }}
       />
     </Stack>

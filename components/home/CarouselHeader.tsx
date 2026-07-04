@@ -56,12 +56,13 @@ type CarouselImageLayerProps = {
 
 function CarouselImageLayer({ imageInfo }: CarouselImageLayerProps) {
   const theme = useAppTheme();
+  const mediaBackgroundColor = theme.isDark ? theme.colors.background : '#141416';
 
   if (imageInfo?.imageUrl) {
     return (
       <ItemImage
         uri={imageInfo.imageUrl}
-        style={[styles.carouselImage, { backgroundColor: theme.colors.background }]}
+        style={[styles.carouselImage, { backgroundColor: mediaBackgroundColor }]}
         contentFit="cover"
         contentPosition="left center"
         cachePolicy="memory-disk"
@@ -77,7 +78,7 @@ function CarouselImageLayer({ imageInfo }: CarouselImageLayerProps) {
       style={[
         styles.carouselImage,
         styles.carouselPlaceholder,
-        { backgroundColor: theme.colors.surfaceMuted },
+        { backgroundColor: mediaBackgroundColor },
       ]}
     >
       <IconSymbol name="video.fill" size={48} color={theme.colors.inverseText} />
@@ -234,6 +235,7 @@ export function useCarouselHeaderLayers({
   const [isGestureOverlayVisible, setIsGestureOverlayVisible] = useState(false);
   const [pendingGestureSettleIndex, setPendingGestureSettleIndex] = useState<number | null>(null);
   const currentIndexRef = useRef(0);
+  const prefetchedImageUrlsRef = useRef(new Set<string>());
   const router = useTracedRouter('carousel');
   const mediaAdapter = useMediaAdapter();
   const theme = useAppTheme();
@@ -352,12 +354,43 @@ export function useCarouselHeaderLayers({
   }, []);
 
   const startAutoAdvance = useCallback(() => {
-    if (!canReveal || !items.length) return;
-    const nextIndex = getRelativeIndex(currentIndexRef.current, 1, items.length);
+    if (!isFocused || !canReveal || !items.length) return;
+    const requestedIndex = currentIndexRef.current;
+    const nextIndex = getRelativeIndex(requestedIndex, 1, items.length);
+    const nextImageUrl = carouselImageInfos[nextIndex]?.imageUrl;
+
+    if (nextImageUrl && !prefetchedImageUrlsRef.current.has(nextImageUrl)) {
+      void Image.prefetch([nextImageUrl], { cachePolicy: 'memory-disk' })
+        .then(() => {
+          prefetchedImageUrlsRef.current.add(nextImageUrl);
+          if (
+            isFocused &&
+            autoTargetIndex == null &&
+            Math.abs(dragX.value) <= 1 &&
+            autoProgress.value <= 0 &&
+            currentIndexRef.current === requestedIndex
+          ) {
+            setAutoTargetIndex(nextIndex);
+            setIsGestureOverlayVisible(false);
+          }
+        })
+        .catch((error) => {
+          console.warn('Failed to prefetch next carousel image', error);
+        });
+      return;
+    }
 
     setAutoTargetIndex(nextIndex);
     setIsGestureOverlayVisible(false);
-  }, [canReveal, items.length]);
+  }, [
+    autoProgress,
+    autoTargetIndex,
+    canReveal,
+    carouselImageInfos,
+    dragX,
+    isFocused,
+    items.length,
+  ]);
 
   useEffect(() => {
     if (autoTargetIndex == null) return;
@@ -623,9 +656,13 @@ export function useCarouselHeaderLayers({
       .filter((imageUrl): imageUrl is string => Boolean(imageUrl));
     if (imageUrls.length === 0) return;
 
-    void Image.prefetch(imageUrls, { cachePolicy: 'memory-disk' }).catch((error) => {
-      console.warn('Failed to prefetch carousel images', error);
-    });
+    void Image.prefetch(imageUrls, { cachePolicy: 'memory-disk' })
+      .then(() => {
+        imageUrls.forEach((imageUrl) => prefetchedImageUrlsRef.current.add(imageUrl));
+      })
+      .catch((error) => {
+        console.warn('Failed to prefetch carousel images', error);
+      });
   }, [carouselImageInfos]);
 
   const currentItem = items[carouselIndex];
@@ -748,7 +785,7 @@ export function useCarouselHeaderLayers({
     ) : null;
 
   return {
-    backgroundImageInfo: autoTargetImageInfo ?? currentImageInfo,
+    backgroundImageInfo: currentImageInfo,
     headerImage,
     headerOverlay,
   };

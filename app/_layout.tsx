@@ -120,8 +120,8 @@ function RootNavigation() {
           headerBackButtonDisplayMode: 'minimal',
         }}
       >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="player" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false, orientation: 'portrait_up' }} />
+        <Stack.Screen name="player" options={{ headerShown: false, orientation: 'landscape' }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <PerformanceRouteObserver />
