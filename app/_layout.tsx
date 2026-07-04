@@ -4,9 +4,9 @@ import { MediaServerProvider } from '@/lib/contexts/MediaServerContext';
 import { ThemeColorProvider } from '@/lib/contexts/ThemeColorContext';
 import { ThemePreferenceProvider } from '@/lib/contexts/ThemePreferenceContext';
 import {
-  PerformanceInteractionCapture,
   PerformanceMonitorProvider,
   PerformanceRouteObserver,
+  usePerformanceStackScreenListeners,
 } from '@/lib/performance/PerformanceMonitorContext';
 import {
   QUERY_CACHE_BUSTER,
@@ -78,10 +78,8 @@ export default function RootLayout() {
             <DanmakuSettingsProvider>
               <ThemeColorProvider>
                 <PerformanceMonitorProvider>
-                  <PerformanceInteractionCapture>
-                    <RootNavigation />
-                    <PerformanceOverlay />
-                  </PerformanceInteractionCapture>
+                  <RootNavigation />
+                  <PerformanceOverlay />
                 </PerformanceMonitorProvider>
               </ThemeColorProvider>
             </DanmakuSettingsProvider>
@@ -94,6 +92,7 @@ export default function RootLayout() {
 
 function RootNavigation() {
   const appTheme = useAppTheme();
+  const stackScreenListeners = usePerformanceStackScreenListeners('root');
 
   const navigationTheme = useMemo(() => {
     const baseTheme = appTheme.isDark ? DarkTheme : DefaultTheme;
@@ -114,8 +113,8 @@ function RootNavigation() {
   return (
     <ThemeProvider value={navigationTheme}>
       <Stack
+        screenListeners={stackScreenListeners}
         screenOptions={{
-          freezeOnBlur: true,
           headerTransparent: Platform.OS === 'ios',
           headerBackTitle: '',
           headerBackButtonDisplayMode: 'minimal',

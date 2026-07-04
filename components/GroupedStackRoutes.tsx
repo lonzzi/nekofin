@@ -1,8 +1,6 @@
 import { Stack } from 'expo-router';
 
 const DEFAULT_SCREEN_OPTIONS = {
-  animation: 'simple_push',
-  freezeOnBlur: true,
   headerTitle: '',
   headerTransparent: true,
   headerBlurEffect: 'none',

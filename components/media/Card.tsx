@@ -7,7 +7,7 @@ import { ImageUrlInfo } from '@/lib/utils/image';
 import { MediaItem, MediaServerInfo } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Content, Item, ItemIcon, ItemTitle, Root as Menu, Trigger } from 'zeego/context-menu';
 
@@ -21,6 +21,16 @@ import {
 } from './cardHelpers';
 
 export { getSubtitle } from './cardHelpers';
+
+const CARD_CONTEXT_MENU_IOS_PROPS = {
+  shouldPreventLongPressGestureFromPropagating: false,
+} as const;
+
+type CardActionMenuRootProps = React.ComponentProps<typeof Menu> & {
+  __unsafeIosProps?: typeof CARD_CONTEXT_MENU_IOS_PROPS;
+};
+
+const CardActionMenuRoot = Menu as React.ComponentType<CardActionMenuRootProps>;
 
 function EpisodeCardActionMenu({
   item,
@@ -41,7 +51,7 @@ function EpisodeCardActionMenu({
   const isPlayed = currentUserData?.played === true;
 
   return (
-    <Menu>
+    <CardActionMenuRoot __unsafeIosProps={CARD_CONTEXT_MENU_IOS_PROPS}>
       <Trigger>{children}</Trigger>
       <Content>
         <Item key="play" onSelect={handlePlay}>
@@ -60,7 +70,7 @@ function EpisodeCardActionMenu({
           <ItemTitle>{isPlayed ? '标记为未看' : '标记为已看'}</ItemTitle>
         </Item>
       </Content>
-    </Menu>
+    </CardActionMenuRoot>
   );
 }
 
@@ -85,7 +95,7 @@ function SeriesCardActionMenu({
   const isPlayed = currentUserData?.played === true;
 
   return (
-    <Menu>
+    <CardActionMenuRoot __unsafeIosProps={CARD_CONTEXT_MENU_IOS_PROPS}>
       <Trigger>{children}</Trigger>
       <Content>
         <Item key="play" onSelect={handlePlay}>
@@ -108,7 +118,7 @@ function SeriesCardActionMenu({
           <ItemTitle>{isPlayed ? '标记为未看' : '标记为已看'}</ItemTitle>
         </Item>
       </Content>
-    </Menu>
+    </CardActionMenuRoot>
   );
 }
 
@@ -138,7 +148,6 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   const router = useTracedRouter('episode-card');
   const theme = useAppTheme();
   const { accentColor } = useAccentColor();
-  const [isLongPressing, setIsLongPressing] = useState(false);
 
   const mediaAdapter = useMediaAdapter();
 
@@ -160,9 +169,8 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   }, [item, router]);
 
   const handlePress = useCallback(() => {
-    if (isLongPressing) return;
     openDetails();
-  }, [isLongPressing, openDetails]);
+  }, [openDetails]);
 
   const handlePlay = useCallback(() => {
     if (!item.id) return;
@@ -180,16 +188,6 @@ export const EpisodeCard = React.memo(function EpisodeCard({
 
   const isPlayed = currentUserData?.played === true;
   const itemTitle = item.seriesName || item.name || '未知标题';
-
-  const handleLongPressStart = useCallback(() => {
-    setIsLongPressing(true);
-  }, []);
-
-  const handleLongPressEnd = useCallback(() => {
-    setTimeout(() => {
-      setIsLongPressing(false);
-    }, 10);
-  }, []);
 
   const PlayButton = useCallback(() => {
     return (
@@ -214,8 +212,6 @@ export const EpisodeCard = React.memo(function EpisodeCard({
         style={[styles.card, { width: 200 }, style]}
         disabled={disabled}
         onPress={onPress || handlePress}
-        onLongPress={handleLongPressStart}
-        onPressOut={handleLongPressEnd}
       >
         <ShadowedGlassCard radius={12}>
           <View style={[styles.coverContainer, { backgroundColor: theme.colors.surfaceMuted }]}>
@@ -299,8 +295,6 @@ export const EpisodeCard = React.memo(function EpisodeCard({
       PlayButton,
       accentColor,
       disabled,
-      handleLongPressEnd,
-      handleLongPressStart,
       handlePress,
       hideText,
       imageInfo.blurhash,
@@ -345,7 +339,6 @@ export const SeriesCard = React.memo(function SeriesCard({
 }) {
   const theme = useAppTheme();
   const router = useTracedRouter('series-card');
-  const [isLongPressing, setIsLongPressing] = useState(false);
 
   const mediaAdapter = useMediaAdapter();
 
@@ -377,19 +370,8 @@ export const SeriesCard = React.memo(function SeriesCard({
   }, [item, onPress, router]);
 
   const handlePress = useCallback(() => {
-    if (isLongPressing) return;
     openDetails();
-  }, [isLongPressing, openDetails]);
-
-  const handleLongPressStart = useCallback(() => {
-    setIsLongPressing(true);
-  }, []);
-
-  const handleLongPressEnd = useCallback(() => {
-    setTimeout(() => {
-      setIsLongPressing(false);
-    }, 10);
-  }, []);
+  }, [openDetails]);
 
   const card = (
     <Pressable
@@ -397,8 +379,6 @@ export const SeriesCard = React.memo(function SeriesCard({
       accessibilityLabel={`打开 ${itemTitle}`}
       style={[styles.card, { width: 120 }, style]}
       onPress={handlePress}
-      onLongPress={handleLongPressStart}
-      onPressOut={handleLongPressEnd}
     >
       <ShadowedGlassCard radius={12}>
         <ItemImage

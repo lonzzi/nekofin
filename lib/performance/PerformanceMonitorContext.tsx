@@ -11,7 +11,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { StyleSheet, View } from 'react-native';
 
 import { readNativePerformanceSnapshot } from './nativePerformance';
 import {
@@ -59,10 +58,12 @@ type PerformanceMonitorContextValue = {
   exportText: () => string;
   mark: (name: string, detail?: string) => void;
   onRouteChanged: (routeKey: string) => void;
-  recordInteractionStart: (source?: string) => void;
   recordEvent: (event: Omit<PerformanceEvent, 'id' | 'timestamp'>) => void;
   settings: PerformanceMonitorSettings;
   snapshot: PerformanceMonitorSnapshot;
+  traceNativeTransitionCancel: (target: string) => void;
+  traceNativeTransitionEnd: (target: string, closing: boolean) => void;
+  traceNativeTransitionStart: (target: string, closing: boolean) => void;
   traceNavigation: (action: string, target: unknown) => void;
   updateSettings: (patch: Partial<PerformanceMonitorSettings>) => void;
 };
@@ -81,14 +82,14 @@ type ActiveTrace = {
 
 type PendingNavigationTrace = {
   id: string;
-  interactionStartedAt?: number;
   startedAt: number;
   target: string;
 };
 
-type LastInteraction = {
-  source: string;
+type NativeTransitionTrace = {
+  closing: boolean;
   startedAt: number;
+  target: string;
 };
 
 const STORAGE_KEY = 'performanceMonitor.settings.v1';
@@ -172,6 +173,10 @@ function makeEventId(prefix: PerformanceEventType) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function getNativeTransitionKey(target: string, closing: boolean) {
+  return `${target}:${closing ? 'closing' : 'opening'}`;
+}
+
 export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
   const queryClient = useQueryClient();
   const { isUnlocked } = usePerformanceDiagnosticsUnlock();
@@ -190,7 +195,7 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
   const didHydrateStoredLogsRef = useRef(false);
   const activeTracesRef = useRef(new Map<string, ActiveTrace>());
   const pendingNavigationRef = useRef<PendingNavigationTrace | null>(null);
-  const lastInteractionRef = useRef<LastInteraction | null>(null);
+  const nativeTransitionsRef = useRef(new Map<string, NativeTransitionTrace>());
   const sampleIdRef = useRef((storedLogs.samples[storedLogs.samples.length - 1]?.id ?? -1) + 1);
   const lastLogPersistedAtRef = useRef(0);
   const [snapshot, setSnapshot] = useState<PerformanceMonitorSnapshot>(() => ({
@@ -285,27 +290,14 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
     [effectiveSettings.enabled, effectiveSettings.slowTraceThresholdMs, recordEvent],
   );
 
-  const recordInteractionStart = useCallback(
-    (source = 'touch') => {
-      if (!effectiveSettings.enabled) return;
-      lastInteractionRef.current = {
-        source,
-        startedAt: now(),
-      };
-    },
-    [effectiveSettings.enabled],
-  );
-
   const traceNavigation = useCallback(
     (action: string, target: unknown) => {
       if (!effectiveSettings.enabled) return;
 
       const routeTarget = formatRouteTarget(target);
       const trace = beginTrace(`${action} ${routeTarget}`, 'navigation');
-      const interactionStartedAt = lastInteractionRef.current?.startedAt;
       pendingNavigationRef.current = {
         id: trace.id,
-        interactionStartedAt,
         startedAt: now(),
         target: routeTarget,
       };
@@ -316,7 +308,6 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
           if (pending?.id !== trace.id) return;
 
           pendingNavigationRef.current = null;
-          lastInteractionRef.current = null;
           trace.end('slow', `No route change observed for ${routeTarget}`);
         },
         Math.max(2500, effectiveSettings.slowTraceThresholdMs * 3),
@@ -331,24 +322,10 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
 
       const pending = pendingNavigationRef.current;
       if (!pending) {
-        const routeChangedAt = now();
-        const interaction = lastInteractionRef.current;
-        const touchToRouteMs = interaction ? routeChangedAt - interaction.startedAt : undefined;
-        lastInteractionRef.current = null;
-
         recordEvent({
-          detail:
-            touchToRouteMs == null
-              ? routeKey
-              : `${routeKey} · ${interaction?.source ?? 'touch'}->route ${Math.round(
-                  touchToRouteMs,
-                )}ms`,
-          durationMs: touchToRouteMs,
-          name: 'native route touch->route',
-          status:
-            touchToRouteMs != null && touchToRouteMs >= effectiveSettings.slowTraceThresholdMs
-              ? 'slow'
-              : 'ok',
+          detail: routeKey,
+          name: 'untraced route changed',
+          status: 'ok',
           type: 'navigation',
         });
         return;
@@ -360,16 +337,9 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
 
       const routeChangedAt = now();
       const routeCommitMs = routeChangedAt - pending.startedAt;
-      const touchToCommitMs =
-        pending.interactionStartedAt == null
-          ? undefined
-          : routeChangedAt - pending.interactionStartedAt;
       const commitStatus = routeCommitMs >= effectiveSettings.slowTraceThresholdMs ? 'slow' : 'ok';
       recordEvent({
-        detail:
-          touchToCommitMs == null
-            ? `${pending.target} -> ${routeKey}`
-            : `${pending.target} -> ${routeKey} · touch->commit ${Math.round(touchToCommitMs)}ms`,
+        detail: `${pending.target} -> ${routeKey}`,
         durationMs: routeCommitMs,
         name: `route commit ${activeTrace.name}`,
         status: commitStatus,
@@ -381,19 +351,9 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
           const routeSettledAt = now();
           const settleMs = routeSettledAt - routeChangedAt;
           const totalMs = routeSettledAt - pending.startedAt;
-          const touchToRouteMs =
-            pending.interactionStartedAt == null
-              ? undefined
-              : routeSettledAt - pending.interactionStartedAt;
-          lastInteractionRef.current = null;
           activeTracesRef.current.delete(pending.id);
           recordEvent({
-            detail:
-              touchToRouteMs == null
-                ? `${pending.target} -> ${routeKey} · total ${Math.round(totalMs)}ms`
-                : `${pending.target} -> ${routeKey} · total ${Math.round(
-                    totalMs,
-                  )}ms · touch->settled ${Math.round(touchToRouteMs)}ms`,
+            detail: `${pending.target} -> ${routeKey} · total ${Math.round(totalMs)}ms`,
             durationMs: settleMs,
             name: `route settled ${activeTrace.name}`,
             status: settleMs >= effectiveSettings.slowTraceThresholdMs ? 'slow' : 'ok',
@@ -405,12 +365,51 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
     [effectiveSettings.enabled, effectiveSettings.slowTraceThresholdMs, recordEvent],
   );
 
+  const traceNativeTransitionStart = useCallback(
+    (target: string, closing: boolean) => {
+      if (!effectiveSettings.enabled) return;
+
+      nativeTransitionsRef.current.set(getNativeTransitionKey(target, closing), {
+        closing,
+        startedAt: now(),
+        target,
+      });
+    },
+    [effectiveSettings.enabled],
+  );
+
+  const traceNativeTransitionEnd = useCallback(
+    (target: string, closing: boolean) => {
+      if (!effectiveSettings.enabled) return;
+
+      const key = getNativeTransitionKey(target, closing);
+      const transition = nativeTransitionsRef.current.get(key);
+      if (!transition) return;
+
+      nativeTransitionsRef.current.delete(key);
+      const durationMs = now() - transition.startedAt;
+      recordEvent({
+        detail: transition.target,
+        durationMs,
+        name: `native ${transition.closing ? 'pop' : 'push'} transition`,
+        status: durationMs >= effectiveSettings.slowTraceThresholdMs ? 'slow' : 'ok',
+        type: 'navigation',
+      });
+    },
+    [effectiveSettings.enabled, effectiveSettings.slowTraceThresholdMs, recordEvent],
+  );
+
+  const traceNativeTransitionCancel = useCallback((target: string) => {
+    nativeTransitionsRef.current.delete(getNativeTransitionKey(target, true));
+    nativeTransitionsRef.current.delete(getNativeTransitionKey(target, false));
+  }, []);
+
   const clear = useCallback(() => {
     sampleBufferRef.current.clear();
     eventBufferRef.current.clear();
     activeTracesRef.current.clear();
     pendingNavigationRef.current = null;
-    lastInteractionRef.current = null;
+    nativeTransitionsRef.current.clear();
     clearStoredPerformanceLogs();
     lastLogPersistedAtRef.current = 0;
     setSnapshot({
@@ -576,8 +575,10 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
       exportText,
       mark,
       onRouteChanged,
-      recordInteractionStart,
       recordEvent,
+      traceNativeTransitionCancel,
+      traceNativeTransitionEnd,
+      traceNativeTransitionStart,
       traceNavigation,
       updateSettings,
     }),
@@ -587,8 +588,10 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
       exportText,
       mark,
       onRouteChanged,
-      recordInteractionStart,
       recordEvent,
+      traceNativeTransitionCancel,
+      traceNativeTransitionEnd,
+      traceNativeTransitionStart,
       traceNavigation,
       updateSettings,
     ],
@@ -624,20 +627,6 @@ export function PerformanceRouteObserver() {
   }, [onRouteChanged, params, pathname, settings.enabled]);
 
   return null;
-}
-
-export function PerformanceInteractionCapture({ children }: PropsWithChildren) {
-  const { recordInteractionStart } = usePerformanceMonitorActions();
-  const settings = usePerformanceMonitorSettings();
-
-  return (
-    <View
-      style={styles.interactionCapture}
-      onTouchStart={settings.enabled ? () => recordInteractionStart() : undefined}
-    >
-      {children}
-    </View>
-  );
 }
 
 export function usePerformanceMonitorActions() {
@@ -679,8 +668,34 @@ export function usePerformanceMonitor() {
   );
 }
 
-const styles = StyleSheet.create({
-  interactionCapture: {
-    flex: 1,
-  },
-});
+type StackScreenListenerProps = {
+  route: {
+    name: string;
+  };
+};
+
+type NativeStackTransitionEvent = {
+  data: {
+    closing: boolean;
+  };
+};
+
+export function usePerformanceStackScreenListeners(scope: string) {
+  const { traceNativeTransitionCancel, traceNativeTransitionEnd, traceNativeTransitionStart } =
+    usePerformanceMonitorActions();
+
+  return useCallback(
+    ({ route }: StackScreenListenerProps) => {
+      const target = `${scope}:${route.name}`;
+
+      return {
+        gestureCancel: () => traceNativeTransitionCancel(target),
+        transitionEnd: (event: NativeStackTransitionEvent) =>
+          traceNativeTransitionEnd(target, event.data.closing),
+        transitionStart: (event: NativeStackTransitionEvent) =>
+          traceNativeTransitionStart(target, event.data.closing),
+      };
+    },
+    [scope, traceNativeTransitionCancel, traceNativeTransitionEnd, traceNativeTransitionStart],
+  );
+}

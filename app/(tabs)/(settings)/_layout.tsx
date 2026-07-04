@@ -1,3 +1,4 @@
+import { usePerformanceStackScreenListeners } from '@/lib/performance/PerformanceMonitorContext';
 import { useAppTheme } from '@/lib/theme';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Stack } from 'expo-router';
@@ -6,11 +7,12 @@ import { Platform } from 'react-native';
 export default function HomeLayout() {
   const theme = useAppTheme();
   const backgroundColor = theme.colors.backgroundGrouped;
+  const stackScreenListeners = usePerformanceStackScreenListeners('settings');
 
   return (
     <Stack
+      screenListeners={stackScreenListeners}
       screenOptions={{
-        freezeOnBlur: true,
         headerTransparent: Platform.OS === 'ios',
         headerShadowVisible: false,
         headerBlurEffect: isLiquidGlassAvailable() ? undefined : 'prominent',
