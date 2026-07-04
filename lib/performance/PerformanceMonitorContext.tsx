@@ -344,7 +344,7 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
                   touchToRouteMs,
                 )}ms`,
           durationMs: touchToRouteMs,
-          name: 'route changed',
+          name: 'native route touch->route',
           status:
             touchToRouteMs != null && touchToRouteMs >= effectiveSettings.slowTraceThresholdMs
               ? 'slow'

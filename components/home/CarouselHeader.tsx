@@ -282,6 +282,7 @@ export function useCarouselHeaderLayers({
   const isGestureAnimating = useSharedValue(false);
   const hasImages = items.length > 0;
   const canReveal = items.length > 1;
+  const canInteract = isFocused && canReveal;
   const cardWidth = Math.max(viewportWidth, 1);
 
   const itemIdentity = useMemo(() => items.map(getCarouselItemKey).join('|'), [items]);
@@ -405,18 +406,6 @@ export function useCarouselHeaderLayers({
 
     if (!isNextImageReady) {
       setPendingAutoAdvance({ fromIndex: requestedIndex, targetIndex: nextIndex });
-
-      if (!nextImageUrl || prefetchedImageUrlsRef.current.has(nextImageUrl)) {
-        return;
-      }
-
-      void Image.prefetch([nextImageUrl], { cachePolicy: 'memory-disk' })
-        .then(() => {
-          prefetchedImageUrlsRef.current.add(nextImageUrl);
-        })
-        .catch((error) => {
-          console.warn('Failed to prefetch next carousel image', error);
-        });
       return;
     }
 
@@ -477,10 +466,24 @@ export function useCarouselHeaderLayers({
     };
   }, [autoProgress, autoTargetIndex, completeAutoAdvance, dragX]);
 
+  useEffect(() => {
+    if (isFocused) return;
+
+    cancelAnimation(autoProgress);
+    cancelAnimation(dragX);
+    autoProgress.value = 0;
+    dragX.value = 0;
+    isGestureAnimating.value = false;
+    setAutoTargetIndex(null);
+    setPendingAutoAdvance(null);
+    setIsGestureOverlayVisible(false);
+    setPendingGestureSettleIndex(null);
+  }, [autoProgress, dragX, isFocused, isGestureAnimating]);
+
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
-        .enabled(canReveal)
+        .enabled(canInteract)
         .activeOffsetX([-12, 12])
         .failOffsetY([-18, 18])
         .onStart(() => {
@@ -546,7 +549,7 @@ export function useCarouselHeaderLayers({
         }),
     [
       autoProgress,
-      canReveal,
+      canInteract,
       cardWidth,
       clearAutoTarget,
       completeReveal,
@@ -560,6 +563,7 @@ export function useCarouselHeaderLayers({
   const tapGesture = useMemo(
     () =>
       Gesture.Tap()
+        .enabled(isFocused)
         .maxDistance(10)
         .onBegin(() => {
           tapStartIndexValue.value = activeIndexValue.value;
@@ -577,13 +581,14 @@ export function useCarouselHeaderLayers({
       autoProgress,
       clearAutoTarget,
       handleCarouselItemPressAtIndex,
+      isFocused,
       tapStartIndexValue,
     ],
   );
 
   const carouselGesture = useMemo(
-    () => (canReveal ? Gesture.Exclusive(panGesture, tapGesture) : tapGesture),
-    [canReveal, panGesture, tapGesture],
+    () => (canInteract ? Gesture.Exclusive(panGesture, tapGesture) : tapGesture),
+    [canInteract, panGesture, tapGesture],
   );
 
   const nextRevealStyle = useAnimatedStyle(() => {
@@ -723,19 +728,25 @@ export function useCarouselHeaderLayers({
   }, [autoProgress, autoTargetIndex, canReveal, dragX, isFocused, startAutoAdvance]);
 
   useEffect(() => {
+    if (!isFocused) return;
     const imageUrls = carouselImageInfos
       .map((imageInfo) => imageInfo.imageUrl)
       .filter((imageUrl): imageUrl is string => Boolean(imageUrl));
     if (imageUrls.length === 0) return;
 
-    void Image.prefetch(imageUrls, { cachePolicy: 'memory-disk' })
+    const warmDiskUrls = imageUrls.filter(
+      (imageUrl) => !prefetchedImageUrlsRef.current.has(imageUrl),
+    );
+    if (warmDiskUrls.length === 0) return;
+
+    void Image.prefetch(warmDiskUrls, { cachePolicy: 'disk' })
       .then(() => {
-        imageUrls.forEach((imageUrl) => prefetchedImageUrlsRef.current.add(imageUrl));
+        warmDiskUrls.forEach((imageUrl) => prefetchedImageUrlsRef.current.add(imageUrl));
       })
       .catch((error) => {
         console.warn('Failed to prefetch carousel images', error);
       });
-  }, [carouselImageInfos]);
+  }, [carouselImageInfos, isFocused]);
 
   const currentItem = items[carouselIndex];
   const currentImageInfo = carouselImageInfos[carouselIndex];
@@ -817,7 +828,7 @@ export function useCarouselHeaderLayers({
               </>
             )}
 
-            {canReveal && (
+            {isFocused && canReveal && (
               <View pointerEvents="none" style={styles.preloadLayer}>
                 {preloadIndexes.map((index) => (
                   <CarouselImagePreloader

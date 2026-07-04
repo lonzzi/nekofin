@@ -142,7 +142,7 @@ export default function HomeScreen() {
       headerHeight={carouselHeight}
       headerImage={headerImage}
       headerOverlay={headerOverlay}
-      imageInfo={backgroundImageInfo}
+      imageInfo={isFocused ? backgroundImageInfo : undefined}
       isDark={theme.isDark}
     >
       <View style={[styles.content, { gap: theme.spacing.lg, marginTop: theme.spacing.md }]}>

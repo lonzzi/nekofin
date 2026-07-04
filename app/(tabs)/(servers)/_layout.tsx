@@ -11,6 +11,7 @@ export default function ServersLayout() {
   return (
     <Stack
       screenOptions={{
+        freezeOnBlur: true,
         headerTransparent: Platform.OS === 'ios',
         headerShadowVisible: false,
         headerBlurEffect: isLiquidGlassAvailable() ? undefined : 'prominent',

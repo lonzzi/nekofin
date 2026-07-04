@@ -9,7 +9,7 @@ import { UseQueryResult } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from 'expo-router';
-import { HeaderButton } from 'expo-router/react-navigation';
+import { HeaderButton, useIsFocused } from 'expo-router/react-navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { RefreshControl, Text, useWindowDimensions, View } from 'react-native';
 
@@ -30,6 +30,7 @@ export type DetailViewProps = {
 
 function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
   const { currentServer } = useMediaServers();
   const theme = useAppTheme();
   const backgroundColor = theme.colors.background;
@@ -215,7 +216,9 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
       contentStyle={atmosphereContentStyle}
       headerHeight={headerHeight}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      imageInfo={{ blurhash: headerImageInfo.blurhash, imageUrl: headerImageUrl }}
+      imageInfo={
+        isFocused ? { blurhash: headerImageInfo.blurhash, imageUrl: headerImageUrl } : undefined
+      }
       isDark={theme.isDark}
       headerImage={
         <View style={[detailViewStyles.header, { backgroundColor: theme.colors.surfaceMuted }]}>

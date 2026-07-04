@@ -115,6 +115,7 @@ function RootNavigation() {
     <ThemeProvider value={navigationTheme}>
       <Stack
         screenOptions={{
+          freezeOnBlur: true,
           headerTransparent: Platform.OS === 'ios',
           headerBackTitle: '',
           headerBackButtonDisplayMode: 'minimal',
