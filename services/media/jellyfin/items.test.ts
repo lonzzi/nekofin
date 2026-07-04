@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getAvailableFilters, getFavoriteItemsPaged, searchItems } from './items';
+import {
+  getAvailableFilters,
+  getEpisodesBySeason,
+  getFavoriteItemsPaged,
+  searchItems,
+} from './items';
 
 const mocks = vi.hoisted(() => ({
   getItems: vi.fn(),
@@ -71,6 +76,30 @@ describe('Jellyfin item requests', () => {
 
     mocks.getItems.mockResolvedValueOnce({ data: undefined });
     await expect(searchItems(api, 'user-1', 'missing')).resolves.toEqual([]);
+  });
+
+  it('builds episode-by-season requests with the season as parent id', async () => {
+    mocks.getItems.mockResolvedValue({ data: { Items: [], TotalRecordCount: 0 } });
+
+    await getEpisodesBySeason(api, 'season-1', 'user-1');
+
+    expect(mocks.getItems).toHaveBeenCalledWith({
+      userId: 'user-1',
+      parentId: 'season-1',
+      includeItemTypes: ['Episode'],
+      recursive: false,
+      sortBy: ['IndexNumber'],
+      sortOrder: ['Ascending'],
+      fields: [
+        'ItemCounts',
+        'PrimaryImageAspectRatio',
+        'CanDelete',
+        'MediaSourceCount',
+        'Overview',
+      ],
+      imageTypeLimit: 1,
+      enableImageTypes: ['Primary', 'Backdrop', 'Thumb'],
+    });
   });
 
   it('normalizes available filters from Jellyfin responses', async () => {

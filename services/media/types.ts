@@ -1,5 +1,10 @@
 import type { ImageUrlInfo } from '@/lib/utils/image';
 import type { RecommendedServerInfo } from '@jellyfin/sdk';
+import type {
+  BaseItemDtoImageBlurHashes,
+  BaseItemKind,
+  PersonKind,
+} from '@jellyfin/sdk/lib/generated-client/models';
 import type { BaseItemPersonImageBlurHashes } from '@jellyfin/sdk/lib/generated-client/models/base-item-person-image-blur-hashes';
 
 import type { StreamInfo } from './jellyfin/stream';
@@ -11,7 +16,8 @@ export type MediaApi = {
 
 export type MediaServerType = 'jellyfin' | 'emby';
 
-export type MediaItemType = 'Movie' | 'Series' | 'Season' | 'Episode' | 'MusicVideo' | 'Other';
+export type MediaItemType = BaseItemKind | 'Other';
+export type MediaPersonType = PersonKind | 'Other';
 
 export type MediaSortBy =
   | 'DateCreated'
@@ -35,7 +41,8 @@ export interface MediaUserData {
 export interface MediaPerson {
   name?: string | null;
   id: string;
-  type?: 'Actor' | 'Director' | 'Writer' | 'Producer';
+  type?: MediaPersonType;
+  serverType?: string | null;
   role?: string | null;
   primaryImageTag?: string | null;
   imageBlurHashes?: BaseItemPersonImageBlurHashes | null;
@@ -54,12 +61,15 @@ export interface MediaItem {
   id: string;
   name: string;
   type: MediaItemType;
+  serverType?: string | null;
   raw: unknown;
   seriesName?: string | null;
   seriesId?: string | null;
   parentId?: string | null;
+  path?: string | null;
   indexNumber?: number | null;
   parentIndexNumber?: number | null;
+  primaryImageAspectRatio?: number | null;
   productionYear?: number | null;
   premiereDate?: string | null;
   dateCreated?: string | null;
@@ -76,6 +86,7 @@ export interface MediaItem {
   productionLocations?: string[] | null;
   people?: MediaPerson[] | null;
   studios?: MediaStudio[] | null;
+  providerIds?: Record<string, string | null> | null;
   userData?: MediaUserData | null;
   runTimeTicks?: number | null;
   cumulativeRunTimeTicks?: number | null;
@@ -84,8 +95,24 @@ export interface MediaItem {
   recursiveItemCount?: number | null;
   childCount?: number | null;
   mediaSourceCount?: number | null;
+  mediaType?: string | null;
+  isFolder?: boolean | null;
   container?: string | null;
-  collectionType?: string;
+  collectionType?: string | null;
+  imageTags?: Record<string, string> | null;
+  backdropImageTags?: string[] | null;
+  screenshotImageTags?: string[] | null;
+  parentLogoItemId?: string | null;
+  parentLogoImageTag?: string | null;
+  parentBackdropItemId?: string | null;
+  parentBackdropImageTags?: string[] | null;
+  parentThumbItemId?: string | null;
+  parentThumbImageTag?: string | null;
+  parentPrimaryImageItemId?: string | null;
+  parentPrimaryImageTag?: string | null;
+  seriesPrimaryImageTag?: string | null;
+  seriesThumbImageTag?: string | null;
+  imageBlurHashes?: BaseItemDtoImageBlurHashes | null;
 }
 
 export interface MediaUser {

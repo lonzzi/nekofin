@@ -49,7 +49,19 @@ describe('convertBaseItemDtoToMediaItem', () => {
       Name: 'Movie One',
       Type: 'Movie',
       ProductionYear: 2026,
+      PrimaryImageAspectRatio: 0.666,
       Genres: ['Animation'],
+      ProviderIds: {
+        Imdb: 'tt123',
+      },
+      ImageTags: {
+        Primary: 'primary-tag',
+        Logo: 'logo-tag',
+      },
+      BackdropImageTags: ['backdrop-tag'],
+      ParentBackdropItemId: 'series-1',
+      ParentBackdropImageTags: ['parent-backdrop-tag'],
+      SeriesPrimaryImageTag: 'series-primary-tag',
       UserData: {
         Played: true,
         IsFavorite: false,
@@ -60,7 +72,7 @@ describe('convertBaseItemDtoToMediaItem', () => {
         {
           Id: 'person-1',
           Name: 'Actor One',
-          Type: 'Actor',
+          Type: 'Composer',
           Role: 'Lead',
           PrimaryImageTag: 'tag-1',
         },
@@ -71,8 +83,21 @@ describe('convertBaseItemDtoToMediaItem', () => {
       id: 'movie-1',
       name: 'Movie One',
       type: 'Movie',
+      serverType: 'Movie',
+      primaryImageAspectRatio: 0.666,
       productionYear: 2026,
       genres: ['Animation'],
+      providerIds: {
+        Imdb: 'tt123',
+      },
+      imageTags: {
+        Primary: 'primary-tag',
+        Logo: 'logo-tag',
+      },
+      backdropImageTags: ['backdrop-tag'],
+      parentBackdropItemId: 'series-1',
+      parentBackdropImageTags: ['parent-backdrop-tag'],
+      seriesPrimaryImageTag: 'series-primary-tag',
       userData: {
         played: true,
         isFavorite: false,
@@ -83,7 +108,8 @@ describe('convertBaseItemDtoToMediaItem', () => {
         {
           id: 'person-1',
           name: 'Actor One',
-          type: 'Actor',
+          type: 'Composer',
+          serverType: 'Composer',
           role: 'Lead',
           primaryImageTag: 'tag-1',
         },
@@ -97,7 +123,36 @@ describe('convertBaseItemDtoToMediaItem', () => {
     expect(item.id).toBe('');
     expect(item.name).toBe('');
     expect(item.type).toBe('Other');
+    expect(item.serverType).toBeNull();
     expect(item.raw).toEqual({});
+  });
+
+  it('keeps known folder-like Jellyfin types and preserves unknown server types', () => {
+    expect(
+      convertBaseItemDtoToMediaItem({
+        Id: 'view-1',
+        Name: 'Movies',
+        Type: 'CollectionFolder',
+        CollectionType: 'movies',
+      }),
+    ).toMatchObject({
+      id: 'view-1',
+      type: 'CollectionFolder',
+      serverType: 'CollectionFolder',
+      collectionType: 'movies',
+    });
+
+    expect(
+      convertBaseItemDtoToMediaItem({
+        Id: 'custom-1',
+        Name: 'Custom One',
+        Type: 'CustomPluginItem' as never,
+      }),
+    ).toMatchObject({
+      id: 'custom-1',
+      type: 'Other',
+      serverType: 'CustomPluginItem',
+    });
   });
 
   it('maps paged Jellyfin responses into the adapter page contract', () => {

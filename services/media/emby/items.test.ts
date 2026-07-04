@@ -44,6 +44,22 @@ describe('emby items endpoints', () => {
     });
   });
 
+  it('omits invalid or empty include type filters from provider params', async () => {
+    const client = createClient();
+
+    await getLatestItems(client, {
+      userId: 'user-1',
+      includeItemTypes: ['Other'],
+    });
+
+    expect(client.get).toHaveBeenCalledWith(
+      '/Users/user-1/Items',
+      expect.objectContaining({
+        IncludeItemTypes: undefined,
+      }),
+    );
+  });
+
   it('builds latest-by-folder params through the Emby Latest endpoint', async () => {
     const client = createClient();
 

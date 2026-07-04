@@ -18,6 +18,7 @@ import {
   reportPlaybackStart,
   reportPlaybackStop,
 } from '.';
+import { normalizeMediaItemTypeList } from '../itemTypes';
 import {
   GetRandomItemsParams,
   MediaAdapter,
@@ -100,8 +101,8 @@ function convertSortByToJellyfin(sortBy: MediaSortBy[]): ItemSortBy[] {
   return sortBy.map((sb) => sb as ItemSortBy);
 }
 
-function convertItemTypesToJellyfin(itemTypes: MediaItemType[]): BaseItemKind[] {
-  return itemTypes.map((it) => it as BaseItemKind);
+function convertItemTypesToJellyfin(itemTypes: MediaItemType[]): BaseItemKind[] | undefined {
+  return normalizeMediaItemTypeList(itemTypes);
 }
 
 export class JellyfinAdapter implements MediaAdapter {

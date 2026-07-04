@@ -1,6 +1,7 @@
 import type { ApiClient } from '@/lib/request';
 import { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
 
+import { normalizeMediaItemTypeList } from '../itemTypes';
 import type {
   GetAllItemsByFolderParams,
   GetEpisodesBySeasonParams,
@@ -31,6 +32,9 @@ const defaultItemParams = (fields?: string) => {
   return Object.fromEntries(params.entries());
 };
 
+const joinMediaItemTypes = (itemTypes: GetLatestItemsParams['includeItemTypes']) =>
+  normalizeMediaItemTypeList(itemTypes)?.join(',');
+
 export const getLatestItems = async (
   client: ApiClient,
   { userId, limit, includeItemTypes, sortBy, sortOrder, year, tags }: GetLatestItemsParams,
@@ -40,7 +44,7 @@ export const getLatestItems = async (
     Recursive: true,
     Filters: 'IsNotFolder',
     Limit: limit,
-    IncludeItemTypes: includeItemTypes?.join(','),
+    IncludeItemTypes: joinMediaItemTypes(includeItemTypes),
     SortBy: convertSortByToEmby(sortBy || []).join(','),
     SortOrder: sortOrder,
     Years: year,
@@ -122,7 +126,7 @@ export const getFavoriteItemsPaged = async (
     Limit: limit,
     Recursive: true,
     Filters: onlyUnplayed ? 'IsFavorite,IsUnplayed' : 'IsFavorite',
-    IncludeItemTypes: includeItemTypes?.join(','),
+    IncludeItemTypes: joinMediaItemTypes(includeItemTypes),
     SortBy: convertSortByToEmby(sortBy || []).join(','),
     SortOrder: sortOrder,
     Years: year,
@@ -154,7 +158,7 @@ export const getAllItemsByFolder = async (
     Recursive: true,
     StartIndex: startIndex,
     Limit: limit,
-    IncludeItemTypes: itemTypes?.join(','),
+    IncludeItemTypes: joinMediaItemTypes(itemTypes),
     SortBy: convertSortByToEmby(sortBy || []).join(','),
     SortOrder: sortOrder,
     Filters: onlyUnplayed ? 'IsUnplayed' : undefined,
@@ -226,7 +230,7 @@ export const searchItems = async (
     ImageTypeLimit: 1,
     EnableImageTypes: 'Primary,Backdrop,Thumb',
     Limit: limit,
-    IncludeItemTypes: includeItemTypes?.join(','),
+    IncludeItemTypes: joinMediaItemTypes(includeItemTypes),
   });
 
 export const getRecommendedSearchKeywords = async (

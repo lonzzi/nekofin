@@ -1,6 +1,7 @@
 import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
 
-import type { MediaItem, MediaItemType, MediaPage } from '../types';
+import { normalizeMediaItemType, normalizePersonType } from '../itemTypes';
+import type { MediaItem, MediaPage } from '../types';
 
 type JellyfinItemsPayload = {
   Items?: BaseItemDto[] | null;
@@ -12,16 +13,21 @@ type JellyfinResponse<T> = {
 };
 
 export function convertBaseItemDtoToMediaItem(item: BaseItemDto): MediaItem {
+  const serverType = item.Type ?? null;
+
   return {
     id: item.Id || '',
     name: item.Name || '',
-    type: (item.Type as MediaItemType) || 'Other',
+    type: normalizeMediaItemType(serverType),
+    serverType,
     raw: item,
     seriesName: item.SeriesName,
     seriesId: item.SeriesId,
     parentId: item.ParentId,
+    path: item.Path,
     indexNumber: item.IndexNumber,
     parentIndexNumber: item.ParentIndexNumber,
+    primaryImageAspectRatio: item.PrimaryImageAspectRatio,
     productionYear: item.ProductionYear,
     premiereDate: item.PremiereDate,
     dateCreated: item.DateCreated,
@@ -39,13 +45,15 @@ export function convertBaseItemDtoToMediaItem(item: BaseItemDto): MediaItem {
     people: item.People?.map((p) => ({
       name: p.Name || '',
       id: p.Id || '',
-      type: (p.Type as 'Actor' | 'Director' | 'Writer' | 'Producer') || 'Actor',
+      type: normalizePersonType(p.Type),
+      serverType: p.Type ?? null,
       role: p.Role,
       primaryImageTag: p.PrimaryImageTag,
       imageBlurHashes: p.ImageBlurHashes,
       raw: p,
     })),
     studios: item.Studios?.map((s) => ({ name: s.Name || '' })),
+    providerIds: item.ProviderIds,
     userData: item.UserData
       ? {
           played: item.UserData.Played,
@@ -61,8 +69,24 @@ export function convertBaseItemDtoToMediaItem(item: BaseItemDto): MediaItem {
     recursiveItemCount: item.RecursiveItemCount,
     childCount: item.ChildCount,
     mediaSourceCount: item.MediaSourceCount,
+    mediaType: item.MediaType,
+    isFolder: item.IsFolder,
     container: item.Container,
     collectionType: item.CollectionType,
+    imageTags: item.ImageTags,
+    backdropImageTags: item.BackdropImageTags,
+    screenshotImageTags: item.ScreenshotImageTags,
+    parentLogoItemId: item.ParentLogoItemId,
+    parentLogoImageTag: item.ParentLogoImageTag,
+    parentBackdropItemId: item.ParentBackdropItemId,
+    parentBackdropImageTags: item.ParentBackdropImageTags,
+    parentThumbItemId: item.ParentThumbItemId,
+    parentThumbImageTag: item.ParentThumbImageTag,
+    parentPrimaryImageItemId: item.ParentPrimaryImageItemId,
+    parentPrimaryImageTag: item.ParentPrimaryImageTag,
+    seriesPrimaryImageTag: item.SeriesPrimaryImageTag,
+    seriesThumbImageTag: item.SeriesThumbImageTag,
+    imageBlurHashes: item.ImageBlurHashes,
   };
 }
 
