@@ -1,17 +1,25 @@
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { createMediaAdapterWithApi, createMediaApiFromServerInfo } from '@/services/media';
 import { updateCachedMediaItemUserData } from '@/services/media/cache';
 import { mediaQueryKeys } from '@/services/media/queryKeys';
-import { MediaItem, MediaUserData } from '@/services/media/types';
+import { MediaItem, MediaServerInfo, MediaUserData } from '@/services/media/types';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-export function useMediaActions(item: MediaItem) {
+export function useMediaActions(item: MediaItem, serverOverride?: MediaServerInfo) {
   const router = useTracedRouter('media-actions');
   const queryClient = useQueryClient();
-  const { currentServer } = useMediaServers();
-  const mediaAdapter = useMediaAdapter();
+  const { currentServer, setCurrentServer } = useMediaServers();
+  const currentMediaAdapter = useMediaAdapter();
+  const targetServer = serverOverride ?? currentServer;
+  const mediaAdapter = useMemo(() => {
+    if (!serverOverride) return currentMediaAdapter;
+
+    const api = createMediaApiFromServerInfo(serverOverride);
+    return createMediaAdapterWithApi(serverOverride.type, api);
+  }, [currentMediaAdapter, serverOverride]);
 
   const [localUserData, setLocalUserData] = useState<MediaUserData | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -26,22 +34,25 @@ export function useMediaActions(item: MediaItem) {
   const updateCachedUserData = (
     updater: (previous: MediaUserData | null | undefined) => MediaUserData | null,
   ) => {
-    if (!currentServer?.id || !item.id) return;
+    if (!targetServer?.id || !item.id) return;
     queryClient.setQueriesData(
-      { queryKey: mediaQueryKeys.server(currentServer.id) },
+      { queryKey: mediaQueryKeys.server(targetServer.id) },
       (data: unknown) => updateCachedMediaItemUserData(data, item.id, updater),
     );
   };
 
   const invalidateServerMedia = () => {
-    if (!currentServer?.id) return;
+    if (!targetServer?.id) return;
     void queryClient.invalidateQueries({
-      queryKey: mediaQueryKeys.server(currentServer.id),
+      queryKey: mediaQueryKeys.server(targetServer.id),
     });
   };
 
   const handlePlay = () => {
     if (!item.id) return;
+    if (serverOverride && serverOverride.id !== currentServer?.id) {
+      setCurrentServer(serverOverride);
+    }
     router.push({
       pathname: '/player',
       params: { itemId: item.id },
@@ -49,7 +60,7 @@ export function useMediaActions(item: MediaItem) {
   };
 
   const handleAddToFavorites = async () => {
-    if (!item.id || !currentServer || isUpdating) return;
+    if (!item.id || !targetServer || isUpdating) return;
 
     const previousUserData = currentUserData ?? null;
     setIsUpdating(true);
@@ -65,7 +76,7 @@ export function useMediaActions(item: MediaItem) {
 
     try {
       await mediaAdapter.addFavoriteItem({
-        userId: currentServer.userId,
+        userId: targetServer.userId,
         itemId: item.id,
       });
       invalidateServerMedia();
@@ -79,7 +90,7 @@ export function useMediaActions(item: MediaItem) {
   };
 
   const handleMarkAsWatched = async () => {
-    if (!item.id || !currentServer || isUpdating) return;
+    if (!item.id || !targetServer || isUpdating) return;
 
     const previousUserData = currentUserData ?? null;
     setIsUpdating(true);
@@ -97,7 +108,7 @@ export function useMediaActions(item: MediaItem) {
 
     try {
       await mediaAdapter.markItemPlayed({
-        userId: currentServer.userId,
+        userId: targetServer.userId,
         itemId: item.id,
         datePlayed: new Date().toISOString(),
       });
@@ -112,7 +123,7 @@ export function useMediaActions(item: MediaItem) {
   };
 
   const handleMarkAsUnwatched = async () => {
-    if (!item.id || !currentServer || isUpdating) return;
+    if (!item.id || !targetServer || isUpdating) return;
 
     const previousUserData = currentUserData ?? null;
     setIsUpdating(true);
@@ -130,7 +141,7 @@ export function useMediaActions(item: MediaItem) {
 
     try {
       await mediaAdapter.markItemUnplayed({
-        userId: currentServer.userId,
+        userId: targetServer.userId,
         itemId: item.id,
       });
       invalidateServerMedia();

@@ -170,6 +170,7 @@ export default function AggregateSearchScreen() {
           <SeriesCard
             item={result.item}
             imgInfo={imgInfo}
+            actionServer={result.server}
             onPress={() => handleOpenResult(result)}
           />
         );
@@ -178,6 +179,7 @@ export default function AggregateSearchScreen() {
         <EpisodeCard
           item={result.item}
           imgInfo={imgInfo}
+          actionServer={result.server}
           onPress={() => handleOpenResult(result)}
         />
       );

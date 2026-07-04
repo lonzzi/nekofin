@@ -358,10 +358,29 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
       const activeTrace = activeTracesRef.current.get(pending.id);
       if (!activeTrace) return;
 
+      const routeChangedAt = now();
+      const routeCommitMs = routeChangedAt - pending.startedAt;
+      const touchToCommitMs =
+        pending.interactionStartedAt == null
+          ? undefined
+          : routeChangedAt - pending.interactionStartedAt;
+      const commitStatus = routeCommitMs >= effectiveSettings.slowTraceThresholdMs ? 'slow' : 'ok';
+      recordEvent({
+        detail:
+          touchToCommitMs == null
+            ? `${pending.target} -> ${routeKey}`
+            : `${pending.target} -> ${routeKey} · touch->commit ${Math.round(touchToCommitMs)}ms`,
+        durationMs: routeCommitMs,
+        name: `route commit ${activeTrace.name}`,
+        status: commitStatus,
+        type: 'navigation',
+      });
+
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const routeSettledAt = now();
-          const durationMs = routeSettledAt - pending.startedAt;
+          const settleMs = routeSettledAt - routeChangedAt;
+          const totalMs = routeSettledAt - pending.startedAt;
           const touchToRouteMs =
             pending.interactionStartedAt == null
               ? undefined
@@ -371,11 +390,13 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
           recordEvent({
             detail:
               touchToRouteMs == null
-                ? `${pending.target} -> ${routeKey}`
-                : `${pending.target} -> ${routeKey} · touch->route ${Math.round(touchToRouteMs)}ms`,
-            durationMs,
-            name: activeTrace.name,
-            status: durationMs >= effectiveSettings.slowTraceThresholdMs ? 'slow' : 'ok',
+                ? `${pending.target} -> ${routeKey} · total ${Math.round(totalMs)}ms`
+                : `${pending.target} -> ${routeKey} · total ${Math.round(
+                    totalMs,
+                  )}ms · touch->settled ${Math.round(touchToRouteMs)}ms`,
+            durationMs: settleMs,
+            name: `route settled ${activeTrace.name}`,
+            status: settleMs >= effectiveSettings.slowTraceThresholdMs ? 'slow' : 'ok',
             type: 'navigation',
           });
         });

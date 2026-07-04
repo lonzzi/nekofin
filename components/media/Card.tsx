@@ -4,7 +4,7 @@ import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
 import { useAppTheme } from '@/lib/theme';
 import { ImageUrlInfo } from '@/lib/utils/image';
-import { MediaItem } from '@/services/media/types';
+import { MediaItem, MediaServerInfo } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -22,14 +22,22 @@ import {
 
 export { getSubtitle } from './cardHelpers';
 
-function EpisodeCardActionMenu({ item, children }: { item: MediaItem; children: React.ReactNode }) {
+function EpisodeCardActionMenu({
+  item,
+  actionServer,
+  children,
+}: {
+  item: MediaItem;
+  actionServer?: MediaServerInfo;
+  children: React.ReactNode;
+}) {
   const {
     currentUserData,
     handlePlay,
     handleAddToFavorites,
     handleMarkAsWatched,
     handleMarkAsUnwatched,
-  } = useMediaActions(item);
+  } = useMediaActions(item, actionServer);
   const isPlayed = currentUserData?.played === true;
 
   return (
@@ -58,10 +66,12 @@ function EpisodeCardActionMenu({ item, children }: { item: MediaItem; children: 
 
 function SeriesCardActionMenu({
   item,
+  actionServer,
   children,
   onViewDetails,
 }: {
   item: MediaItem;
+  actionServer?: MediaServerInfo;
   children: React.ReactNode;
   onViewDetails: () => void;
 }) {
@@ -71,7 +81,7 @@ function SeriesCardActionMenu({
     handleAddToFavorites,
     handleMarkAsWatched,
     handleMarkAsUnwatched,
-  } = useMediaActions(item);
+  } = useMediaActions(item, actionServer);
   const isPlayed = currentUserData?.played === true;
 
   return (
@@ -112,6 +122,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   disabled = false,
   showPlayButton = false,
   showBorder = false,
+  actionServer,
 }: {
   item: MediaItem;
   style?: StyleProp<ViewStyle>;
@@ -122,6 +133,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   disabled?: boolean;
   showPlayButton?: boolean;
   showBorder?: boolean;
+  actionServer?: MediaServerInfo;
 }) {
   const router = useTracedRouter('episode-card');
   const theme = useAppTheme();
@@ -306,7 +318,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   );
 
   return (
-    <EpisodeCardActionMenu item={item}>
+    <EpisodeCardActionMenu item={item} actionServer={actionServer}>
       <CardComp />
     </EpisodeCardActionMenu>
   );
@@ -320,6 +332,7 @@ export const SeriesCard = React.memo(function SeriesCard({
   hideSubtitle = false,
   showBorder = false,
   onPress,
+  actionServer,
 }: {
   item: MediaItem;
   style?: StyleProp<ViewStyle>;
@@ -328,6 +341,7 @@ export const SeriesCard = React.memo(function SeriesCard({
   hideSubtitle?: boolean;
   showBorder?: boolean;
   onPress?: () => void;
+  actionServer?: MediaServerInfo;
 }) {
   const theme = useAppTheme();
   const router = useTracedRouter('series-card');
@@ -430,7 +444,7 @@ export const SeriesCard = React.memo(function SeriesCard({
   );
 
   return (
-    <SeriesCardActionMenu item={item} onViewDetails={openDetails}>
+    <SeriesCardActionMenu item={item} actionServer={actionServer} onViewDetails={openDetails}>
       {card}
     </SeriesCardActionMenu>
   );
