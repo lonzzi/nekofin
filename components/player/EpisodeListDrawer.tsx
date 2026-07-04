@@ -89,7 +89,6 @@ export function EpisodeListDrawer({ ref }: { ref: React.RefObject<EpisodeListDra
               style={{ width: 140 }}
               hideText
               showBorder={false}
-              disableContextMenu
               disabled
               imgType="Primary"
             />

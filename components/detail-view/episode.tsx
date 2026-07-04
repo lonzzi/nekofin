@@ -62,7 +62,6 @@ const EpisodeSelectorItem = memo(function EpisodeSelectorItem({
       ]}
       imgType="Primary"
       onPress={handlePress}
-      disableContextMenu
       imgInfo={imageInfo}
     />
   );
@@ -268,9 +267,7 @@ export const EpisodeModeContent = ({
             removeClippedSubviews={false}
             data={similarItems}
             style={detailViewStyles.edgeToEdge}
-            renderItem={({ item }) => (
-              <SeriesCard item={item} imgType="Primary" disableContextMenu />
-            )}
+            renderItem={({ item }) => <SeriesCard item={item} imgType="Primary" />}
             keyExtractor={(item) => item.id!}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={detailViewStyles.horizontalList}

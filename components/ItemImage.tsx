@@ -13,6 +13,8 @@ export const ItemImage = ({
   cachePolicy,
   enforceEarlyResizing = true,
   fallback,
+  onError,
+  onLoad,
   priority,
   recyclingKey,
   transition,
@@ -25,6 +27,8 @@ export const ItemImage = ({
   cachePolicy?: ImageProps['cachePolicy'];
   enforceEarlyResizing?: ImageProps['enforceEarlyResizing'];
   fallback?: ReactNode;
+  onError?: ImageProps['onError'];
+  onLoad?: ImageProps['onLoad'];
   priority?: ImageProps['priority'];
   recyclingKey?: ImageProps['recyclingKey'];
   transition?: ImageProps['transition'];
@@ -62,7 +66,11 @@ export const ItemImage = ({
       priority={priority}
       recyclingKey={recyclingKey ?? uri}
       transition={transition}
-      onError={() => setFailedUri(uri)}
+      onError={(event) => {
+        setFailedUri(uri);
+        onError?.(event);
+      }}
+      onLoad={onLoad}
     />
   );
 };

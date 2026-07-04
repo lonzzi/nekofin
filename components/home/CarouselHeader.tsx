@@ -52,23 +52,27 @@ function getRelativeIndex(index: number, direction: number, itemCount: number) {
 
 type CarouselImageLayerProps = {
   imageInfo?: CarouselImageInfo;
+  onImageReady?: (imageUrl: string) => void;
 };
 
-function CarouselImageLayer({ imageInfo }: CarouselImageLayerProps) {
+function CarouselImageLayer({ imageInfo, onImageReady }: CarouselImageLayerProps) {
   const theme = useAppTheme();
   const mediaBackgroundColor = theme.isDark ? theme.colors.background : '#141416';
+  const imageUrl = imageInfo?.imageUrl;
 
-  if (imageInfo?.imageUrl) {
+  if (imageUrl) {
     return (
       <ItemImage
-        uri={imageInfo.imageUrl}
+        uri={imageUrl}
         style={[styles.carouselImage, { backgroundColor: mediaBackgroundColor }]}
         contentFit="cover"
         contentPosition="left center"
         cachePolicy="memory-disk"
         priority="high"
         placeholderBlurhash={imageInfo.blurhash}
-        recyclingKey={imageInfo.imageUrl}
+        recyclingKey={imageUrl}
+        onError={() => onImageReady?.(imageUrl)}
+        onLoad={() => onImageReady?.(imageUrl)}
       />
     );
   }
@@ -88,13 +92,38 @@ function CarouselImageLayer({ imageInfo }: CarouselImageLayerProps) {
 
 type CarouselFrameProps = {
   imageInfo?: CarouselImageInfo;
+  onImageReady?: (imageUrl: string) => void;
 };
 
-function CarouselFrame({ imageInfo }: CarouselFrameProps) {
+function CarouselFrame({ imageInfo, onImageReady }: CarouselFrameProps) {
   return (
     <View style={styles.frame}>
-      <CarouselImageLayer imageInfo={imageInfo} />
+      <CarouselImageLayer imageInfo={imageInfo} onImageReady={onImageReady} />
     </View>
+  );
+}
+
+function CarouselImagePreloader({
+  imageInfo,
+  onImageReady,
+}: {
+  imageInfo?: CarouselImageInfo;
+  onImageReady: (imageUrl: string) => void;
+}) {
+  const imageUrl = imageInfo?.imageUrl;
+
+  if (!imageUrl) return null;
+
+  return (
+    <Image
+      source={{ uri: imageUrl }}
+      style={styles.preloadImage}
+      cachePolicy="memory-disk"
+      priority="high"
+      recyclingKey={`preload-${imageUrl}`}
+      onError={() => onImageReady(imageUrl)}
+      onLoad={() => onImageReady(imageUrl)}
+    />
   );
 }
 
@@ -234,8 +263,14 @@ export function useCarouselHeaderLayers({
   const [autoTargetIndex, setAutoTargetIndex] = useState<number | null>(null);
   const [isGestureOverlayVisible, setIsGestureOverlayVisible] = useState(false);
   const [pendingGestureSettleIndex, setPendingGestureSettleIndex] = useState<number | null>(null);
+  const [pendingAutoAdvance, setPendingAutoAdvance] = useState<{
+    fromIndex: number;
+    targetIndex: number;
+  } | null>(null);
   const currentIndexRef = useRef(0);
   const prefetchedImageUrlsRef = useRef(new Set<string>());
+  const readyImageUrlsRef = useRef(new Set<string>());
+  const [readyImageUrls, setReadyImageUrls] = useState<ReadonlySet<string>>(() => new Set());
   const router = useTracedRouter('carousel');
   const mediaAdapter = useMediaAdapter();
   const theme = useAppTheme();
@@ -315,6 +350,14 @@ export function useCarouselHeaderLayers({
     [handleCarouselItemPress, items],
   );
 
+  const markCarouselImageReady = useCallback((imageUrl: string) => {
+    if (readyImageUrlsRef.current.has(imageUrl)) return;
+    const nextReadyUrls = new Set(readyImageUrlsRef.current);
+    nextReadyUrls.add(imageUrl);
+    readyImageUrlsRef.current = nextReadyUrls;
+    setReadyImageUrls(nextReadyUrls);
+  }, []);
+
   const completeReveal = useCallback(
     (direction: RevealDirection) => {
       if (!items.length) return;
@@ -358,21 +401,18 @@ export function useCarouselHeaderLayers({
     const requestedIndex = currentIndexRef.current;
     const nextIndex = getRelativeIndex(requestedIndex, 1, items.length);
     const nextImageUrl = carouselImageInfos[nextIndex]?.imageUrl;
+    const isNextImageReady = !nextImageUrl || readyImageUrlsRef.current.has(nextImageUrl);
 
-    if (nextImageUrl && !prefetchedImageUrlsRef.current.has(nextImageUrl)) {
+    if (!isNextImageReady) {
+      setPendingAutoAdvance({ fromIndex: requestedIndex, targetIndex: nextIndex });
+
+      if (!nextImageUrl || prefetchedImageUrlsRef.current.has(nextImageUrl)) {
+        return;
+      }
+
       void Image.prefetch([nextImageUrl], { cachePolicy: 'memory-disk' })
         .then(() => {
           prefetchedImageUrlsRef.current.add(nextImageUrl);
-          if (
-            isFocused &&
-            autoTargetIndex == null &&
-            Math.abs(dragX.value) <= 1 &&
-            autoProgress.value <= 0 &&
-            currentIndexRef.current === requestedIndex
-          ) {
-            setAutoTargetIndex(nextIndex);
-            setIsGestureOverlayVisible(false);
-          }
         })
         .catch((error) => {
           console.warn('Failed to prefetch next carousel image', error);
@@ -380,6 +420,7 @@ export function useCarouselHeaderLayers({
       return;
     }
 
+    setPendingAutoAdvance(null);
     setAutoTargetIndex(nextIndex);
     setIsGestureOverlayVisible(false);
   }, [
@@ -390,6 +431,32 @@ export function useCarouselHeaderLayers({
     dragX,
     isFocused,
     items.length,
+  ]);
+
+  useEffect(() => {
+    if (!pendingAutoAdvance) return;
+
+    const targetImageUrl = carouselImageInfos[pendingAutoAdvance.targetIndex]?.imageUrl;
+    if (targetImageUrl && !readyImageUrls.has(targetImageUrl)) return;
+
+    if (!isFocused || currentIndexRef.current !== pendingAutoAdvance.fromIndex) {
+      setPendingAutoAdvance(null);
+      return;
+    }
+
+    if (autoTargetIndex != null || Math.abs(dragX.value) > 1 || autoProgress.value > 0) return;
+
+    setAutoTargetIndex(pendingAutoAdvance.targetIndex);
+    setPendingAutoAdvance(null);
+    setIsGestureOverlayVisible(false);
+  }, [
+    autoProgress,
+    autoTargetIndex,
+    carouselImageInfos,
+    dragX,
+    isFocused,
+    pendingAutoAdvance,
+    readyImageUrls,
   ]);
 
   useEffect(() => {
@@ -422,6 +489,7 @@ export function useCarouselHeaderLayers({
           cancelAnimation(autoProgress);
           autoProgress.value = 0;
           runOnJS(clearAutoTarget)();
+          runOnJS(setPendingAutoAdvance)(null);
           cancelAnimation(dragX);
         })
         .onUpdate((event) => {
@@ -612,11 +680,15 @@ export function useCarouselHeaderLayers({
 
   useEffect(() => {
     currentIndexRef.current = 0;
+    prefetchedImageUrlsRef.current = new Set();
+    readyImageUrlsRef.current = new Set();
     activeIndexValue.value = 0;
     autoProgress.value = 0;
     dragX.value = 0;
     isGestureAnimating.value = false;
     setAutoTargetIndex(null);
+    setPendingAutoAdvance(null);
+    setReadyImageUrls(new Set());
     setIsGestureOverlayVisible(false);
     setPendingGestureSettleIndex(null);
     setCarouselIndex(0);
@@ -672,6 +744,18 @@ export function useCarouselHeaderLayers({
   const autoTargetItem = autoTargetIndex != null ? items[autoTargetIndex] : undefined;
   const autoTargetImageInfo =
     autoTargetIndex != null ? carouselImageInfos[autoTargetIndex] : undefined;
+  const preloadIndexes = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          [nextIndex, previousIndex, pendingAutoAdvance?.targetIndex].filter(
+            (index): index is number =>
+              typeof index === 'number' && index >= 0 && index < carouselImageInfos.length,
+          ),
+        ),
+      ),
+    [carouselImageInfos.length, nextIndex, pendingAutoAdvance?.targetIndex, previousIndex],
+  );
   const showSkeleton = isLoading && !hasImages;
 
   const headerImage = (
@@ -696,12 +780,15 @@ export function useCarouselHeaderLayers({
             style={styles.gestureSurface}
           >
             <View style={StyleSheet.absoluteFill}>
-              <CarouselFrame imageInfo={currentImageInfo} />
+              <CarouselFrame imageInfo={currentImageInfo} onImageReady={markCarouselImageReady} />
             </View>
 
             {autoTargetIndex != null && (
               <Animated.View pointerEvents="none" style={[styles.autoFadeFrame, autoFadeStyle]}>
-                <CarouselFrame imageInfo={autoTargetImageInfo} />
+                <CarouselFrame
+                  imageInfo={autoTargetImageInfo}
+                  onImageReady={markCarouselImageReady}
+                />
               </Animated.View>
             )}
 
@@ -709,7 +796,10 @@ export function useCarouselHeaderLayers({
               <>
                 <Animated.View pointerEvents="none" style={[styles.revealClip, nextRevealStyle]}>
                   <Animated.View style={[styles.revealImage, nextRevealImageStyle]}>
-                    <CarouselFrame imageInfo={carouselImageInfos[nextIndex]} />
+                    <CarouselFrame
+                      imageInfo={carouselImageInfos[nextIndex]}
+                      onImageReady={markCarouselImageReady}
+                    />
                   </Animated.View>
                 </Animated.View>
 
@@ -718,10 +808,25 @@ export function useCarouselHeaderLayers({
                   style={[styles.revealClip, previousRevealStyle]}
                 >
                   <Animated.View style={[styles.revealImage, previousRevealImageStyle]}>
-                    <CarouselFrame imageInfo={carouselImageInfos[previousIndex]} />
+                    <CarouselFrame
+                      imageInfo={carouselImageInfos[previousIndex]}
+                      onImageReady={markCarouselImageReady}
+                    />
                   </Animated.View>
                 </Animated.View>
               </>
+            )}
+
+            {canReveal && (
+              <View pointerEvents="none" style={styles.preloadLayer}>
+                {preloadIndexes.map((index) => (
+                  <CarouselImagePreloader
+                    key={getCarouselItemKey(items[index], index)}
+                    imageInfo={carouselImageInfos[index]}
+                    onImageReady={markCarouselImageReady}
+                  />
+                ))}
+              </View>
             )}
 
             <CarouselGradientScrim />
@@ -861,6 +966,19 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     zIndex: 2,
+  },
+  preloadLayer: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    left: -2,
+    top: -2,
+    opacity: 0,
+    overflow: 'hidden',
+  },
+  preloadImage: {
+    width: 1,
+    height: 1,
   },
   overlayFrame: {
     position: 'absolute',

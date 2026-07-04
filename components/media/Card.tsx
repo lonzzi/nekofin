@@ -112,7 +112,6 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   disabled = false,
   showPlayButton = false,
   showBorder = false,
-  disableContextMenu = false,
 }: {
   item: MediaItem;
   style?: StyleProp<ViewStyle>;
@@ -123,7 +122,6 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   disabled?: boolean;
   showPlayButton?: boolean;
   showBorder?: boolean;
-  disableContextMenu?: boolean;
 }) {
   const router = useTracedRouter('episode-card');
   const theme = useAppTheme();
@@ -187,7 +185,6 @@ export const EpisodeCard = React.memo(function EpisodeCard({
         radius={9999}
         style={styles.playButton}
         fallbackBackgroundColor={theme.colors.mediaChrome}
-        disableLiquidGlass
         isInteractive
       >
         <Pressable style={styles.playButtonInner} onPress={handlePlay}>
@@ -205,10 +202,10 @@ export const EpisodeCard = React.memo(function EpisodeCard({
         style={[styles.card, { width: 200 }, style]}
         disabled={disabled}
         onPress={onPress || handlePress}
-        onLongPress={disableContextMenu ? undefined : handleLongPressStart}
-        onPressOut={disableContextMenu ? undefined : handleLongPressEnd}
+        onLongPress={handleLongPressStart}
+        onPressOut={handleLongPressEnd}
       >
-        <ShadowedGlassCard radius={12} disableLiquidGlass>
+        <ShadowedGlassCard radius={12}>
           <View style={[styles.coverContainer, { backgroundColor: theme.colors.surfaceMuted }]}>
             <ItemImage
               uri={imageUrl}
@@ -289,7 +286,6 @@ export const EpisodeCard = React.memo(function EpisodeCard({
     [
       PlayButton,
       accentColor,
-      disableContextMenu,
       disabled,
       handleLongPressEnd,
       handleLongPressStart,
@@ -309,10 +305,6 @@ export const EpisodeCard = React.memo(function EpisodeCard({
     ],
   );
 
-  if (disableContextMenu) {
-    return <CardComp />;
-  }
-
   return (
     <EpisodeCardActionMenu item={item}>
       <CardComp />
@@ -328,7 +320,6 @@ export const SeriesCard = React.memo(function SeriesCard({
   hideSubtitle = false,
   showBorder = false,
   onPress,
-  disableContextMenu = false,
 }: {
   item: MediaItem;
   style?: StyleProp<ViewStyle>;
@@ -337,7 +328,6 @@ export const SeriesCard = React.memo(function SeriesCard({
   hideSubtitle?: boolean;
   showBorder?: boolean;
   onPress?: () => void;
-  disableContextMenu?: boolean;
 }) {
   const theme = useAppTheme();
   const router = useTracedRouter('series-card');
@@ -393,10 +383,10 @@ export const SeriesCard = React.memo(function SeriesCard({
       accessibilityLabel={`打开 ${itemTitle}`}
       style={[styles.card, { width: 120 }, style]}
       onPress={handlePress}
-      onLongPress={disableContextMenu ? undefined : handleLongPressStart}
-      onPressOut={disableContextMenu ? undefined : handleLongPressEnd}
+      onLongPress={handleLongPressStart}
+      onPressOut={handleLongPressEnd}
     >
-      <ShadowedGlassCard radius={12} disableLiquidGlass>
+      <ShadowedGlassCard radius={12}>
         <ItemImage
           uri={imageUrl}
           style={[
@@ -438,8 +428,6 @@ export const SeriesCard = React.memo(function SeriesCard({
       </ShadowedGlassCard>
     </Pressable>
   );
-
-  if (disableContextMenu) return card;
 
   return (
     <SeriesCardActionMenu item={item} onViewDetails={openDetails}>

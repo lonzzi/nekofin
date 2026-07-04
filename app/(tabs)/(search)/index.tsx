@@ -171,7 +171,6 @@ export default function AggregateSearchScreen() {
             item={result.item}
             imgInfo={imgInfo}
             onPress={() => handleOpenResult(result)}
-            disableContextMenu
           />
         );
       }
@@ -180,7 +179,6 @@ export default function AggregateSearchScreen() {
           item={result.item}
           imgInfo={imgInfo}
           onPress={() => handleOpenResult(result)}
-          disableContextMenu
         />
       );
     },

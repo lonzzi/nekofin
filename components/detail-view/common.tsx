@@ -4,6 +4,7 @@ import { formatChineseDurationFromTicks } from '@/lib/utils';
 import { MediaItem } from '@/services/media/types';
 import { BottomSheet, RNHostView } from '@expo/ui';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextLayoutEvent, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -39,7 +40,7 @@ export const PlayButton = ({ item }: { item: MediaItem }) => {
   const router = useTracedRouter('detail-play');
   const theme = useAppTheme();
   const accentColor = theme.colors.tint;
-  const useLiquidGlass = false;
+  const useLiquidGlass = isLiquidGlassAvailable();
   const textColor = useLiquidGlass ? accentColor : theme.colors.inverseText;
   const durationLabel = formatChineseDurationFromTicks(item.runTimeTicks, { largest: 2 });
   const buttonLabel = durationLabel ? `播放 · ${durationLabel}` : '播放';
@@ -77,7 +78,6 @@ export const PlayButton = ({ item }: { item: MediaItem }) => {
         detailViewStyles.playButton,
         useLiquidGlass ? { backgroundColor: 'transparent' } : { backgroundColor: accentColor },
       ]}
-      disableLiquidGlass
       isInteractive
       tintColor={useLiquidGlass ? `${accentColor}18` : undefined}
       rimStyle={detailViewStyles.playButtonRim}
@@ -141,7 +141,6 @@ export const ItemMeta = ({ item }: { item: MediaItem }) => {
       radius={radius.pill}
       style={detailViewStyles.metaPill}
       rimStyle={detailViewStyles.metaPillRim}
-      disableLiquidGlass
     >
       <Text style={[detailViewStyles.meta, { color: textColor }]}>
         {ratingText ? (
@@ -316,7 +315,6 @@ export const ItemInfoList = ({ item }: { item: MediaItem }) => {
       radius={radius.lg}
       style={detailViewStyles.infoBlock}
       rimStyle={detailViewStyles.infoBlockRim}
-      disableLiquidGlass
     >
       {infoRows.map((row) => (
         <View key={row.label} style={detailViewStyles.infoRow}>

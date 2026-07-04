@@ -22,7 +22,6 @@ export const PersonItem = memo(function PersonItem({ item }: { item: MediaPerson
     <ShadowedGlassCard
       radius={14}
       containerStyle={{ width: theme.layout.mediaRail.personCardWidth }}
-      disableLiquidGlass
     >
       <ItemImage
         uri={imageInfo.url}
