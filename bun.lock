@@ -31,7 +31,7 @@
         "expo-keep-awake": "~57.0.0",
         "expo-linear-gradient": "~57.0.0",
         "expo-linking": "~57.0.1",
-        "expo-mpv": "git+https://github.com/lonzzi/expo-mpv.git#ab08ebfc10d8688c5e9d24fda4c859a958f638ff",
+        "expo-mpv": "0.1.10",
         "expo-navigation-bar": "~57.0.1",
         "expo-network": "~57.0.0",
         "expo-router": "~57.0.3",
@@ -1107,7 +1107,7 @@
 
     "expo-modules-jsi": ["expo-modules-jsi@57.0.0", "", { "peerDependencies": { "react-native": "*" } }, "sha512-lNcA2XLKpbG/Qr3CZ6yCgzlK8oT+zwuD19QKYoRfN5ZurkVhnSA3QdTR5K32n9AxohcENYtZRtnHr2pZoG7W4w=="],
 
-    "expo-mpv": ["expo-mpv@github:lonzzi/expo-mpv#ab08ebf", { "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "lonzzi-expo-mpv-ab08ebf", "sha512-0f8e0gsVNbBP77zW3E5HiqI6cVDdq7ubLndEQyzud2z+hyQGgTMXemEvcCEAsJa1lPp8eesQvwvm124gxg4Ehw=="],
+    "expo-mpv": ["expo-mpv@0.1.10", "", { "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-WM+JEsO1S61hFj1kudqBc9OEijyvotEM9bdsYdyuVnIVzqW7OPLtyLd7x/jk2goFUQ4hupctucckvldaa9zEiA=="],
 
     "expo-navigation-bar": ["expo-navigation-bar@57.0.1", "", { "dependencies": { "debug": "^4.3.2" }, "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-9zbHNdHFqlyOBD8q7mawIpOOschX1ztIizWInPIOQKwsQZ33f1Q5Qq5NzRbPQC/uG+rmpMZq7WPVSi5P6oag+Q=="],
 

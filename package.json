@@ -47,7 +47,7 @@
     "expo-keep-awake": "~57.0.0",
     "expo-linear-gradient": "~57.0.0",
     "expo-linking": "~57.0.1",
-    "expo-mpv": "git+https://github.com/lonzzi/expo-mpv.git#ab08ebfc10d8688c5e9d24fda4c859a958f638ff",
+    "expo-mpv": "0.1.10",
     "expo-navigation-bar": "~57.0.1",
     "expo-network": "~57.0.0",
     "expo-router": "~57.0.3",
