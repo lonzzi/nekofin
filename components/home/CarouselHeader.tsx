@@ -37,6 +37,8 @@ type CarouselImageInfo = {
 
 type RevealDirection = -1 | 1;
 
+const CAROUSEL_HERO_IMAGE_WIDTH = 1000;
+
 function getCarouselItemKey(item: MediaItem, index: number) {
   return item.id ?? `${item.type}-${item.seriesId ?? index}`;
 }
@@ -294,7 +296,7 @@ export function useCarouselHeaderLayers({
         opts: {
           preferBackdrop: true,
           preferThumb: true,
-          width: 1200,
+          width: CAROUSEL_HERO_IMAGE_WIDTH,
         },
       });
       const logoImageInfo = showLogo

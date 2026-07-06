@@ -18,7 +18,6 @@ export default function ServersLayout() {
         headerShadowVisible: false,
         headerBlurEffect: isLiquidGlassAvailable() ? undefined : 'prominent',
         headerBackButtonDisplayMode: 'minimal',
-        freezeOnBlur: true,
         headerLargeStyle: {
           backgroundColor: isLiquidGlassAvailable() ? undefined : backgroundColor,
         },

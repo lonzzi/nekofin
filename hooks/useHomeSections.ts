@@ -24,6 +24,11 @@ export type HomeSectionWithStatus = HomeSection & { isLoading: boolean };
 
 const HOME_LATEST_SECTION_LIMIT = 4;
 
+function areStringArraysEqual(left: string[], right: string[]) {
+  if (left.length !== right.length) return false;
+  return left.every((value, index) => value === right[index]);
+}
+
 export function useHomeSections(currentServer: MediaServerInfo | null) {
   const mediaAdapter = useMediaAdapter();
 
@@ -34,7 +39,12 @@ export function useHomeSections(currentServer: MediaServerInfo | null) {
   useFocusEffect(
     useCallback(() => {
       if (currentServer?.id) {
-        setHiddenUserViewIds(getHiddenUserViews(currentServer.id));
+        const nextHiddenUserViewIds = getHiddenUserViews(currentServer.id);
+        setHiddenUserViewIds((currentHiddenUserViewIds) =>
+          areStringArraysEqual(currentHiddenUserViewIds, nextHiddenUserViewIds)
+            ? currentHiddenUserViewIds
+            : nextHiddenUserViewIds,
+        );
       }
     }, [currentServer?.id]),
   );

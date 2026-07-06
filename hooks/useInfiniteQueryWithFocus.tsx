@@ -32,6 +32,7 @@ export function useInfiniteQueryWithFocus<
       refetch: query.refetch,
     },
     refetchOnScreenFocus,
+    queryOptions.queryKey,
   );
 
   return query;

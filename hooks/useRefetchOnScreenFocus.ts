@@ -1,5 +1,8 @@
+import { useOptionalPerformanceMonitorActions } from '@/lib/performance/PerformanceMonitorContext';
+import type { QueryKey } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
+import { InteractionManager } from 'react-native';
 
 export type RefetchOnScreenFocus = boolean | 'stale';
 
@@ -10,12 +13,25 @@ type ScreenFocusQueryState = {
   refetch: () => unknown;
 };
 
+function formatQueryKey(queryKey?: QueryKey) {
+  if (!queryKey) return undefined;
+
+  try {
+    return JSON.stringify(queryKey);
+  } catch {
+    return String(queryKey);
+  }
+}
+
 export function useRefetchOnScreenFocus(
   queryState: ScreenFocusQueryState,
   refetchOnScreenFocus: RefetchOnScreenFocus = 'stale',
+  queryKey?: QueryKey,
 ) {
+  const performanceActions = useOptionalPerformanceMonitorActions();
   const didFocusOnceRef = useRef(false);
   const queryStateRef = useRef(queryState);
+  const queryKeyLabel = useMemo(() => formatQueryKey(queryKey), [queryKey]);
 
   queryStateRef.current = queryState;
 
@@ -35,9 +51,31 @@ export function useRefetchOnScreenFocus(
         return;
       }
 
-      if (refetchOnScreenFocus === true || (refetchOnScreenFocus === 'stale' && current.isStale)) {
-        void current.refetch();
+      if (refetchOnScreenFocus !== true && !(refetchOnScreenFocus === 'stale' && current.isStale)) {
+        return;
       }
-    }, [refetchOnScreenFocus]),
+
+      performanceActions?.recordEvent({
+        detail: queryKeyLabel,
+        name: 'screen focus refetch scheduled',
+        status: 'pending',
+        type: 'trace',
+      });
+
+      const interaction = InteractionManager.runAfterInteractions(() => {
+        const latest = queryStateRef.current;
+        if (!latest.isEnabled || latest.fetchStatus === 'fetching') return;
+
+        performanceActions?.recordEvent({
+          detail: queryKeyLabel,
+          name: 'screen focus refetch',
+          status: 'ok',
+          type: 'trace',
+        });
+        void latest.refetch();
+      });
+
+      return () => interaction.cancel();
+    }, [performanceActions, queryKeyLabel, refetchOnScreenFocus]),
   );
 }

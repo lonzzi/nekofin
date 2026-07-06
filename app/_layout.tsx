@@ -118,7 +118,6 @@ function RootNavigation() {
           headerTransparent: Platform.OS === 'ios',
           headerBackTitle: '',
           headerBackButtonDisplayMode: 'minimal',
-          freezeOnBlur: true,
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false, orientation: 'portrait_up' }} />

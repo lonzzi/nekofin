@@ -14,6 +14,7 @@ import type {
 const FOLDER_PAGE_SIZE = 60;
 const FAVORITES_PAGE_SIZE = 40;
 const VIEW_ALL_PAGE_SIZE = 40;
+const HOME_SECTION_STALE_TIME_MS = 60 * 1000;
 
 export type MediaItemsPage = InfiniteMediaPage<MediaItem>;
 
@@ -189,6 +190,8 @@ export function homeResumeQueryOptions({
       });
       return response.items;
     },
+    refetchOnWindowFocus: false,
+    staleTime: HOME_SECTION_STALE_TIME_MS,
   });
 }
 
@@ -210,6 +213,8 @@ export function homeNextUpQueryOptions({
       });
       return response.items;
     },
+    refetchOnWindowFocus: false,
+    staleTime: HOME_SECTION_STALE_TIME_MS,
   });
 }
 
@@ -228,6 +233,8 @@ export function homeUserViewsQueryOptions({
       const userView = await adapter.getUserView({ userId: currentServer.userId });
       return (userView || []).filter((item) => item.collectionType !== 'playlists');
     },
+    refetchOnWindowFocus: false,
+    staleTime: HOME_SECTION_STALE_TIME_MS,
   });
 }
 
@@ -252,6 +259,8 @@ export function homeLatestByFolderQueryOptions({
       });
       return response.items;
     },
+    refetchOnWindowFocus: false,
+    staleTime: HOME_SECTION_STALE_TIME_MS,
   });
 }
 
@@ -272,6 +281,8 @@ export function homeRandomQueryOptions({
         limit: 6,
       });
     },
+    refetchOnWindowFocus: false,
+    staleTime: HOME_SECTION_STALE_TIME_MS,
   });
 }
 

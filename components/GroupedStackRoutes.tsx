@@ -1,6 +1,13 @@
 import { Stack } from 'expo-router';
 
+import HeaderBackButton from './HeaderBackButton';
+
 const DEFAULT_SCREEN_OPTIONS = {
+  fullScreenGestureEnabled: false,
+  gestureEnabled: true,
+  headerLeft: ({ canGoBack }: { canGoBack?: boolean }) => (
+    <HeaderBackButton canGoBack={canGoBack} />
+  ),
   headerTitle: '',
   headerTransparent: true,
   headerBlurEffect: 'none',

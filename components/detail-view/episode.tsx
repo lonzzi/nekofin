@@ -29,6 +29,8 @@ import {
 } from './episodeSelection';
 import { PersonItem } from './PersonItem';
 
+const EPISODE_HERO_IMAGE_WIDTH = 1000;
+
 const episodeCardStyles = StyleSheet.create({
   selected: {
     opacity: 1,
@@ -172,7 +174,10 @@ export const EpisodeModeContent = ({
     setTitle(selectedEpisode.name);
     setSelectedItem(selectedEpisode);
 
-    const imageInfo = mediaAdapter.getImageInfo({ item: selectedEpisode, opts: { width: 1200 } });
+    const imageInfo = mediaAdapter.getImageInfo({
+      item: selectedEpisode,
+      opts: { width: EPISODE_HERO_IMAGE_WIDTH },
+    });
     setBackgroundImageUrl(imageInfo.url);
   }, [selectedEpisode, setTitle, setSelectedItem, mediaAdapter, setBackgroundImageUrl]);
 

@@ -4,13 +4,14 @@ import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import useRefresh from '@/hooks/useRefresh';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme, useMediaHeroHeight } from '@/lib/theme';
+import { mediaQueryKeys } from '@/services/media/queryKeys';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { UseQueryResult } from '@tanstack/react-query';
+import { useQueryClient, UseQueryResult } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from 'expo-router';
 import { HeaderButton } from 'expo-router/react-navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, Text, useWindowDimensions, View } from 'react-native';
 
 import { ItemImage } from '../ItemImage';
@@ -20,6 +21,9 @@ import { DetailViewProvider, useDetailView } from './DetailViewContext';
 import { EpisodeModeContent } from './episode';
 import { MovieModeContent } from './movie';
 import { SeriesModeContent } from './series';
+
+const DETAIL_HERO_IMAGE_WIDTH = 1000;
+const DETAIL_ATMOSPHERE_IMAGE_WIDTH = 640;
 
 export type DetailViewProps = {
   itemId: string;
@@ -31,6 +35,7 @@ export type DetailViewProps = {
 function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const navigation = useNavigation();
   const { currentServer } = useMediaServers();
+  const queryClient = useQueryClient();
   const theme = useAppTheme();
   const backgroundColor = theme.colors.background;
   const textColor = theme.colors.text;
@@ -54,6 +59,14 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const similarMovies = bundle?.similarMovies ?? [];
 
   const { refreshing, onRefresh } = useRefresh(refetch, [itemId]);
+
+  const markCurrentServerMediaStale = useCallback(() => {
+    if (!currentServer?.id) return;
+    void queryClient.invalidateQueries({
+      queryKey: mediaQueryKeys.server(currentServer.id),
+      refetchType: 'none',
+    });
+  }, [currentServer?.id, queryClient]);
 
   useEffect(() => {
     if (!item) return;
@@ -87,12 +100,14 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
                     itemId: currentItemId,
                   });
                   setIsWatched(false);
+                  markCurrentServerMediaStale();
                 } else {
                   await mediaAdapter.markItemPlayed({
                     userId: currentServer.userId,
                     itemId: currentItemId,
                   });
                   setIsWatched(true);
+                  markCurrentServerMediaStale();
                 }
               }}
               style={{ paddingHorizontal: 6 }}
@@ -112,12 +127,14 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
                     itemId: currentItemId,
                   });
                   setIsFavorite(false);
+                  markCurrentServerMediaStale();
                 } else {
                   await mediaAdapter.addFavoriteItem({
                     userId: currentServer.userId,
                     itemId: currentItemId,
                   });
                   setIsFavorite(true);
+                  markCurrentServerMediaStale();
                 }
               }}
               style={{ paddingHorizontal: 6 }}
@@ -140,6 +157,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     mediaAdapter,
     item,
     selectedItem,
+    markCurrentServerMediaStale,
   ]);
 
   const atmosphereContentStyle = {
@@ -172,9 +190,14 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
 
   const headerImageInfo = mediaAdapter.getImageInfo({
     item,
-    opts: { preferBackdrop: true, width: 1200 },
+    opts: { preferBackdrop: true, width: DETAIL_HERO_IMAGE_WIDTH },
+  });
+  const atmosphereImageInfo = mediaAdapter.getImageInfo({
+    item,
+    opts: { preferBackdrop: true, width: DETAIL_ATMOSPHERE_IMAGE_WIDTH },
   });
   const headerImageUrl = backgroundImageUrl || headerImageInfo.url;
+  const atmosphereImageUrl = backgroundImageUrl || atmosphereImageInfo.url || headerImageUrl;
 
   const renderModeContent = () => {
     const modeComponents = {
@@ -215,7 +238,10 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
       contentStyle={atmosphereContentStyle}
       headerHeight={headerHeight}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      imageInfo={{ blurhash: headerImageInfo.blurhash, imageUrl: headerImageUrl }}
+      imageInfo={{
+        blurhash: atmosphereImageInfo.blurhash ?? headerImageInfo.blurhash,
+        imageUrl: atmosphereImageUrl,
+      }}
       isDark={theme.isDark}
       headerImage={
         <View style={[detailViewStyles.header, { backgroundColor: theme.colors.surfaceMuted }]}>

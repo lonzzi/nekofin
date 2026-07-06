@@ -30,6 +30,7 @@ export function useQueryWithFocus<
       refetch: query.refetch,
     },
     refetchOnScreenFocus,
+    queryOptions.queryKey,
   );
 
   return query;

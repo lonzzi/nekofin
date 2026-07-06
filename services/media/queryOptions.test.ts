@@ -6,7 +6,10 @@ import {
   favoritesQueryOptions,
   folderItemsQueryOptions,
   homeLatestByFolderQueryOptions,
+  homeNextUpQueryOptions,
+  homeRandomQueryOptions,
   homeResumeQueryOptions,
+  homeUserViewsQueryOptions,
   itemDetailQueryOptions,
   mediaSourcesQueryOptions,
   streamInfoQueryOptions,
@@ -25,6 +28,8 @@ const server: MediaServerInfo = {
   createdAt: 1,
   type: 'jellyfin',
 };
+
+const HOME_SECTION_STALE_TIME_MS = 60 * 1000;
 
 function createAdapter(overrides: Partial<MediaAdapter> = {}) {
   return {
@@ -175,6 +180,22 @@ describe('media query options', () => {
       folderId: 'folder-1',
       limit: 16,
     });
+  });
+
+  it('keeps home sections fresh across quick detail back navigation', () => {
+    const adapter = createAdapter();
+    const homeOptions = [
+      homeResumeQueryOptions({ adapter, currentServer: server }),
+      homeNextUpQueryOptions({ adapter, currentServer: server }),
+      homeUserViewsQueryOptions({ adapter, currentServer: server }),
+      homeLatestByFolderQueryOptions({ adapter, currentServer: server, folderId: 'folder-1' }),
+      homeRandomQueryOptions({ adapter, currentServer: server }),
+    ];
+
+    for (const options of homeOptions) {
+      expect(options.staleTime).toBe(HOME_SECTION_STALE_TIME_MS);
+      expect(options.refetchOnWindowFocus).toBe(false);
+    }
   });
 
   it('builds series detail bundles', async () => {

@@ -295,6 +295,12 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
       if (!effectiveSettings.enabled) return;
 
       const routeTarget = formatRouteTarget(target);
+      recordEvent({
+        detail: routeTarget,
+        name: `navigation requested ${action}`,
+        status: 'pending',
+        type: 'navigation',
+      });
       const trace = beginTrace(`${action} ${routeTarget}`, 'navigation');
       pendingNavigationRef.current = {
         id: trace.id,
@@ -313,7 +319,7 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
         Math.max(2500, effectiveSettings.slowTraceThresholdMs * 3),
       );
     },
-    [beginTrace, effectiveSettings.enabled, effectiveSettings.slowTraceThresholdMs],
+    [beginTrace, effectiveSettings.enabled, effectiveSettings.slowTraceThresholdMs, recordEvent],
   );
 
   const onRouteChanged = useCallback(
@@ -369,13 +375,19 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
     (target: string, closing: boolean) => {
       if (!effectiveSettings.enabled) return;
 
+      recordEvent({
+        detail: target,
+        name: `native ${closing ? 'pop' : 'push'} transition start`,
+        status: 'pending',
+        type: 'navigation',
+      });
       nativeTransitionsRef.current.set(getNativeTransitionKey(target, closing), {
         closing,
         startedAt: now(),
         target,
       });
     },
-    [effectiveSettings.enabled],
+    [effectiveSettings.enabled, recordEvent],
   );
 
   const traceNativeTransitionEnd = useCallback(
@@ -635,6 +647,10 @@ export function usePerformanceMonitorActions() {
     throw new Error('usePerformanceMonitorActions must be used within PerformanceMonitorProvider');
   }
   return context;
+}
+
+export function useOptionalPerformanceMonitorActions() {
+  return useContext(PerformanceMonitorActionsContext);
 }
 
 export function usePerformanceMonitorSettings() {
