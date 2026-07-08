@@ -1,5 +1,6 @@
 import { DandanComment } from '@/services/dandanplay';
 import { MediaItem } from '@/services/media/types';
+import type { HdrStateChangeEvent } from 'expo-mpv';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SharedValue, useSharedValue, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -32,6 +33,8 @@ type ControlsProps = {
   onPreviousEpisode?: () => void;
   onNextEpisode?: () => void;
   mediaStats?: MediaStats | null;
+  bufferedProgress?: SharedValue<number>;
+  hdrState?: HdrStateChangeEvent | null;
   onCommentsLoaded?: (
     comments: DandanComment[],
     episodeInfo?: { animeTitle: string; episodeTitle: string },
@@ -64,6 +67,8 @@ export function Controls({
   onPreviousEpisode,
   onNextEpisode,
   mediaStats,
+  bufferedProgress,
+  hdrState,
   onCommentsLoaded,
   danmakuEpisodeInfo,
   danmakuComments,
@@ -166,6 +171,8 @@ export function Controls({
     onPreviousEpisode,
     onNextEpisode,
     mediaStats: mediaStats ?? null,
+    bufferedProgress,
+    hdrState: hdrState ?? null,
     showControls,
     setShowControls,
     fadeAnim,

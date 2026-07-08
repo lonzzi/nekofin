@@ -39,6 +39,17 @@ export function deriveExternalSubtitles(mediaStreams: RawMediaStream[] = [], bas
     }));
 }
 
+export function deriveExternalAudio(mediaStreams: RawMediaStream[] = [], basePath?: string) {
+  return mediaStreams
+    .filter((audio) => audio.Type === 'Audio' && audio.DeliveryMethod === 'External')
+    .filter((audio) => !!audio.DeliveryUrl)
+    .map((audio) => ({
+      index: audio.Index ?? 0,
+      name: audio.DisplayTitle ?? audio.Language ?? '',
+      url: `${basePath ?? ''}${audio.DeliveryUrl ?? ''}`,
+    }));
+}
+
 export function formatPlayerTitle(item: MediaItem | null | undefined): string {
   if (!item) return '';
 

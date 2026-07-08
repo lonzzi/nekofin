@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   deriveDurationMs,
   deriveEpisodeNavigation,
+  deriveExternalAudio,
   deriveExternalSubtitles,
   deriveTracks,
   formatPlayerTitle,
@@ -33,6 +34,25 @@ describe('player derived state', () => {
         'https://media.test',
       ),
     ).toEqual([{ index: 1, name: '', url: 'https://media.test/sub.vtt' }]);
+  });
+
+  it('derives external audio urls', () => {
+    expect(
+      deriveExternalAudio(
+        [
+          {
+            Type: 'Audio',
+            Index: 3,
+            DisplayTitle: 'Commentary',
+            DeliveryMethod: 'External',
+            DeliveryUrl: '/audio.mka',
+          },
+          { Type: 'Audio', Index: 4, DeliveryMethod: 'Embed', DeliveryUrl: '/embedded.mka' },
+          { Type: 'Audio', Index: 5, DeliveryMethod: 'External', DeliveryUrl: null },
+        ],
+        'https://media.test',
+      ),
+    ).toEqual([{ index: 3, name: 'Commentary', url: 'https://media.test/audio.mka' }]);
   });
 
   it('formats episode titles with series and season metadata', () => {

@@ -38,6 +38,7 @@ export function BottomControls() {
     episodes,
     isMovie,
     episodeListDrawerRef,
+    bufferedProgress,
   } = usePlayer();
   const currentTimeMs = useCurrentTime({ time: currentTime });
 
@@ -114,6 +115,7 @@ export function BottomControls() {
               style={styles.slider}
               containerStyle={{ overflow: 'hidden', borderRadius: 999 }}
               progress={progressValue}
+              cache={bufferedProgress}
               bubble={(percent) => formatTimeWorklet(percent * duration)}
               bubbleTextStyle={{ fontFamily: 'Roboto' }}
               minimumValue={minimumValue}
@@ -124,6 +126,7 @@ export function BottomControls() {
               theme={{
                 minimumTrackTintColor: '#fff',
                 maximumTrackTintColor: 'rgba(255,255,255,0.3)',
+                cacheTrackTintColor: 'rgba(255,255,255,0.5)',
               }}
               disableTapEvent={false}
             />

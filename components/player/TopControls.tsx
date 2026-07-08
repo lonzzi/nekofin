@@ -23,10 +23,13 @@ export function TopControls() {
     setShowControls,
     fadeAnim,
     mediaStats,
+    hdrState,
     onCommentsLoaded,
     danmakuEpisodeInfo,
     danmakuComments,
   } = usePlayer();
+
+  const hdrLabel = hdrState?.isHdr ? (hdrState.hdrFormat === 'hlg' ? 'HLG' : 'HDR') : null;
 
   const router = useTracedRouter('player-top-controls');
   const [now, setNow] = useState<string>('');
@@ -108,6 +111,18 @@ export function TopControls() {
               {formatBitrate(mediaStats.inputBitrate, { unit: 'bytes' })}
             </Text>
           )}
+          {!!hdrLabel && (
+            <View style={[styles.hdrBadge, hdrState?.hdrActive && styles.hdrBadgeActive]}>
+              <Text
+                style={[
+                  styles.hdrBadgeText,
+                  hdrState?.hdrActive ? styles.hdrBadgeTextActive : styles.textShadow,
+                ]}
+              >
+                {hdrLabel}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View
@@ -173,6 +188,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     textAlign: 'left',
+  },
+  hdrBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.7)',
+  },
+  hdrBadgeActive: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderColor: 'rgba(255,255,255,0.9)',
+  },
+  hdrBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  hdrBadgeTextActive: {
+    color: '#000',
   },
   title: {
     color: '#fff',

@@ -1,5 +1,6 @@
 import { DandanComment } from '@/services/dandanplay';
 import { MediaItem } from '@/services/media/types';
+import type { HdrStateChangeEvent } from 'expo-mpv';
 import { createContext, useContext } from 'react';
 import { SharedValue } from 'react-native-reanimated';
 
@@ -65,6 +66,10 @@ export type PlayerContextValue = {
   onPreviousEpisode?: () => void;
   onNextEpisode?: () => void;
   mediaStats?: MediaStats | null;
+  /** 已缓冲进度(0-1),用于在进度条上绘制缓冲区间。 */
+  bufferedProgress?: SharedValue<number>;
+  /** HDR/Dolby Vision 状态,用于标题栏徽标。 */
+  hdrState?: HdrStateChangeEvent | null;
 
   showControls: boolean;
   setShowControls: (show: boolean) => void;

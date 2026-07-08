@@ -47,7 +47,7 @@
     "expo-keep-awake": "~57.0.0",
     "expo-linear-gradient": "~57.0.0",
     "expo-linking": "~57.0.1",
-    "expo-mpv": "0.1.10",
+    "expo-mpv": "0.1.11",
     "expo-navigation-bar": "~57.0.1",
     "expo-network": "~57.0.0",
     "expo-router": "~57.0.3",

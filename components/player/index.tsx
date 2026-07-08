@@ -4,10 +4,16 @@ import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { generateDeviceProfile } from '@/lib/profiles/native';
 import { storage } from '@/lib/storage';
-import { getDeviceId, ticksToSeconds } from '@/lib/utils';
+import { formatBitrate, getDeviceId, ticksToSeconds } from '@/lib/utils';
 import { DandanComment } from '@/services/dandanplay';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { ExpoMpvView, type ExpoMpvViewRef } from 'expo-mpv';
+import {
+  ExpoMpvView,
+  type ExpoMpvViewRef,
+  type HdrStateChangeEvent,
+  type PlaybackState,
+  type TrackInfo,
+} from 'expo-mpv';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
@@ -18,17 +24,36 @@ import { DanmakuLayer, DanmakuLayerRef } from './DanmakuLayer';
 import {
   deriveDurationMs,
   deriveEpisodeNavigation,
+  deriveExternalAudio,
   deriveExternalSubtitles,
-  deriveTracks,
   formatPlayerTitle,
 } from './playerDerived';
 import { usePlayerQueries } from './usePlayerQueries';
 
-const LoadingIndicator = ({ title }: { title?: string }) => {
+type BufferInfo = { percent: number; rate: number };
+
+const LoadingIndicator = ({
+  title,
+  bufferInfo,
+}: {
+  title?: string;
+  bufferInfo?: BufferInfo | null;
+}) => {
   return (
     <View style={[StyleSheet.absoluteFill, styles.bufferingOverlay]} pointerEvents="none">
       <ActivityIndicator size="large" color="#fff" />
-      {title && <Text style={styles.loadingTitle}>{title}</Text>}
+      {bufferInfo ? (
+        <>
+          <Text style={styles.loadingTitle}>{`缓冲中 ${Math.round(bufferInfo.percent)}%`}</Text>
+          {bufferInfo.rate > 0 && (
+            <Text style={styles.loadingSubtitle}>
+              {formatBitrate(bufferInfo.rate * 8, { unit: 'bytes' })}
+            </Text>
+          )}
+        </>
+      ) : (
+        title && <Text style={styles.loadingTitle}>{title}</Text>
+      )}
     </View>
   );
 };
@@ -51,9 +76,25 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   const [rate, setRate] = useState(1);
   const prevRateRef = useRef<number>(1);
 
-  // Track management
-  const [selectedAudioTrack, setSelectedAudioTrack] = useState<number>(-1);
-  const [selectedSubtitleTrack, setSelectedSubtitleTrack] = useState<number>(-1);
+  // High-level playback state machine from mpv (idle/loading/playing/buffering/paused/ended).
+  const [playbackState, setPlaybackState] = useState<PlaybackState>('idle');
+  // HDR/Dolby Vision state for the title-bar badge.
+  const [hdrState, setHdrState] = useState<HdrStateChangeEvent | null>(null);
+  // Buffered-ahead progress (0-1) for the seek bar; SharedValue avoids re-render per tick.
+  const bufferedProgress = useSharedValue(0);
+  // Throttled buffering stats shown in the loading overlay while stalled.
+  const [bufferInfo, setBufferInfo] = useState<BufferInfo | null>(null);
+  const bufferInfoThrottleRef = useRef(0);
+  const isBufferingRef = useRef(false);
+
+  // Track management — sourced from mpv's real track list (getTrackList), so the
+  // indices we pass to setAudioTrack/setSubtitleTrack are mpv's own sid/aid,
+  // not Jellyfin stream indices (which don't match).
+  const [mpvTracks, setMpvTracks] = useState<{
+    audio: { index: number; name: string; language?: string }[];
+    subtitle: { index: number; name: string; language?: string }[];
+  }>({ audio: [], subtitle: [] });
+  const [currentTrackIds, setCurrentTrackIds] = useState({ vid: 0, aid: 0, sid: 0 });
   const [aspectRatio, setAspectRatio] = useState<string>('fit');
 
   const enableTranscoding = storage.getBoolean('enableTranscoding') ?? false;
@@ -123,15 +164,43 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     setDanmakuEpisodeInfo(episodeInfo);
   };
 
-  const tracks = useMemo(() => {
-    return deriveTracks(streamInfo?.mediaSource?.MediaStreams ?? []);
-  }, [streamInfo?.mediaSource?.MediaStreams]);
+  // Pull the real track list from mpv. Track `index` here is mpv's own sid/aid.
+  const refreshMpvTracks = useCallback(async () => {
+    try {
+      const list = await player.current?.getTrackList();
+      const ids = await player.current?.getCurrentTrackIds();
+      if (list) {
+        const toEntry = (t: TrackInfo) => {
+          const parts: string[] = [];
+          if (t.title) parts.push(t.title);
+          if (t.lang) parts.push(`[${t.lang}]`);
+          if (t.isExternal) parts.push('(ext)');
+          return {
+            index: t.id,
+            name: parts.length ? parts.join(' ') : `Track ${t.id}`,
+            language: t.lang || undefined,
+          };
+        };
+        setMpvTracks({
+          audio: list.filter((t) => t.type === 'audio').map(toEntry),
+          subtitle: list.filter((t) => t.type === 'sub').map(toEntry),
+        });
+      }
+      if (ids) setCurrentTrackIds(ids);
+    } catch (e) {
+      console.log('refreshMpvTracks error:', e);
+    }
+  }, []);
 
   const externalSubtitles = useMemo(() => {
     return deriveExternalSubtitles(
       streamInfo?.mediaSource?.MediaStreams ?? [],
       currentApi?.basePath,
     );
+  }, [streamInfo?.mediaSource?.MediaStreams, currentApi?.basePath]);
+
+  const externalAudios = useMemo(() => {
+    return deriveExternalAudio(streamInfo?.mediaSource?.MediaStreams ?? [], currentApi?.basePath);
   }, [streamInfo?.mediaSource?.MediaStreams, currentApi?.basePath]);
 
   const { syncPlaybackProgress, syncPlaybackStart, syncPlaybackStop } = usePlaybackSync({
@@ -142,8 +211,14 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   });
 
   const showLoading = useMemo(() => {
-    return isBuffering || !streamInfo?.url || !isLoaded;
-  }, [isBuffering, streamInfo?.url, isLoaded]);
+    return (
+      isBuffering ||
+      !streamInfo?.url ||
+      !isLoaded ||
+      playbackState === 'loading' ||
+      playbackState === 'buffering'
+    );
+  }, [isBuffering, streamInfo?.url, isLoaded, playbackState]);
 
   const duration = useMemo(() => {
     return deriveDurationMs(itemDetail, mediaInfo?.duration);
@@ -176,22 +251,48 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     })();
   }, [isPlaying]);
 
-  // Auto-load Jellyfin external subtitles when player is ready
+  // Auto-load Jellyfin external subtitles when player is ready, then refresh the
+  // mpv track list so they show up in the picker with their real mpv sid.
   useEffect(() => {
     if (!isLoaded || externalSubtitles.length === 0) return;
 
     const loadExternalSubtitles = async () => {
-      for (const sub of externalSubtitles) {
+      for (let i = 0; i < externalSubtitles.length; i++) {
+        const sub = externalSubtitles[i];
         try {
-          await player.current?.addSubtitle(sub.url, 'auto', sub.name);
+          // Show the first external subtitle immediately ('select'); add the rest
+          // without stealing selection ('auto') so the user can pick them from
+          // the track menu (which is keyed by real mpv sid).
+          await player.current?.addSubtitle(sub.url, i === 0 ? 'select' : 'auto', sub.name);
         } catch (error) {
           console.error(`Failed to load external subtitle: ${sub.name}`, error);
         }
       }
+      await refreshMpvTracks();
     };
 
     loadExternalSubtitles();
-  }, [isLoaded, externalSubtitles]);
+  }, [isLoaded, externalSubtitles, refreshMpvTracks]);
+
+  // Auto-load Jellyfin external audio tracks once the player is ready, then refresh
+  // the mpv track list so they appear in the audio picker with their real mpv aid.
+  useEffect(() => {
+    if (!isLoaded || externalAudios.length === 0) return;
+
+    const loadExternalAudios = async () => {
+      for (let i = 0; i < externalAudios.length; i++) {
+        const audio = externalAudios[i];
+        try {
+          await player.current?.addAudio(audio.url, i === 0 ? 'select' : 'auto', audio.name);
+        } catch (error) {
+          console.error(`Failed to load external audio: ${audio.name}`, error);
+        }
+      }
+      await refreshMpvTracks();
+    };
+
+    loadExternalAudios();
+  }, [isLoaded, externalAudios, refreshMpvTracks]);
 
   const handlePlayPause = useCallback(() => {
     player.current?.togglePlay();
@@ -226,15 +327,24 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     [currentTime, duration, danmakuLayer, syncPlaybackProgress],
   );
 
-  const handleAudioTrackChange = useCallback((trackIndex: number) => {
-    setSelectedAudioTrack(trackIndex);
-    player.current?.setAudioTrack(trackIndex);
-  }, []);
+  // trackId here is mpv's real aid/sid (from mpvTracks[].index).
+  const handleAudioTrackChange = useCallback(
+    (trackId: number) => {
+      player.current?.setAudioTrack(trackId);
+      setCurrentTrackIds((prev) => ({ ...prev, aid: trackId }));
+      setTimeout(() => refreshMpvTracks(), 200);
+    },
+    [refreshMpvTracks],
+  );
 
-  const handleSubtitleTrackChange = useCallback((trackIndex: number) => {
-    setSelectedSubtitleTrack(trackIndex);
-    player.current?.setSubtitleTrack(trackIndex);
-  }, []);
+  const handleSubtitleTrackChange = useCallback(
+    (trackId: number) => {
+      player.current?.setSubtitleTrack(trackId);
+      setCurrentTrackIds((prev) => ({ ...prev, sid: trackId }));
+      setTimeout(() => refreshMpvTracks(), 200);
+    },
+    [refreshMpvTracks],
+  );
 
   const handleAspectRatioChange = useCallback((mode: string) => {
     setAspectRatio(mode);
@@ -300,6 +410,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
           style={styles.video}
           source={streamInfo.url}
           onPlaybackStateChange={({ nativeEvent }) => {
+            setPlaybackState(nativeEvent.state);
             setIsPlaying(nativeEvent.isPlaying);
             if (!nativeEvent.isPlaying) {
               syncPlaybackProgress(currentTime.value, true, { force: true });
@@ -312,6 +423,27 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
           onProgress={({ nativeEvent }) => {
             currentTime.value = nativeEvent.position * 1000;
             syncPlaybackProgress(currentTime.value, false);
+            // Buffered-ahead ratio for the seek bar (bufferedPosition is in seconds).
+            bufferedProgress.value =
+              duration > 0 ? Math.min(1, (nativeEvent.bufferedPosition * 1000) / duration) : 0;
+            // Surface buffering stats (throttled) only while stalled for cache.
+            if (nativeEvent.bufferingPercent < 100) {
+              isBufferingRef.current = true;
+              const ts = Date.now();
+              if (ts - bufferInfoThrottleRef.current >= 500) {
+                bufferInfoThrottleRef.current = ts;
+                setBufferInfo({
+                  percent: nativeEvent.bufferingPercent,
+                  rate: nativeEvent.bufferRate,
+                });
+              }
+            } else if (isBufferingRef.current) {
+              isBufferingRef.current = false;
+              setBufferInfo(null);
+            }
+          }}
+          onHdrStateChange={({ nativeEvent }) => {
+            setHdrState(nativeEvent);
           }}
           onLoad={({ nativeEvent }) => {
             setIsLoaded(true);
@@ -323,6 +455,8 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
               currentTime: currentTime.value / 1000,
             });
             syncPlaybackStart(currentTime.value);
+            // Populate the track picker from mpv's real track list.
+            setTimeout(() => refreshMpvTracks(), 300);
           }}
           onBuffer={({ nativeEvent }) => {
             setIsBuffering(nativeEvent.isBuffering);
@@ -344,7 +478,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
         />
       )}
 
-      {showLoading && <LoadingIndicator />}
+      {showLoading && <LoadingIndicator bufferInfo={bufferInfo} />}
 
       {comments.length > 0 && initialTime >= 0 && (
         <DanmakuLayer
@@ -367,10 +501,10 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
         onPlayPause={handlePlayPause}
         onRateChange={handleRateChange}
         rate={rate}
-        tracks={tracks}
+        tracks={mpvTracks}
         selectedTracks={{
-          audio: tracks?.audio?.find((t) => t.index === selectedAudioTrack),
-          subtitle: tracks?.subtitle?.find((t) => t.index === selectedSubtitleTrack),
+          audio: mpvTracks.audio.find((t) => t.index === currentTrackIds.aid),
+          subtitle: mpvTracks.subtitle.find((t) => t.index === currentTrackIds.sid),
         }}
         onAudioTrackChange={handleAudioTrackChange}
         onSubtitleTrackChange={handleSubtitleTrackChange}
@@ -381,6 +515,8 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
         onPreviousEpisode={handlePreviousEpisode}
         onNextEpisode={handleNextEpisode}
         mediaStats={null}
+        bufferedProgress={bufferedProgress}
+        hdrState={hdrState}
         onCommentsLoaded={handleCommentsLoaded}
         danmakuEpisodeInfo={danmakuEpisodeInfo}
         danmakuComments={comments}
@@ -416,5 +552,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  loadingSubtitle: {
+    marginTop: 4,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
   },
 });
