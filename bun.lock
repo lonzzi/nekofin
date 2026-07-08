@@ -1107,7 +1107,7 @@
 
     "expo-modules-jsi": ["expo-modules-jsi@57.0.0", "", { "peerDependencies": { "react-native": "*" } }, "sha512-lNcA2XLKpbG/Qr3CZ6yCgzlK8oT+zwuD19QKYoRfN5ZurkVhnSA3QdTR5K32n9AxohcENYtZRtnHr2pZoG7W4w=="],
 
-    "expo-mpv": ["expo-mpv@0.1.11", "https://registry.anpm.alibaba-inc.com/expo-mpv/-/expo-mpv-0.1.11.tgz", { "peerDependencies": { "expo": "*", "react": "19.2.3", "react-native": "*" } }, "sha512-tzFUVTu6Qg60CCLoapzCPfnFut95dn/C9Ct+NSqMa5j9bDZQfghLh9FZmDRFlEfzJS0yMVqku76hAnikipUaiQ=="],
+    "expo-mpv": ["expo-mpv@0.1.11", "", { "peerDependencies": { "expo": "*", "react": "19.2.3", "react-native": "*" } }, "sha512-tzFUVTu6Qg60CCLoapzCPfnFut95dn/C9Ct+NSqMa5j9bDZQfghLh9FZmDRFlEfzJS0yMVqku76hAnikipUaiQ=="],
 
     "expo-navigation-bar": ["expo-navigation-bar@57.0.1", "", { "dependencies": { "debug": "^4.3.2" }, "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-9zbHNdHFqlyOBD8q7mawIpOOschX1ztIizWInPIOQKwsQZ33f1Q5Qq5NzRbPQC/uG+rmpMZq7WPVSi5P6oag+Q=="],
 
