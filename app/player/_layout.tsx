@@ -1,38 +1,50 @@
-import * as NavigationBar from 'expo-navigation-bar';
+import {
+  resolveVideoOrientationLock,
+  useOrientation,
+  type VideoOrientationPreference,
+} from '@/hooks/useOrientation';
+import { storage } from '@/lib/storage';
+import { NavigationBar } from 'expo-navigation-bar';
 import { Stack } from 'expo-router';
-import * as ScreenOrientation from 'expo-screen-orientation';
-import * as StatusBar from 'expo-status-bar';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 
 export default function Layout() {
+  const { lockOrientation, unlockOrientation } = useOrientation();
+
   useEffect(() => {
     if (Platform.OS === 'android') {
-      NavigationBar.setVisibilityAsync('hidden');
+      NavigationBar.setHidden(true);
     }
-    StatusBar.setStatusBarHidden(true);
+    StatusBar.setHidden(true);
 
-    const lockLandscape = () => {
-      void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+    const preference = (storage.getString('videoOrientation') ??
+      'landscape') as VideoOrientationPreference;
+    const lock = resolveVideoOrientationLock(preference);
+
+    const applyLock = () => {
+      void lockOrientation(lock);
     };
 
-    lockLandscape();
+    applyLock();
 
+    // iOS 会在应用回到前台时重置方向锁,需要重新应用。
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'active') {
-        lockLandscape();
+        applyLock();
       }
     });
 
     return () => {
       subscription.remove();
-      void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+      void unlockOrientation();
       if (Platform.OS === 'android') {
-        NavigationBar.setVisibilityAsync('visible');
+        NavigationBar.setHidden(false);
       }
-      StatusBar.setStatusBarHidden(false);
+      StatusBar.setHidden(false);
     };
-  }, []);
+  }, [lockOrientation, unlockOrientation]);
 
   return (
     <Stack>
@@ -43,7 +55,6 @@ export default function Layout() {
           autoHideHomeIndicator: true,
           title: '',
           animation: 'fade',
-          orientation: 'landscape',
         }}
       />
     </Stack>

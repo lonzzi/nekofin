@@ -30,6 +30,12 @@ const codecOptions = [
   { title: 'H.265/HEVC', value: 'h265' },
 ];
 
+const videoOrientationOptions = [
+  { title: '横屏', value: 'landscape' },
+  { title: '竖屏', value: 'portrait' },
+  { title: '跟随系统', value: 'auto' },
+];
+
 export default function TranscodingSettingsScreen() {
   const navigation = useNavigation();
 
@@ -41,6 +47,9 @@ export default function TranscodingSettingsScreen() {
     storage.getBoolean('enableSubtitleBurnIn') ?? false,
   );
   const [selectedCodec, setSelectedCodec] = useState(storage.getString('selectedCodec') ?? 'h264');
+  const [videoOrientation, setVideoOrientation] = useState(
+    storage.getString('videoOrientation') ?? 'landscape',
+  );
 
   useEffect(() => {
     navigation.setOptions({
@@ -69,8 +78,22 @@ export default function TranscodingSettingsScreen() {
     storage.set('selectedCodec', value);
   };
 
+  const handleVideoOrientationChange = (value: string) => {
+    setVideoOrientation(value);
+    storage.set('videoOrientation', value);
+  };
+
   return (
     <NativeSettingsForm testID="transcoding-settings-form">
+      <NativeSettingsSection title="播放设置">
+        <NativeSettingsPicker
+          title={<SettingsTitle>视频方向</SettingsTitle>}
+          value={videoOrientation}
+          options={videoOrientationOptions}
+          onValueChange={handleVideoOrientationChange}
+        />
+      </NativeSettingsSection>
+
       <NativeSettingsSection title="转码设置">
         <NativeSettingsSwitch
           title={<SettingsTitle>启用转码</SettingsTitle>}
