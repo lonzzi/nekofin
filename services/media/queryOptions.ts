@@ -172,6 +172,21 @@ export function normalizeRouteItemType(itemTypes?: MediaItemType): MediaItemType
   return itemTypes ? [itemTypes] : undefined;
 }
 
+// Shared shape for the simple home rows (single fetch keyed by section name).
+function homeSectionQueryOptions(
+  section: string,
+  currentServer: MediaServerInfo | null,
+  fetch: (server: MediaServerInfo) => Promise<MediaItem[]>,
+) {
+  return queryOptions({
+    enabled: !!currentServer?.id && !!currentServer?.userId,
+    queryKey: mediaQueryKeys.homeSection(currentServer?.id, section),
+    queryFn: async (): Promise<MediaItem[]> => (currentServer ? fetch(currentServer) : []),
+    refetchOnWindowFocus: false,
+    staleTime: HOME_SECTION_STALE_TIME_MS,
+  });
+}
+
 export function homeResumeQueryOptions({
   adapter,
   currentServer,
@@ -179,19 +194,9 @@ export function homeResumeQueryOptions({
   adapter: MediaAdapter;
   currentServer: MediaServerInfo | null;
 }) {
-  return queryOptions({
-    enabled: !!currentServer?.id && !!currentServer?.userId,
-    queryKey: mediaQueryKeys.homeSection(currentServer?.id, 'resume'),
-    queryFn: async () => {
-      if (!currentServer) return [];
-      const response = await adapter.getResumeItems({
-        userId: currentServer.userId,
-        limit: 10,
-      });
-      return response.items;
-    },
-    refetchOnWindowFocus: false,
-    staleTime: HOME_SECTION_STALE_TIME_MS,
+  return homeSectionQueryOptions('resume', currentServer, async (server) => {
+    const response = await adapter.getResumeItems({ userId: server.userId, limit: 10 });
+    return response.items;
   });
 }
 
@@ -202,19 +207,9 @@ export function homeNextUpQueryOptions({
   adapter: MediaAdapter;
   currentServer: MediaServerInfo | null;
 }) {
-  return queryOptions({
-    enabled: !!currentServer?.id && !!currentServer?.userId,
-    queryKey: mediaQueryKeys.homeSection(currentServer?.id, 'nextup'),
-    queryFn: async () => {
-      if (!currentServer) return [];
-      const response = await adapter.getNextUpItems({
-        userId: currentServer.userId,
-        limit: 10,
-      });
-      return response.items;
-    },
-    refetchOnWindowFocus: false,
-    staleTime: HOME_SECTION_STALE_TIME_MS,
+  return homeSectionQueryOptions('nextup', currentServer, async (server) => {
+    const response = await adapter.getNextUpItems({ userId: server.userId, limit: 10 });
+    return response.items;
   });
 }
 
@@ -225,16 +220,9 @@ export function homeUserViewsQueryOptions({
   adapter: MediaAdapter;
   currentServer: MediaServerInfo | null;
 }) {
-  return queryOptions({
-    enabled: !!currentServer?.id && !!currentServer?.userId,
-    queryKey: mediaQueryKeys.homeSection(currentServer?.id, 'allUserView'),
-    queryFn: async () => {
-      if (!currentServer) return [];
-      const userView = await adapter.getUserView({ userId: currentServer.userId });
-      return (userView || []).filter((item) => item.collectionType !== 'playlists');
-    },
-    refetchOnWindowFocus: false,
-    staleTime: HOME_SECTION_STALE_TIME_MS,
+  return homeSectionQueryOptions('allUserView', currentServer, async (server) => {
+    const userView = await adapter.getUserView({ userId: server.userId });
+    return (userView || []).filter((item) => item.collectionType !== 'playlists');
   });
 }
 
@@ -271,19 +259,9 @@ export function homeRandomQueryOptions({
   adapter: MediaAdapter;
   currentServer: MediaServerInfo | null;
 }) {
-  return queryOptions({
-    enabled: !!currentServer?.id && !!currentServer?.userId,
-    queryKey: mediaQueryKeys.homeSection(currentServer?.id, 'random'),
-    queryFn: async () => {
-      if (!currentServer) return [];
-      return await adapter.getRandomItems({
-        userId: currentServer.userId,
-        limit: 6,
-      });
-    },
-    refetchOnWindowFocus: false,
-    staleTime: HOME_SECTION_STALE_TIME_MS,
-  });
+  return homeSectionQueryOptions('random', currentServer, (server) =>
+    adapter.getRandomItems({ userId: server.userId, limit: 6 }),
+  );
 }
 
 export function detailBundleQueryOptions({

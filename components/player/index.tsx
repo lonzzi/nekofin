@@ -4,7 +4,7 @@ import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { generateDeviceProfile } from '@/lib/profiles/native';
 import { storage } from '@/lib/storage';
-import { formatBitrate, getDeviceId, ticksToSeconds } from '@/lib/utils';
+import { formatBitrate, getDeviceId, ticksToMilliseconds, ticksToSeconds } from '@/lib/utils';
 import { DandanComment } from '@/services/dandanplay';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import {
@@ -97,10 +97,17 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   const [currentTrackIds, setCurrentTrackIds] = useState({ vid: 0, aid: 0, sid: 0 });
   const [aspectRatio, setAspectRatio] = useState<string>('fit');
 
-  const enableTranscoding = storage.getBoolean('enableTranscoding') ?? false;
-  const enableSubtitleBurnIn = storage.getBoolean('enableSubtitleBurnIn') ?? false;
-  const maxBitrate = storage.getNumber('maxBitrate') ?? 0;
-  const selectedCodec = storage.getString('selectedCodec') ?? 'h264';
+  // Playback settings only change on a settings round-trip (which remounts this
+  // screen), so read them once instead of on every render of the player.
+  const { enableTranscoding, enableSubtitleBurnIn, maxBitrate, selectedCodec } = useMemo(
+    () => ({
+      enableTranscoding: storage.getBoolean('enableTranscoding') ?? false,
+      enableSubtitleBurnIn: storage.getBoolean('enableSubtitleBurnIn') ?? false,
+      maxBitrate: storage.getNumber('maxBitrate') ?? 0,
+      selectedCodec: storage.getString('selectedCodec') ?? 'h264',
+    }),
+    [],
+  );
 
   const [danmakuEpisodeInfo, setDanmakuEpisodeInfo] = useState<
     { animeTitle: string; episodeTitle: string } | undefined
@@ -188,7 +195,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
       }
       if (ids) setCurrentTrackIds(ids);
     } catch (e) {
-      console.log('refreshMpvTracks error:', e);
+      console.warn('refreshMpvTracks error:', e);
     }
   }, []);
 
@@ -235,7 +242,9 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
 
   useEffect(() => {
     if (itemDetail?.userData?.playbackPositionTicks !== undefined) {
-      const startTimeMs = Math.round(itemDetail.userData.playbackPositionTicks! / 10000);
+      const startTimeMs = Math.round(
+        ticksToMilliseconds(itemDetail.userData.playbackPositionTicks!),
+      );
       currentTime.value = startTimeMs;
       setInitialTime(ticksToSeconds(itemDetail.userData.playbackPositionTicks!));
     }
@@ -368,39 +377,25 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     }
   }, []);
 
-  const handlePreviousEpisode = useCallback(() => {
-    if (previousEpisode?.id) {
-      router.replace({
-        pathname: '/player',
-        params: {
-          itemId: previousEpisode.id,
-        },
-      });
-    }
-  }, [previousEpisode, router]);
-
-  const handleNextEpisode = useCallback(() => {
-    if (nextEpisode?.id) {
-      router.replace({
-        pathname: '/player',
-        params: {
-          itemId: nextEpisode.id,
-        },
-      });
-    }
-  }, [nextEpisode, router]);
-
-  const handleEpisodeSelect = useCallback(
-    (episodeId: string) => {
-      router.replace({
-        pathname: '/player',
-        params: {
-          itemId: episodeId,
-        },
-      });
+  const goToEpisode = useCallback(
+    (episodeId?: string) => {
+      if (!episodeId) return;
+      router.replace({ pathname: '/player', params: { itemId: episodeId } });
     },
     [router],
   );
+
+  const handlePreviousEpisode = useCallback(
+    () => goToEpisode(previousEpisode?.id),
+    [goToEpisode, previousEpisode],
+  );
+
+  const handleNextEpisode = useCallback(
+    () => goToEpisode(nextEpisode?.id),
+    [goToEpisode, nextEpisode],
+  );
+
+  const handleEpisodeSelect = goToEpisode;
 
   return (
     <View style={styles.container}>

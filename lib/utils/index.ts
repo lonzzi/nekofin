@@ -48,5 +48,5 @@ export {
   ticksToMilliseconds,
   ticksToSeconds,
 } from './duration';
-export { formatBitrate } from './format';
+export { formatBitrate, formatRating } from './format';
 export { isNil } from './guards';

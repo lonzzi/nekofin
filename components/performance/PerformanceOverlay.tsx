@@ -1,4 +1,10 @@
-import { formatDurationMs } from '@/lib/performance/performanceMetrics';
+import {
+  formatDurationMs,
+  formatFps,
+  formatHz,
+  formatMb,
+  formatPercent,
+} from '@/lib/performance/performanceMetrics';
 import { usePerformanceMonitor } from '@/lib/performance/PerformanceMonitorContext';
 import { storage } from '@/lib/storage';
 import { useAppTheme } from '@/lib/theme';
@@ -68,26 +74,6 @@ function readOverlayPosition(viewportWidth: number, viewportHeight: number, pane
 
 function saveOverlayPosition(x: number, y: number) {
   storage.set(OVERLAY_POSITION_STORAGE_KEY, JSON.stringify({ x, y }));
-}
-
-function formatFps(value?: number) {
-  if (value == null || !Number.isFinite(value)) return '-';
-  return Math.round(value).toString();
-}
-
-function formatMb(value?: number) {
-  if (value == null || !Number.isFinite(value)) return '-';
-  return `${value.toFixed(1)}MB`;
-}
-
-function formatPercent(value?: number) {
-  if (value == null || !Number.isFinite(value)) return '-';
-  return `${value >= 100 ? value.toFixed(0) : value.toFixed(1)}%`;
-}
-
-function formatHz(value?: number) {
-  if (value == null || !Number.isFinite(value)) return '-';
-  return `${Math.round(value)}Hz`;
 }
 
 export function PerformanceOverlay() {

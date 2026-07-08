@@ -1,14 +1,15 @@
 import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
 import { describe, expect, it } from 'vitest';
 
-import { convertEmbyItemToMediaItem, type EmbyBaseItemDto } from './emby/mappers';
-import { convertBaseItemDtoToMediaItem } from './jellyfin/mappers';
+import { mapRawItemToMediaItem } from './mappers';
 import type { MediaItem } from './types';
 
-type ContractCase = {
+// Jellyfin and Emby share one normalizer (`mapRawItemToMediaItem`) because both
+// speak the same PascalCase `BaseItemDto` wire format. These cases are the spec
+// for that shared mapping.
+type MappingCase = {
   name: string;
-  jellyfin: BaseItemDto;
-  emby: EmbyBaseItemDto;
+  input: BaseItemDto;
   expected: Record<string, unknown>;
 };
 
@@ -17,50 +18,10 @@ function withoutRaw(item: MediaItem): Omit<MediaItem, 'raw'> {
   return rest;
 }
 
-const contractCases: ContractCase[] = [
+const mappingCases: MappingCase[] = [
   {
     name: 'movie detail',
-    jellyfin: {
-      Id: 'movie-1',
-      Name: 'Movie One',
-      Type: 'Movie',
-      OriginalTitle: 'Original Movie One',
-      ProductionYear: 2026,
-      PremiereDate: '2026-01-01T00:00:00.000Z',
-      DateCreated: '2026-01-02T00:00:00.000Z',
-      Overview: 'A movie overview.',
-      Taglines: ['A quiet little movie.'],
-      Tags: ['anime', 'cozy'],
-      CommunityRating: 8.5,
-      CriticRating: 90,
-      OfficialRating: 'PG-13',
-      Genres: ['Animation', 'Drama'],
-      GenreItems: [{ Name: 'Animation' }, { Name: 'Drama' }],
-      ProductionLocations: ['Japan'],
-      Studios: [{ Name: 'Studio One' }],
-      RunTimeTicks: 7_200_000_000,
-      CumulativeRunTimeTicks: 7_200_000_000,
-      RecursiveItemCount: 1,
-      ChildCount: 1,
-      MediaSourceCount: 1,
-      Container: 'mkv',
-      UserData: {
-        Played: true,
-        PlayedPercentage: 100,
-        IsFavorite: false,
-        PlaybackPositionTicks: 0,
-      },
-      People: [
-        {
-          Id: 'person-1',
-          Name: 'Actor One',
-          Type: 'Actor',
-          Role: 'Lead',
-          PrimaryImageTag: 'person-tag',
-        },
-      ],
-    },
-    emby: {
+    input: {
       Id: 'movie-1',
       Name: 'Movie One',
       Type: 'Movie',
@@ -143,20 +104,7 @@ const contractCases: ContractCase[] = [
   },
   {
     name: 'series detail',
-    jellyfin: {
-      Id: 'series-1',
-      Name: 'Series One',
-      Type: 'Series',
-      Status: 'Continuing',
-      EndDate: null,
-      ProductionYear: 2025,
-      Genres: ['Sci-Fi'],
-      UserData: {
-        Played: false,
-        IsFavorite: true,
-      },
-    },
-    emby: {
+    input: {
       Id: 'series-1',
       Name: 'Series One',
       Type: 'Series',
@@ -187,25 +135,7 @@ const contractCases: ContractCase[] = [
   },
   {
     name: 'episode detail',
-    jellyfin: {
-      Id: 'episode-1',
-      Name: 'Episode One',
-      Type: 'Episode',
-      SeriesName: 'Series One',
-      SeriesId: 'series-1',
-      SeasonId: 'season-1',
-      ParentId: 'season-1',
-      IndexNumber: 3,
-      ParentIndexNumber: 1,
-      Overview: 'An episode overview.',
-      UserData: {
-        Played: false,
-        PlayedPercentage: 25,
-        IsFavorite: false,
-        PlaybackPositionTicks: 123_000,
-      },
-    },
-    emby: {
+    input: {
       Id: 'episode-1',
       Name: 'Episode One',
       Type: 'Episode',
@@ -242,24 +172,44 @@ const contractCases: ContractCase[] = [
       },
     },
   },
+  {
+    name: 'collection folder',
+    input: {
+      Id: 'view-1',
+      Name: 'Movies',
+      Type: 'CollectionFolder',
+      CollectionType: 'movies',
+    },
+    expected: {
+      id: 'view-1',
+      type: 'CollectionFolder',
+      serverType: 'CollectionFolder',
+      collectionType: 'movies',
+    },
+  },
 ];
 
 describe('media adapter mapping contract', () => {
-  it.each(contractCases)('normalizes $name consistently', ({ jellyfin, emby, expected }) => {
-    expect(withoutRaw(convertBaseItemDtoToMediaItem(jellyfin))).toMatchObject(expected);
-    expect(withoutRaw(convertEmbyItemToMediaItem(emby))).toMatchObject(expected);
+  it.each(mappingCases)('normalizes $name', ({ input, expected }) => {
+    expect(withoutRaw(mapRawItemToMediaItem(input))).toMatchObject(expected);
   });
 
   it('uses stable fallback fields for sparse payloads', () => {
-    expect(withoutRaw(convertBaseItemDtoToMediaItem({}))).toMatchObject({
-      id: '',
-      name: '',
+    const item = mapRawItemToMediaItem({});
+    expect(withoutRaw(item)).toMatchObject({ id: '', name: '', type: 'Other' });
+    expect(item.serverType).toBeNull();
+    expect(item.raw).toEqual({});
+  });
+
+  it('preserves unknown server types as Other', () => {
+    const item = mapRawItemToMediaItem({
+      Id: 'custom-1',
+      Type: 'CustomPluginItem',
+    } as unknown as BaseItemDto);
+    expect(withoutRaw(item)).toMatchObject({
+      id: 'custom-1',
       type: 'Other',
-    });
-    expect(withoutRaw(convertEmbyItemToMediaItem({}))).toMatchObject({
-      id: '',
-      name: '',
-      type: 'Other',
+      serverType: 'CustomPluginItem',
     });
   });
 });

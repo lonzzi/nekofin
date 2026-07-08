@@ -1,3 +1,6 @@
+/** Ratings are shown with a single decimal place throughout the app. */
+export const formatRating = (rating: number): string => rating.toFixed(1);
+
 export const formatBitrate = (
   bps: number | null | undefined,
   options?: { unit?: 'bits' | 'bytes' },

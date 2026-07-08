@@ -127,6 +127,26 @@ export function formatDurationMs(value?: number) {
   return `${(value / 1000).toFixed(2)}s`;
 }
 
+export function formatFps(value?: number) {
+  if (value == null || !Number.isFinite(value)) return '-';
+  return Math.round(value).toString();
+}
+
+export function formatMb(value?: number) {
+  if (value == null || !Number.isFinite(value)) return '-';
+  return `${value.toFixed(1)}MB`;
+}
+
+export function formatPercent(value?: number) {
+  if (value == null || !Number.isFinite(value)) return '-';
+  return `${value >= 100 ? value.toFixed(0) : value.toFixed(1)}%`;
+}
+
+export function formatHz(value?: number) {
+  if (value == null || !Number.isFinite(value)) return '-';
+  return `${Math.round(value)}Hz`;
+}
+
 export function sanitizeNetworkUrl(input: string) {
   try {
     const url = new URL(input);

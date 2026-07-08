@@ -32,49 +32,7 @@ type CardActionMenuRootProps = React.ComponentProps<typeof Menu> & {
 
 const CardActionMenuRoot = Menu as React.ComponentType<CardActionMenuRootProps>;
 
-function EpisodeCardActionMenu({
-  item,
-  actionServer,
-  children,
-}: {
-  item: MediaItem;
-  actionServer?: MediaServerInfo;
-  children: React.ReactNode;
-}) {
-  const {
-    currentUserData,
-    handlePlay,
-    handleAddToFavorites,
-    handleMarkAsWatched,
-    handleMarkAsUnwatched,
-  } = useMediaActions(item, actionServer);
-  const isPlayed = currentUserData?.played === true;
-
-  return (
-    <CardActionMenuRoot __unsafeIosProps={CARD_CONTEXT_MENU_IOS_PROPS}>
-      <Trigger>{children}</Trigger>
-      <Content>
-        <Item key="play" onSelect={handlePlay}>
-          <ItemIcon ios={{ name: 'play.circle' }} />
-          <ItemTitle>播放</ItemTitle>
-        </Item>
-        <Item key="addToFavorites" onSelect={handleAddToFavorites}>
-          <ItemIcon ios={{ name: 'heart' }} />
-          <ItemTitle>添加到收藏</ItemTitle>
-        </Item>
-        <Item
-          key={isPlayed ? 'markAsUnwatched' : 'markAsWatched'}
-          onSelect={isPlayed ? handleMarkAsUnwatched : handleMarkAsWatched}
-        >
-          <ItemIcon ios={{ name: isPlayed ? 'eye.slash' : 'eye' }} />
-          <ItemTitle>{isPlayed ? '标记为未看' : '标记为已看'}</ItemTitle>
-        </Item>
-      </Content>
-    </CardActionMenuRoot>
-  );
-}
-
-function SeriesCardActionMenu({
+function CardActionMenu({
   item,
   actionServer,
   children,
@@ -83,7 +41,7 @@ function SeriesCardActionMenu({
   item: MediaItem;
   actionServer?: MediaServerInfo;
   children: React.ReactNode;
-  onViewDetails: () => void;
+  onViewDetails?: () => void;
 }) {
   const {
     currentUserData,
@@ -102,10 +60,12 @@ function SeriesCardActionMenu({
           <ItemIcon ios={{ name: 'play.circle' }} />
           <ItemTitle>播放</ItemTitle>
         </Item>
-        <Item key="viewDetails" onSelect={onViewDetails}>
-          <ItemIcon ios={{ name: 'info.circle' }} />
-          <ItemTitle>查看详情</ItemTitle>
-        </Item>
+        {onViewDetails && (
+          <Item key="viewDetails" onSelect={onViewDetails}>
+            <ItemIcon ios={{ name: 'info.circle' }} />
+            <ItemTitle>查看详情</ItemTitle>
+          </Item>
+        )}
         <Item key="addToFavorites" onSelect={handleAddToFavorites}>
           <ItemIcon ios={{ name: 'heart' }} />
           <ItemTitle>添加到收藏</ItemTitle>
@@ -168,10 +128,6 @@ export const EpisodeCard = React.memo(function EpisodeCard({
     if (route) router.push(route);
   }, [item, router]);
 
-  const handlePress = useCallback(() => {
-    openDetails();
-  }, [openDetails]);
-
   const handlePlay = useCallback(() => {
     if (!item.id) return;
     router.push({
@@ -189,29 +145,14 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   const isPlayed = currentUserData?.played === true;
   const itemTitle = item.seriesName || item.name || '未知标题';
 
-  const PlayButton = useCallback(() => {
-    return (
-      <GlassCard
-        radius={9999}
-        style={styles.playButton}
-        fallbackBackgroundColor={theme.colors.mediaChrome}
-        isInteractive
-      >
-        <Pressable style={styles.playButtonInner} onPress={handlePlay}>
-          <Ionicons name="play" size={32} color="#fff" />
-        </Pressable>
-      </GlassCard>
-    );
-  }, [handlePlay, theme.colors.mediaChrome]);
-
-  const CardComp = useCallback(
-    () => (
+  return (
+    <CardActionMenu item={item} actionServer={actionServer}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`打开 ${itemTitle}`}
         style={[styles.card, { width: 200 }, style]}
         disabled={disabled}
-        onPress={onPress || handlePress}
+        onPress={onPress || openDetails}
       >
         <ShadowedGlassCard radius={12}>
           <View style={[styles.coverContainer, { backgroundColor: theme.colors.surfaceMuted }]}>
@@ -229,7 +170,18 @@ export const EpisodeCard = React.memo(function EpisodeCard({
               cachePolicy="disk"
               contentFit="cover"
             />
-            {showPlayButton && <PlayButton />}
+            {showPlayButton && (
+              <GlassCard
+                radius={9999}
+                style={styles.playButton}
+                fallbackBackgroundColor={theme.colors.mediaChrome}
+                isInteractive
+              >
+                <Pressable style={styles.playButtonInner} onPress={handlePlay}>
+                  <Ionicons name="play" size={32} color="#fff" />
+                </Pressable>
+              </GlassCard>
+            )}
             {isPlayed && (
               <View
                 style={[
@@ -290,31 +242,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
           )}
         </ShadowedGlassCard>
       </Pressable>
-    ),
-    [
-      PlayButton,
-      accentColor,
-      disabled,
-      handlePress,
-      hideText,
-      imageInfo.blurhash,
-      imageUrl,
-      isPlayed,
-      item,
-      itemTitle,
-      onPress,
-      playedPercentage,
-      showBorder,
-      showPlayButton,
-      style,
-      theme,
-    ],
-  );
-
-  return (
-    <EpisodeCardActionMenu item={item} actionServer={actionServer}>
-      <CardComp />
-    </EpisodeCardActionMenu>
+    </CardActionMenu>
   );
 });
 
@@ -369,16 +297,12 @@ export const SeriesCard = React.memo(function SeriesCard({
     }
   }, [item, onPress, router]);
 
-  const handlePress = useCallback(() => {
-    openDetails();
-  }, [openDetails]);
-
   const card = (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`打开 ${itemTitle}`}
       style={[styles.card, { width: 120 }, style]}
-      onPress={handlePress}
+      onPress={openDetails}
     >
       <ShadowedGlassCard radius={12}>
         <ItemImage
@@ -424,9 +348,9 @@ export const SeriesCard = React.memo(function SeriesCard({
   );
 
   return (
-    <SeriesCardActionMenu item={item} actionServer={actionServer} onViewDetails={openDetails}>
+    <CardActionMenu item={item} actionServer={actionServer} onViewDetails={openDetails}>
       {card}
-    </SeriesCardActionMenu>
+    </CardActionMenu>
   );
 });
 

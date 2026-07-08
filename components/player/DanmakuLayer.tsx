@@ -125,15 +125,9 @@ export function DanmakuLayer({
     setActive([]);
     processedCommentsRef.current.clear();
     ensureLanes();
-    for (let i = 0; i < scrollLaneNextAvailableRef.current.length; i++) {
-      scrollLaneNextAvailableRef.current[i] = 0;
-    }
-    for (let i = 0; i < topLaneNextAvailableRef.current.length; i++) {
-      topLaneNextAvailableRef.current[i] = 0;
-    }
-    for (let i = 0; i < bottomLaneNextAvailableRef.current.length; i++) {
-      bottomLaneNextAvailableRef.current[i] = 0;
-    }
+    scrollLaneNextAvailableRef.current.fill(0);
+    topLaneNextAvailableRef.current.fill(0);
+    bottomLaneNextAvailableRef.current.fill(0);
     lastTimeMsRef.current = -1;
     nextCommentIndexRef.current = 0;
   }, [ensureLanes]);

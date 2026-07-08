@@ -11,7 +11,7 @@ import { MediaItem, MediaItemType, MediaSortBy } from '@/services/media/types';
 import { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query';
 import { GlassContainer } from 'expo-glass-effect';
 import { useNavigation } from 'expo-router';
-import React, { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -96,21 +96,20 @@ export function ItemGridScreen({
     }),
   );
 
-  const renderItem = useCallback(
-    ({ item }: { item: MediaItem }) => {
-      const itemStyle = { width: itemWidth };
-
-      if (item.type === 'Episode') {
-        return <EpisodeCard item={item} style={itemStyle} />;
+  const renderMediaCard = useCallback(
+    (item: MediaItem, width: number) => {
+      const itemStyle = { width };
+      if (item.type !== 'Episode' && useThreeCols) {
+        return <SeriesCard item={item} style={itemStyle} />;
       }
-
-      return useThreeCols ? (
-        <SeriesCard item={item} style={itemStyle} />
-      ) : (
-        <EpisodeCard item={item} style={itemStyle} />
-      );
+      return <EpisodeCard item={item} style={itemStyle} />;
     },
-    [itemWidth, useThreeCols],
+    [useThreeCols],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: MediaItem }) => renderMediaCard(item, itemWidth),
+    [renderMediaCard, itemWidth],
   );
 
   const keyExtractor = useCallback(
@@ -124,21 +123,24 @@ export function ItemGridScreen({
   }, [query, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const listFooter = useMemo(() => {
-    if (!query) return <View style={{ height: 16 }} />;
-    if (isFetchingNextPage) {
+    if (query && isFetchingNextPage) {
       return (
         <View style={styles.footerLoadingContainer}>
           <ActivityIndicator size="small" color={theme.colors.tint} />
         </View>
       );
     }
-    if (!hasNextPage) return <View style={{ height: 16 }} />;
     return <View style={{ height: 16 }} />;
-  }, [query, isFetchingNextPage, hasNextPage, theme.colors.tint]);
+  }, [query, isFetchingNextPage, theme.colors.tint]);
 
   useEffect(() => {
     navigation.setOptions({ title });
   }, [navigation, title]);
+
+  const patchFilters = useCallback(
+    (patch: Partial<MediaFilters>) => onChangeFilters?.({ ...filters, ...patch }),
+    [onChangeFilters, filters],
+  );
 
   const renderFilterBar = useCallback(() => {
     if (!onChangeFilters) return null;
@@ -192,16 +194,9 @@ export function ItemGridScreen({
                   active: !!filters?.includeItemTypes?.includes('Playlist'),
                 },
               ]}
-              onSelect={(v) => {
-                onChangeFilters?.({
-                  includeItemTypes: v ? [v as MediaItemType] : undefined,
-                  sortBy: filters?.sortBy,
-                  sortOrder: filters?.sortOrder,
-                  year: filters?.year,
-                  tags: filters?.tags,
-                  onlyUnplayed: filters?.onlyUnplayed,
-                });
-              }}
+              onSelect={(v) =>
+                patchFilters({ includeItemTypes: v ? [v as MediaItemType] : undefined })
+              }
             />
             <FilterButton
               label="年份"
@@ -214,16 +209,7 @@ export function ItemGridScreen({
                   active: filters?.year === y,
                 })),
               ]}
-              onSelect={(v) => {
-                onChangeFilters?.({
-                  includeItemTypes: filters?.includeItemTypes,
-                  sortBy: filters?.sortBy,
-                  sortOrder: filters?.sortOrder,
-                  year: v ? Number(v) : undefined,
-                  tags: filters?.tags,
-                  onlyUnplayed: filters?.onlyUnplayed,
-                });
-              }}
+              onSelect={(v) => patchFilters({ year: v ? Number(v) : undefined })}
             />
             <FilterButton
               label="标签"
@@ -236,28 +222,7 @@ export function ItemGridScreen({
                   active: !!filters?.tags?.includes(t),
                 })),
               ]}
-              onSelect={(v) => {
-                if (!v) {
-                  onChangeFilters?.({
-                    includeItemTypes: filters?.includeItemTypes,
-                    sortBy: filters?.sortBy,
-                    sortOrder: filters?.sortOrder,
-                    year: filters?.year,
-                    tags: undefined,
-                    onlyUnplayed: filters?.onlyUnplayed,
-                  });
-                } else {
-                  const nextTags = [v];
-                  onChangeFilters?.({
-                    includeItemTypes: filters?.includeItemTypes,
-                    sortBy: filters?.sortBy,
-                    sortOrder: filters?.sortOrder,
-                    year: filters?.year,
-                    tags: nextTags,
-                    onlyUnplayed: filters?.onlyUnplayed,
-                  });
-                }
-              }}
+              onSelect={(v) => patchFilters({ tags: v ? [v] : undefined })}
             />
             <FilterButton
               label="排序依据"
@@ -299,16 +264,7 @@ export function ItemGridScreen({
                   active: (filters?.sortBy?.[0] ?? '') === 'PremiereDate',
                 },
               ]}
-              onSelect={(v) => {
-                onChangeFilters?.({
-                  includeItemTypes: filters?.includeItemTypes,
-                  sortBy: v ? [v as MediaSortBy] : filters?.sortBy,
-                  sortOrder: filters?.sortOrder,
-                  year: filters?.year,
-                  tags: filters?.tags,
-                  onlyUnplayed: filters?.onlyUnplayed,
-                });
-              }}
+              onSelect={(v) => patchFilters({ sortBy: v ? [v as MediaSortBy] : filters?.sortBy })}
             />
             <FilterButton
               label="排序顺序"
@@ -325,22 +281,22 @@ export function ItemGridScreen({
                   active: (filters?.sortOrder ?? 'Descending') === 'Ascending',
                 },
               ]}
-              onSelect={(v) => {
-                onChangeFilters?.({
-                  includeItemTypes: filters?.includeItemTypes,
-                  sortBy: filters?.sortBy,
-                  sortOrder: (v as 'Ascending' | 'Descending') ?? filters?.sortOrder,
-                  year: filters?.year,
-                  tags: filters?.tags,
-                  onlyUnplayed: filters?.onlyUnplayed,
-                });
-              }}
+              onSelect={(v) =>
+                patchFilters({ sortOrder: (v as 'Ascending' | 'Descending') ?? filters?.sortOrder })
+              }
             />
           </GlassContainer>
         </ScrollView>
       </View>
     );
-  }, [onChangeFilters, availableFilters, filters, theme.spacing.page, theme.spacing.sm]);
+  }, [
+    onChangeFilters,
+    availableFilters,
+    filters,
+    patchFilters,
+    theme.spacing.page,
+    theme.spacing.sm,
+  ]);
 
   const renderGroupSection = useCallback(
     (group: { key: string; title: string; items: MediaItem[] }, showTitle: boolean) => {
@@ -361,17 +317,7 @@ export function ItemGridScreen({
           )}
           <FlatList
             data={group.items}
-            renderItem={({ item }) => {
-              const itemStyle = { width: groupItemWidth };
-              if (item.type === 'Episode') {
-                return <EpisodeCard item={item} style={itemStyle} />;
-              }
-              return useThreeCols ? (
-                <SeriesCard item={item} style={itemStyle} />
-              ) : (
-                <EpisodeCard item={item} style={itemStyle} />
-              );
-            }}
+            renderItem={({ item }) => renderMediaCard(item, groupItemWidth)}
             keyExtractor={keyExtractor}
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -389,7 +335,7 @@ export function ItemGridScreen({
         </View>
       );
     },
-    [episodeLayout.itemWidth, itemWidth, theme, keyExtractor, handleEndReached, useThreeCols],
+    [episodeLayout.itemWidth, itemWidth, theme, keyExtractor, handleEndReached, renderMediaCard],
   );
 
   if (query && isLoading) {
@@ -523,11 +469,6 @@ const styles = StyleSheet.create({
   filterScrollContent: {
     paddingTop: 4,
     paddingBottom: 12,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   errorContainer: {
     flex: 1,

@@ -201,8 +201,10 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
       if (!server) return;
       const api = createMediaApiFromServerInfo(server);
       const adapter = createMediaAdapterWithApi(server.type, api);
-      const system = await adapter.getSystemInfo();
-      const user = await adapter.getUserInfo({ userId: server.userId });
+      const [system, user] = await Promise.all([
+        adapter.getSystemInfo(),
+        adapter.getUserInfo({ userId: server.userId }),
+      ]);
       await updateServer(id, {
         name: system.serverName || user.serverName || server.address,
         username: user.name || server.username,

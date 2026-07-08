@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { mapRawItemToMediaItem } from '../mappers';
 import { getEmbyImageInfo } from './image';
-import { convertEmbyItemToMediaItem } from './mappers';
 
 vi.mock('@/lib/utils', () => ({
   isNil: (value: unknown) => value == null,
@@ -14,7 +14,7 @@ describe('getEmbyImageInfo', () => {
   };
 
   it('builds primary image urls from raw media items', () => {
-    const item = convertEmbyItemToMediaItem({
+    const item = mapRawItemToMediaItem({
       Id: 'movie-1',
       Name: 'Movie One',
       Type: 'Movie',
@@ -30,7 +30,7 @@ describe('getEmbyImageInfo', () => {
   });
 
   it('returns an empty image result when the item has no usable image tag', () => {
-    const item = convertEmbyItemToMediaItem({
+    const item = mapRawItemToMediaItem({
       Id: 'movie-1',
       Name: 'Movie One',
       Type: 'Movie',

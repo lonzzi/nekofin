@@ -59,100 +59,52 @@ export function useMediaActions(item: MediaItem, serverOverride?: MediaServerInf
     });
   };
 
-  const handleAddToFavorites = async () => {
+  // Shared optimistic-update flow: snapshot → apply patch to local + cache →
+  // call the adapter and invalidate on success, rolling back on failure.
+  const runOptimisticUpdate = async (
+    patch: Partial<MediaUserData>,
+    apiCall: (ctx: { userId: string; itemId: string }) => Promise<unknown>,
+    errorLabel: string,
+  ) => {
     if (!item.id || !targetServer || isUpdating) return;
 
     const previousUserData = currentUserData ?? null;
     setIsUpdating(true);
-    const nextUserData = {
-      ...previousUserData,
-      isFavorite: true,
-    };
-    setLocalUserData(nextUserData);
-    updateCachedUserData((prev) => ({
-      ...prev,
-      isFavorite: true,
-    }));
+    setLocalUserData({ ...previousUserData, ...patch });
+    updateCachedUserData((prev) => ({ ...prev, ...patch }));
 
     try {
-      await mediaAdapter.addFavoriteItem({
-        userId: targetServer.userId,
-        itemId: item.id,
-      });
+      await apiCall({ userId: targetServer.userId, itemId: item.id });
       invalidateServerMedia();
     } catch (error) {
       setLocalUserData(previousUserData);
       updateCachedUserData(() => previousUserData);
-      console.error('添加收藏失败:', error);
+      console.error(errorLabel, error);
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const handleMarkAsWatched = async () => {
-    if (!item.id || !targetServer || isUpdating) return;
+  const handleAddToFavorites = () =>
+    runOptimisticUpdate(
+      { isFavorite: true },
+      (ctx) => mediaAdapter.addFavoriteItem(ctx),
+      '添加收藏失败:',
+    );
 
-    const previousUserData = currentUserData ?? null;
-    setIsUpdating(true);
-    const nextUserData = {
-      ...previousUserData,
-      played: true,
-      playedPercentage: 100,
-    };
-    setLocalUserData(nextUserData);
-    updateCachedUserData((prev) => ({
-      ...prev,
-      played: true,
-      playedPercentage: 100,
-    }));
+  const handleMarkAsWatched = () =>
+    runOptimisticUpdate(
+      { played: true, playedPercentage: 100 },
+      (ctx) => mediaAdapter.markItemPlayed({ ...ctx, datePlayed: new Date().toISOString() }),
+      '标记为已看失败:',
+    );
 
-    try {
-      await mediaAdapter.markItemPlayed({
-        userId: targetServer.userId,
-        itemId: item.id,
-        datePlayed: new Date().toISOString(),
-      });
-      invalidateServerMedia();
-    } catch (error) {
-      setLocalUserData(previousUserData);
-      updateCachedUserData(() => previousUserData);
-      console.error('标记为已看失败:', error);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleMarkAsUnwatched = async () => {
-    if (!item.id || !targetServer || isUpdating) return;
-
-    const previousUserData = currentUserData ?? null;
-    setIsUpdating(true);
-    const nextUserData = {
-      ...previousUserData,
-      played: false,
-      playedPercentage: 0,
-    };
-    setLocalUserData(nextUserData);
-    updateCachedUserData((prev) => ({
-      ...prev,
-      played: false,
-      playedPercentage: 0,
-    }));
-
-    try {
-      await mediaAdapter.markItemUnplayed({
-        userId: targetServer.userId,
-        itemId: item.id,
-      });
-      invalidateServerMedia();
-    } catch (error) {
-      setLocalUserData(previousUserData);
-      updateCachedUserData(() => previousUserData);
-      console.error('标记为未看失败:', error);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+  const handleMarkAsUnwatched = () =>
+    runOptimisticUpdate(
+      { played: false, playedPercentage: 0 },
+      (ctx) => mediaAdapter.markItemUnplayed(ctx),
+      '标记为未看失败:',
+    );
 
   return {
     currentUserData,

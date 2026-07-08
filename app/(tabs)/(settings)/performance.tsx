@@ -12,31 +12,17 @@ import {
   SettingsValue,
 } from '@/components/ui/SettingsVisual';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
-import { formatDurationMs } from '@/lib/performance/performanceMetrics';
+import {
+  formatDurationMs,
+  formatFps,
+  formatHz,
+  formatMb,
+  formatPercent,
+} from '@/lib/performance/performanceMetrics';
 import { usePerformanceMonitor } from '@/lib/performance/PerformanceMonitorContext';
 import { usePerformanceDiagnosticsUnlock } from '@/lib/performance/usePerformanceDiagnosticsUnlock';
 import { useCallback } from 'react';
 import { Share } from 'react-native';
-
-function formatFps(value?: number) {
-  if (value == null || !Number.isFinite(value)) return '-';
-  return Math.round(value).toString();
-}
-
-function formatMb(value?: number) {
-  if (value == null || !Number.isFinite(value)) return '-';
-  return `${value.toFixed(1)}MB`;
-}
-
-function formatPercent(value?: number) {
-  if (value == null || !Number.isFinite(value)) return '-';
-  return `${value >= 100 ? value.toFixed(0) : value.toFixed(1)}%`;
-}
-
-function formatHz(value?: number) {
-  if (value == null || !Number.isFinite(value)) return '-';
-  return `${Math.round(value)}Hz`;
-}
 
 export default function PerformanceSettingsScreen() {
   const router = useTracedRouter('performance-settings');

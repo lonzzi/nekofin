@@ -2,8 +2,8 @@ import type { ApiResponse } from '@/lib/request';
 import { BaseItemDto, ItemSortBy } from '@jellyfin/sdk/lib/generated-client';
 import { RecommendedServerInfo } from '@jellyfin/sdk/lib/models/recommended-server-info';
 
+import { mapRawItemToMediaItem } from '../mappers';
 import { MediaItem, MediaPage, MediaPerson, MediaSortBy } from '../types';
-import { convertEmbyItemToMediaItem } from './mappers';
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -62,7 +62,7 @@ export async function parseItems(
     'code' in (res as ApiResponse<unknown>)
       ? (res as ApiResponse<{ Items?: BaseItemDto[] }>).data
       : (res as { Items?: BaseItemDto[] });
-  return payload.Items?.map(convertEmbyItemToMediaItem) || [];
+  return payload.Items?.map(mapRawItemToMediaItem) || [];
 }
 
 export async function parseItemsWithCount(
@@ -75,7 +75,7 @@ export async function parseItemsWithCount(
       ? (res as ApiResponse<{ Items?: BaseItemDto[]; TotalRecordCount?: number }>).data
       : (res as { Items?: BaseItemDto[]; TotalRecordCount?: number });
   return {
-    items: payload.Items?.map(convertEmbyItemToMediaItem) ?? [],
+    items: payload.Items?.map(mapRawItemToMediaItem) ?? [],
     total: payload.TotalRecordCount,
   };
 }

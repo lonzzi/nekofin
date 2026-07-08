@@ -3,6 +3,7 @@ import type { RecommendedServerInfo } from '@jellyfin/sdk';
 import { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
 
 import type { StreamInfo } from '../jellyfin/stream';
+import { mapRawItemToMediaItem } from '../mappers';
 import {
   GetRandomItemsParams,
   MediaAdapter,
@@ -50,14 +51,11 @@ import { createEmbyApiClient } from './client';
 import { isBaseItemDto, parseItems, parseItemsWithCount, toRecommendedServerInfo } from './helpers';
 import { getEmbyImageInfo } from './image';
 import * as embyItems from './items';
-import { convertEmbyItemToMediaItem } from './mappers';
 import { buildEmbyStreamUrl, mapEmbyPlaybackInfo } from './playback';
 import type {
   EmbyApi,
   EmbyAuthenticateResponse,
-  EmbyHomeSection,
   EmbyPlaybackInfoResponse,
-  EmbyPrefix,
   EmbyPublicSystemInfo,
   EmbyPublicUser,
 } from './types';
@@ -323,7 +321,7 @@ export class EmbyAdapter extends MediaAdapter {
   async getItemDetail({ itemId, userId }: GetItemDetailParams): Promise<MediaItem> {
     const res = await this.getClient().get<BaseItemDto>(`/Users/${userId}/Items/${itemId}`);
     const data = res.data;
-    return convertEmbyItemToMediaItem(data);
+    return mapRawItemToMediaItem(data);
   }
 
   async getItemMediaSources({ itemId }: GetItemMediaSourcesParams): Promise<MediaPlaybackInfo> {
@@ -482,37 +480,6 @@ export class EmbyAdapter extends MediaAdapter {
     return { years, tags, genres };
   }
 
-  // ── Home Sections ─────────────────────────────────────────────
-
-  async getHomeSections(userId: string): Promise<EmbyHomeSection[]> {
-    const res = await embyItems.getHomeSections(this.getClient(), userId);
-    return res.data ?? [];
-  }
-
-  async getSectionItems(
-    userId: string,
-    sectionId: string,
-    limit?: number,
-  ): Promise<MediaPage<MediaItem>> {
-    const res = await embyItems.getSectionItems(this.getClient(), { userId, sectionId, limit });
-    return await parseItemsWithCount(res);
-  }
-
-  // ── Items Prefixes ────────────────────────────────────────────
-
-  async getItemsPrefixes(
-    userId: string,
-    parentId?: string,
-    includeItemTypes?: string,
-  ): Promise<EmbyPrefix[]> {
-    const res = await embyItems.getItemsPrefixes(this.getClient(), {
-      userId,
-      parentId,
-      includeItemTypes,
-    });
-    return res.data ?? [];
-  }
-
   // ── Folder Browsing ───────────────────────────────────────────
 
   async getFoldersByParent(userId: string, parentId: string): Promise<MediaPage<MediaItem>> {
@@ -548,7 +515,6 @@ export class EmbyAdapter extends MediaAdapter {
     deviceProfile,
     audioStreamIndex,
     subtitleStreamIndex,
-    height,
     mediaSourceId,
     deviceId,
   }: GetStreamInfoParams): Promise<StreamInfo | null> {

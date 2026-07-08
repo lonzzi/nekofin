@@ -324,7 +324,6 @@ export function SkeletonDetailContent({
   return (
     <View
       style={[
-        styles.detailContent,
         {
           paddingHorizontal: theme.spacing.page,
           paddingTop: includeTopPadding ? theme.spacing.lg : 0,
@@ -633,8 +632,6 @@ const styles = StyleSheet.create({
   detailHeader: {
     width: '100%',
   },
-  detailContent: {},
-  detailLogo: {},
   detailTitle: {
     marginTop: 8,
   },

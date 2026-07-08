@@ -1,12 +1,9 @@
 import { getImageInfo } from '@/lib/utils/image';
 import { describe, expect, it, vi } from 'vitest';
 
+import { mapRawItemToMediaItem } from '../mappers';
 import { JellyfinAdapter } from './jellyfinAdapter';
-import {
-  convertBaseItemDtoToMediaItem,
-  parseJellyfinItemArrayResponse,
-  parseJellyfinItemsPage,
-} from './mappers';
+import { parseJellyfinItemArrayResponse, parseJellyfinItemsPage } from './mappers';
 
 vi.mock('@/lib/utils/image', () => ({
   getImageInfo: vi.fn((_item, _opts, api) => ({
@@ -42,9 +39,9 @@ vi.mock('react-native-mmkv', () => ({
   },
 }));
 
-describe('convertBaseItemDtoToMediaItem', () => {
+describe('mapRawItemToMediaItem', () => {
   it('maps core item fields and user data into the app media model', () => {
-    const item = convertBaseItemDtoToMediaItem({
+    const item = mapRawItemToMediaItem({
       Id: 'movie-1',
       Name: 'Movie One',
       Type: 'Movie',
@@ -118,7 +115,7 @@ describe('convertBaseItemDtoToMediaItem', () => {
   });
 
   it('falls back to stable defaults for missing required display fields', () => {
-    const item = convertBaseItemDtoToMediaItem({});
+    const item = mapRawItemToMediaItem({});
 
     expect(item.id).toBe('');
     expect(item.name).toBe('');
@@ -129,7 +126,7 @@ describe('convertBaseItemDtoToMediaItem', () => {
 
   it('keeps known folder-like Jellyfin types and preserves unknown server types', () => {
     expect(
-      convertBaseItemDtoToMediaItem({
+      mapRawItemToMediaItem({
         Id: 'view-1',
         Name: 'Movies',
         Type: 'CollectionFolder',
@@ -143,7 +140,7 @@ describe('convertBaseItemDtoToMediaItem', () => {
     });
 
     expect(
-      convertBaseItemDtoToMediaItem({
+      mapRawItemToMediaItem({
         Id: 'custom-1',
         Name: 'Custom One',
         Type: 'CustomPluginItem' as never,
@@ -205,7 +202,7 @@ describe('JellyfinAdapter', () => {
     } as never);
 
     const imageInfo = adapter.getImageInfo({
-      item: convertBaseItemDtoToMediaItem({
+      item: mapRawItemToMediaItem({
         Id: 'movie-1',
         Name: 'Movie One',
         Type: 'Movie',

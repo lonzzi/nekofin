@@ -5,6 +5,7 @@ import { SkeletonMediaHero } from '@/components/ui/Skeleton';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useAppTheme } from '@/lib/theme';
+import { formatRating } from '@/lib/utils';
 import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
@@ -140,6 +141,7 @@ function CarouselOverlay({ activeIndex, imageInfo, item, items, showLogo }: Caro
   const theme = useAppTheme();
   const title = getCarouselItemTitle(item);
   const logoUrl = showLogo ? imageInfo?.logoImageUrl : undefined;
+  const typeLabel = item.type === 'Movie' ? '电影' : item.type === 'Series' ? '剧集' : null;
 
   return (
     <View pointerEvents="none" style={styles.bottomOverlay}>
@@ -169,7 +171,7 @@ function CarouselOverlay({ activeIndex, imageInfo, item, items, showLogo }: Caro
         </View>
 
         <View style={styles.cardMetaRow}>
-          {item.type === 'Movie' && (
+          {typeLabel && (
             <View style={styles.cardTag}>
               <ThemedText
                 style={[
@@ -178,20 +180,7 @@ function CarouselOverlay({ activeIndex, imageInfo, item, items, showLogo }: Caro
                   { color: theme.colors.inverseText },
                 ]}
               >
-                电影
-              </ThemedText>
-            </View>
-          )}
-          {item.type === 'Series' && (
-            <View style={styles.cardTag}>
-              <ThemedText
-                style={[
-                  theme.typography.caption,
-                  styles.cardTagText,
-                  { color: theme.colors.inverseText },
-                ]}
-              >
-                剧集
+                {typeLabel}
               </ThemedText>
             </View>
           )}
@@ -202,7 +191,7 @@ function CarouselOverlay({ activeIndex, imageInfo, item, items, showLogo }: Caro
           )}
           {item.communityRating != null && (
             <ThemedText style={[theme.typography.footnote, styles.cardMeta]}>
-              ★ {item.communityRating.toFixed(1)}
+              ★ {formatRating(item.communityRating)}
             </ThemedText>
           )}
           {!!item.officialRating && (
@@ -1000,22 +989,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     zIndex: 3,
-  },
-  gradientScrimMid: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 116,
-    height: 96,
-    backgroundColor: 'rgba(0,0,0,0.24)',
-  },
-  gradientScrimBottom: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 136,
-    backgroundColor: 'rgba(0,0,0,0.72)',
   },
   bottomOverlay: {
     position: 'absolute',

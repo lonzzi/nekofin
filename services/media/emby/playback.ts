@@ -1,46 +1,12 @@
-import type { MediaPlaybackInfo, MediaSource } from '../types';
-import type { EmbyApi, EmbyPlaybackInfoMediaSource, EmbyPlaybackInfoResponse } from './types';
-
-export function mapEmbyMediaSource(source: EmbyPlaybackInfoMediaSource): MediaSource {
-  return {
-    id: source.Id || '',
-    protocol: source.Protocol || '',
-    container: source.Container || '',
-    size: source.Size,
-    bitrate: source.Bitrate,
-    mediaStreams:
-      source.MediaStreams?.map((stream) => ({
-        codec: stream.Codec || '',
-        type: stream.Type === 'Audio' || stream.Type === 'Subtitle' ? stream.Type : 'Video',
-        index: stream.Index || 0,
-        language: stream.Language,
-        isDefault: stream.IsDefault,
-        isForced: stream.IsForced,
-        width: stream.Width,
-        height: stream.Height,
-        bitRate: stream.BitRate,
-        averageFrameRate: stream.AverageFrameRate,
-        realFrameRate: stream.RealFrameRate,
-        profile: stream.Profile,
-        level: stream.Level,
-        pixelFormat: stream.PixelFormat,
-        bitDepth: stream.BitDepth,
-        isInterlaced: stream.IsInterlaced,
-        aspectRatio: stream.AspectRatio,
-        videoRange: stream.VideoRange,
-        channels: stream.Channels,
-        channelLayout: stream.ChannelLayout,
-        sampleRate: stream.SampleRate,
-        title: stream.Title,
-      })) || [],
-  };
-}
+import { mapMediaSource } from '../mappers';
+import type { MediaPlaybackInfo } from '../types';
+import type { EmbyApi, EmbyPlaybackInfoResponse } from './types';
 
 export function mapEmbyPlaybackInfo(
   playback: EmbyPlaybackInfoResponse | null | undefined,
 ): MediaPlaybackInfo {
   return {
-    mediaSources: playback?.MediaSources?.map(mapEmbyMediaSource) ?? [],
+    mediaSources: playback?.MediaSources?.map(mapMediaSource) ?? [],
   };
 }
 

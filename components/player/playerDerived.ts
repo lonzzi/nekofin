@@ -1,3 +1,4 @@
+import { ticksToMilliseconds } from '@/lib/utils/duration';
 import type { MediaItem } from '@/services/media/types';
 
 type RawMediaStream = {
@@ -88,5 +89,5 @@ export function deriveDurationMs(
   item: MediaItem | null | undefined,
   fallbackDurationMs?: number | null,
 ): number {
-  return item?.runTimeTicks ? item.runTimeTicks / 10000 : (fallbackDurationMs ?? 0);
+  return item?.runTimeTicks ? ticksToMilliseconds(item.runTimeTicks) : (fallbackDurationMs ?? 0);
 }

@@ -1,6 +1,6 @@
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { layout, radius, spacing, typography, useAppTheme } from '@/lib/theme';
-import { formatChineseDurationFromTicks } from '@/lib/utils';
+import { formatChineseDurationFromTicks, formatRating } from '@/lib/utils';
 import { MediaItem } from '@/services/media/types';
 import { BottomSheet, RNHostView } from '@expo/ui';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -124,7 +124,7 @@ export const ItemMeta = ({ item }: { item: MediaItem }) => {
   const textColor = theme.colors.text;
 
   const ratingText = useMemo(() => {
-    if (typeof item?.communityRating === 'number') return item.communityRating.toFixed(1);
+    if (typeof item?.communityRating === 'number') return formatRating(item.communityRating);
     if (typeof item?.criticRating === 'number') return String(item.criticRating);
     if (item?.officialRating) return item.officialRating;
     return '';
@@ -280,7 +280,7 @@ export const ItemInfoList = ({ item }: { item: MediaItem }) => {
       { largest: 2 },
     );
     const ratingParts = [
-      typeof item.communityRating === 'number' ? `用户 ${item.communityRating.toFixed(1)}` : '',
+      typeof item.communityRating === 'number' ? `用户 ${formatRating(item.communityRating)}` : '',
       typeof item.criticRating === 'number' ? `影评 ${item.criticRating}` : '',
     ].filter(Boolean);
     const countText =
