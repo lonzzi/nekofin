@@ -9,17 +9,16 @@ import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 interface CarouselHeaderProps {
   items: MediaItem[];
@@ -283,8 +282,11 @@ export function useCarouselHeaderLayers({
   const tapStartIndexValue = useSharedValue(0);
   const isGestureAnimating = useSharedValue(false);
   const hasImages = items.length > 0;
+  // Gestures/preload stay structurally mounted regardless of focus (gated only by
+  // `canReveal`) so returning to Home doesn't rebuild the carousel subtree on the
+  // transition's last frame. `isFocused` only pauses/resumes side-effects
+  // (timers, prefetch) below.
   const canReveal = items.length > 1;
-  const canInteract = isFocused && canReveal;
   const cardWidth = Math.max(viewportWidth, 1);
 
   const itemIdentity = useMemo(() => items.map(getCarouselItemKey).join('|'), [items]);
@@ -414,15 +416,7 @@ export function useCarouselHeaderLayers({
     setPendingAutoAdvance(null);
     setAutoTargetIndex(nextIndex);
     setIsGestureOverlayVisible(false);
-  }, [
-    autoProgress,
-    autoTargetIndex,
-    canReveal,
-    carouselImageInfos,
-    dragX,
-    isFocused,
-    items.length,
-  ]);
+  }, [canReveal, carouselImageInfos, isFocused, items.length]);
 
   useEffect(() => {
     if (!pendingAutoAdvance) return;
@@ -459,7 +453,7 @@ export function useCarouselHeaderLayers({
     dragX.value = 0;
     autoProgress.value = withTiming(1, { duration: CAROUSEL_AUTO_FADE_MS }, (finished) => {
       if (finished) {
-        runOnJS(completeAutoAdvance)(autoTargetIndex);
+        scheduleOnRN(completeAutoAdvance, autoTargetIndex);
       }
     });
 
@@ -485,16 +479,16 @@ export function useCarouselHeaderLayers({
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
-        .enabled(canInteract)
+        .enabled(canReveal)
         .activeOffsetX([-12, 12])
         .failOffsetY([-18, 18])
         .onStart(() => {
           isGestureAnimating.value = true;
-          runOnJS(showGestureOverlay)();
+          scheduleOnRN(showGestureOverlay);
           cancelAnimation(autoProgress);
           autoProgress.value = 0;
-          runOnJS(clearAutoTarget)();
-          runOnJS(setPendingAutoAdvance)(null);
+          scheduleOnRN(clearAutoTarget);
+          scheduleOnRN(setPendingAutoAdvance, null);
           cancelAnimation(dragX);
         })
         .onUpdate((event) => {
@@ -512,7 +506,7 @@ export function useCarouselHeaderLayers({
               { duration: CAROUSEL_GESTURE_SETTLE_MS },
               (finished) => {
                 if (finished) {
-                  runOnJS(completeReveal)(1);
+                  scheduleOnRN(completeReveal, 1);
                 }
               },
             );
@@ -525,7 +519,7 @@ export function useCarouselHeaderLayers({
               { duration: CAROUSEL_GESTURE_SETTLE_MS },
               (finished) => {
                 if (finished) {
-                  runOnJS(completeReveal)(-1);
+                  scheduleOnRN(completeReveal, -1);
                 }
               },
             );
@@ -535,7 +529,7 @@ export function useCarouselHeaderLayers({
           dragX.value = withTiming(0, { duration: CAROUSEL_CANCEL_SETTLE_MS }, (finished) => {
             if (finished) {
               isGestureAnimating.value = false;
-              runOnJS(hideGestureOverlay)();
+              scheduleOnRN(hideGestureOverlay);
             }
           });
         })
@@ -544,14 +538,14 @@ export function useCarouselHeaderLayers({
             dragX.value = withTiming(0, { duration: CAROUSEL_CANCEL_SETTLE_MS }, (finished) => {
               if (finished) {
                 isGestureAnimating.value = false;
-                runOnJS(hideGestureOverlay)();
+                scheduleOnRN(hideGestureOverlay);
               }
             });
           }
         }),
     [
       autoProgress,
-      canInteract,
+      canReveal,
       cardWidth,
       clearAutoTarget,
       completeReveal,
@@ -565,17 +559,16 @@ export function useCarouselHeaderLayers({
   const tapGesture = useMemo(
     () =>
       Gesture.Tap()
-        .enabled(isFocused)
         .maxDistance(10)
         .onBegin(() => {
           tapStartIndexValue.value = activeIndexValue.value;
           cancelAnimation(autoProgress);
           autoProgress.value = 0;
-          runOnJS(clearAutoTarget)();
+          scheduleOnRN(clearAutoTarget);
         })
         .onEnd((_event, success) => {
           if (success) {
-            runOnJS(handleCarouselItemPressAtIndex)(tapStartIndexValue.value);
+            scheduleOnRN(handleCarouselItemPressAtIndex, tapStartIndexValue.value);
           }
         }),
     [
@@ -583,14 +576,13 @@ export function useCarouselHeaderLayers({
       autoProgress,
       clearAutoTarget,
       handleCarouselItemPressAtIndex,
-      isFocused,
       tapStartIndexValue,
     ],
   );
 
   const carouselGesture = useMemo(
-    () => (canInteract ? Gesture.Exclusive(panGesture, tapGesture) : tapGesture),
-    [canInteract, panGesture, tapGesture],
+    () => (canReveal ? Gesture.Exclusive(panGesture, tapGesture) : tapGesture),
+    [canReveal, panGesture, tapGesture],
   );
 
   const nextRevealStyle = useAnimatedStyle(() => {
@@ -830,7 +822,7 @@ export function useCarouselHeaderLayers({
               </>
             )}
 
-            {isFocused && canReveal && (
+            {canReveal && (
               <View pointerEvents="none" style={styles.preloadLayer}>
                 {preloadIndexes.map((index) => (
                   <CarouselImagePreloader

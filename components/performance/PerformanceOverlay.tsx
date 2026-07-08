@@ -13,12 +13,8 @@ import {
   View,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 const OVERLAY_POSITION_STORAGE_KEY = 'performanceOverlay.position.v1';
 const PANEL_EDGE_PADDING = 8;
@@ -177,7 +173,7 @@ export function PerformanceOverlay() {
           );
         })
         .onEnd(() => {
-          runOnJS(persistOverlayPosition)(translateX.value, translateY.value);
+          scheduleOnRN(persistOverlayPosition, translateX.value, translateY.value);
         }),
     [
       dragStartX,

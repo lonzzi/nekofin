@@ -12,31 +12,8 @@ import { useAppTheme, useMediaHeroHeight } from '@/lib/theme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { InteractionManager, Pressable, StyleSheet, View } from 'react-native';
-
-function useInteractionReadyFocus(isFocused: boolean) {
-  const [isReady, setIsReady] = useState(isFocused);
-
-  useEffect(() => {
-    if (!isFocused) {
-      setIsReady(false);
-      return undefined;
-    }
-
-    let frameId = 0;
-    const interaction = InteractionManager.runAfterInteractions(() => {
-      frameId = requestAnimationFrame(() => setIsReady(true));
-    });
-
-    return () => {
-      interaction.cancel();
-      if (frameId) cancelAnimationFrame(frameId);
-    };
-  }, [isFocused]);
-
-  return isFocused && isReady;
-}
+import { useCallback, useEffect, useMemo } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 export default function HomeScreen() {
   const { servers, currentServer, isInitialized } = useMediaServers();
@@ -49,7 +26,6 @@ export default function HomeScreen() {
 
   const { sections, randomItemsQuery } = useHomeSections(currentServer);
   const isFocused = useIsFocused();
-  const isHomeMediaReady = useInteractionReadyFocus(isFocused);
 
   const carouselItems = useMemo(() => {
     return randomItemsQuery.data ?? [];
@@ -117,7 +93,7 @@ export default function HomeScreen() {
   const { backgroundImageInfo, headerImage, headerOverlay } = useCarouselHeaderLayers({
     items: carouselItems,
     height: carouselHeight,
-    isFocused: isHomeMediaReady,
+    isFocused,
     isLoading: randomItemsQuery.isLoading,
   });
 
