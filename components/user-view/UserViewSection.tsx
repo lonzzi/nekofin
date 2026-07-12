@@ -1,14 +1,20 @@
+import { getHomeRailListConfig } from '@/components/home/homePerformanceConfig';
 import { useAppTheme } from '@/lib/theme';
 import { MediaItem } from '@/services/media/types';
-import React, { useCallback } from 'react';
-import { FlatList, ListRenderItem, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import {
+  FlatList,
+  ListRenderItem,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { SkeletonUserViewCard } from '../ui/Skeleton';
 import { UserViewCard } from './UserViewCard';
 
-const skeletonData = Array.from({ length: 3 });
 const skeletonKeyExtractor = (_: unknown, index: number) => `skeleton-${index}`;
-const renderSkeletonItem = () => <SkeletonUserViewCard />;
 const itemKeyExtractor = (item: MediaItem, index: number) =>
   item.id ? String(item.id) : String(index);
 
@@ -22,18 +28,36 @@ export const UserViewSection = React.memo(function UserViewSection({
   title?: string;
 }) {
   const theme = useAppTheme();
+  const { width: viewportWidth } = useWindowDimensions();
   const userViewItems = userView || [];
+  const listPerformanceConfig = useMemo(
+    () =>
+      getHomeRailListConfig({
+        gap: theme.spacing.md,
+        horizontalPadding: theme.spacing.page,
+        type: 'userView',
+        viewportWidth,
+      }),
+    [theme.spacing.md, theme.spacing.page, viewportWidth],
+  );
+  const skeletonItems = useMemo(
+    () => Array.from({ length: listPerformanceConfig.initialNumToRender }),
+    [listPerformanceConfig.initialNumToRender],
+  );
 
   const renderItem: ListRenderItem<MediaItem> = useCallback(
     ({ item }) => <UserViewCard item={item} title={item.name || '未知标题'} />,
     [],
   );
 
+  const renderSkeletonItem = useCallback(() => <SkeletonUserViewCard />, []);
+
   if (isLoading) {
     return (
       <View>
         <FlatList
-          data={skeletonData}
+          {...listPerformanceConfig}
+          data={skeletonItems}
           horizontal
           keyExtractor={skeletonKeyExtractor}
           removeClippedSubviews={false}
@@ -84,6 +108,7 @@ export const UserViewSection = React.memo(function UserViewSection({
         </Text>
       )}
       <FlatList
+        {...listPerformanceConfig}
         data={userViewItems}
         horizontal
         keyExtractor={itemKeyExtractor}

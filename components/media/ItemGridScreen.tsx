@@ -9,9 +9,8 @@ import { useAppTheme } from '@/lib/theme';
 import { availableFiltersQueryOptions } from '@/services/media/queryOptions';
 import { MediaItem, MediaItemType, MediaSortBy } from '@/services/media/types';
 import { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query';
-import { GlassContainer } from 'expo-glass-effect';
-import { useNavigation } from 'expo-router';
-import { useCallback, useEffect, useMemo } from 'react';
+import { Stack } from 'expo-router';
+import { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -27,6 +26,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import PageScrollView from '../PageScrollView';
 import { FilterButton } from '../ui/FilterButton';
+import { SafeGlassContainer } from '../ui/GlassCard';
 import { SkeletonItemGrid } from '../ui/Skeleton';
 import { dedupeMediaItems, flattenItemGridPages, groupMediaItems } from './itemGridData';
 
@@ -58,7 +58,6 @@ export function ItemGridScreen({
   const { numColumns, itemWidth, gap } = useGridLayout(type);
   const episodeLayout = useGridLayout('episode');
 
-  const navigation = useNavigation();
   const { currentServer } = useMediaServers();
   const mediaAdapter = useMediaAdapter();
 
@@ -133,10 +132,6 @@ export function ItemGridScreen({
     return <View style={{ height: 16 }} />;
   }, [query, isFetchingNextPage, theme.colors.tint]);
 
-  useEffect(() => {
-    navigation.setOptions({ title });
-  }, [navigation, title]);
-
   const patchFilters = useCallback(
     (patch: Partial<MediaFilters>) => onChangeFilters?.({ ...filters, ...patch }),
     [onChangeFilters, filters],
@@ -157,7 +152,7 @@ export function ItemGridScreen({
           ]}
           contentInsetAdjustmentBehavior="never"
         >
-          <GlassContainer spacing={theme.spacing.sm} style={styles.filterRow}>
+          <SafeGlassContainer spacing={theme.spacing.sm} style={styles.filterRow}>
             <FilterButton
               label="类型"
               title="选择类型"
@@ -285,7 +280,7 @@ export function ItemGridScreen({
                 patchFilters({ sortOrder: (v as 'Ascending' | 'Descending') ?? filters?.sortOrder })
               }
             />
-          </GlassContainer>
+          </SafeGlassContainer>
         </ScrollView>
       </View>
     );
@@ -340,110 +335,122 @@ export function ItemGridScreen({
 
   if (query && isLoading) {
     return (
-      <PageScrollView style={[styles.container, { backgroundColor }]}>
-        <SkeletonItemGrid type={type} numColumns={numColumns} itemWidth={itemWidth} gap={gap} />
-      </PageScrollView>
+      <>
+        <Stack.Title>{title}</Stack.Title>
+        <PageScrollView style={[styles.container, { backgroundColor }]}>
+          <SkeletonItemGrid type={type} numColumns={numColumns} itemWidth={itemWidth} gap={gap} />
+        </PageScrollView>
+      </>
     );
   }
 
   if (query && isError) {
     return (
-      <View style={[styles.container, { backgroundColor, paddingTop: insets.top }]}>
-        <View style={styles.errorContainer}>
-          <Text
-            style={[
-              theme.typography.body,
-              styles.errorText,
-              { color: theme.colors.text, marginBottom: theme.spacing.xl },
-            ]}
-          >
-            加载失败，请重试
-          </Text>
-          <Pressable
-            style={{
-              backgroundColor: theme.colors.tint,
-              borderRadius: theme.radius.sm,
-              paddingHorizontal: theme.spacing.xl,
-              paddingVertical: theme.spacing.md,
-            }}
-            onPress={() => {
-              refetch?.();
-            }}
-          >
-            <Text style={[theme.typography.bodyEmphasized, { color: theme.colors.inverseText }]}>
-              重试
+      <>
+        <Stack.Title>{title}</Stack.Title>
+        <View style={[styles.container, { backgroundColor, paddingTop: insets.top }]}>
+          <View style={styles.errorContainer}>
+            <Text
+              style={[
+                theme.typography.body,
+                styles.errorText,
+                { color: theme.colors.text, marginBottom: theme.spacing.xl },
+              ]}
+            >
+              加载失败，请重试
             </Text>
-          </Pressable>
+            <Pressable
+              style={{
+                backgroundColor: theme.colors.tint,
+                borderRadius: theme.radius.sm,
+                paddingHorizontal: theme.spacing.xl,
+                paddingVertical: theme.spacing.md,
+              }}
+              onPress={() => {
+                refetch?.();
+              }}
+            >
+              <Text style={[theme.typography.bodyEmphasized, { color: theme.colors.inverseText }]}>
+                重试
+              </Text>
+            </Pressable>
+          </View>
         </View>
-      </View>
+      </>
     );
   }
 
   if (groupedItems.length === 1) {
     return (
-      <FlatList
-        data={groupedItems[0].items}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        numColumns={numColumns}
-        key={`${groupedItems[0].key}-${numColumns}-cols`}
-        columnWrapperStyle={numColumns > 1 ? { columnGap: gap } : undefined}
-        showsVerticalScrollIndicator={false}
-        contentInsetAdjustmentBehavior="automatic"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        onEndReached={handleEndReached}
-        onEndReachedThreshold={0.4}
+      <>
+        <Stack.Title>{title}</Stack.Title>
+        <FlatList
+          data={groupedItems[0].items}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          numColumns={numColumns}
+          key={`${groupedItems[0].key}-${numColumns}-cols`}
+          columnWrapperStyle={numColumns > 1 ? { columnGap: gap } : undefined}
+          showsVerticalScrollIndicator={false}
+          contentInsetAdjustmentBehavior="automatic"
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.4}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingBottom: Platform.OS === 'android' ? 100 : 0,
+              paddingHorizontal: theme.spacing.page,
+              paddingVertical: theme.spacing.xl,
+              rowGap: theme.spacing.lg,
+            },
+          ]}
+          ListHeaderComponent={renderFilterBar()}
+          ListFooterComponent={listFooter}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={[theme.typography.body, { color: theme.colors.textSecondary }]}>
+                暂无内容
+              </Text>
+            </View>
+          }
+          style={{ backgroundColor }}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Stack.Title>{title}</Stack.Title>
+      <ScrollView
+        style={{ backgroundColor }}
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingBottom: Platform.OS === 'android' ? 100 : 0,
             paddingHorizontal: theme.spacing.page,
             paddingVertical: theme.spacing.xl,
-            rowGap: theme.spacing.lg,
           },
         ]}
-        ListHeaderComponent={renderFilterBar()}
-        ListFooterComponent={listFooter}
-        ListEmptyComponent={
+        showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="automatic"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        {renderFilterBar()}
+
+        {groupedItems.length > 0 ? (
+          groupedItems.map((group) => renderGroupSection(group, true))
+        ) : (
           <View style={styles.emptyContainer}>
             <Text style={[theme.typography.body, { color: theme.colors.textSecondary }]}>
               暂无内容
             </Text>
           </View>
-        }
-        style={{ backgroundColor }}
-      />
-    );
-  }
+        )}
 
-  return (
-    <ScrollView
-      style={{ backgroundColor }}
-      contentContainerStyle={[
-        styles.scrollContent,
-        {
-          paddingHorizontal: theme.spacing.page,
-          paddingVertical: theme.spacing.xl,
-        },
-      ]}
-      showsVerticalScrollIndicator={false}
-      contentInsetAdjustmentBehavior="automatic"
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
-      {renderFilterBar()}
-
-      {groupedItems.length > 0 ? (
-        groupedItems.map((group) => renderGroupSection(group, true))
-      ) : (
-        <View style={styles.emptyContainer}>
-          <Text style={[theme.typography.body, { color: theme.colors.textSecondary }]}>
-            暂无内容
-          </Text>
-        </View>
-      )}
-
-      {listFooter}
-    </ScrollView>
+        {listFooter}
+      </ScrollView>
+    </>
   );
 }
 

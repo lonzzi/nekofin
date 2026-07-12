@@ -1,9 +1,19 @@
+import { getHomeRailListConfig } from '@/components/home/homePerformanceConfig';
 import { useAppTheme } from '@/lib/theme';
 import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useCallback } from 'react';
-import { FlatList, ListRenderItem, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import {
+  FlatList,
+  ListRenderItem,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
+import { SafeGlassContainer } from '../ui/GlassCard';
 import { SkeletonCard, SkeletonSectionHeader } from '../ui/Skeleton';
 import { EpisodeCard, SeriesCard } from './Card';
 
@@ -21,6 +31,21 @@ export const Section = React.memo(function Section({
   type?: 'episode' | 'series';
 }) {
   const theme = useAppTheme();
+  const { width: viewportWidth } = useWindowDimensions();
+  const listPerformanceConfig = useMemo(
+    () =>
+      getHomeRailListConfig({
+        gap: theme.spacing.md,
+        horizontalPadding: theme.spacing.page,
+        type,
+        viewportWidth,
+      }),
+    [theme.spacing.md, theme.spacing.page, type, viewportWidth],
+  );
+  const skeletonItems = useMemo(
+    () => Array.from({ length: listPerformanceConfig.initialNumToRender }),
+    [listPerformanceConfig.initialNumToRender],
+  );
 
   const renderEpisodeItem: ListRenderItem<MediaItem> = useCallback(
     ({ item }) => <EpisodeCard item={item} style={episodeCardStyle} showPlayButton />,
@@ -32,7 +57,53 @@ export const Section = React.memo(function Section({
     [],
   );
 
+  const renderSkeletonItem = useCallback(() => <SkeletonCard type={type} />, [type]);
+
   const renderItem = type === 'episode' ? renderEpisodeItem : renderSeriesItem;
+  const listContent = isLoading ? (
+    <FlatList
+      {...listPerformanceConfig}
+      data={skeletonItems}
+      horizontal
+      removeClippedSubviews={false}
+      showsHorizontalScrollIndicator={false}
+      style={styles.sectionList}
+      contentContainerStyle={[
+        styles.sectionListContent,
+        { gap: theme.spacing.md, paddingHorizontal: theme.spacing.page },
+      ]}
+      renderItem={renderSkeletonItem}
+      keyExtractor={skeletonKeyExtractor}
+    />
+  ) : items.length > 0 ? (
+    <FlatList
+      {...listPerformanceConfig}
+      data={items}
+      horizontal
+      removeClippedSubviews={false}
+      showsHorizontalScrollIndicator={false}
+      style={styles.sectionList}
+      contentContainerStyle={[
+        styles.sectionListContent,
+        { gap: theme.spacing.md, paddingHorizontal: theme.spacing.page },
+      ]}
+      renderItem={renderItem}
+      keyExtractor={itemKeyExtractor}
+    />
+  ) : (
+    <View style={[styles.emptyContainer, { paddingHorizontal: theme.spacing.page }]}>
+      <Text style={[theme.typography.body, { color: theme.colors.textSecondary }]}>暂无内容</Text>
+    </View>
+  );
+
+  const hasListItems = isLoading || items.length > 0;
+  const renderedList = hasListItems ? (
+    <SafeGlassContainer spacing={0} style={styles.glassGroup}>
+      {listContent}
+    </SafeGlassContainer>
+  ) : (
+    listContent
+  );
 
   return (
     <View>
@@ -58,52 +129,14 @@ export const Section = React.memo(function Section({
           </View>
         </Pressable>
       )}
-      {isLoading ? (
-        <FlatList
-          data={skeletonData}
-          horizontal
-          removeClippedSubviews={false}
-          showsHorizontalScrollIndicator={false}
-          style={styles.sectionList}
-          contentContainerStyle={[
-            styles.sectionListContent,
-            { gap: theme.spacing.md, paddingHorizontal: theme.spacing.page },
-          ]}
-          renderItem={renderSkeletonItem}
-          keyExtractor={skeletonKeyExtractor}
-        />
-      ) : items.length > 0 ? (
-        <FlatList
-          data={items}
-          horizontal
-          removeClippedSubviews={false}
-          showsHorizontalScrollIndicator={false}
-          style={styles.sectionList}
-          contentContainerStyle={[
-            styles.sectionListContent,
-            { gap: theme.spacing.md, paddingHorizontal: theme.spacing.page },
-          ]}
-          renderItem={renderItem}
-          keyExtractor={itemKeyExtractor}
-        />
-      ) : (
-        <View style={[styles.emptyContainer, { paddingHorizontal: theme.spacing.page }]}>
-          <Text style={[theme.typography.body, { color: theme.colors.textSecondary }]}>
-            暂无内容
-          </Text>
-        </View>
-      )}
+      {renderedList}
     </View>
   );
 });
 
 const episodeCardStyle = { width: 220 };
-const skeletonData = Array.from({ length: 5 });
-
 const skeletonKeyExtractor = (_: unknown, index: number) => `skeleton-${index}`;
 const itemKeyExtractor = (item: MediaItem) => item.id!;
-const renderSkeletonItem = () => <SkeletonCard type="episode" />;
-
 const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
@@ -129,6 +162,9 @@ const styles = StyleSheet.create({
   sectionListContent: {
     paddingTop: 10,
     paddingBottom: 26,
+    overflow: 'visible',
+  },
+  glassGroup: {
     overflow: 'visible',
   },
   loadingContainer: {

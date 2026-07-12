@@ -1,17 +1,11 @@
 import { Stack } from 'expo-router';
 
-const DEFAULT_SCREEN_OPTIONS = {
-  fullScreenGestureEnabled: false,
-  gestureEnabled: true,
-  headerTitle: '',
-  headerTransparent: true,
-  headerBlurEffect: 'none',
-} as const;
+import { DETAIL_STACK_SCREEN_OPTIONS } from './navigation/nativeStackConfig';
 
 const ROUTE_NAMES = ['series/[id]', 'movie/[id]', 'episode/index'] as const;
 
 export function GroupedStackRoutes() {
   return ROUTE_NAMES.map((name) => (
-    <Stack.Screen key={name} name={name} options={DEFAULT_SCREEN_OPTIONS} />
+    <Stack.Screen key={name} name={name} options={DETAIL_STACK_SCREEN_OPTIONS} />
   ));
 }

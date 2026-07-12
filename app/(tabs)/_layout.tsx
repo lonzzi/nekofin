@@ -1,9 +1,11 @@
 import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
+import { useAppTheme } from '@/lib/theme';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
 export default function TabLayout() {
   const { accentColor } = useAccentColor();
+  const theme = useAppTheme();
 
   return (
     <NativeTabs
@@ -12,7 +14,10 @@ export default function TabLayout() {
       minimizeBehavior="onScrollDown"
       shadowColor="transparent"
     >
-      <NativeTabs.Trigger name="(servers)" contentStyle={{ backgroundColor: 'transparent' }}>
+      <NativeTabs.Trigger
+        name="(servers)"
+        contentStyle={{ backgroundColor: theme.colors.background }}
+      >
         <NativeTabs.Trigger.Label>服务器</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           drawable="storage"

@@ -11,8 +11,8 @@ import {
   searchItemsQueryOptions,
 } from '@/services/media/queryOptions';
 import { MediaItem } from '@/services/media/types';
-import { useNavigation } from 'expo-router';
-import React, { RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Stack } from 'expo-router';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   ListRenderItem,
@@ -31,8 +31,6 @@ export default function ServerSearchScreen() {
   const mediaAdapter = useMediaAdapter();
   const theme = useAppTheme();
   const backgroundColor = theme.colors.background;
-
-  const navigation = useNavigation();
 
   const searchBarRef = useRef<SearchBarCommands>(null);
 
@@ -100,102 +98,115 @@ export default function ServerSearchScreen() {
     [theme.spacing.lg],
   );
 
-  useEffect(() => {
-    navigation.setOptions({
-      headerSearchBarOptions: {
-        ref: searchBarRef as RefObject<SearchBarCommands>,
-        placeholder: currentServer?.name
-          ? `搜索 ${currentServer.name} 中的影片、剧集`
-          : '搜索影片、剧集',
-        onChangeText: (t: TextInputChangeEvent) => {
-          const text = t.nativeEvent.text;
+  const header = (
+    <>
+      <Stack.Title>{effectiveKeyword.length === 0 ? '推荐' : '搜索'}</Stack.Title>
+      <Stack.SearchBar
+        ref={searchBarRef}
+        placeholder={
+          currentServer?.name ? `搜索 ${currentServer.name} 中的影片、剧集` : '搜索影片、剧集'
+        }
+        onChangeText={(event: TextInputChangeEvent) => {
+          const text = event.nativeEvent.text;
           if (text.length === 0) {
             setSelected('');
           }
           setKeyword(text);
-        },
-        onCancelButtonPress: () => {
+        }}
+        onCancelButtonPress={() => {
           setKeyword('');
           setSelected('');
-        },
-        hideWhenScrolling: false,
-        cancelButtonText: '取消',
-      },
-    });
-  }, [currentServer?.name, navigation, searchBarRef]);
+        }}
+        hideWhenScrolling={false}
+        cancelButtonText="取消"
+      />
+    </>
+  );
 
   if (effectiveKeyword.length === 0) {
-    return <ItemGridScreen title="推荐" data={recommendedData} type="series" disableGrouping />;
+    return (
+      <>
+        {header}
+        <ItemGridScreen title="推荐" data={recommendedData} type="series" disableGrouping />
+      </>
+    );
   }
 
   return (
-    <PageScrollView style={[styles.container, { backgroundColor }]}>
-      {loadingResults && <SkeletonHorizontalSection title="加载中" />}
+    <>
+      {header}
+      <PageScrollView style={[styles.container, { backgroundColor }]}>
+        {loadingResults && <SkeletonHorizontalSection title="加载中" />}
 
-      {groupedResults.length === 0 && !loadingResults && (
-        <View style={styles.emptyContainer}>
-          <Text
-            style={[
-              theme.typography.footnote,
-              styles.emptyText,
-              { color: theme.colors.textSecondary, marginBottom: theme.spacing.sm },
-            ]}
-          >
-            没有找到相关内容
-          </Text>
-          {isResultsError && (
-            <Pressable
+        {groupedResults.length === 0 && !loadingResults && (
+          <View style={styles.emptyContainer}>
+            <Text
               style={[
-                styles.retryButton,
+                theme.typography.footnote,
+                styles.emptyText,
+                { color: theme.colors.textSecondary, marginBottom: theme.spacing.sm },
+              ]}
+            >
+              没有找到相关内容
+            </Text>
+            {isResultsError && (
+              <Pressable
+                style={[
+                  styles.retryButton,
+                  {
+                    borderColor: theme.colors.tint,
+                    borderRadius: theme.radius.sm,
+                    paddingHorizontal: theme.spacing.lg,
+                    paddingVertical: theme.spacing.sm,
+                  },
+                ]}
+                onPress={() => refetch()}
+              >
+                <Text
+                  style={[
+                    theme.typography.footnote,
+                    styles.retryText,
+                    { color: theme.colors.tint },
+                  ]}
+                >
+                  重试
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+
+        {groupedResults.map((group) => (
+          <View key={group.key} style={{ paddingTop: theme.spacing.sm }}>
+            <Text
+              style={[
+                theme.typography.bodyEmphasized,
+                styles.sectionTitle,
                 {
-                  borderColor: theme.colors.tint,
-                  borderRadius: theme.radius.sm,
+                  color: theme.colors.text,
+                  marginBottom: theme.spacing.sm,
                   paddingHorizontal: theme.spacing.lg,
-                  paddingVertical: theme.spacing.sm,
                 },
               ]}
-              onPress={() => refetch()}
             >
-              <Text
-                style={[theme.typography.footnote, styles.retryText, { color: theme.colors.tint }]}
-              >
-                重试
-              </Text>
-            </Pressable>
-          )}
-        </View>
-      )}
-
-      {groupedResults.map((group) => (
-        <View key={group.key} style={{ paddingTop: theme.spacing.sm }}>
-          <Text
-            style={[
-              theme.typography.bodyEmphasized,
-              styles.sectionTitle,
-              {
-                color: theme.colors.text,
-                marginBottom: theme.spacing.sm,
+              {group.title}
+            </Text>
+            <FlatList
+              data={group.items}
+              renderItem={renderItem}
+              keyExtractor={keyExtractor}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
                 paddingHorizontal: theme.spacing.lg,
-              },
-            ]}
-          >
-            {group.title}
-          </Text>
-          <FlatList
-            data={group.items}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{
-              paddingHorizontal: theme.spacing.lg,
-              paddingVertical: theme.spacing.md,
-            }}
-            ItemSeparatorComponent={itemSeparator}
-          />
-        </View>
-      ))}
-    </PageScrollView>
+                paddingVertical: theme.spacing.md,
+              }}
+              ItemSeparatorComponent={itemSeparator}
+            />
+          </View>
+        ))}
+      </PageScrollView>
+    </>
   );
 }
 

@@ -17,6 +17,7 @@ type HomeAtmosphereBackdropProps = {
   blurhash?: string;
   imageUrl?: string;
   isDark: boolean;
+  optimizeImageLoading?: boolean;
 };
 
 export function HomeAtmosphereBackdrop({
@@ -24,10 +25,14 @@ export function HomeAtmosphereBackdrop({
   blurhash,
   imageUrl,
   isDark,
+  optimizeImageLoading = false,
 }: HomeAtmosphereBackdropProps) {
   const imageOpacity = isDark ? 0.42 : 0.58;
   const source = useMemo(() => (imageUrl ? { uri: imageUrl } : undefined), [imageUrl]);
   const placeholder = useMemo(() => (blurhash ? { blurhash } : undefined), [blurhash]);
+  const imageLoadingProps = optimizeImageLoading
+    ? ({ enforceEarlyResizing: true, priority: 'low' } as const)
+    : ({ transition: 260 } as const);
 
   const atmosphereGradient = useMemo(
     () =>
@@ -54,19 +59,17 @@ export function HomeAtmosphereBackdrop({
   return (
     <View style={[styles.backdrop, { backgroundColor }]}>
       {!!imageUrl && (
-        <>
-          <Image
-            source={source}
-            style={[styles.baseImage, { opacity: imageOpacity }]}
-            placeholder={placeholder}
-            cachePolicy="memory-disk"
-            contentFit="cover"
-            contentPosition="center"
-            blurRadius={60}
-            recyclingKey={imageUrl}
-            transition={260}
-          />
-        </>
+        <Image
+          source={source}
+          style={[styles.baseImage, { opacity: imageOpacity }]}
+          placeholder={placeholder}
+          cachePolicy="memory-disk"
+          contentFit="cover"
+          contentPosition="center"
+          blurRadius={60}
+          recyclingKey={imageUrl}
+          {...imageLoadingProps}
+        />
       )}
       <LinearGradient
         colors={getGradientColors(atmosphereGradient.colors)}

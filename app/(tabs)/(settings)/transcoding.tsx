@@ -6,8 +6,8 @@ import {
 } from '@/components/ui/NativeSettings';
 import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { storage } from '@/lib/storage';
-import { useNavigation } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { Stack } from 'expo-router';
+import { useState } from 'react';
 
 const bitrateOptions = [
   { title: '1 Mbps', value: '1000000' },
@@ -37,8 +37,6 @@ const videoOrientationOptions = [
 ];
 
 export default function TranscodingSettingsScreen() {
-  const navigation = useNavigation();
-
   const [enableTranscoding, setEnableTranscoding] = useState(
     storage.getBoolean('enableTranscoding') ?? false,
   );
@@ -50,12 +48,6 @@ export default function TranscodingSettingsScreen() {
   const [videoOrientation, setVideoOrientation] = useState(
     storage.getString('videoOrientation') ?? 'landscape',
   );
-
-  useEffect(() => {
-    navigation.setOptions({
-      headerLargeTitle: true,
-    });
-  }, [navigation]);
 
   const handleBitrateChange = (value: string) => {
     const bitrateValue = parseInt(value, 10);
@@ -84,48 +76,51 @@ export default function TranscodingSettingsScreen() {
   };
 
   return (
-    <NativeSettingsForm testID="transcoding-settings-form">
-      <NativeSettingsSection title="播放设置">
-        <NativeSettingsPicker
-          title={<SettingsTitle>视频方向</SettingsTitle>}
-          value={videoOrientation}
-          options={videoOrientationOptions}
-          onValueChange={handleVideoOrientationChange}
-        />
-      </NativeSettingsSection>
+    <>
+      <Stack.Title large>转码设置</Stack.Title>
+      <NativeSettingsForm testID="transcoding-settings-form">
+        <NativeSettingsSection title="播放设置">
+          <NativeSettingsPicker
+            title={<SettingsTitle>视频方向</SettingsTitle>}
+            value={videoOrientation}
+            options={videoOrientationOptions}
+            onValueChange={handleVideoOrientationChange}
+          />
+        </NativeSettingsSection>
 
-      <NativeSettingsSection title="转码设置">
-        <NativeSettingsSwitch
-          title={<SettingsTitle>启用转码</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary="当设备无法直接播放时启用转码" />}
-          value={enableTranscoding}
-          onValueChange={handleTranscodingToggle}
-        />
-        <NativeSettingsPicker
-          disabled={!enableTranscoding}
-          title={<SettingsTitle>最大码率</SettingsTitle>}
-          value={maxBitrate.toString()}
-          options={bitrateOptions}
-          onValueChange={handleBitrateChange}
-        />
-        <NativeSettingsSwitch
-          disabled={!enableTranscoding}
-          title={<SettingsTitle>字幕烧录</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary="转码时将字幕烧录到视频中" />}
-          value={enableSubtitleBurnIn}
-          onValueChange={handleSubtitleBurnInToggle}
-        />
-      </NativeSettingsSection>
+        <NativeSettingsSection title="转码设置">
+          <NativeSettingsSwitch
+            title={<SettingsTitle>启用转码</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary="当设备无法直接播放时启用转码" />}
+            value={enableTranscoding}
+            onValueChange={handleTranscodingToggle}
+          />
+          <NativeSettingsPicker
+            disabled={!enableTranscoding}
+            title={<SettingsTitle>最大码率</SettingsTitle>}
+            value={maxBitrate.toString()}
+            options={bitrateOptions}
+            onValueChange={handleBitrateChange}
+          />
+          <NativeSettingsSwitch
+            disabled={!enableTranscoding}
+            title={<SettingsTitle>字幕烧录</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary="转码时将字幕烧录到视频中" />}
+            value={enableSubtitleBurnIn}
+            onValueChange={handleSubtitleBurnInToggle}
+          />
+        </NativeSettingsSection>
 
-      <NativeSettingsSection title="编码设置">
-        <NativeSettingsPicker
-          disabled={!enableTranscoding}
-          title={<SettingsTitle>编码器</SettingsTitle>}
-          value={selectedCodec}
-          options={codecOptions}
-          onValueChange={handleCodecSelection}
-        />
-      </NativeSettingsSection>
-    </NativeSettingsForm>
+        <NativeSettingsSection title="编码设置">
+          <NativeSettingsPicker
+            disabled={!enableTranscoding}
+            title={<SettingsTitle>编码器</SettingsTitle>}
+            value={selectedCodec}
+            options={codecOptions}
+            onValueChange={handleCodecSelection}
+          />
+        </NativeSettingsSection>
+      </NativeSettingsForm>
+    </>
   );
 }

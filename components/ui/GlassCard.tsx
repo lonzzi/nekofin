@@ -1,15 +1,18 @@
-import { useAppTheme } from '@/lib/theme';
-import { GlassView, isLiquidGlassAvailable, type GlassViewProps } from 'expo-glass-effect';
+import {
+  GlassContainer as ExpoGlassContainer,
+  GlassView,
+  isGlassEffectAPIAvailable,
+  isLiquidGlassAvailable,
+  type GlassContainerProps,
+  type GlassViewProps,
+} from 'expo-glass-effect';
 import { PropsWithChildren } from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 type GlassCardProps = PropsWithChildren<
   Omit<GlassViewProps, 'children' | 'style'> & {
-    disableLiquidGlass?: boolean;
     fallbackBackgroundColor?: string;
     radius?: number;
-    rimStyle?: StyleProp<ViewStyle>;
-    showRim?: boolean;
     style?: StyleProp<ViewStyle>;
   }
 >;
@@ -27,38 +30,36 @@ export function GlassShadow({ children, radius = 12, style }: GlassShadowProps) 
   return <View style={[styles.shadow, { borderRadius: radius }, style]}>{children}</View>;
 }
 
+export function SafeGlassContainer({ spacing, ...props }: GlassContainerProps) {
+  const useLiquidGlass = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
+
+  if (!useLiquidGlass) {
+    return <View {...props} />;
+  }
+
+  return <ExpoGlassContainer spacing={spacing} {...props} />;
+}
+
 export function GlassCard({
   children,
-  disableLiquidGlass = false,
   fallbackBackgroundColor,
   glassEffectStyle = 'regular',
   radius = 12,
-  rimStyle,
-  showRim,
   style,
   tintColor = 'rgba(255,255,255,0.10)',
   ...props
 }: GlassCardProps) {
-  const theme = useAppTheme();
-  const useLiquidGlass = !disableLiquidGlass && isLiquidGlassAvailable();
+  const useLiquidGlass = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
   const radiusStyle = { borderRadius: radius };
-  const shouldShowRim = showRim ?? !useLiquidGlass;
   const surfaceStyle = [
     styles.surface,
     radiusStyle,
-    !useLiquidGlass && { backgroundColor: fallbackBackgroundColor ?? theme.colors.surface },
+    !useLiquidGlass && { backgroundColor: fallbackBackgroundColor ?? 'transparent' },
     style,
   ];
 
   if (!useLiquidGlass) {
-    return (
-      <View style={surfaceStyle}>
-        {shouldShowRim ? (
-          <View pointerEvents="none" style={[styles.rim, radiusStyle, rimStyle]} />
-        ) : null}
-        {children}
-      </View>
-    );
+    return <View style={surfaceStyle}>{children}</View>;
   }
 
   return (
@@ -68,9 +69,6 @@ export function GlassCard({
       tintColor={tintColor}
       {...props}
     >
-      {shouldShowRim ? (
-        <View pointerEvents="none" style={[styles.rim, radiusStyle, rimStyle]} />
-      ) : null}
       {children}
     </GlassView>
   );
@@ -92,18 +90,6 @@ const styles = StyleSheet.create({
   surface: {
     borderCurve: 'continuous',
     overflow: 'hidden',
-  },
-  rim: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    zIndex: 2,
-    borderCurve: 'continuous',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.68)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   shadow: {
     borderCurve: 'continuous',

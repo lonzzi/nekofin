@@ -15,8 +15,8 @@ import { MediaItem, MediaServerInfo } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
 import { queryOptions } from '@tanstack/react-query';
-import { useNavigation } from 'expo-router';
-import React, { RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Stack } from 'expo-router';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -95,7 +95,6 @@ export default function AggregateSearchScreen() {
   const { servers, setCurrentServer } = useMediaServers();
   const [keyword, setKeyword] = useState('');
   const theme = useAppTheme();
-  const navigation = useNavigation();
   const router = useTracedRouter('aggregate-search');
   const searchBarRef = useRef<SearchBarCommands>(null);
 
@@ -115,20 +114,18 @@ export default function AggregateSearchScreen() {
     }),
   );
 
-  useEffect(() => {
-    navigation.setOptions({
-      headerSearchBarOptions: {
-        ref: searchBarRef as RefObject<SearchBarCommands>,
-        placeholder: '搜索所有服务器',
-        onChangeText: (event: TextInputChangeEvent) => {
-          setKeyword(event.nativeEvent.text);
-        },
-        onCancelButtonPress: () => setKeyword(''),
-        hideWhenScrolling: false,
-        cancelButtonText: '取消',
-      },
-    });
-  }, [navigation]);
+  const searchBar = (
+    <Stack.SearchBar
+      ref={searchBarRef}
+      placeholder="搜索所有服务器"
+      onChangeText={(event: TextInputChangeEvent) => {
+        setKeyword(event.nativeEvent.text);
+      }}
+      onCancelButtonPress={() => setKeyword('')}
+      hideWhenScrolling={false}
+      cancelButtonText="取消"
+    />
+  );
 
   const handleOpenResult = useCallback(
     (result: AggregateSearchResult) => {
@@ -194,77 +191,86 @@ export default function AggregateSearchScreen() {
 
   if (effectiveKeyword.length === 0) {
     return (
-      <View style={[styles.emptyContainer, { backgroundColor: theme.colors.background }]}>
-        <Ionicons name="search" size={34} color={theme.colors.textTertiary} />
-        <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>搜索所有服务器</Text>
-        <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-          已连接 {servers.length} 个服务器，输入关键词后会聚合 Jellyfin 和 Emby 结果。
-        </Text>
-      </View>
+      <>
+        {searchBar}
+        <View style={[styles.emptyContainer, { backgroundColor: theme.colors.background }]}>
+          <Ionicons name="search" size={34} color={theme.colors.textTertiary} />
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>搜索所有服务器</Text>
+          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
+            已连接 {servers.length} 个服务器，输入关键词后会聚合 Jellyfin 和 Emby 结果。
+          </Text>
+        </View>
+      </>
     );
   }
 
   if (results.length === 0) {
     return (
-      <View style={[styles.emptyContainer, { backgroundColor: theme.colors.background }]}>
-        {isLoading ? (
-          <ActivityIndicator color={theme.colors.tint} />
-        ) : (
-          <>
-            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>没有找到内容</Text>
-            {isError ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => refetch()}
-                style={({ pressed }) => [
-                  styles.retryButton,
-                  { borderColor: theme.colors.separator },
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={[styles.retryText, { color: theme.colors.tint }]}>重试</Text>
-              </Pressable>
-            ) : null}
-          </>
-        )}
-      </View>
+      <>
+        {searchBar}
+        <View style={[styles.emptyContainer, { backgroundColor: theme.colors.background }]}>
+          {isLoading ? (
+            <ActivityIndicator color={theme.colors.tint} />
+          ) : (
+            <>
+              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>没有找到内容</Text>
+              {isError ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => refetch()}
+                  style={({ pressed }) => [
+                    styles.retryButton,
+                    { borderColor: theme.colors.separator },
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={[styles.retryText, { color: theme.colors.tint }]}>重试</Text>
+                </Pressable>
+              ) : null}
+            </>
+          )}
+        </View>
+      </>
     );
   }
 
   return (
-    <PageScrollView
-      style={{ flex: 1, backgroundColor: theme.colors.background }}
-      contentContainerStyle={styles.listContent}
-    >
-      <View style={styles.listHeader}>
-        <Text style={[styles.countText, { color: theme.colors.textSecondary }]}>
-          {isFetching ? '搜索中' : `${results.length} 个结果`}
-        </Text>
-      </View>
-      {groupedResults.map((group) => (
-        <View key={group.server.id} style={styles.serverGroup}>
-          <View style={styles.groupTitleRow}>
-            <Text numberOfLines={1} style={[styles.groupTitle, { color: theme.colors.text }]}>
-              {group.server.name}
-            </Text>
-            <View style={[styles.serverPill, { backgroundColor: theme.colors.surfaceMuted }]}>
-              <Text style={[styles.serverPillText, { color: theme.colors.textSecondary }]}>
-                {group.server.type.toUpperCase()} · {group.items.length}
-              </Text>
-            </View>
-          </View>
-          <FlatList
-            data={group.items}
-            renderItem={renderCard}
-            keyExtractor={(item) => item.key}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.cardRow}
-            ItemSeparatorComponent={cardSeparator}
-          />
+    <>
+      {searchBar}
+      <PageScrollView
+        style={{ flex: 1, backgroundColor: theme.colors.background }}
+        contentContainerStyle={styles.listContent}
+      >
+        <View style={styles.listHeader}>
+          <Text style={[styles.countText, { color: theme.colors.textSecondary }]}>
+            {isFetching ? '搜索中' : `${results.length} 个结果`}
+          </Text>
         </View>
-      ))}
-    </PageScrollView>
+        {groupedResults.map((group) => (
+          <View key={group.server.id} style={styles.serverGroup}>
+            <View style={styles.groupTitleRow}>
+              <Text numberOfLines={1} style={[styles.groupTitle, { color: theme.colors.text }]}>
+                {group.server.name}
+              </Text>
+              <View style={[styles.serverPill, { backgroundColor: theme.colors.surfaceMuted }]}>
+                <Text style={[styles.serverPillText, { color: theme.colors.textSecondary }]}>
+                  {group.server.type.toUpperCase()} · {group.items.length}
+                </Text>
+              </View>
+            </View>
+            <FlatList
+              data={group.items}
+              renderItem={renderCard}
+              keyExtractor={(item) => item.key}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.cardRow}
+              ItemSeparatorComponent={cardSeparator}
+            />
+          </View>
+        ))}
+      </PageScrollView>
+    </>
   );
 }
 

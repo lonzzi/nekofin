@@ -8,6 +8,7 @@ import { Platform } from 'react-native';
 export default function ServersLayout() {
   const theme = useAppTheme();
   const backgroundColor = theme.colors.backgroundGrouped;
+  const libraryBackgroundColor = theme.colors.background;
   const stackScreenListeners = usePerformanceStackScreenListeners('servers');
 
   return (
@@ -39,7 +40,7 @@ export default function ServersLayout() {
         options={{
           title: '',
           contentStyle: {
-            backgroundColor: 'transparent',
+            backgroundColor: libraryBackgroundColor,
           },
           headerBlurEffect: 'none',
           headerShadowVisible: false,
@@ -81,13 +82,13 @@ export default function ServersLayout() {
       <Stack.Screen
         name="server-config/[serverId]"
         options={{
-          headerTitle: '服务器配置',
+          title: '服务器配置',
         }}
       />
       <Stack.Screen
         name="add-server/[serverType]"
         options={{
-          headerTitle: '添加服务器',
+          title: '添加服务器',
         }}
       />
     </Stack>

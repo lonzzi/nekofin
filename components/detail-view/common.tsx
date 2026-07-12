@@ -4,7 +4,7 @@ import { formatChineseDurationFromTicks, formatRating } from '@/lib/utils';
 import { MediaItem } from '@/services/media/types';
 import { BottomSheet, RNHostView } from '@expo/ui';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { isLiquidGlassAvailable } from 'expo-glass-effect';
+import { isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextLayoutEvent, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -40,7 +40,7 @@ export const PlayButton = ({ item }: { item: MediaItem }) => {
   const router = useTracedRouter('detail-play');
   const theme = useAppTheme();
   const accentColor = theme.colors.tint;
-  const useLiquidGlass = isLiquidGlassAvailable();
+  const useLiquidGlass = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
   const textColor = useLiquidGlass ? accentColor : theme.colors.inverseText;
   const durationLabel = formatChineseDurationFromTicks(item.runTimeTicks, { largest: 2 });
   const buttonLabel = durationLabel ? `播放 · ${durationLabel}` : '播放';
@@ -80,7 +80,6 @@ export const PlayButton = ({ item }: { item: MediaItem }) => {
       ]}
       isInteractive
       tintColor={useLiquidGlass ? `${accentColor}18` : undefined}
-      rimStyle={detailViewStyles.playButtonRim}
     >
       {progressPercent > 0 && (
         <Animated.View
@@ -137,11 +136,7 @@ export const ItemMeta = ({ item }: { item: MediaItem }) => {
   if (!ratingText && !yearText) return null;
 
   return (
-    <GlassCard
-      radius={radius.pill}
-      style={detailViewStyles.metaPill}
-      rimStyle={detailViewStyles.metaPillRim}
-    >
+    <GlassCard radius={radius.pill} style={detailViewStyles.metaPill}>
       <Text style={[detailViewStyles.meta, { color: textColor }]}>
         {ratingText ? (
           <>
@@ -311,11 +306,7 @@ export const ItemInfoList = ({ item }: { item: MediaItem }) => {
   if (infoRows.length === 0) return null;
 
   return (
-    <GlassCard
-      radius={radius.lg}
-      style={detailViewStyles.infoBlock}
-      rimStyle={detailViewStyles.infoBlockRim}
-    >
+    <GlassCard radius={radius.lg} style={detailViewStyles.infoBlock}>
       {infoRows.map((row) => (
         <View key={row.label} style={detailViewStyles.infoRow}>
           <Text style={[detailViewStyles.infoLabel, { color: subtitleColor }]}>{row.label}</Text>

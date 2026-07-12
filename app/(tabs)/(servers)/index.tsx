@@ -1,14 +1,19 @@
 import { AvatarImage } from '@/components/AvatarImage';
+import {
+  ADD_SERVER_MENU_ACTIONS,
+  ADD_SERVER_TOOLBAR_ACTION,
+} from '@/components/navigation/nativeHeaderModel';
+import { getNativeToolbarIcon } from '@/components/navigation/nativeToolbarIcons';
 import PageScrollView from '@/components/PageScrollView';
 import { AddServerMenu } from '@/components/servers/AddServerMenu';
-import { GlassCard, ShadowedGlassCard } from '@/components/ui/GlassCard';
+import { GlassCard, SafeGlassContainer, ShadowedGlassCard } from '@/components/ui/GlassCard';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/theme';
 import { MediaServerInfo, type MediaServerType } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from 'expo-router';
+import { Stack, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Alert,
@@ -112,10 +117,6 @@ function getServerCardChrome(isDark: boolean) {
   return {
     fallbackBackgroundColor: isDark ? 'rgba(28, 28, 30, 0.72)' : undefined,
     tintColor: isDark ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.10)',
-    rimStyle: {
-      borderColor: isDark ? 'rgba(255,255,255,0.13)' : 'rgba(255,255,255,0.68)',
-      backgroundColor: isDark ? 'rgba(255,255,255,0.015)' : 'rgba(255,255,255,0.03)',
-    },
   };
 }
 
@@ -194,9 +195,9 @@ function ServerCardAction({
 
   return (
     <GlassCard
+      isInteractive
       radius={15}
       fallbackBackgroundColor={chrome.fallbackBackgroundColor}
-      rimStyle={chrome.rimStyle}
       style={styles.iconAction}
       tintColor={theme.isDark ? 'rgba(255,255,255,0.06)' : chrome.tintColor}
     >
@@ -238,7 +239,6 @@ function ServerCard({
     <GlassCard
       radius={22}
       fallbackBackgroundColor={chrome.fallbackBackgroundColor}
-      rimStyle={chrome.rimStyle}
       style={styles.serverCard}
       tintColor={chrome.tintColor}
     >
@@ -285,14 +285,14 @@ function ServerCard({
         <Text style={[styles.ageText, { color: theme.colors.textSecondary }]}>
           {formatServerAge(server.createdAt)}
         </Text>
-        <View style={styles.footerActions}>
+        <SafeGlassContainer spacing={8} style={styles.footerActions}>
           <ServerCardAction accessibilityLabel={`配置 ${server.name}`} onPress={onConfig}>
             <Ionicons name="settings-outline" size={16} color={theme.colors.textSecondary} />
           </ServerCardAction>
           <ServerCardAction accessibilityLabel={`删除 ${server.name}`} onPress={onRemove}>
             <Ionicons name="trash-outline" size={16} color={theme.colors.danger} />
           </ServerCardAction>
-        </View>
+        </SafeGlassContainer>
       </View>
     </GlassCard>
   );
@@ -338,12 +338,6 @@ export default function ServersScreen() {
   );
 
   useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => <AddServerMenu onSelect={openAddServer} />,
-    });
-  }, [navigation, openAddServer]);
-
-  useEffect(() => {
     const removeFocusListener = navigation.addListener('focus', () => setIsFocused(true));
     const removeBlurListener = navigation.addListener('blur', () => setIsFocused(false));
 
@@ -367,51 +361,71 @@ export default function ServersScreen() {
   };
 
   return (
-    <PageScrollView
-      style={{ backgroundColor: theme.colors.backgroundGrouped }}
-      contentContainerStyle={styles.container}
-    >
-      <View style={styles.headerRow}>
-        <View>
-          <CardText variant="body">{`${servers.length} 个服务器账号`}</CardText>
-        </View>
-      </View>
-
-      {sortedServers.length > 0 ? (
-        <View style={[styles.serverGrid, { gap: serverGridGap }]}>
-          {sortedServers.map((server) => (
-            <View key={server.id} style={serverCardSlotStyle}>
-              <ServerCard
-                server={server}
-                isCurrent={currentServer?.id === server.id}
-                isScreenFocused={isFocused}
-                onOpen={() => {
-                  setCurrentServer(server);
-                  router.push('/(tabs)/(servers)/library');
-                }}
-                onConfig={() =>
-                  router.push({
-                    pathname: '/(tabs)/(servers)/server-config/[serverId]',
-                    params: { serverId: server.id },
-                  })
-                }
-                onRemove={() => handleRemoveServer(server)}
-              />
-            </View>
-          ))}
-        </View>
-      ) : (
-        <ShadowedGlassCard
-          radius={24}
-          containerStyle={styles.emptyCardShadow}
-          style={styles.emptyCard}
+    <>
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Menu
+          accessibilityLabel={ADD_SERVER_TOOLBAR_ACTION.label}
+          icon={getNativeToolbarIcon(
+            ADD_SERVER_TOOLBAR_ACTION.androidDrawable,
+            ADD_SERVER_TOOLBAR_ACTION.iosIcon,
+          )}
         >
-          <CardText variant="title">还没有服务器</CardText>
-          <CardText lines={2}>添加 Jellyfin 或 Emby 账号后，就可以浏览媒体库和播放记录。</CardText>
-          <AddServerMenu onSelect={openAddServer} variant="text" />
-        </ShadowedGlassCard>
-      )}
-    </PageScrollView>
+          <Stack.Toolbar.Label>{ADD_SERVER_TOOLBAR_ACTION.label}</Stack.Toolbar.Label>
+          {ADD_SERVER_MENU_ACTIONS.map((action) => (
+            <Stack.Toolbar.MenuAction key={action.key} onPress={() => openAddServer(action.key)}>
+              {action.label}
+            </Stack.Toolbar.MenuAction>
+          ))}
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
+      <PageScrollView
+        style={{ backgroundColor: theme.colors.backgroundGrouped }}
+        contentContainerStyle={styles.container}
+      >
+        <View style={styles.headerRow}>
+          <View>
+            <CardText variant="body">{`${servers.length} 个服务器账号`}</CardText>
+          </View>
+        </View>
+
+        {sortedServers.length > 0 ? (
+          <View style={[styles.serverGrid, { gap: serverGridGap }]}>
+            {sortedServers.map((server) => (
+              <View key={server.id} style={serverCardSlotStyle}>
+                <ServerCard
+                  server={server}
+                  isCurrent={currentServer?.id === server.id}
+                  isScreenFocused={isFocused}
+                  onOpen={() => {
+                    setCurrentServer(server);
+                    router.push('/(tabs)/(servers)/library');
+                  }}
+                  onConfig={() =>
+                    router.push({
+                      pathname: '/(tabs)/(servers)/server-config/[serverId]',
+                      params: { serverId: server.id },
+                    })
+                  }
+                  onRemove={() => handleRemoveServer(server)}
+                />
+              </View>
+            ))}
+          </View>
+        ) : (
+          <ShadowedGlassCard
+            radius={24}
+            containerStyle={styles.emptyCardShadow}
+            style={styles.emptyCard}
+          >
+            <CardText variant="title">还没有服务器</CardText>
+            <CardText lines={2}>
+              添加 Jellyfin 或 Emby 账号后，就可以浏览媒体库和播放记录。
+            </CardText>
+            <AddServerMenu onSelect={openAddServer} variant="text" />
+          </ShadowedGlassCard>
+        )}
+      </PageScrollView>
+    </>
   );
 }
 

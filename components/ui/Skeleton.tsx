@@ -404,7 +404,7 @@ function SkeletonDetailInfoCard() {
   const theme = useAppTheme();
 
   return (
-    <GlassCard radius={theme.radius.lg} style={styles.detailInfo} rimStyle={styles.detailInfoRim}>
+    <GlassCard radius={theme.radius.lg} style={styles.detailInfo}>
       {Array.from({ length: 6 }).map((_, index) => (
         <View key={index} style={styles.detailInfoRow}>
           <Skeleton

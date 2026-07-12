@@ -372,7 +372,6 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
                 borderColor: theme.colors.danger,
               },
             ]}
-            rimStyle={styles.errorCardRim}
           >
             <Ionicons name="alert-circle-outline" size={20} color={theme.colors.danger} />
             <Text style={[styles.errorText, { color: theme.colors.danger }]}>{formError}</Text>

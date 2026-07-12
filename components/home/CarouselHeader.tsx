@@ -1,3 +1,4 @@
+import { HOME_CAROUSEL_IMAGE_WIDTHS } from '@/components/home/homePerformanceConfig';
 import { ItemImage } from '@/components/ItemImage';
 import { ThemedText } from '@/components/ThemedText';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -30,14 +31,16 @@ interface CarouselHeaderProps {
 }
 
 type CarouselImageInfo = {
+  atmosphere?: {
+    blurhash?: string;
+    imageUrl?: string;
+  };
   imageUrl?: string;
   blurhash?: string;
   logoImageUrl?: string;
 };
 
 type RevealDirection = -1 | 1;
-
-const CAROUSEL_HERO_IMAGE_WIDTH = 1000;
 
 function getCarouselItemKey(item: MediaItem, index: number) {
   return item.id ?? `${item.type}-${item.seriesId ?? index}`;
@@ -287,7 +290,15 @@ export function useCarouselHeaderLayers({
         opts: {
           preferBackdrop: true,
           preferThumb: true,
-          width: CAROUSEL_HERO_IMAGE_WIDTH,
+          width: HOME_CAROUSEL_IMAGE_WIDTHS.hero,
+        },
+      });
+      const atmosphereImageInfo = mediaAdapter.getImageInfo({
+        item,
+        opts: {
+          preferBackdrop: true,
+          preferThumb: true,
+          width: HOME_CAROUSEL_IMAGE_WIDTHS.atmosphere,
         },
       });
       const logoImageInfo = showLogo
@@ -297,6 +308,10 @@ export function useCarouselHeaderLayers({
           })
         : null;
       return {
+        atmosphere: {
+          blurhash: atmosphereImageInfo.blurhash ?? imageInfo.blurhash,
+          imageUrl: atmosphereImageInfo.url || imageInfo.url,
+        },
         imageUrl: imageInfo.url,
         blurhash: imageInfo.blurhash,
         logoImageUrl: logoImageInfo?.url?.replace('Primary', 'Logo'),
@@ -712,9 +727,13 @@ export function useCarouselHeaderLayers({
 
   useEffect(() => {
     if (!isFocused) return;
-    const imageUrls = carouselImageInfos
-      .map((imageInfo) => imageInfo.imageUrl)
-      .filter((imageUrl): imageUrl is string => Boolean(imageUrl));
+    const imageUrls = Array.from(
+      new Set(
+        carouselImageInfos
+          .flatMap((imageInfo) => [imageInfo.imageUrl, imageInfo.atmosphere?.imageUrl])
+          .filter((imageUrl): imageUrl is string => Boolean(imageUrl)),
+      ),
+    );
     if (imageUrls.length === 0) return;
 
     const warmDiskUrls = imageUrls.filter(
@@ -884,7 +903,7 @@ export function useCarouselHeaderLayers({
     ) : null;
 
   return {
-    backgroundImageInfo: currentImageInfo,
+    backgroundImageInfo: currentImageInfo?.atmosphere,
     headerImage,
     headerOverlay,
   };
