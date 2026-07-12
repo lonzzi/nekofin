@@ -905,7 +905,7 @@ export function CarouselHeader(props: CarouselHeaderProps) {
   );
 }
 
-const CAROUSEL_AUTO_INTERVAL_MS = 6500;
+const CAROUSEL_AUTO_INTERVAL_MS = 10 * 1000;
 const CAROUSEL_AUTO_FADE_MS = 280;
 const CAROUSEL_GESTURE_SETTLE_MS = 240;
 const CAROUSEL_CANCEL_SETTLE_MS = 180;
