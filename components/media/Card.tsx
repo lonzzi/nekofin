@@ -7,12 +7,13 @@ import { ImageUrlInfo } from '@/lib/utils/image';
 import { MediaItem, MediaServerInfo } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
+import { BlurView } from 'expo-blur';
 import React, { useCallback, useMemo } from 'react';
 import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Content, Item, ItemIcon, ItemTitle, Root as Menu, Trigger } from 'zeego/context-menu';
 
 import { ItemImage } from '../ItemImage';
-import { GlassCard, ShadowedGlassCard } from '../ui/GlassCard';
+import { ShadowedGlassCard } from '../ui/GlassCard';
 import {
   getEpisodeCardRoute,
   getImagePreferenceOptions,
@@ -137,9 +138,10 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   }, [item.id, router]);
 
   const currentUserData = item.userData;
+  const rawPlayedPercentage = currentUserData?.playedPercentage;
   const playedPercentage =
-    typeof currentUserData?.playedPercentage === 'number'
-      ? currentUserData.playedPercentage
+    typeof rawPlayedPercentage === 'number' && Number.isFinite(rawPlayedPercentage)
+      ? Math.max(0, Math.min(100, rawPlayedPercentage))
       : undefined;
 
   const isPlayed = currentUserData?.played === true;
@@ -155,32 +157,42 @@ export const EpisodeCard = React.memo(function EpisodeCard({
         onPress={onPress || openDetails}
       >
         <ShadowedGlassCard radius={12}>
-          <View style={[styles.coverContainer, { backgroundColor: theme.colors.surfaceMuted }]}>
+          <View
+            style={[
+              styles.coverContainer,
+              styles.coverBorder,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.separator,
+              },
+              showBorder && styles.emphasizedCoverBorder,
+            ]}
+          >
             <ItemImage
               uri={imageUrl}
-              style={[
-                styles.cover,
-                { backgroundColor: theme.colors.surfaceMuted },
-                showBorder && {
-                  ...styles.cardBorder,
-                  borderColor: theme.colors.separator,
-                },
-              ]}
+              style={[styles.cover, { backgroundColor: theme.colors.surfaceMuted }]}
               placeholderBlurhash={imageInfo.blurhash}
               cachePolicy="disk"
               contentFit="cover"
             />
             {showPlayButton && (
-              <GlassCard
-                radius={9999}
+              <BlurView
+                intensity={36}
+                tint="systemUltraThinMaterialDark"
+                blurMethod="dimezisBlurViewSdk31Plus"
+                blurReductionFactor={2}
                 style={styles.playButton}
-                fallbackBackgroundColor={theme.colors.mediaChrome}
-                isInteractive
               >
-                <Pressable style={styles.playButtonInner} onPress={handlePlay}>
-                  <Ionicons name="play" size={32} color="#fff" />
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.playButtonInner,
+                    pressed && styles.playButtonPressed,
+                  ]}
+                  onPress={handlePlay}
+                >
+                  <Ionicons name="play" size={27} color="#fff" />
                 </Pressable>
-              </GlassCard>
+              </BlurView>
             )}
             {isPlayed && (
               <View
@@ -198,21 +210,9 @@ export const EpisodeCard = React.memo(function EpisodeCard({
                 <Ionicons name="checkmark-circle" size={24} color={accentColor} />
               </View>
             )}
-            {playedPercentage !== undefined && (
-              <View style={styles.progressContainer}>
-                <View
-                  style={[styles.progressBackground, { backgroundColor: theme.colors.mediaChrome }]}
-                >
-                  <View
-                    style={[
-                      styles.progressFill,
-                      {
-                        width: `${playedPercentage}%`,
-                        backgroundColor: accentColor,
-                      },
-                    ]}
-                  />
-                </View>
+            {playedPercentage !== undefined && playedPercentage > 0 && playedPercentage < 100 && (
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${playedPercentage}%` }]} />
               </View>
             )}
           </View>
@@ -309,11 +309,12 @@ export const SeriesCard = React.memo(function SeriesCard({
           uri={imageUrl}
           style={[
             styles.posterCover,
-            { backgroundColor: theme.colors.surfaceMuted },
-            showBorder && {
-              ...styles.cardBorder,
+            styles.coverBorder,
+            {
+              backgroundColor: theme.colors.surfaceMuted,
               borderColor: theme.colors.separator,
             },
+            showBorder && styles.emphasizedCoverBorder,
           ]}
           placeholderBlurhash={imageInfo.blurhash}
           cachePolicy="disk"
@@ -362,36 +363,45 @@ const styles = StyleSheet.create({
   },
   coverContainer: {
     position: 'relative',
+    borderRadius: 12,
+    borderCurve: 'continuous',
     overflow: 'hidden',
   },
-  cardBorder: {
-    borderWidth: 0.5,
+  coverBorder: {
+    borderWidth: 0.75,
+  },
+  emphasizedCoverBorder: {
+    borderWidth: 1,
   },
   cover: {
     position: 'relative',
     width: '100%',
     aspectRatio: 16 / 9,
+    borderRadius: 12,
+    borderCurve: 'continuous',
   },
   posterCover: {
     width: '100%',
     aspectRatio: 2 / 3,
-  },
-  progressContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-    zIndex: 1,
-  },
-  progressBackground: {
-    height: 4,
-    borderRadius: 0,
+    borderRadius: 12,
+    borderCurve: 'continuous',
     overflow: 'hidden',
+  },
+  progressTrack: {
+    position: 'absolute',
+    bottom: 8,
+    left: 10,
+    right: 10,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    overflow: 'hidden',
+    zIndex: 1,
   },
   progressFill: {
     height: '100%',
-    borderRadius: 0,
+    borderRadius: 999,
+    backgroundColor: '#fff',
   },
   playedOverlay: {
     position: 'absolute',
@@ -404,6 +414,12 @@ const styles = StyleSheet.create({
     transform: [{ translateX: '-50%' }, { translateY: '-50%' }],
     width: 48,
     height: 48,
+    borderRadius: 999,
+    borderCurve: 'continuous',
+    borderWidth: 0.75,
+    borderColor: 'rgba(255,255,255,0.42)',
+    backgroundColor: 'rgba(20,20,20,0.16)',
+    overflow: 'hidden',
     zIndex: 3,
   },
   playButtonInner: {
@@ -411,6 +427,9 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  playButtonPressed: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
   cardCopy: {
     paddingHorizontal: 10,

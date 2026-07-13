@@ -33,9 +33,12 @@ describe('custom Liquid Glass policy', () => {
     expect(directImports).toEqual([]);
   });
 
-  it('uses both Expo availability checks for the detail play fallback', () => {
+  it('keeps Liquid Glass opt-in limited to the detail play button', () => {
+    const cardSource = readFileSync(join(repositoryRoot, 'components/ui/GlassCard.tsx'), 'utf8');
     const source = readFileSync(join(repositoryRoot, 'components/detail-view/common.tsx'), 'utf8');
 
+    expect(cardSource).toContain('useGlassEffect = false');
     expect(source).toContain('isLiquidGlassAvailable() && isGlassEffectAPIAvailable()');
+    expect(source).toContain('useGlassEffect');
   });
 });

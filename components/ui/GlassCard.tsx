@@ -1,19 +1,18 @@
 import {
-  GlassContainer as ExpoGlassContainer,
   GlassView,
   isGlassEffectAPIAvailable,
   isLiquidGlassAvailable,
-  type GlassContainerProps,
   type GlassViewProps,
 } from 'expo-glass-effect';
 import { PropsWithChildren } from 'react';
-import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, View, ViewProps, ViewStyle } from 'react-native';
 
 type GlassCardProps = PropsWithChildren<
   Omit<GlassViewProps, 'children' | 'style'> & {
     fallbackBackgroundColor?: string;
     radius?: number;
     style?: StyleProp<ViewStyle>;
+    useGlassEffect?: boolean;
   }
 >;
 
@@ -27,50 +26,55 @@ type GlassShadowProps = PropsWithChildren<{
 }>;
 
 export function GlassShadow({ children, radius = 12, style }: GlassShadowProps) {
-  return <View style={[styles.shadow, { borderRadius: radius }, style]}>{children}</View>;
+  return <View style={[{ borderRadius: radius }, style]}>{children}</View>;
 }
 
-export function SafeGlassContainer({ spacing, ...props }: GlassContainerProps) {
-  const useLiquidGlass = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
+type SafeGlassContainerProps = PropsWithChildren<ViewProps & { spacing?: number }>;
 
-  if (!useLiquidGlass) {
-    return <View {...props} />;
-  }
-
-  return <ExpoGlassContainer spacing={spacing} {...props} />;
+export function SafeGlassContainer({ spacing: _spacing, ...props }: SafeGlassContainerProps) {
+  return <View {...props} />;
 }
 
 export function GlassCard({
   children,
+  colorScheme,
   fallbackBackgroundColor,
   glassEffectStyle = 'regular',
+  isInteractive,
   radius = 12,
   style,
-  tintColor = 'rgba(255,255,255,0.10)',
+  tintColor,
+  useGlassEffect = false,
   ...props
 }: GlassCardProps) {
-  const useLiquidGlass = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
-  const radiusStyle = { borderRadius: radius };
+  const useLiquidGlass = useGlassEffect && isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
   const surfaceStyle = [
     styles.surface,
-    radiusStyle,
-    !useLiquidGlass && { backgroundColor: fallbackBackgroundColor ?? 'transparent' },
+    { borderRadius: radius },
+    useGlassEffect &&
+      !useLiquidGlass && { backgroundColor: fallbackBackgroundColor ?? 'transparent' },
     style,
   ];
 
-  if (!useLiquidGlass) {
-    return <View style={surfaceStyle}>{children}</View>;
+  if (useLiquidGlass) {
+    return (
+      <GlassView
+        colorScheme={colorScheme}
+        glassEffectStyle={glassEffectStyle}
+        isInteractive={isInteractive}
+        style={surfaceStyle}
+        tintColor={tintColor}
+        {...props}
+      >
+        {children}
+      </GlassView>
+    );
   }
 
   return (
-    <GlassView
-      style={surfaceStyle}
-      glassEffectStyle={glassEffectStyle}
-      tintColor={tintColor}
-      {...props}
-    >
+    <View style={surfaceStyle} {...props}>
       {children}
-    </GlassView>
+    </View>
   );
 }
 
@@ -89,14 +93,7 @@ export function ShadowedGlassCard({
 const styles = StyleSheet.create({
   surface: {
     borderCurve: 'continuous',
+    backgroundColor: 'transparent',
     overflow: 'hidden',
-  },
-  shadow: {
-    borderCurve: 'continuous',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 3,
   },
 });

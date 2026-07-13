@@ -25,7 +25,13 @@ export const PersonItem = memo(function PersonItem({ item }: { item: MediaPerson
     >
       <ItemImage
         uri={imageInfo.url}
-        style={[styles.personPoster, { backgroundColor: theme.colors.surfaceMuted }]}
+        style={[
+          styles.personPoster,
+          {
+            backgroundColor: theme.colors.surfaceMuted,
+            borderColor: theme.colors.separator,
+          },
+        ]}
         placeholderBlurhash={imageInfo.blurhash}
         cachePolicy="memory-disk"
         contentFit="cover"
@@ -34,7 +40,10 @@ export const PersonItem = memo(function PersonItem({ item }: { item: MediaPerson
             style={[
               styles.personPoster,
               styles.personPlaceholder,
-              { backgroundColor: theme.colors.surfaceMuted },
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.separator,
+              },
             ]}
           >
             <IconSymbol name="person.crop.rectangle" size={36} color={theme.colors.textTertiary} />
@@ -66,7 +75,9 @@ const styles = StyleSheet.create({
   personPoster: {
     width: '100%',
     aspectRatio: 2 / 3,
+    borderRadius: 14,
     borderCurve: 'continuous',
+    borderWidth: 0.75,
     overflow: 'hidden',
   },
   personPlaceholder: {

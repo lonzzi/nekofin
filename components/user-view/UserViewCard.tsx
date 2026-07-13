@@ -47,7 +47,13 @@ export const UserViewCard = React.memo(function UserViewCard({
             placeholder={{
               blurhash: imageInfo.blurhash,
             }}
-            style={[styles.cover, { backgroundColor: theme.colors.surfaceMuted }]}
+            style={[
+              styles.cover,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.separator,
+              },
+            ]}
             cachePolicy="disk"
             contentFit="cover"
             enforceEarlyResizing
@@ -57,7 +63,10 @@ export const UserViewCard = React.memo(function UserViewCard({
             style={[
               styles.cover,
               styles.coverPlaceholder,
-              { backgroundColor: theme.colors.surfaceMuted },
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.separator,
+              },
             ]}
           >
             <IconSymbol
@@ -96,6 +105,10 @@ const styles = StyleSheet.create({
   cover: {
     width: '100%',
     aspectRatio: 16 / 9,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    borderWidth: 0.75,
+    overflow: 'hidden',
   },
   coverPlaceholder: {
     justifyContent: 'center',

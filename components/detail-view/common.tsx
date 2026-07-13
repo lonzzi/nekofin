@@ -78,8 +78,10 @@ export const PlayButton = ({ item }: { item: MediaItem }) => {
         detailViewStyles.playButton,
         useLiquidGlass ? { backgroundColor: 'transparent' } : { backgroundColor: accentColor },
       ]}
+      fallbackBackgroundColor={accentColor}
       isInteractive
       tintColor={useLiquidGlass ? `${accentColor}18` : undefined}
+      useGlassEffect
     >
       {progressPercent > 0 && (
         <Animated.View
@@ -87,7 +89,7 @@ export const PlayButton = ({ item }: { item: MediaItem }) => {
           style={[
             detailViewStyles.playButtonProgressFill,
             {
-              backgroundColor: useLiquidGlass ? `${accentColor}26` : accentColor,
+              backgroundColor: useLiquidGlass ? `${accentColor}26` : 'rgba(255,255,255,0.18)',
               borderRadius: 999,
             },
             animatedStyle,
