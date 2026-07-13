@@ -83,7 +83,13 @@ jobs:
           set -euo pipefail
 
           sdk_root="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          sdkmanager_path="${sdk_root}/cmdline-tools/latest/bin/sdkmanager"
           ndk_path="${sdk_root}/ndk/${ANDROID_NDK_VERSION}"
+
+          if [[ ! -x "${sdkmanager_path}" ]]; then
+            echo "sdkmanager was not found at ${sdkmanager_path}."
+            exit 1
+          fi
 
           if [[ -f "${ndk_path}/source.properties" ]]; then
             echo "Android NDK ${ANDROID_NDK_VERSION} is already installed."
@@ -94,7 +100,7 @@ jobs:
             echo "Installing Android NDK ${ANDROID_NDK_VERSION} (attempt ${attempt}/3)..."
             rm -rf "${ndk_path}" "${sdk_root}/.temp"
 
-            if sdkmanager --install "ndk;${ANDROID_NDK_VERSION}" && \
+            if "${sdkmanager_path}" --install "ndk;${ANDROID_NDK_VERSION}" && \
               [[ -f "${ndk_path}/source.properties" ]]; then
               echo "Android NDK ${ANDROID_NDK_VERSION} installed successfully."
               exit 0
