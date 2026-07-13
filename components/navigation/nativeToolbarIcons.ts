@@ -14,11 +14,11 @@ export type NativeToolbarIOSIcon =
 
 const ANDROID_TOOLBAR_ICONS = {
   add: require('../../assets/drawables/add.png'),
-  checkmarkCircle: require('../../assets/drawables/checkmark-circle.png'),
-  checkmarkCircleOutline: require('../../assets/drawables/checkmark-circle-outline.png'),
+  checkmarkCircle: require('../../assets/drawables/checkmark_circle.png'),
+  checkmarkCircleOutline: require('../../assets/drawables/checkmark_circle_outline.png'),
   film: require('../../assets/drawables/film.png'),
   heart: require('../../assets/drawables/heart.png'),
-  heartOutline: require('../../assets/drawables/heart-outline.png'),
+  heartOutline: require('../../assets/drawables/heart_outline.png'),
   save: require('../../assets/drawables/save.png'),
   search: require('../../assets/drawables/search.png'),
 } as const satisfies Record<AndroidToolbarDrawable, ImageSourcePropType>;

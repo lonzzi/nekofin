@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -6,16 +6,24 @@ import type { AndroidToolbarDrawable } from './nativeHeaderModel';
 
 const ANDROID_TOOLBAR_ASSET_FILES = {
   add: 'add.png',
-  checkmarkCircle: 'checkmark-circle.png',
-  checkmarkCircleOutline: 'checkmark-circle-outline.png',
+  checkmarkCircle: 'checkmark_circle.png',
+  checkmarkCircleOutline: 'checkmark_circle_outline.png',
   film: 'film.png',
   heart: 'heart.png',
-  heartOutline: 'heart-outline.png',
+  heartOutline: 'heart_outline.png',
   save: 'save.png',
   search: 'search.png',
 } as const satisfies Record<AndroidToolbarDrawable, string>;
 
 describe('native Android toolbar assets', () => {
+  it('uses Android-compatible resource names', () => {
+    const drawableDirectory = fileURLToPath(new URL('../../assets/drawables', import.meta.url));
+
+    for (const fileName of readdirSync(drawableDirectory)) {
+      expect(fileName).toMatch(/^[a-z0-9_]+\.(png|xml)$/);
+    }
+  });
+
   it.each(Object.entries(ANDROID_TOOLBAR_ASSET_FILES))(
     'ships a 256px PNG for %s',
     (_key, fileName) => {

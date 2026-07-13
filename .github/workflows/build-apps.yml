@@ -58,6 +58,7 @@ jobs:
     if: ${{ github.event_name == 'push' || inputs.platform == 'android' || inputs.platform == 'both' }}
     env:
       EXPO_PUBLIC_DANDANPLAY_API_URL: ${{ secrets.EXPO_PUBLIC_DANDANPLAY_API_URL }}
+      ANDROID_NDK_VERSION: 27.1.12297006
 
     steps:
       - name: Check out repository
@@ -75,6 +76,35 @@ jobs:
           sudo docker system prune --all --force || true
           echo "Disk after cleanup:"
           df -h
+
+      - name: Install Android NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sdk_root="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          ndk_path="${sdk_root}/ndk/${ANDROID_NDK_VERSION}"
+
+          if [[ -f "${ndk_path}/source.properties" ]]; then
+            echo "Android NDK ${ANDROID_NDK_VERSION} is already installed."
+            exit 0
+          fi
+
+          for attempt in 1 2 3; do
+            echo "Installing Android NDK ${ANDROID_NDK_VERSION} (attempt ${attempt}/3)..."
+            rm -rf "${ndk_path}" "${sdk_root}/.temp"
+
+            if sdkmanager --install "ndk;${ANDROID_NDK_VERSION}" && \
+              [[ -f "${ndk_path}/source.properties" ]]; then
+              echo "Android NDK ${ANDROID_NDK_VERSION} installed successfully."
+              exit 0
+            fi
+
+            sleep $((attempt * 5))
+          done
+
+          echo "Failed to install Android NDK ${ANDROID_NDK_VERSION} after 3 attempts."
+          exit 1
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
