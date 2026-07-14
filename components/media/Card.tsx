@@ -163,7 +163,9 @@ export const EpisodeCard = React.memo(function EpisodeCard({
               styles.coverBorder,
               {
                 backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.separator,
+                borderColor: showBorder
+                  ? theme.colors.mediaCoverBorderEmphasized
+                  : theme.colors.mediaCoverBorder,
               },
               showBorder && styles.emphasizedCoverBorder,
             ]}
@@ -312,7 +314,9 @@ export const SeriesCard = React.memo(function SeriesCard({
             styles.coverBorder,
             {
               backgroundColor: theme.colors.surfaceMuted,
-              borderColor: theme.colors.separator,
+              borderColor: showBorder
+                ? theme.colors.mediaCoverBorderEmphasized
+                : theme.colors.mediaCoverBorder,
             },
             showBorder && styles.emphasizedCoverBorder,
           ]}
@@ -368,10 +372,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   coverBorder: {
-    borderWidth: 0.75,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   emphasizedCoverBorder: {
-    borderWidth: 1,
+    borderWidth: 0.75,
   },
   cover: {
     position: 'relative',

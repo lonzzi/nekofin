@@ -29,7 +29,7 @@ export const PersonItem = memo(function PersonItem({ item }: { item: MediaPerson
           styles.personPoster,
           {
             backgroundColor: theme.colors.surfaceMuted,
-            borderColor: theme.colors.separator,
+            borderColor: theme.colors.mediaCoverBorder,
           },
         ]}
         placeholderBlurhash={imageInfo.blurhash}
@@ -42,7 +42,7 @@ export const PersonItem = memo(function PersonItem({ item }: { item: MediaPerson
               styles.personPlaceholder,
               {
                 backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.separator,
+                borderColor: theme.colors.mediaCoverBorder,
               },
             ]}
           >
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     aspectRatio: 2 / 3,
     borderRadius: 14,
     borderCurve: 'continuous',
-    borderWidth: 0.75,
+    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
   personPlaceholder: {

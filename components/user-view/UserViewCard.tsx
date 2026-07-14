@@ -51,7 +51,7 @@ export const UserViewCard = React.memo(function UserViewCard({
               styles.cover,
               {
                 backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.separator,
+                borderColor: theme.colors.mediaCoverBorder,
               },
             ]}
             cachePolicy="disk"
@@ -65,7 +65,7 @@ export const UserViewCard = React.memo(function UserViewCard({
               styles.coverPlaceholder,
               {
                 backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.separator,
+                borderColor: theme.colors.mediaCoverBorder,
               },
             ]}
           >
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     aspectRatio: 16 / 9,
     borderRadius: 14,
     borderCurve: 'continuous',
-    borderWidth: 0.75,
+    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
   coverPlaceholder: {
