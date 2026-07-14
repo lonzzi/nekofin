@@ -33,12 +33,20 @@ describe('custom Liquid Glass policy', () => {
     expect(directImports).toEqual([]);
   });
 
-  it('keeps Liquid Glass opt-in limited to the detail play button', () => {
+  it('keeps Liquid Glass opt-in limited to intentional surfaces', () => {
     const cardSource = readFileSync(join(repositoryRoot, 'components/ui/GlassCard.tsx'), 'utf8');
-    const source = readFileSync(join(repositoryRoot, 'components/detail-view/common.tsx'), 'utf8');
+    const detailSource = readFileSync(
+      join(repositoryRoot, 'components/detail-view/common.tsx'),
+      'utf8',
+    );
+    const serversSource = readFileSync(
+      join(repositoryRoot, 'app/(tabs)/(servers)/index.tsx'),
+      'utf8',
+    );
 
     expect(cardSource).toContain('useGlassEffect = false');
-    expect(source).toContain('isLiquidGlassAvailable() && isGlassEffectAPIAvailable()');
-    expect(source).toContain('useGlassEffect');
+    expect(detailSource).toContain('isLiquidGlassAvailable() && isGlassEffectAPIAvailable()');
+    expect(detailSource).toContain('useGlassEffect');
+    expect(serversSource).toContain('useGlassEffect');
   });
 });

@@ -13,6 +13,7 @@ import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-n
 import { Content, Item, ItemIcon, ItemTitle, Root as Menu, Trigger } from 'zeego/context-menu';
 
 import { ItemImage } from '../ItemImage';
+import { CoverFrame } from '../ui/CoverFrame';
 import { ShadowedGlassCard } from '../ui/GlassCard';
 import {
   getEpisodeCardRoute,
@@ -157,19 +158,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
         onPress={onPress || openDetails}
       >
         <ShadowedGlassCard radius={12}>
-          <View
-            style={[
-              styles.coverContainer,
-              styles.coverBorder,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: showBorder
-                  ? theme.colors.mediaCoverBorderEmphasized
-                  : theme.colors.mediaCoverBorder,
-              },
-              showBorder && styles.emphasizedCoverBorder,
-            ]}
-          >
+          <CoverFrame aspectRatio={16 / 9} emphasized={showBorder} radius={14}>
             <ItemImage
               uri={imageUrl}
               style={[styles.cover, { backgroundColor: theme.colors.surfaceMuted }]}
@@ -217,7 +206,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
                 <View style={[styles.progressFill, { width: `${playedPercentage}%` }]} />
               </View>
             )}
-          </View>
+          </CoverFrame>
           {!hideText && (
             <View style={styles.cardCopy}>
               <Text
@@ -307,23 +296,15 @@ export const SeriesCard = React.memo(function SeriesCard({
       onPress={openDetails}
     >
       <ShadowedGlassCard radius={12}>
-        <ItemImage
-          uri={imageUrl}
-          style={[
-            styles.posterCover,
-            styles.coverBorder,
-            {
-              backgroundColor: theme.colors.surfaceMuted,
-              borderColor: showBorder
-                ? theme.colors.mediaCoverBorderEmphasized
-                : theme.colors.mediaCoverBorder,
-            },
-            showBorder && styles.emphasizedCoverBorder,
-          ]}
-          placeholderBlurhash={imageInfo.blurhash}
-          cachePolicy="disk"
-          contentFit="cover"
-        />
+        <CoverFrame aspectRatio={2 / 3} emphasized={showBorder} radius={14}>
+          <ItemImage
+            uri={imageUrl}
+            style={[styles.posterCover, { backgroundColor: theme.colors.surfaceMuted }]}
+            placeholderBlurhash={imageInfo.blurhash}
+            cachePolicy="disk"
+            contentFit="cover"
+          />
+        </CoverFrame>
         <View style={styles.cardCopy}>
           <Text
             style={[
@@ -365,31 +346,13 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     backgroundColor: 'transparent',
   },
-  coverContainer: {
-    position: 'relative',
-    borderRadius: 12,
-    borderCurve: 'continuous',
-    overflow: 'hidden',
-  },
-  coverBorder: {
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  emphasizedCoverBorder: {
-    borderWidth: 0.75,
-  },
   cover: {
-    position: 'relative',
     width: '100%',
-    aspectRatio: 16 / 9,
-    borderRadius: 12,
-    borderCurve: 'continuous',
+    height: '100%',
   },
   posterCover: {
     width: '100%',
-    aspectRatio: 2 / 3,
-    borderRadius: 12,
-    borderCurve: 'continuous',
-    overflow: 'hidden',
+    height: '100%',
   },
   progressTrack: {
     position: 'absolute',

@@ -24,8 +24,6 @@ export type AppColorRole =
   | 'mediaScrimSoft'
   | 'mediaChromeSoft'
   | 'mediaChromeBorder'
-  | 'mediaCoverBorder'
-  | 'mediaCoverBorderEmphasized'
   | 'mediaTextSecondary';
 
 export type AppTheme = ReturnType<typeof createAppTheme>;
@@ -63,8 +61,6 @@ export function createAppTheme({
       mediaScrimSoft: 'rgba(0,0,0,0)',
       mediaChromeSoft: 'rgba(255,255,255,0.18)',
       mediaChromeBorder: 'rgba(255,255,255,0.36)',
-      mediaCoverBorder: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.08)',
-      mediaCoverBorderEmphasized: isDark ? 'rgba(255,255,255,0.22)' : 'rgba(15,23,42,0.14)',
       mediaTextSecondary: 'rgba(255,255,255,0.86)',
     },
     media: {

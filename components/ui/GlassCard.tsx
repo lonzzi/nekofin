@@ -1,3 +1,4 @@
+import { BlurView } from 'expo-blur';
 import {
   GlassView,
   isGlassEffectAPIAvailable,
@@ -68,6 +69,19 @@ export function GlassCard({
       >
         {children}
       </GlassView>
+    );
+  }
+
+  if (useGlassEffect) {
+    return (
+      <BlurView
+        intensity={42}
+        tint={colorScheme === 'dark' || colorScheme === 'light' ? colorScheme : 'default'}
+        style={surfaceStyle}
+        {...(props as ViewProps)}
+      >
+        {children}
+      </BlurView>
     );
   }
 

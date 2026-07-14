@@ -115,7 +115,7 @@ function getServerGradient(
 
 function getServerCardChrome(isDark: boolean) {
   return {
-    fallbackBackgroundColor: isDark ? 'rgba(28, 28, 30, 0.72)' : undefined,
+    fallbackBackgroundColor: isDark ? 'rgba(20,20,24,0.58)' : 'rgba(255,255,255,0.52)',
     tintColor: isDark ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.10)',
   };
 }
@@ -195,11 +195,13 @@ function ServerCardAction({
 
   return (
     <GlassCard
+      colorScheme={theme.colorScheme}
       isInteractive
       radius={15}
       fallbackBackgroundColor={chrome.fallbackBackgroundColor}
       style={styles.iconAction}
       tintColor={theme.isDark ? 'rgba(255,255,255,0.06)' : chrome.tintColor}
+      useGlassEffect
     >
       <Pressable
         accessibilityRole="button"
@@ -237,10 +239,13 @@ function ServerCard({
 
   return (
     <GlassCard
+      colorScheme={theme.colorScheme}
+      isInteractive
       radius={22}
       fallbackBackgroundColor={chrome.fallbackBackgroundColor}
       style={styles.serverCard}
       tintColor={chrome.tintColor}
+      useGlassEffect
     >
       <LinearGradient
         colors={gradient}
@@ -413,9 +418,13 @@ export default function ServersScreen() {
           </View>
         ) : (
           <ShadowedGlassCard
+            colorScheme={theme.colorScheme}
+            fallbackBackgroundColor={getServerCardChrome(theme.isDark).fallbackBackgroundColor}
             radius={24}
             containerStyle={styles.emptyCardShadow}
             style={styles.emptyCard}
+            tintColor={getServerCardChrome(theme.isDark).tintColor}
+            useGlassEffect
           >
             <CardText variant="title">还没有服务器</CardText>
             <CardText lines={2}>

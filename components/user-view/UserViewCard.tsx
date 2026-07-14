@@ -6,6 +6,7 @@ import { Image } from 'expo-image';
 import React, { useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { CoverFrame } from '../ui/CoverFrame';
 import { ShadowedGlassCard } from '../ui/GlassCard';
 import { IconSymbol } from '../ui/IconSymbol';
 
@@ -41,41 +42,34 @@ export const UserViewCard = React.memo(function UserViewCard({
   return (
     <Pressable style={styles.userViewCard} onPress={handlePress}>
       <ShadowedGlassCard radius={14}>
-        {imageInfo.url ? (
-          <Image
-            source={{ uri: imageInfo.url }}
-            placeholder={{
-              blurhash: imageInfo.blurhash,
-            }}
-            style={[
-              styles.cover,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.mediaCoverBorder,
-              },
-            ]}
-            cachePolicy="disk"
-            contentFit="cover"
-            enforceEarlyResizing
-          />
-        ) : (
-          <View
-            style={[
-              styles.cover,
-              styles.coverPlaceholder,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.mediaCoverBorder,
-              },
-            ]}
-          >
-            <IconSymbol
-              name="chevron.left.forwardslash.chevron.right"
-              size={48}
-              color={theme.colors.textTertiary}
+        <CoverFrame aspectRatio={16 / 9} radius={14}>
+          {imageInfo.url ? (
+            <Image
+              source={{ uri: imageInfo.url }}
+              placeholder={{
+                blurhash: imageInfo.blurhash,
+              }}
+              style={[styles.cover, { backgroundColor: theme.colors.surfaceMuted }]}
+              cachePolicy="disk"
+              contentFit="cover"
+              enforceEarlyResizing
             />
-          </View>
-        )}
+          ) : (
+            <View
+              style={[
+                styles.cover,
+                styles.coverPlaceholder,
+                { backgroundColor: theme.colors.surfaceMuted },
+              ]}
+            >
+              <IconSymbol
+                name="chevron.left.forwardslash.chevron.right"
+                size={48}
+                color={theme.colors.textTertiary}
+              />
+            </View>
+          )}
+        </CoverFrame>
         <View style={styles.userViewInfo}>
           <Text
             style={[theme.typography.footnote, styles.userViewTitle, { color: theme.colors.text }]}
@@ -104,11 +98,7 @@ const styles = StyleSheet.create({
   },
   cover: {
     width: '100%',
-    aspectRatio: 16 / 9,
-    borderRadius: 14,
-    borderCurve: 'continuous',
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
+    height: '100%',
   },
   coverPlaceholder: {
     justifyContent: 'center',
