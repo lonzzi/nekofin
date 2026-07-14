@@ -76,16 +76,17 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const episodes = bundle?.episodes ?? [];
   const similarShows = bundle?.similarShows ?? [];
   const similarMovies = bundle?.similarMovies ?? [];
+  const currentServerId = currentServer?.id;
 
   const { refreshing, onRefresh } = useRefresh(refetch, [itemId]);
 
   const markCurrentServerMediaStale = useCallback(() => {
-    if (!currentServer?.id) return;
+    if (!currentServerId) return;
     void queryClient.invalidateQueries({
-      queryKey: mediaQueryKeys.server(currentServer.id),
+      queryKey: mediaQueryKeys.server(currentServerId),
       refetchType: 'none',
     });
-  }, [currentServer?.id, queryClient]);
+  }, [currentServerId, queryClient]);
 
   useEffect(() => {
     if (!item) return;
