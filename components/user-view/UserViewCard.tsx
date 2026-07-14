@@ -41,7 +41,7 @@ export const UserViewCard = React.memo(function UserViewCard({
 
   return (
     <Pressable style={styles.userViewCard} onPress={handlePress}>
-      <ShadowedGlassCard radius={14}>
+      <ShadowedGlassCard radius={14} surface="transparent">
         <CoverFrame aspectRatio={16 / 9} radius={14}>
           {imageInfo.url ? (
             <Image

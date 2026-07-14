@@ -49,4 +49,22 @@ describe('custom Liquid Glass policy', () => {
     expect(detailSource).toContain('useGlassEffect');
     expect(serversSource).toContain('useGlassEffect');
   });
+
+  it('fills information cards while media cards opt into transparent copy areas', () => {
+    const cardSource = readFileSync(join(repositoryRoot, 'components/ui/GlassCard.tsx'), 'utf8');
+    const transparentMediaSources = [
+      'components/media/Card.tsx',
+      'components/detail-view/PersonItem.tsx',
+      'components/user-view/UserViewCard.tsx',
+      'components/ui/Skeleton.tsx',
+    ];
+
+    expect(cardSource).toContain("surface = 'filled'");
+    expect(cardSource).toContain('fallbackBackgroundColor ?? theme.colors.surface');
+
+    for (const relativePath of transparentMediaSources) {
+      const source = readFileSync(join(repositoryRoot, relativePath), 'utf8');
+      expect(source).toContain('surface="transparent"');
+    }
+  });
 });

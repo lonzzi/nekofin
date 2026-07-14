@@ -132,7 +132,7 @@ export function SkeletonCard({ type = 'episode' }: { type?: 'episode' | 'series'
 
   return (
     <View style={[styles.card, { width: cardWidth }]}>
-      <ShadowedGlassCard radius={theme.radius.md}>
+      <ShadowedGlassCard radius={theme.radius.md} surface="transparent">
         <Skeleton width="100%" height={cardWidth / aspectRatio} borderRadius={theme.radius.md} />
         <View style={styles.cardCopySkeleton}>
           <Skeleton
@@ -157,7 +157,7 @@ export function SkeletonUserViewCard() {
 
   return (
     <View style={styles.userViewCard}>
-      <ShadowedGlassCard radius={theme.radius.lg}>
+      <ShadowedGlassCard radius={theme.radius.lg} surface="transparent">
         <Skeleton
           width={cardWidth}
           height={cardWidth / theme.layout.mediaRail.backdropAspectRatio}

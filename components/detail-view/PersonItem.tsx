@@ -23,6 +23,7 @@ export const PersonItem = memo(function PersonItem({ item }: { item: MediaPerson
     <ShadowedGlassCard
       radius={14}
       containerStyle={{ width: theme.layout.mediaRail.personCardWidth }}
+      surface="transparent"
     >
       <CoverFrame aspectRatio={2 / 3} radius={14}>
         <ItemImage

@@ -157,7 +157,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
         disabled={disabled}
         onPress={onPress || openDetails}
       >
-        <ShadowedGlassCard radius={12}>
+        <ShadowedGlassCard radius={12} surface="transparent">
           <CoverFrame aspectRatio={16 / 9} emphasized={showBorder} radius={14}>
             <ItemImage
               uri={imageUrl}
@@ -295,7 +295,7 @@ export const SeriesCard = React.memo(function SeriesCard({
       style={[styles.card, { width: 120 }, style]}
       onPress={openDetails}
     >
-      <ShadowedGlassCard radius={12}>
+      <ShadowedGlassCard radius={12} surface="transparent">
         <CoverFrame aspectRatio={2 / 3} emphasized={showBorder} radius={14}>
           <ItemImage
             uri={imageUrl}

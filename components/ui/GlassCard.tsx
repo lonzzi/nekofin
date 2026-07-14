@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/lib/theme';
 import { BlurView } from 'expo-blur';
 import {
   GlassView,
@@ -13,6 +14,7 @@ type GlassCardProps = PropsWithChildren<
     fallbackBackgroundColor?: string;
     radius?: number;
     style?: StyleProp<ViewStyle>;
+    surface?: 'filled' | 'transparent';
     useGlassEffect?: boolean;
   }
 >;
@@ -44,18 +46,21 @@ export function GlassCard({
   isInteractive,
   radius = 12,
   style,
+  surface = 'filled',
   tintColor,
   useGlassEffect = false,
   ...props
 }: GlassCardProps) {
+  const theme = useAppTheme();
   const useLiquidGlass = useGlassEffect && isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
-  const surfaceStyle = [
-    styles.surface,
-    { borderRadius: radius },
-    useGlassEffect &&
-      !useLiquidGlass && { backgroundColor: fallbackBackgroundColor ?? 'transparent' },
-    style,
-  ];
+  const backgroundColor = useGlassEffect
+    ? useLiquidGlass
+      ? 'transparent'
+      : (fallbackBackgroundColor ?? theme.colors.surface)
+    : surface === 'filled'
+      ? (fallbackBackgroundColor ?? theme.colors.surface)
+      : 'transparent';
+  const surfaceStyle = [styles.surface, { backgroundColor, borderRadius: radius }, style];
 
   if (useLiquidGlass) {
     return (
@@ -107,7 +112,6 @@ export function ShadowedGlassCard({
 const styles = StyleSheet.create({
   surface: {
     borderCurve: 'continuous',
-    backgroundColor: 'transparent',
     overflow: 'hidden',
   },
 });
