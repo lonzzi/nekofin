@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Easing,
@@ -416,7 +417,7 @@ export default function ServersScreen() {
               </View>
             ))}
           </View>
-        ) : (
+        ) : isInitialized ? (
           <ShadowedGlassCard
             colorScheme={theme.colorScheme}
             fallbackBackgroundColor={getServerCardChrome(theme.isDark).fallbackBackgroundColor}
@@ -432,6 +433,10 @@ export default function ServersScreen() {
             </CardText>
             <AddServerMenu onSelect={openAddServer} variant="text" />
           </ShadowedGlassCard>
+        ) : (
+          <View style={styles.loadingState}>
+            <ActivityIndicator color={theme.colors.tint} />
+          </View>
         )}
       </PageScrollView>
     </>
@@ -584,6 +589,11 @@ const styles = StyleSheet.create({
   emptyCard: {
     gap: 10,
     padding: 20,
+  },
+  loadingState: {
+    minHeight: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pressed: {
     opacity: 0.72,
