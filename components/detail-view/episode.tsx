@@ -13,9 +13,10 @@ import { MenuView } from '@react-native-menu/menu';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { EpisodeCard, SeriesCard } from '../media/Card';
+import { EpisodeCard } from '../media/Card';
 import { ThemedText } from '../ThemedText';
 import { detailViewStyles, ItemOverview, PlayButton } from './common';
+import { PeopleSection, SimilarItemsSection } from './DetailMediaSections';
 import { useDetailView } from './DetailViewContext';
 import { EpisodeMediaInfoList } from './EpisodeMediaInfoList';
 import {
@@ -27,7 +28,6 @@ import {
   getSeasonTitle,
   getSelectedEpisodeOrFallback,
 } from './episodeSelection';
-import { PersonItem } from './PersonItem';
 
 const EPISODE_HERO_IMAGE_WIDTH = 1000;
 
@@ -248,37 +248,8 @@ export const EpisodeModeContent = ({
 
       <EpisodeMediaInfoList mediaSources={mediaSources} />
 
-      {people && people.length > 0 && (
-        <View style={detailViewStyles.sectionBlock}>
-          <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>演职人员</Text>
-          <FlatList
-            horizontal
-            removeClippedSubviews={false}
-            data={people}
-            style={detailViewStyles.edgeToEdge}
-            renderItem={({ item }) => <PersonItem item={item} />}
-            keyExtractor={(item) => `${item.id ?? item.name}-${item.role ?? ''}`}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={detailViewStyles.horizontalList}
-          />
-        </View>
-      )}
-
-      {similarItems && similarItems.length > 0 && (
-        <View style={detailViewStyles.sectionBlock}>
-          <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>更多类似的</Text>
-          <FlatList
-            horizontal
-            removeClippedSubviews={false}
-            data={similarItems}
-            style={detailViewStyles.edgeToEdge}
-            renderItem={({ item }) => <SeriesCard item={item} imgType="Primary" />}
-            keyExtractor={(item) => item.id!}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={detailViewStyles.horizontalList}
-          />
-        </View>
-      )}
+      <PeopleSection items={people} />
+      <SimilarItemsSection items={similarItems} />
     </>
   );
 };
