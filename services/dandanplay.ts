@@ -1,3 +1,5 @@
+import type { MediaItem } from './media/types';
+
 export type DandanSearchResult = {
   hasMore: boolean;
   animes: DandanAnime[];
@@ -48,7 +50,12 @@ export type DandanComment = {
 
 const BASE_URL = process.env.EXPO_PUBLIC_DANDANPLAY_API_URL;
 
-async function makeRequest<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
+type QueryParameter = boolean | number | string;
+
+async function makeRequest<T>(
+  endpoint: string,
+  params?: Record<string, QueryParameter>,
+): Promise<T> {
   const url = new URL(`${BASE_URL}${endpoint}`);
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
@@ -109,6 +116,43 @@ export async function getCommentsByEpisodeId(episodeId: number): Promise<DandanC
   };
 
   return (Array.isArray(list) ? list : []).map(normalize).filter(Boolean) as DandanComment[];
+}
+
+export function selectDandanEpisode(
+  animes: DandanAnime[],
+  seasonNumber: number,
+  episodeNumber: number | null | undefined,
+) {
+  if (!episodeNumber || seasonNumber < 1 || episodeNumber < 1) return undefined;
+
+  const anime = animes[seasonNumber - 1];
+  const episode = anime?.episodes[episodeNumber - 1];
+  return anime && episode ? { anime, episode } : undefined;
+}
+
+export async function getCommentsByItem(item: MediaItem, originalTitle?: string | null) {
+  const emptyResult = { comments: [], episodeInfo: undefined };
+  const keywords = [item.seriesName, originalTitle]
+    .map((value) => value?.trim())
+    .filter((value, index, values): value is string => !!value && values.indexOf(value) === index);
+
+  let animes: DandanAnime[] = [];
+  for (const keyword of keywords) {
+    animes = await searchAnimesByKeyword(keyword);
+    if (animes.length > 0) break;
+  }
+
+  const match = selectDandanEpisode(animes, item.parentIndexNumber ?? 1, item.indexNumber);
+  if (!match) return emptyResult;
+
+  const comments = await getCommentsByEpisodeId(match.episode.episodeId);
+  return {
+    comments,
+    episodeInfo: {
+      animeTitle: match.anime.animeTitle,
+      episodeTitle: match.episode.episodeTitle,
+    },
+  };
 }
 
 export function groupCommentsBySecond(comments: DandanComment[]): Map<number, DandanComment[]> {

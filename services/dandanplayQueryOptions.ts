@@ -26,10 +26,10 @@ export function dandanplayCommentsQueryOptions({
   ) => Promise<DandanplayCommentsData | undefined>;
 }) {
   return queryOptions({
-    enabled: !!item && !!originalTitle && !useManualComments,
+    enabled: !!item && !!(item.seriesName?.trim() || originalTitle?.trim()) && !useManualComments,
     queryKey: mediaQueryKeys.comments(serverId, item?.id, originalTitle),
     queryFn: async () => {
-      if (!item || !originalTitle) {
+      if (!item) {
         return { comments: [], episodeInfo: undefined };
       }
       return (await fetchComments(item, originalTitle)) ?? { comments: [], episodeInfo: undefined };

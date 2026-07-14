@@ -1,4 +1,4 @@
-import { getCommentsByItem } from '@/lib/utils';
+import { getCommentsByItem } from '@/services/dandanplay';
 import { dandanplayCommentsQueryOptions } from '@/services/dandanplayQueryOptions';
 import type { StreamInfoKeyOptions } from '@/services/media/queryKeys';
 import {

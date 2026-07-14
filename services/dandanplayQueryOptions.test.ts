@@ -47,4 +47,24 @@ describe('dandanplayCommentsQueryOptions', () => {
 
     expect(options.enabled).toBe(false);
   });
+
+  it('enables automatic comments when the series name is available without an original title', async () => {
+    const fetchComments = vi.fn(async () => ({ comments: [], episodeInfo: undefined }));
+    const seriesItem = { ...item, seriesName: 'Series Name' };
+    const options = dandanplayCommentsQueryOptions({
+      serverId: 'server-1',
+      item: seriesItem,
+      originalTitle: undefined,
+      useManualComments: false,
+      fetchComments,
+    });
+
+    expect(options.enabled).toBe(true);
+    expect(options.queryFn).toBeDefined();
+    await expect(options.queryFn!({} as never)).resolves.toEqual({
+      comments: [],
+      episodeInfo: undefined,
+    });
+    expect(fetchComments).toHaveBeenCalledWith(seriesItem, undefined);
+  });
 });
