@@ -14,7 +14,7 @@ type MappingCase = {
 };
 
 function withoutRaw(item: MediaItem): Omit<MediaItem, 'raw'> {
-  const { raw, ...rest } = item;
+  const { raw: _raw, ...rest } = item;
   return rest;
 }
 

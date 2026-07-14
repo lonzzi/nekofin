@@ -4,12 +4,13 @@ import { useMemo } from 'react';
 
 export const useMediaAdapter = () => {
   const { currentApi, currentServer } = useMediaServers();
+  const serverType = currentServer?.type;
   const adapter = useMemo(() => {
-    if (currentServer?.type && currentApi) {
-      return createMediaAdapterWithApi(currentServer.type, currentApi);
+    if (serverType && currentApi) {
+      return createMediaAdapterWithApi(serverType, currentApi);
     }
-    return getMediaAdapter(currentServer?.type);
-  }, [currentApi, currentServer?.type]);
+    return getMediaAdapter(serverType);
+  }, [currentApi, serverType]);
 
   return adapter;
 };

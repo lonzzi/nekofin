@@ -95,7 +95,7 @@ describe('createApiClient', () => {
   });
 
   it('adds an abort signal when timeout is configured', async () => {
-    const fetchMock = vi.fn(async (_url: string, config: RequestInit) => {
+    const fetchMock = vi.fn(async (_url: string, _config: RequestInit) => {
       return new Response(JSON.stringify({ code: 200, data: null, msg: 'ok' }), {
         status: 200,
       });

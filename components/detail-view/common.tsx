@@ -124,16 +124,13 @@ export const ItemMeta = ({ item }: { item: MediaItem }) => {
   const theme = useAppTheme();
   const textColor = theme.colors.text;
 
-  const ratingText = useMemo(() => {
-    if (typeof item?.communityRating === 'number') return formatRating(item.communityRating);
-    if (typeof item?.criticRating === 'number') return String(item.criticRating);
-    if (item?.officialRating) return item.officialRating;
-    return '';
-  }, [item?.communityRating, item?.criticRating, item?.officialRating]);
-
-  const yearText = useMemo(() => {
-    return typeof item?.productionYear === 'number' ? String(item.productionYear) : '';
-  }, [item?.productionYear]);
+  const ratingText =
+    typeof item.communityRating === 'number'
+      ? formatRating(item.communityRating)
+      : typeof item.criticRating === 'number'
+        ? String(item.criticRating)
+        : (item.officialRating ?? '');
+  const yearText = typeof item.productionYear === 'number' ? String(item.productionYear) : '';
 
   if (!ratingText && !yearText) return null;
 

@@ -31,22 +31,23 @@ function areStringArraysEqual(left: string[], right: string[]) {
 
 export function useHomeSections(currentServer: MediaServerInfo | null) {
   const mediaAdapter = useMediaAdapter();
+  const currentServerId = currentServer?.id;
 
   const [hiddenUserViewIds, setHiddenUserViewIds] = useState<string[]>(() =>
-    currentServer?.id ? getHiddenUserViews(currentServer.id) : [],
+    currentServerId ? getHiddenUserViews(currentServerId) : [],
   );
 
   useFocusEffect(
     useCallback(() => {
-      if (currentServer?.id) {
-        const nextHiddenUserViewIds = getHiddenUserViews(currentServer.id);
+      if (currentServerId) {
+        const nextHiddenUserViewIds = getHiddenUserViews(currentServerId);
         setHiddenUserViewIds((currentHiddenUserViewIds) =>
           areStringArraysEqual(currentHiddenUserViewIds, nextHiddenUserViewIds)
             ? currentHiddenUserViewIds
             : nextHiddenUserViewIds,
         );
       }
-    }, [currentServer?.id]),
+    }, [currentServerId]),
   );
 
   const resumeQuery = useQueryWithFocus({

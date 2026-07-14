@@ -392,9 +392,9 @@ export function SkeletonDetailContent({
       {mode === 'episode' && (
         <>
           <SkeletonHorizontalEpisodes />
-          <SkeletonHorizontalSection title="季度" />
-          <SkeletonHorizontalSection title="演职人员" />
-          <SkeletonHorizontalSection title="更多类似的" />
+          <SkeletonHorizontalSection />
+          <SkeletonHorizontalSection />
+          <SkeletonHorizontalSection />
         </>
       )}
     </View>
@@ -468,7 +468,7 @@ export function SkeletonHorizontalEpisodes() {
   );
 }
 
-export function SkeletonHorizontalSection({ title }: { title: string }) {
+export function SkeletonHorizontalSection() {
   const theme = useAppTheme();
 
   return (

@@ -79,7 +79,7 @@ export const DanmakuSearchModal = ({ onCommentsLoaded, ref }: DanmakuSearchModal
         const results = selectedAnime.episodes;
         setEpisodes(results);
       }
-    } catch (error) {
+    } catch {
       Alert.alert('搜索失败', '请检查网络连接后重试');
     } finally {
       setLoading(false);
@@ -103,7 +103,7 @@ export const DanmakuSearchModal = ({ onCommentsLoaded, ref }: DanmakuSearchModal
         });
         setIsPresented(false);
         Alert.alert('成功', '弹幕已加载');
-      } catch (error) {
+      } catch {
         Alert.alert('加载失败', '无法加载弹幕，请重试');
       } finally {
         setLoading(false);

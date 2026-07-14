@@ -127,7 +127,7 @@ export default function ParallaxScrollView({
   const gradientEndColor = colorScheme === 'light' ? 'rgba(252,255,255,1)' : 'rgba(0,0,0,1)';
 
   const { colors, locations } = useMemo(() => {
-    const blurGradientColors = enableBlurEffect
+    const blurGradientColors: Parameters<typeof easeGradient>[0]['colorStops'] = enableBlurEffect
       ? {
           0: { color: 'transparent' },
           0.5: { color: 'rgba(0,0,0,0.99)' },
@@ -139,7 +139,7 @@ export default function ParallaxScrollView({
         };
 
     return easeGradient({
-      colorStops: blurGradientColors as any,
+      colorStops: blurGradientColors,
       easing: Easing.bezier(0.4, 0.0, 0.2, 1),
       extraColorStopsPerTransition: 24,
     });

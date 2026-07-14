@@ -19,7 +19,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
 type FileCacheKey = 'video' | 'image' | 'subtitle' | 'download' | 'temporary';
@@ -130,8 +130,8 @@ export default function CacheSettingsScreen() {
   const [measuring, setMeasuring] = useState(true);
   const [clearingTarget, setClearingTarget] = useState<ClearTarget | null>(null);
 
-  const queryCacheBytes = useMemo(() => getPersistedQueryCacheBytes(), [revision]);
-  const diagnosticBytes = useMemo(() => getStoredPerformanceLogBytes(), [revision]);
+  const queryCacheBytes = getPersistedQueryCacheBytes();
+  const diagnosticBytes = getStoredPerformanceLogBytes();
   const queryCacheCount = queryClient.getQueryCache().getAll().length;
 
   useEffect(() => {

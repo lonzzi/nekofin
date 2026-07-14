@@ -4,7 +4,6 @@
  */
 import type { Api } from '@jellyfin/sdk';
 import {
-  BaseItemKind,
   ImageType,
   type BaseItemDto,
   type BaseItemPerson,

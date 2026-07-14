@@ -136,7 +136,7 @@ export default function ServerSearchScreen() {
     <>
       {header}
       <PageScrollView style={[styles.container, { backgroundColor }]}>
-        {loadingResults && <SkeletonHorizontalSection title="加载中" />}
+        {loadingResults && <SkeletonHorizontalSection />}
 
         {groupedResults.length === 0 && !loadingResults && (
           <View style={styles.emptyContainer}>
