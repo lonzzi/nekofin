@@ -59,8 +59,9 @@ describe('custom Liquid Glass policy', () => {
       'components/ui/Skeleton.tsx',
     ];
 
-    expect(cardSource).toContain("surface = 'filled'");
+    expect(cardSource).toContain("surface = 'solid'");
     expect(cardSource).toContain('fallbackBackgroundColor ?? theme.colors.surface');
+    expect(cardSource).toContain("surface === 'material'");
 
     for (const relativePath of transparentMediaSources) {
       const source = readFileSync(join(repositoryRoot, relativePath), 'utf8');

@@ -374,6 +374,7 @@ export function SkeletonDetailContent({
           radius={theme.radius.pill}
           containerStyle={styles.detailPlayButtonShadow}
           style={styles.detailPlayButton}
+          surface="material"
         >
           <View style={styles.detailPlayButtonContent}>
             <Skeleton width={26} height={26} borderRadius={theme.radius.pill} />
@@ -404,7 +405,7 @@ function SkeletonDetailInfoCard() {
   const theme = useAppTheme();
 
   return (
-    <GlassCard radius={theme.radius.lg} style={styles.detailInfo}>
+    <GlassCard radius={theme.radius.lg} style={styles.detailInfo} surface="material">
       {Array.from({ length: 6 }).map((_, index) => (
         <View key={index} style={styles.detailInfoRow}>
           <Skeleton

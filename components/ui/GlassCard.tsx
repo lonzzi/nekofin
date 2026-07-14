@@ -14,7 +14,7 @@ type GlassCardProps = PropsWithChildren<
     fallbackBackgroundColor?: string;
     radius?: number;
     style?: StyleProp<ViewStyle>;
-    surface?: 'filled' | 'transparent';
+    surface?: 'material' | 'solid' | 'transparent';
     useGlassEffect?: boolean;
   }
 >;
@@ -46,20 +46,31 @@ export function GlassCard({
   isInteractive,
   radius = 12,
   style,
-  surface = 'filled',
+  surface = 'solid',
   tintColor,
   useGlassEffect = false,
   ...props
 }: GlassCardProps) {
   const theme = useAppTheme();
   const useLiquidGlass = useGlassEffect && isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
+  const useStandardMaterial = !useGlassEffect && surface === 'material';
+  const blurTint =
+    colorScheme === 'dark' || colorScheme === 'light'
+      ? colorScheme
+      : theme.colorScheme === 'dark' || theme.colorScheme === 'light'
+        ? theme.colorScheme
+        : 'default';
   const backgroundColor = useGlassEffect
     ? useLiquidGlass
       ? 'transparent'
       : (fallbackBackgroundColor ?? theme.colors.surface)
-    : surface === 'filled'
-      ? (fallbackBackgroundColor ?? theme.colors.surface)
-      : 'transparent';
+    : useStandardMaterial
+      ? theme.isDark
+        ? 'rgba(28,28,30,0.46)'
+        : 'rgba(242,242,247,0.34)'
+      : surface === 'solid'
+        ? (fallbackBackgroundColor ?? theme.colors.surface)
+        : 'transparent';
   const surfaceStyle = [styles.surface, { backgroundColor, borderRadius: radius }, style];
 
   if (useLiquidGlass) {
@@ -77,11 +88,11 @@ export function GlassCard({
     );
   }
 
-  if (useGlassEffect) {
+  if (useGlassEffect || useStandardMaterial) {
     return (
       <BlurView
-        intensity={42}
-        tint={colorScheme === 'dark' || colorScheme === 'light' ? colorScheme : 'default'}
+        intensity={useGlassEffect ? 42 : 32}
+        tint={blurTint}
         style={surfaceStyle}
         {...(props as ViewProps)}
       >

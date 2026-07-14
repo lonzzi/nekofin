@@ -138,7 +138,7 @@ export const ItemMeta = ({ item }: { item: MediaItem }) => {
   if (!ratingText && !yearText) return null;
 
   return (
-    <GlassCard radius={radius.pill} style={detailViewStyles.metaPill}>
+    <GlassCard radius={radius.pill} style={detailViewStyles.metaPill} surface="material">
       <Text style={[detailViewStyles.meta, { color: textColor }]}>
         {ratingText ? (
           <>
@@ -308,7 +308,7 @@ export const ItemInfoList = ({ item }: { item: MediaItem }) => {
   if (infoRows.length === 0) return null;
 
   return (
-    <GlassCard radius={radius.lg} style={detailViewStyles.infoBlock}>
+    <GlassCard radius={radius.lg} style={detailViewStyles.infoBlock} surface="material">
       {infoRows.map((row) => (
         <View key={row.label} style={detailViewStyles.infoRow}>
           <Text style={[detailViewStyles.infoLabel, { color: subtitleColor }]}>{row.label}</Text>
