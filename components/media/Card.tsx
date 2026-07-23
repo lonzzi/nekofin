@@ -383,8 +383,6 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 999,
     borderCurve: 'continuous',
-    borderWidth: 0.75,
-    borderColor: 'rgba(255,255,255,0.42)',
     backgroundColor: 'rgba(20,20,20,0.16)',
     overflow: 'hidden',
     zIndex: 3,

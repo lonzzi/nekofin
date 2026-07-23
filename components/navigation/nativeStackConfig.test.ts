@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { DETAIL_STACK_SCREEN_OPTIONS } from './nativeStackConfig';
 
 describe('native stack configuration', () => {
-  it('keeps detail routes interactive across the full iOS screen', () => {
+  it('uses the native iOS edge gesture without competing with detail carousels', () => {
     expect(DETAIL_STACK_SCREEN_OPTIONS).toMatchObject({
-      fullScreenGestureEnabled: true,
+      fullScreenGestureEnabled: false,
       gestureEnabled: true,
       headerTitle: '',
       headerTransparent: true,
