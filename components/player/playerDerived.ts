@@ -87,7 +87,37 @@ export function deriveEpisodeNavigation(itemId: string, episodes: MediaItem[]) {
 
 export function deriveDurationMs(
   item: MediaItem | null | undefined,
-  fallbackDurationMs?: number | null,
+  fallbackDurationSeconds?: number | null,
 ): number {
-  return item?.runTimeTicks ? ticksToMilliseconds(item.runTimeTicks) : (fallbackDurationMs ?? 0);
+  return item?.runTimeTicks
+    ? ticksToMilliseconds(item.runTimeTicks)
+    : Math.max(0, (fallbackDurationSeconds ?? 0) * 1000);
+}
+
+export function deriveBufferedProgress({
+  positionSeconds,
+  durationSeconds,
+  bufferedDurationSeconds,
+  bufferedPositionSeconds,
+}: {
+  positionSeconds: number;
+  durationSeconds: number;
+  bufferedDurationSeconds: number;
+  bufferedPositionSeconds?: number;
+}): number {
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return 0;
+
+  const position = Number.isFinite(positionSeconds) ? Math.max(0, positionSeconds) : 0;
+  const bufferedDuration = Number.isFinite(bufferedDurationSeconds)
+    ? Math.max(0, bufferedDurationSeconds)
+    : 0;
+  const reportedBufferedPosition =
+    bufferedPositionSeconds != null &&
+    Number.isFinite(bufferedPositionSeconds) &&
+    bufferedPositionSeconds > 0
+      ? bufferedPositionSeconds
+      : position + bufferedDuration;
+  const absoluteBufferedPosition = Math.max(position, reportedBufferedPosition);
+
+  return Math.min(1, absoluteBufferedPosition / durationSeconds);
 }

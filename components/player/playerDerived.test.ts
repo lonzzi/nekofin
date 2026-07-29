@@ -2,6 +2,7 @@ import type { MediaItem } from '@/services/media/types';
 import { describe, expect, it } from 'vitest';
 
 import {
+  deriveBufferedProgress,
   deriveDurationMs,
   deriveEpisodeNavigation,
   deriveExternalAudio,
@@ -85,13 +86,45 @@ describe('player derived state', () => {
     });
   });
 
-  it('prefers runtime ticks over fallback duration', () => {
+  it('prefers runtime ticks and converts the native fallback from seconds', () => {
     expect(
       deriveDurationMs(
         { id: 'movie-1', name: 'Movie', type: 'Movie', raw: {}, runTimeTicks: 30_000_000 },
         10,
       ),
     ).toBe(3000);
-    expect(deriveDurationMs(undefined, 10)).toBe(10);
+    expect(deriveDurationMs(undefined, 10)).toBe(10_000);
+  });
+
+  it('derives absolute buffered progress with an Android-compatible fallback', () => {
+    expect(
+      deriveBufferedProgress({
+        positionSeconds: 20,
+        durationSeconds: 100,
+        bufferedDurationSeconds: 15,
+        bufferedPositionSeconds: 65,
+      }),
+    ).toBe(0.65);
+    expect(
+      deriveBufferedProgress({
+        positionSeconds: 20,
+        durationSeconds: 100,
+        bufferedDurationSeconds: 15,
+      }),
+    ).toBe(0.35);
+    expect(
+      deriveBufferedProgress({
+        positionSeconds: 95,
+        durationSeconds: 100,
+        bufferedDurationSeconds: 20,
+      }),
+    ).toBe(1);
+    expect(
+      deriveBufferedProgress({
+        positionSeconds: 20,
+        durationSeconds: 0,
+        bufferedDurationSeconds: 15,
+      }),
+    ).toBe(0);
   });
 });

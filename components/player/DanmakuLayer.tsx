@@ -1,7 +1,8 @@
+// @refresh reset
+
 import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { usePreciseTimer } from '@/hooks/usePreciseTimer';
 import { defaultSettings } from '@/lib/contexts/DanmakuSettingsContext';
-import { sleep } from '@/lib/utils';
 import { DANDAN_COMMENT_MODE, DandanComment } from '@/services/dandanplay';
 import React, {
   useCallback,
@@ -23,6 +24,7 @@ import {
   calculateScrollDurationMs,
   createActiveDanmakuBullet,
   estimateDanmakuTextWidth,
+  removeActiveDanmakuBullet,
 } from './danmakuLayout';
 import { ActiveBullet, DanmakuSettingsType } from './DanmakuTypes';
 
@@ -79,12 +81,7 @@ export function DanmakuLayer({
   fontFamily = defaultSettings.fontFamily,
   fontWeight = defaultSettings.fontWeight,
 }: DanmakuLayerProps) {
-  const {
-    time: currentTimeMs,
-    sync,
-    stop,
-    start,
-  } = usePreciseTimer({
+  const { time: currentTimeMs, sync } = usePreciseTimer({
     interval: 100,
     isRunning: isPlaying,
     playbackRate,
@@ -95,8 +92,11 @@ export function DanmakuLayer({
   const { width, height } = useWindowDimensions();
   const [active, setActive] = useState<ActiveBullet[]>([]);
   const lastTimeMsRef = useRef<number>(-1);
-  const processedCommentsRef = useRef<Set<number>>(new Set());
+  // DandanPlay cids are 64-bit integers and can collide after JSON parses them
+  // as JavaScript numbers. Object identity keeps distinct source rows distinct.
+  const processedCommentsRef = useRef<Set<DandanComment>>(new Set());
   const nextCommentIndexRef = useRef(0);
+  const nextBulletInstanceIdRef = useRef(0);
 
   const widthCacheRef = useRef<Map<string, number>>(new Map());
   const lineHeight = fontSize + 8;
@@ -133,14 +133,11 @@ export function DanmakuLayer({
   }, [ensureLanes]);
 
   const handleSeek = useCallback(
-    async (timeMs: number) => {
-      stop();
-      sync(timeMs);
-      start();
-      await sleep(100);
+    (timeMs: number) => {
       handleCleanup();
+      sync(timeMs);
     },
-    [handleCleanup, start, stop, sync],
+    [handleCleanup, sync],
   );
 
   useImperativeHandle(
@@ -183,8 +180,10 @@ export function DanmakuLayer({
       startOffsetMs: number = 0,
       scheduledMs: number = 0,
     ): ActiveBullet => {
+      nextBulletInstanceIdRef.current += 1;
       return createActiveDanmakuBullet({
         comment,
+        instanceId: nextBulletInstanceIdRef.current,
         rowIndex,
         startOffsetMs,
         scheduledMs,
@@ -484,11 +483,7 @@ export function DanmakuLayer({
       if (tMs > toMs) break;
 
       const timeDiff = Math.abs(tMs - currentTimeMs);
-      if (
-        tMs > fromMs &&
-        timeDiff <= maxTimeDiff &&
-        !processedCommentsRef.current.has(comment.id)
-      ) {
+      if (tMs > fromMs && timeDiff <= maxTimeDiff && !processedCommentsRef.current.has(comment)) {
         slice.push(comment);
       }
 
@@ -505,7 +500,7 @@ export function DanmakuLayer({
     if (windowMs > 300) {
       for (const c of slice) {
         const tMs = Math.round(c.timeInSeconds * 1000);
-        if (processedCommentsRef.current.has(c.id)) {
+        if (processedCommentsRef.current.has(c)) {
           continue;
         }
 
@@ -564,18 +559,18 @@ export function DanmakuLayer({
 
             const bullet = createDanmakuBullet(c, rowIndex, startOffsetMs, scheduledMs);
             nextActiveBullets.push(bullet);
-            processedCommentsRef.current.add(c.id);
+            processedCommentsRef.current.add(c);
           } else {
             const bullet = createDanmakuBullet(c, rowIndex, 0, scheduledMs);
             nextActiveBullets.push(bullet);
-            processedCommentsRef.current.add(c.id);
+            processedCommentsRef.current.add(c);
           }
         }
       }
     } else {
       for (const c of slice) {
         const tMs = Math.round(c.timeInSeconds * 1000);
-        if (processedCommentsRef.current.has(c.id)) {
+        if (processedCommentsRef.current.has(c)) {
           continue;
         }
 
@@ -609,11 +604,11 @@ export function DanmakuLayer({
           if (extraDelay === 0) {
             const bullet = createDanmakuBullet(c, rowIndex, 0, tMs);
             nextActiveBullets.push(bullet);
-            processedCommentsRef.current.add(c.id);
+            processedCommentsRef.current.add(c);
           } else {
             const bullet = createDanmakuBullet(c, rowIndex, 0, tMs + extraDelay);
             nextActiveBullets.push(bullet);
-            processedCommentsRef.current.add(c.id);
+            processedCommentsRef.current.add(c);
           }
         }
       }
@@ -650,8 +645,8 @@ export function DanmakuLayer({
     };
   }, []);
 
-  const handleExpire = useCallback((id: number) => {
-    setActive((prev) => prev.filter((b) => b.id !== id));
+  const handleExpire = useCallback((instanceId: number) => {
+    setActive((prev) => removeActiveDanmakuBullet(prev, instanceId));
   }, []);
 
   const effectiveOpacity = danmakuFilter === 15 ? 0 : opacity;
@@ -663,7 +658,7 @@ export function DanmakuLayer({
     >
       {active.map((b) => (
         <MemoBullet
-          key={b.id}
+          key={b.instanceId}
           width={width}
           data={b}
           onExpire={handleExpire}

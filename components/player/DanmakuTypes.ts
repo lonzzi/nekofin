@@ -2,7 +2,8 @@ import { DandanCommentMode } from '@/services/dandanplay';
 import { TextStyle } from 'react-native';
 
 export type ActiveBullet = {
-  id: number;
+  commentId: number;
+  instanceId: number;
   text: string;
   colorHex: string;
   top: number;
@@ -14,6 +15,7 @@ export type ActiveBullet = {
 };
 
 export type DanmakuSettingsType = {
+  enabled: boolean;
   opacity: number;
   speed: number;
   fontSize: number;

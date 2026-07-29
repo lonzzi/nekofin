@@ -1,9 +1,7 @@
 import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { formatTimeWorklet } from '@/lib/utils';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useCallback } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Slider } from 'react-native-awesome-slider';
+import { StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useDerivedValue,
@@ -11,185 +9,106 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PlayerActionBar } from './PlayerActionBar';
 import { usePlayer } from './PlayerContext';
-import { SettingsButtons } from './SettingsButtons';
+import { PlayerProgressSlider } from './PlayerProgressSlider';
+import { TransportControls } from './TransportControls';
 import { useOverlayInsets } from './useOverlayInsets';
 
 export function BottomControls() {
-  const { side, bottomExtra } = useOverlayInsets();
+  const { side, bottomExtra, maxContentWidth, stackBottomControls } = useOverlayInsets();
   const insets = useSafeAreaInsets();
-
   const {
-    isPlaying,
-    isLoading,
-    duration,
-    currentTime,
-    onSeek,
-    onPlayPause,
-    hasPreviousEpisode,
-    hasNextEpisode,
-    onPreviousEpisode,
-    onNextEpisode,
-    showControls,
-    fadeAnim,
-    isDragging,
-    setIsDragging,
-    hideControlsWithDelay,
-    episodes,
-    isMovie,
-    episodeListDrawerRef,
     bufferedProgress,
+    currentTime,
+    duration,
+    fadeAnim,
+    hideControlsWithDelay,
+    isDragging,
+    isLoading,
+    onSeek,
+    setIsDragging,
+    showControls,
   } = usePlayer();
   const currentTimeMs = useCurrentTime({ time: currentTime });
 
-  const fadeAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: fadeAnim.value,
-    };
-  });
-
+  const fadeAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: fadeAnim.value,
+  }));
   const progressValue = useSharedValue(0);
-  const minimumValue = useSharedValue(0);
-  const maximumValue = useSharedValue(1);
 
   useDerivedValue(() => {
     if (!isDragging && duration > 0) {
-      // currentTime.value and duration are both in milliseconds
-      const progress = currentTime.value / duration;
-      progressValue.value = progress;
+      progressValue.set(currentTime.get() / duration);
     }
   });
 
-  const handleSeek = useCallback(
-    (position: number) => {
-      if (!duration) return;
-      const clampedTime = Math.max(0, Math.min(position, duration));
-      const newPosition = duration > 0 ? clampedTime / duration : 0;
-      onSeek(newPosition);
+  const seekToTime = useCallback(
+    (time: number) => {
+      if (duration <= 0) return;
+      const clampedTime = Math.max(0, Math.min(time, duration));
+      onSeek(clampedTime / duration);
     },
     [duration, onSeek],
   );
 
-  const handleSliderChange = (value: number) => {
-    if (!duration) return;
-    progressValue.value = value;
-  };
-
-  const handleSliderSlidingStart = () => {
-    setIsDragging(true);
-  };
-
   const handleSliderSlidingComplete = (value: number) => {
-    if (!duration) return;
-    const newTime = value * duration;
-    handleSeek(newTime);
-    progressValue.value = value;
+    progressValue.set(value);
+    if (duration > 0) {
+      seekToTime(value * duration);
+    }
     setIsDragging(false);
     hideControlsWithDelay();
   };
 
-  const handlePlayPause = async () => {
-    onPlayPause();
-  };
-
-  const handleEpisodeListPress = () => {
-    if (!isMovie && episodes.length > 0) {
-      episodeListDrawerRef.current?.present();
-    }
-  };
+  const formattedCurrentTime = formatTimeWorklet(currentTimeMs);
+  const formattedDuration = formatTimeWorklet(duration);
+  const leftInset = Math.max(side, insets.left + 8);
+  const rightInset = Math.max(side, insets.right + 8);
 
   return (
-    <Animated.View
+    <View
+      pointerEvents="box-none"
       style={[
         styles.container,
-        { left: side, right: side, bottom: insets.bottom + 10 + bottomExtra },
-        fadeAnimatedStyle,
+        { bottom: insets.bottom + 10 + bottomExtra, left: leftInset, right: rightInset },
       ]}
-      pointerEvents={showControls ? 'auto' : 'none'}
     >
-      <View style={styles.progressSection}>
-        <View style={styles.progressRow}>
-          <Text style={styles.timeText}>{formatTimeWorklet(currentTimeMs)}</Text>
-          <View style={styles.sliderContainer}>
-            <Slider
-              style={styles.slider}
-              containerStyle={{ overflow: 'hidden', borderRadius: 999 }}
-              progress={progressValue}
-              cache={bufferedProgress}
-              bubble={(percent) => formatTimeWorklet(percent * duration)}
-              bubbleTextStyle={{ fontFamily: 'Roboto' }}
-              minimumValue={minimumValue}
-              maximumValue={maximumValue}
-              onValueChange={handleSliderChange}
-              onSlidingStart={handleSliderSlidingStart}
+      <View pointerEvents="box-none" style={[styles.content, { maxWidth: maxContentWidth }]}>
+        <View pointerEvents="box-none" style={styles.progressRow}>
+          <Animated.Text pointerEvents="none" style={[styles.timeText, fadeAnimatedStyle]}>
+            {formattedCurrentTime}
+          </Animated.Text>
+          <Animated.View
+            pointerEvents={showControls ? 'auto' : 'none'}
+            style={[styles.progressSlider, fadeAnimatedStyle]}
+          >
+            <PlayerProgressSlider
+              accessibilityStep={duration > 0 ? Math.min(1, 10_000 / duration) : 0.01}
+              accessibilityValue={`${formattedCurrentTime} / ${formattedDuration}`}
+              bufferedProgress={bufferedProgress}
+              disabled={isLoading || duration <= 0}
               onSlidingComplete={handleSliderSlidingComplete}
-              theme={{
-                minimumTrackTintColor: '#fff',
-                maximumTrackTintColor: 'rgba(255,255,255,0.3)',
-                cacheTrackTintColor: 'rgba(255,255,255,0.5)',
-              }}
-              disableTapEvent={false}
+              onSlidingStart={() => setIsDragging(true)}
+              progress={progressValue}
             />
-          </View>
-          <Text style={styles.timeText}>{formatTimeWorklet(duration)}</Text>
-        </View>
-        <View style={styles.progressOverlayRight}>
-          <SettingsButtons />
-        </View>
-      </View>
-
-      <View style={styles.bottomRow}>
-        <View style={styles.cornerButton}>
-          {/* <Ionicons name="lock-closed-outline" size={24} color="#fff" /> */}
+          </Animated.View>
+          <Animated.Text pointerEvents="none" style={[styles.timeText, fadeAnimatedStyle]}>
+            {formattedDuration}
+          </Animated.Text>
         </View>
 
-        <View style={styles.controlsCluster}>
-          <Pressable
-            style={[styles.circleButton, !hasPreviousEpisode && styles.disabledButton]}
-            onPress={hasPreviousEpisode ? onPreviousEpisode : undefined}
-            disabled={!hasPreviousEpisode}
-          >
-            <Ionicons
-              name="play-skip-back"
-              size={24}
-              color={hasPreviousEpisode ? 'white' : 'rgba(255,255,255,0.3)'}
-            />
-          </Pressable>
-
-          <Pressable style={styles.playButton} onPress={handlePlayPause}>
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Ionicons name={isPlaying ? 'pause' : 'play'} size={30} color="white" />
-            )}
-          </Pressable>
-
-          <Pressable
-            style={[styles.circleButton, !hasNextEpisode && styles.disabledButton]}
-            onPress={hasNextEpisode ? onNextEpisode : undefined}
-            disabled={!hasNextEpisode}
-          >
-            <Ionicons
-              name="play-skip-forward"
-              size={24}
-              color={hasNextEpisode ? 'white' : 'rgba(255,255,255,0.3)'}
-            />
-          </Pressable>
-        </View>
-
-        <Pressable
-          style={[styles.cornerButton, (isMovie || episodes.length === 0) && styles.disabledButton]}
-          onPress={handleEpisodeListPress}
-          disabled={isMovie || episodes.length === 0}
+        <View
+          pointerEvents="box-none"
+          style={[styles.bottomRow, stackBottomControls && styles.stackedBottomRow]}
         >
-          <Ionicons
-            name="list"
-            size={24}
-            color={isMovie || episodes.length === 0 ? 'rgba(255,255,255,0.3)' : '#fff'}
-          />
-        </Pressable>
+          <TransportControls />
+          <View pointerEvents="box-none" style={styles.actionRow}>
+            <PlayerActionBar />
+          </View>
+        </View>
       </View>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -197,67 +116,44 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     zIndex: 10,
-    gap: 8,
   },
-  progressSection: {
-    position: 'relative',
-    paddingTop: 30,
-  },
-  playButton: {
-    width: 56,
-    height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  circleButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
+  content: {
+    alignSelf: 'center',
+    gap: 10,
+    width: '100%',
   },
   progressRow: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     gap: 10,
   },
-  progressOverlayRight: {
-    position: 'absolute',
-    right: 0,
-    bottom: 30,
-  },
-  sliderContainer: {
+  progressSlider: {
     flex: 1,
-    height: 30,
-    justifyContent: 'center',
-  },
-  slider: {
-    width: '100%',
-    height: 30,
+    height: 44,
   },
   timeText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-    minWidth: 60,
+    color: 'rgba(255,255,255,0.82)',
+    fontFamily: 'Roboto',
+    fontSize: 12,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '600',
+    minWidth: 48,
     textAlign: 'center',
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  cornerButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    textShadowColor: 'rgba(0,0,0,0.55)',
+    textShadowOffset: { height: 1, width: 0 },
+    textShadowRadius: 4,
   },
   bottomRow: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
     justifyContent: 'space-between',
   },
-  controlsCluster: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
+  stackedBottomRow: {
+    alignItems: 'stretch',
+    flexDirection: 'column',
+  },
+  actionRow: {
+    alignSelf: 'flex-end',
   },
 });

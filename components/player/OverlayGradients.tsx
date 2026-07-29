@@ -4,6 +4,21 @@ import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import { usePlayer } from './PlayerContext';
 
+export function ContentOverlayScrim() {
+  const { fadeAnim } = usePlayer();
+
+  const fadeAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: fadeAnim.value,
+  }));
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[StyleSheet.absoluteFill, styles.contentScrim, fadeAnimatedStyle]}
+    />
+  );
+}
+
 export function TopOverlayGradient() {
   const { fadeAnim } = usePlayer();
 
@@ -19,7 +34,7 @@ export function TopOverlayGradient() {
       pointerEvents="none"
     >
       <LinearGradient
-        colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.0)']}
+        colors={['rgba(0,0,0,0.72)', 'rgba(0,0,0,0.24)', 'rgba(0,0,0,0.0)']}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={styles.fill}
@@ -43,7 +58,7 @@ export function BottomOverlayGradient() {
       pointerEvents="none"
     >
       <LinearGradient
-        colors={['rgba(0,0,0,0.0)', 'rgba(0,0,0,0.6)']}
+        colors={['rgba(0,0,0,0.0)', 'rgba(0,0,0,0.28)', 'rgba(0,0,0,0.76)']}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
         style={styles.fill}
@@ -53,15 +68,19 @@ export function BottomOverlayGradient() {
 }
 
 const styles = StyleSheet.create({
+  contentScrim: {
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    zIndex: 5,
+  },
   topContainer: {
     position: 'absolute',
     zIndex: 5,
-    height: 120,
+    height: 150,
   },
   bottomContainer: {
     position: 'absolute',
     zIndex: 5,
-    height: 180,
+    height: 230,
   },
   fill: {
     width: '100%',

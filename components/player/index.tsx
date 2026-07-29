@@ -1,3 +1,5 @@
+// @refresh reset
+
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
@@ -22,6 +24,7 @@ import { usePlaybackSync } from '../../hooks/usePlaybackSync';
 import { Controls } from './Controls';
 import { DanmakuLayer, DanmakuLayerRef } from './DanmakuLayer';
 import {
+  deriveBufferedProgress,
   deriveDurationMs,
   deriveEpisodeNavigation,
   deriveExternalAudio,
@@ -114,6 +117,8 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   >(undefined);
 
   const player = useRef<ExpoMpvViewRef>(null);
+  const isPlayerReadyRef = useRef(false);
+  const loadedSourceRef = useRef<string | null>(null);
   const hasInitialSeeked = useRef(false);
   const danmakuLayer = useRef<DanmakuLayerRef>(null);
   const currentTime = useSharedValue(0);
@@ -162,6 +167,40 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
 
   const comments = useManualComments ? manualComments : (autoCommentsData?.comments ?? []);
 
+  useEffect(() => {
+    bufferedProgress.set(0);
+  }, [bufferedProgress, itemId]);
+
+  useEffect(() => {
+    isPlayerReadyRef.current = false;
+    loadedSourceRef.current = null;
+    hasInitialSeeked.current = false;
+    currentTime.value = 0;
+    danmakuLayer.current?.cleanup();
+    setManualComments([]);
+    setUseManualComments(false);
+    setDanmakuEpisodeInfo(undefined);
+    setInitialTime(-1);
+    setIsLoaded(false);
+    setIsBuffering(true);
+    setIsStopped(false);
+    setPlaybackState('idle');
+  }, [currentTime, itemId]);
+
+  useEffect(() => {
+    isPlayerReadyRef.current = false;
+    loadedSourceRef.current = null;
+    hasInitialSeeked.current = false;
+    setIsLoaded(false);
+    setIsBuffering(true);
+    setMpvTracks({ audio: [], subtitle: [] });
+    setCurrentTrackIds({ vid: 0, aid: 0, sid: 0 });
+    setMediaInfo(null);
+    setHdrState(null);
+    setBufferInfo(null);
+    isBufferingRef.current = false;
+  }, [streamInfo?.url]);
+
   const handleCommentsLoaded = (
     newComments: DandanComment[],
     episodeInfo?: { animeTitle: string; episodeTitle: string },
@@ -172,32 +211,45 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   };
 
   // Pull the real track list from mpv. Track `index` here is mpv's own sid/aid.
-  const refreshMpvTracks = useCallback(async () => {
-    try {
-      const list = await player.current?.getTrackList();
-      const ids = await player.current?.getCurrentTrackIds();
-      if (list) {
-        const toEntry = (t: TrackInfo) => {
-          const parts: string[] = [];
-          if (t.title) parts.push(t.title);
-          if (t.lang) parts.push(`[${t.lang}]`);
-          if (t.isExternal) parts.push('(ext)');
-          return {
-            index: t.id,
-            name: parts.length ? parts.join(' ') : `Track ${t.id}`,
-            language: t.lang || undefined,
+  const refreshMpvTracks = useCallback(
+    async (
+      targetPlayer: ExpoMpvViewRef | null = player.current,
+      targetSource: string | null = loadedSourceRef.current,
+    ) => {
+      if (!targetPlayer || !targetSource) return;
+
+      try {
+        const list = await targetPlayer.getTrackList();
+        const ids = await targetPlayer.getCurrentTrackIds();
+
+        if (player.current !== targetPlayer || loadedSourceRef.current !== targetSource) {
+          return;
+        }
+
+        if (list) {
+          const toEntry = (t: TrackInfo) => {
+            const parts: string[] = [];
+            if (t.title) parts.push(t.title);
+            if (t.lang) parts.push(`[${t.lang}]`);
+            if (t.isExternal) parts.push('(ext)');
+            return {
+              index: t.id,
+              name: parts.length ? parts.join(' ') : `Track ${t.id}`,
+              language: t.lang || undefined,
+            };
           };
-        };
-        setMpvTracks({
-          audio: list.filter((t) => t.type === 'audio').map(toEntry),
-          subtitle: list.filter((t) => t.type === 'sub').map(toEntry),
-        });
+          setMpvTracks({
+            audio: list.filter((t) => t.type === 'audio').map(toEntry),
+            subtitle: list.filter((t) => t.type === 'sub').map(toEntry),
+          });
+        }
+        if (ids) setCurrentTrackIds(ids);
+      } catch (e) {
+        console.warn('refreshMpvTracks error:', e);
       }
-      if (ids) setCurrentTrackIds(ids);
-    } catch (e) {
-      console.warn('refreshMpvTracks error:', e);
-    }
-  }, []);
+    },
+    [],
+  );
 
   const externalSubtitles = useMemo(() => {
     return deriveExternalSubtitles(
@@ -241,13 +293,12 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   );
 
   useEffect(() => {
-    if (itemDetail?.userData?.playbackPositionTicks !== undefined) {
-      const startTimeMs = Math.round(
-        ticksToMilliseconds(itemDetail.userData.playbackPositionTicks!),
-      );
-      currentTime.value = startTimeMs;
-      setInitialTime(ticksToSeconds(itemDetail.userData.playbackPositionTicks!));
-    }
+    if (!itemDetail) return;
+
+    const playbackPositionTicks = itemDetail.userData?.playbackPositionTicks ?? 0;
+    const startTimeMs = Math.round(ticksToMilliseconds(playbackPositionTicks));
+    currentTime.value = startTimeMs;
+    setInitialTime(ticksToSeconds(playbackPositionTicks));
   }, [itemDetail, currentTime]);
 
   useEffect(() => {
@@ -263,45 +314,81 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   // Auto-load Jellyfin external subtitles when player is ready, then refresh the
   // mpv track list so they show up in the picker with their real mpv sid.
   useEffect(() => {
-    if (!isLoaded || externalSubtitles.length === 0) return;
+    const targetPlayer = player.current;
+    const targetSource = streamInfo?.url ?? null;
+    if (
+      !isLoaded ||
+      !targetPlayer ||
+      !targetSource ||
+      loadedSourceRef.current !== targetSource ||
+      externalSubtitles.length === 0
+    ) {
+      return;
+    }
+
+    let cancelled = false;
 
     const loadExternalSubtitles = async () => {
       for (let i = 0; i < externalSubtitles.length; i++) {
+        if (cancelled) return;
         const sub = externalSubtitles[i];
         try {
           // Show the first external subtitle immediately ('select'); add the rest
           // without stealing selection ('auto') so the user can pick them from
           // the track menu (which is keyed by real mpv sid).
-          await player.current?.addSubtitle(sub.url, i === 0 ? 'select' : 'auto', sub.name);
+          await targetPlayer.addSubtitle(sub.url, i === 0 ? 'select' : 'auto', sub.name);
         } catch (error) {
           console.error(`Failed to load external subtitle: ${sub.name}`, error);
         }
       }
-      await refreshMpvTracks();
+      if (!cancelled) {
+        await refreshMpvTracks(targetPlayer, targetSource);
+      }
     };
 
-    loadExternalSubtitles();
-  }, [isLoaded, externalSubtitles, refreshMpvTracks]);
+    void loadExternalSubtitles();
+    return () => {
+      cancelled = true;
+    };
+  }, [externalSubtitles, isLoaded, refreshMpvTracks, streamInfo?.url]);
 
   // Auto-load Jellyfin external audio tracks once the player is ready, then refresh
   // the mpv track list so they appear in the audio picker with their real mpv aid.
   useEffect(() => {
-    if (!isLoaded || externalAudios.length === 0) return;
+    const targetPlayer = player.current;
+    const targetSource = streamInfo?.url ?? null;
+    if (
+      !isLoaded ||
+      !targetPlayer ||
+      !targetSource ||
+      loadedSourceRef.current !== targetSource ||
+      externalAudios.length === 0
+    ) {
+      return;
+    }
+
+    let cancelled = false;
 
     const loadExternalAudios = async () => {
       for (let i = 0; i < externalAudios.length; i++) {
+        if (cancelled) return;
         const audio = externalAudios[i];
         try {
-          await player.current?.addAudio(audio.url, i === 0 ? 'select' : 'auto', audio.name);
+          await targetPlayer.addAudio(audio.url, i === 0 ? 'select' : 'auto', audio.name);
         } catch (error) {
           console.error(`Failed to load external audio: ${audio.name}`, error);
         }
       }
-      await refreshMpvTracks();
+      if (!cancelled) {
+        await refreshMpvTracks(targetPlayer, targetSource);
+      }
     };
 
-    loadExternalAudios();
-  }, [isLoaded, externalAudios, refreshMpvTracks]);
+    void loadExternalAudios();
+    return () => {
+      cancelled = true;
+    };
+  }, [externalAudios, isLoaded, refreshMpvTracks, streamInfo?.url]);
 
   const handlePlayPause = useCallback(() => {
     player.current?.togglePlay();
@@ -325,32 +412,49 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
 
   const handleSeek = useCallback(
     (position: number) => {
-      const targetTimeMs = position * duration; // ms
+      const playerView = player.current;
+      if (
+        !isPlayerReadyRef.current ||
+        loadedSourceRef.current !== streamInfo?.url ||
+        !playerView ||
+        duration <= 0 ||
+        !Number.isFinite(position)
+      ) {
+        return;
+      }
+
+      const normalizedPosition = Math.max(0, Math.min(position, 1));
+      const targetTimeMs = normalizedPosition * duration; // ms
       const targetTimeSec = targetTimeMs / 1000; // seconds for mpv
-      player.current?.seekTo(targetTimeSec);
+      void playerView.seekTo(targetTimeSec);
       danmakuLayer.current?.seek(targetTimeMs);
       currentTime.value = targetTimeMs;
       syncPlaybackProgress(targetTimeMs, false, { force: true });
       setIsBuffering(false);
+      setIsStopped(false);
     },
-    [currentTime, duration, danmakuLayer, syncPlaybackProgress],
+    [currentTime, duration, streamInfo?.url, syncPlaybackProgress],
   );
 
   // trackId here is mpv's real aid/sid (from mpvTracks[].index).
   const handleAudioTrackChange = useCallback(
     (trackId: number) => {
-      player.current?.setAudioTrack(trackId);
+      const targetPlayer = player.current;
+      const targetSource = loadedSourceRef.current;
+      targetPlayer?.setAudioTrack(trackId);
       setCurrentTrackIds((prev) => ({ ...prev, aid: trackId }));
-      setTimeout(() => refreshMpvTracks(), 200);
+      setTimeout(() => void refreshMpvTracks(targetPlayer, targetSource), 200);
     },
     [refreshMpvTracks],
   );
 
   const handleSubtitleTrackChange = useCallback(
     (trackId: number) => {
-      player.current?.setSubtitleTrack(trackId);
+      const targetPlayer = player.current;
+      const targetSource = loadedSourceRef.current;
+      targetPlayer?.setSubtitleTrack(trackId);
       setCurrentTrackIds((prev) => ({ ...prev, sid: trackId }));
-      setTimeout(() => refreshMpvTracks(), 200);
+      setTimeout(() => void refreshMpvTracks(targetPlayer, targetSource), 200);
     },
     [refreshMpvTracks],
   );
@@ -401,26 +505,32 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     <View style={styles.container}>
       {streamInfo?.url && initialTime >= 0 && (
         <ExpoMpvView
+          key={streamInfo.url}
           ref={player}
           style={styles.video}
           source={streamInfo.url}
+          speed={rate}
           onPlaybackStateChange={({ nativeEvent }) => {
             setPlaybackState(nativeEvent.state);
             setIsPlaying(nativeEvent.isPlaying);
+            if (nativeEvent.state === 'playing' || nativeEvent.state === 'paused') {
+              setIsStopped(false);
+            }
             if (!nativeEvent.isPlaying) {
               syncPlaybackProgress(currentTime.value, true, { force: true });
-            }
-            if (nativeEvent.isPlaying && initialTime > 0 && !hasInitialSeeked.current) {
-              hasInitialSeeked.current = true;
-              player.current?.seekBy(initialTime);
             }
           }}
           onProgress={({ nativeEvent }) => {
             currentTime.value = nativeEvent.position * 1000;
             syncPlaybackProgress(currentTime.value, false);
-            // Buffered-ahead ratio for the seek bar (bufferedPosition is in seconds).
-            bufferedProgress.value =
-              duration > 0 ? Math.min(1, (nativeEvent.bufferedPosition * 1000) / duration) : 0;
+            bufferedProgress.set(
+              deriveBufferedProgress({
+                positionSeconds: nativeEvent.position,
+                durationSeconds: nativeEvent.duration,
+                bufferedDurationSeconds: nativeEvent.bufferedDuration,
+                bufferedPositionSeconds: nativeEvent.bufferedPosition,
+              }),
+            );
             // Surface buffering stats (throttled) only while stalled for cache.
             if (nativeEvent.bufferingPercent < 100) {
               isBufferingRef.current = true;
@@ -441,6 +551,24 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
             setHdrState(nativeEvent);
           }}
           onLoad={({ nativeEvent }) => {
+            isPlayerReadyRef.current = true;
+            loadedSourceRef.current = streamInfo?.url ?? null;
+            // mpv can report `isPlaying` while it is still opening the source.
+            // Resume only after file-loaded, when seek commands are accepted.
+            if (!hasInitialSeeked.current) {
+              const fallbackDurationSeconds = duration > 0 ? duration / 1000 : 0;
+              const loadedDurationSeconds =
+                nativeEvent.duration > 0 ? nativeEvent.duration : fallbackDurationSeconds;
+              const resumePositionSeconds =
+                loadedDurationSeconds > 0
+                  ? Math.min(Math.max(0, initialTime), loadedDurationSeconds)
+                  : Math.max(0, initialTime);
+              if (resumePositionSeconds > 0) {
+                currentTime.value = resumePositionSeconds * 1000;
+                void player.current?.seekTo(resumePositionSeconds);
+              }
+              hasInitialSeeked.current = true;
+            }
             setIsLoaded(true);
             setIsBuffering(false);
             setIsPlaying(true);
@@ -451,12 +579,16 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
             });
             syncPlaybackStart(currentTime.value);
             // Populate the track picker from mpv's real track list.
-            setTimeout(() => refreshMpvTracks(), 300);
+            const targetPlayer = player.current;
+            const targetSource = streamInfo?.url ?? null;
+            setTimeout(() => void refreshMpvTracks(targetPlayer, targetSource), 300);
           }}
           onBuffer={({ nativeEvent }) => {
             setIsBuffering(nativeEvent.isBuffering);
           }}
           onError={({ nativeEvent }) => {
+            isPlayerReadyRef.current = false;
+            loadedSourceRef.current = null;
             setIsBuffering(false);
             setIsPlaying(false);
             setIsStopped(true);
@@ -475,7 +607,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
 
       {showLoading && <LoadingIndicator bufferInfo={bufferInfo} />}
 
-      {comments.length > 0 && initialTime >= 0 && (
+      {settings.enabled && comments.length > 0 && initialTime >= 0 ? (
         <DanmakuLayer
           ref={danmakuLayer}
           currentTime={currentTime}
@@ -484,7 +616,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
           playbackRate={rate}
           {...settings}
         />
-      )}
+      ) : null}
 
       <Controls
         isPlaying={isPlaying}

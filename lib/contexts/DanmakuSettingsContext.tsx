@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { TextStyle } from 'react-native';
+import type { TextStyle } from 'react-native';
 
 import { storage } from '../storage';
 
 export type DanmakuSettingsType = {
+  enabled: boolean;
   opacity: number;
   speed: number;
   fontSize: number;
@@ -22,6 +23,7 @@ type DanmakuSettingsContextValue = {
 };
 
 export const defaultSettings: DanmakuSettingsType = {
+  enabled: true,
   opacity: 0.8,
   speed: 140,
   fontSize: 20,
@@ -34,12 +36,103 @@ export const defaultSettings: DanmakuSettingsType = {
   fontWeight: '700',
 };
 
+const LEGACY_DISABLED_SOURCE_FILTER = 15;
+const SUPPORTED_FONT_WEIGHTS = new Set([
+  'normal',
+  'bold',
+  '100',
+  '200',
+  '300',
+  '400',
+  '500',
+  '600',
+  '700',
+  '800',
+  '900',
+]);
+
+const finiteNumber = (value: unknown, fallback: number, minimum: number, maximum: number) =>
+  typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(Math.max(value, minimum), maximum)
+    : fallback;
+
+const finiteInteger = (value: unknown, fallback: number, minimum: number, maximum: number) =>
+  Math.trunc(finiteNumber(value, fallback, minimum, maximum));
+
+export function parseDanmakuSettings(savedSettings?: string): DanmakuSettingsType {
+  if (!savedSettings) {
+    return defaultSettings;
+  }
+
+  try {
+    const parsedSettings = JSON.parse(savedSettings) as Partial<DanmakuSettingsType> | null;
+
+    if (!parsedSettings || typeof parsedSettings !== 'object' || Array.isArray(parsedSettings)) {
+      return defaultSettings;
+    }
+
+    const wasDisabledByLegacyPlayerToggle =
+      !Object.prototype.hasOwnProperty.call(parsedSettings, 'enabled') &&
+      parsedSettings.danmakuFilter === LEGACY_DISABLED_SOURCE_FILTER;
+
+    const fontFamily =
+      typeof parsedSettings.fontFamily === 'string' && parsedSettings.fontFamily.trim()
+        ? parsedSettings.fontFamily
+        : defaultSettings.fontFamily;
+    const fontWeight =
+      typeof parsedSettings.fontWeight === 'string' &&
+      SUPPORTED_FONT_WEIGHTS.has(parsedSettings.fontWeight)
+        ? (parsedSettings.fontWeight as TextStyle['fontWeight'])
+        : defaultSettings.fontWeight;
+
+    return {
+      enabled: wasDisabledByLegacyPlayerToggle
+        ? false
+        : typeof parsedSettings.enabled === 'boolean'
+          ? parsedSettings.enabled
+          : defaultSettings.enabled,
+      opacity: finiteNumber(parsedSettings.opacity, defaultSettings.opacity, 0.1, 1),
+      speed: finiteNumber(parsedSettings.speed, defaultSettings.speed, 40, 400),
+      fontSize: finiteNumber(parsedSettings.fontSize, defaultSettings.fontSize, 12, 36),
+      heightRatio: finiteNumber(parsedSettings.heightRatio, defaultSettings.heightRatio, 0.3, 1),
+      // The old quick toggle disabled danmaku by filtering every source and
+      // restored all sources when toggled back on. Preserve that behavior so
+      // enabling the new master switch cannot leave the screen silently empty.
+      danmakuFilter: wasDisabledByLegacyPlayerToggle
+        ? defaultSettings.danmakuFilter
+        : finiteInteger(parsedSettings.danmakuFilter, defaultSettings.danmakuFilter, 0, 15),
+      danmakuModeFilter: finiteInteger(
+        parsedSettings.danmakuModeFilter,
+        defaultSettings.danmakuModeFilter,
+        0,
+        7,
+      ),
+      danmakuDensityLimit: finiteInteger(
+        parsedSettings.danmakuDensityLimit,
+        defaultSettings.danmakuDensityLimit,
+        0,
+        4,
+      ),
+      curEpOffset: finiteNumber(
+        parsedSettings.curEpOffset,
+        defaultSettings.curEpOffset,
+        -3600,
+        3600,
+      ),
+      fontFamily,
+      fontWeight,
+    };
+  } catch {
+    return defaultSettings;
+  }
+}
+
 const DanmakuSettingsContext = createContext<DanmakuSettingsContextValue | null>(null);
 
 export function DanmakuSettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<DanmakuSettingsType>(() => {
     const savedSettings = storage.getString('danmakuSettings');
-    return savedSettings ? JSON.parse(savedSettings) : defaultSettings;
+    return parseDanmakuSettings(savedSettings);
   });
 
   const value = useMemo(() => ({ settings, setSettings }), [settings]);

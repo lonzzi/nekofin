@@ -52,7 +52,8 @@ export function GestureHandler() {
     onRateChange,
     showControls,
     setShowControls,
-    menuOpen,
+    isLoading,
+    isPanelOpen,
     isGestureSeekingActive,
     isVolumeGestureActive,
     isBrightnessGestureActive,
@@ -117,12 +118,12 @@ export function GestureHandler() {
 
   const handleSeek = useCallback(
     (position: number) => {
-      if (!duration) return;
+      if (isLoading || !duration) return;
       const clampedTime = Math.max(0, Math.min(position, duration));
       const newPosition = duration > 0 ? clampedTime / duration : 0;
       onSeek(newPosition);
     },
-    [duration, onSeek],
+    [duration, isLoading, onSeek],
   );
 
   const handleVolumeChange = useCallback(async (newVolume: number) => {
@@ -185,7 +186,7 @@ export function GestureHandler() {
   );
 
   const handleSingleTap = () => {
-    if (menuOpen) {
+    if (isPanelOpen) {
       return;
     }
 
@@ -198,6 +199,7 @@ export function GestureHandler() {
   };
 
   const panGesture = Gesture.Pan()
+    .enabled(!isPanelOpen && !isLoading)
     .minDistance(10)
     .activeOffsetX([-15, 15])
     .failOffsetY([-8, 8])
@@ -254,6 +256,7 @@ export function GestureHandler() {
     });
 
   const verticalSliderGesture = Gesture.Pan()
+    .enabled(!isPanelOpen)
     .minDistance(8)
     .activeOffsetY([-10, 10])
     .failOffsetX([-8, 8])
@@ -340,6 +343,7 @@ export function GestureHandler() {
     });
 
   const doubleTapGesture = Gesture.Tap()
+    .enabled(!isPanelOpen)
     .numberOfTaps(2)
     .maxDuration(250)
     .maxDelay(250)
@@ -350,6 +354,7 @@ export function GestureHandler() {
     });
 
   const tapGesture = Gesture.Tap()
+    .enabled(!isPanelOpen)
     .numberOfTaps(1)
     .maxDuration(280)
     .maxDelay(200)
@@ -363,6 +368,7 @@ export function GestureHandler() {
     });
 
   const longPressGesture = Gesture.LongPress()
+    .enabled(!isPanelOpen)
     .minDuration(300)
     .maxDistance(9999)
     .shouldCancelWhenOutside(false)
@@ -392,7 +398,10 @@ export function GestureHandler() {
 
   return (
     <Fragment>
-      <Animated.View style={[styles.seekPreviewContainer, seekPreviewAnimatedStyle]}>
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.seekPreviewContainer, seekPreviewAnimatedStyle]}
+      >
         <BlurView tint="dark" intensity={100} style={styles.seekPreviewBlur}>
           <TextInput
             ref={animatedOffsetTextInputRef}

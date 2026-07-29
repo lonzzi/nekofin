@@ -1,256 +1,252 @@
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { formatBitrate } from '@/lib/utils';
-import { DandanComment } from '@/services/dandanplay';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Network from 'expo-network';
 import { useNetworkState } from 'expo-network';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { DanmakuSearchModal, DanmakuSearchModalRef } from './DanmakuSearchModal';
 import { usePlayer } from './PlayerContext';
+import { PlayerGlassSurface } from './PlayerGlassSurface';
 import { useOverlayInsets } from './useOverlayInsets';
 
+const networkIcons: Partial<Record<Network.NetworkStateType, keyof typeof Ionicons.glyphMap>> = {
+  [Network.NetworkStateType.WIFI]: 'wifi',
+  [Network.NetworkStateType.CELLULAR]: 'cellular',
+  [Network.NetworkStateType.ETHERNET]: 'link',
+  [Network.NetworkStateType.NONE]: 'cloud-offline-outline',
+  [Network.NetworkStateType.UNKNOWN]: 'cloud-offline-outline',
+  [Network.NetworkStateType.BLUETOOTH]: 'bluetooth',
+  [Network.NetworkStateType.VPN]: 'shield-checkmark-outline',
+  [Network.NetworkStateType.WIMAX]: 'radio-outline',
+  [Network.NetworkStateType.OTHER]: 'ellipsis-horizontal',
+};
+
 export function TopControls() {
-  const { side, topExtra } = useOverlayInsets();
+  const { side, topExtra, maxContentWidth, isCompact } = useOverlayInsets();
   const insets = useSafeAreaInsets();
-
   const {
-    title,
-    showControls,
-    setShowControls,
-    fadeAnim,
-    mediaStats,
-    hdrState,
-    onCommentsLoaded,
-    danmakuEpisodeInfo,
+    currentItem,
     danmakuComments,
+    fadeAnim,
+    hdrState,
+    mediaStats,
+    setShowControls,
+    showControls,
+    title,
   } = usePlayer();
-
-  const hdrLabel = hdrState?.isHdr ? (hdrState.hdrFormat === 'hlg' ? 'HLG' : 'HDR') : null;
-
   const router = useTracedRouter('player-top-controls');
-  const [now, setNow] = useState<string>('');
   const { type: networkType } = useNetworkState();
-  const danmakuSearchModalRef = useRef<DanmakuSearchModalRef>(null);
+  const [now, setNow] = useState('');
 
-  const fadeAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: fadeAnim.value,
-    };
-  });
+  const fadeAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: fadeAnim.value,
+  }));
 
   useEffect(() => {
     const update = () => {
-      const d = new Date();
-      const h = `${d.getHours()}`.padStart(2, '0');
-      const m = `${d.getMinutes()}`.padStart(2, '0');
-      setNow(`${h}:${m}`);
+      const date = new Date();
+      const hours = `${date.getHours()}`.padStart(2, '0');
+      const minutes = `${date.getMinutes()}`.padStart(2, '0');
+      setNow(`${hours}:${minutes}`);
     };
     update();
-    const id = setInterval(update, 30_000);
-    return () => {
-      clearInterval(id);
-    };
+    const interval = setInterval(update, 30_000);
+    return () => clearInterval(interval);
   }, []);
 
-  const handleBackPress = async () => {
+  const handleBackPress = () => {
     setShowControls(false);
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace('/(tabs)/(servers)');
   };
 
-  const handleCommentsLoaded = useCallback(
-    (comments: DandanComment[], episodeInfo?: { animeTitle: string; episodeTitle: string }) => {
-      onCommentsLoaded?.(comments, episodeInfo);
-    },
-    [onCommentsLoaded],
-  );
+  const hdrLabel = hdrState?.isHdr ? (hdrState.hdrFormat === 'hlg' ? 'HLG' : 'HDR') : null;
+  const networkIcon = networkType ? networkIcons[networkType] : undefined;
+  const episodeLabel =
+    currentItem?.parentIndexNumber != null && currentItem.indexNumber != null
+      ? `S${currentItem.parentIndexNumber} E${currentItem.indexNumber}`
+      : null;
+  const contextLabel = [
+    currentItem?.seriesName,
+    episodeLabel,
+    danmakuComments.length > 0 ? `${danmakuComments.length} 条弹幕` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const primaryTitle = currentItem?.name || title;
+  const statusLabel = [
+    networkType ? `网络 ${networkType}` : null,
+    hdrLabel,
+    mediaStats?.inputBitrate ? formatBitrate(mediaStats.inputBitrate, { unit: 'bytes' }) : null,
+    now,
+  ]
+    .filter(Boolean)
+    .join('，');
+  const leftInset = Math.max(side, insets.left + 8);
+  const rightInset = Math.max(side, insets.right + 8);
 
   return (
-    <>
-      <Animated.View
-        style={[
-          {
-            position: 'absolute',
-            left: side,
-            right: side,
-            top: insets.top + 10 + topExtra,
-            zIndex: 10,
-          },
-          fadeAnimatedStyle,
-        ]}
-        pointerEvents="box-none"
-      >
-        <View
-          style={{ position: 'absolute', top: 40 }}
-          pointerEvents={showControls ? 'auto' : 'none'}
+    <View
+      pointerEvents="box-none"
+      style={[
+        styles.container,
+        { left: leftInset, right: rightInset, top: insets.top + 10 + topExtra },
+      ]}
+    >
+      <View pointerEvents="box-none" style={[styles.content, { maxWidth: maxContentWidth }]}>
+        <PlayerGlassSurface
+          contentStyle={styles.backButtonContent}
+          fadeProgress={fadeAnim}
+          radius={22}
+          style={styles.backButtonSurface}
+          surfaceStyle={styles.backButtonSurfaceInner}
+          visible={showControls}
         >
-          <Pressable style={styles.backButtonTouchable} onPress={handleBackPress}>
-            <Ionicons name="chevron-back" size={24} color="white" />
+          <Pressable
+            accessibilityLabel="返回"
+            accessibilityRole="button"
+            hitSlop={6}
+            onPress={handleBackPress}
+            style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+          >
+            <Ionicons name="chevron-back" size={24} color="#fff" />
           </Pressable>
-        </View>
+        </PlayerGlassSurface>
 
-        <View style={styles.netRow}>
-          {networkType === Network.NetworkStateType.WIFI && (
-            <Ionicons name="wifi" size={14} color="#fff" />
+        <Animated.View style={[styles.titleBlock, fadeAnimatedStyle]} pointerEvents="none">
+          <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+            {primaryTitle}
+          </Text>
+          {!!contextLabel && (
+            <Text style={styles.context} numberOfLines={1} ellipsizeMode="tail">
+              {contextLabel}
+            </Text>
           )}
-          {networkType === Network.NetworkStateType.CELLULAR && (
-            <Ionicons name="cellular" size={14} color="#fff" />
-          )}
-          {networkType === Network.NetworkStateType.ETHERNET && (
-            <Ionicons name="link" size={14} color="#fff" />
-          )}
-          {(networkType === Network.NetworkStateType.NONE ||
-            networkType === Network.NetworkStateType.UNKNOWN) && (
-            <Ionicons name="unlink" size={14} color="#fff" />
-          )}
-          {!!mediaStats?.inputBitrate && mediaStats.inputBitrate > 0 && (
-            <Text style={[styles.textShadow, styles.netSpeedText]}>
+        </Animated.View>
+
+        <Animated.View
+          accessible
+          accessibilityLabel={statusLabel}
+          pointerEvents="none"
+          style={[styles.statusRow, fadeAnimatedStyle]}
+        >
+          {!!networkIcon && <Ionicons name={networkIcon} size={14} color="#fff" />}
+          {!isCompact && !!mediaStats?.inputBitrate && mediaStats.inputBitrate > 0 && (
+            <Text style={styles.statusText}>
               {formatBitrate(mediaStats.inputBitrate, { unit: 'bytes' })}
             </Text>
           )}
           {!!hdrLabel && (
             <View style={[styles.hdrBadge, hdrState?.hdrActive && styles.hdrBadgeActive]}>
-              <Text
-                style={[
-                  styles.hdrBadgeText,
-                  hdrState?.hdrActive ? styles.hdrBadgeTextActive : styles.textShadow,
-                ]}
-              >
+              <Text style={[styles.hdrText, hdrState?.hdrActive && styles.hdrTextActive]}>
                 {hdrLabel}
               </Text>
             </View>
           )}
-        </View>
-
-        <View
-          style={{
-            position: 'absolute',
-            top: 22,
-            left: 0,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 4,
-          }}
-        >
-          {danmakuEpisodeInfo && (
-            <View style={styles.danmakuInfoRow}>
-              <Ionicons name="chatbubble-ellipses" size={12} color="#fff" />
-              <Text style={[styles.textShadow, styles.danmakuInfoText]}>
-                {danmakuEpisodeInfo.animeTitle} - {danmakuEpisodeInfo.episodeTitle}
-              </Text>
-            </View>
-          )}
-          {danmakuComments.length > 0 && (
-            <Text style={[styles.textShadow, styles.danmakuCountText]}>
-              {danmakuComments.length} 条弹幕
-            </Text>
-          )}
-        </View>
-
-        {!!now && (
-          <View style={{ position: 'absolute', top: 0, right: 0 }}>
-            <Text style={[styles.textShadow, styles.clockText]}>{now}</Text>
-          </View>
-        )}
-
-        {!!title && (
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' }}>
-            <Text style={[styles.textShadow, styles.title]} numberOfLines={1} ellipsizeMode="tail">
-              {title}
-            </Text>
-          </View>
-        )}
-      </Animated.View>
-
-      <DanmakuSearchModal ref={danmakuSearchModalRef} onCommentsLoaded={handleCommentsLoaded} />
-    </>
+          {!!now && <Text style={styles.statusText}>{now}</Text>}
+        </Animated.View>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  textShadow: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+  container: {
+    position: 'absolute',
+    zIndex: 10,
   },
-  netRow: {
-    flexDirection: 'row',
+  content: {
     alignItems: 'center',
-    gap: 6,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    gap: 14,
+    width: '100%',
   },
-  netSpeedText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '500',
-    textAlign: 'left',
+  backButtonSurface: {
+    height: 44,
+    width: 44,
   },
-  hdrBadge: {
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.7)',
+  backButtonSurfaceInner: {
+    height: 44,
+    width: 44,
   },
-  hdrBadgeActive: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderColor: 'rgba(255,255,255,0.9)',
+  backButtonContent: {
+    height: 44,
+    width: 44,
   },
-  hdrBadgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+  backButton: {
+    alignItems: 'center',
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
   },
-  hdrBadgeTextActive: {
-    color: '#000',
+  titleBlock: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0,
   },
   title: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 19,
+    textShadowColor: 'rgba(0,0,0,0.48)',
+    textShadowOffset: { height: 1, width: 0 },
+    textShadowRadius: 5,
   },
-  backButtonBlur: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    overflow: 'hidden',
-  },
-  backButtonTouchable: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  clockText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '500',
-    textAlign: 'right',
-  },
-  danmakuInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 2,
-  },
-  danmakuInfoText: {
-    color: '#fff',
+  context: {
+    color: 'rgba(255,255,255,0.72)',
     fontSize: 11,
-    fontWeight: '400',
-    textAlign: 'left',
+    fontWeight: '500',
+    lineHeight: 14,
+    textShadowColor: 'rgba(0,0,0,0.55)',
+    textShadowOffset: { height: 1, width: 0 },
+    textShadowRadius: 4,
   },
-  danmakuCountText: {
+  statusRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 7,
+    minHeight: 44,
+  },
+  statusText: {
+    color: 'rgba(255,255,255,0.86)',
+    fontSize: 11,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.48)',
+    textShadowOffset: { height: 1, width: 0 },
+    textShadowRadius: 4,
+  },
+  hdrBadge: {
+    borderColor: 'rgba(255,255,255,0.68)',
+    borderCurve: 'continuous',
+    borderRadius: 5,
+    borderWidth: 1,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  hdrBadgeActive: {
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderColor: 'rgba(255,255,255,0.92)',
+  },
+  hdrText: {
     color: '#fff',
-    fontSize: 10,
-    fontWeight: '400',
-    textAlign: 'left',
-    opacity: 0.8,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  hdrTextActive: {
+    color: '#111318',
+  },
+  pressed: {
+    opacity: 0.62,
   },
 });

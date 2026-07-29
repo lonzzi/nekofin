@@ -26,6 +26,12 @@ const MAPPING = {
   'video.fill': 'movie',
   'externaldrive.connected.to.line.below': 'dns',
   'person.crop.rectangle': 'person',
+  'backward.end.fill': 'skip-previous',
+  'gobackward.10': 'replay-10',
+  'play.fill': 'play-arrow',
+  'pause.fill': 'pause',
+  'goforward.10': 'forward-10',
+  'forward.end.fill': 'skip-next',
 } as IconMapping;
 
 /**

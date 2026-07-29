@@ -18,6 +18,11 @@ export interface DanmakuRuntimeLayout {
   width: number;
 }
 
+export const removeActiveDanmakuBullet = (
+  bullets: ActiveBullet[],
+  instanceId: number,
+): ActiveBullet[] => bullets.filter((bullet) => bullet.instanceId !== instanceId);
+
 export const calculateDanmakuRows = ({
   height,
   heightRatio,
@@ -124,6 +129,7 @@ export const getDanmakuBulletTop = ({
 
 export const createActiveDanmakuBullet = ({
   comment,
+  instanceId,
   rowIndex,
   startOffsetMs = 0,
   scheduledMs = 0,
@@ -131,6 +137,7 @@ export const createActiveDanmakuBullet = ({
   runtime,
 }: {
   comment: DandanComment;
+  instanceId: number;
   rowIndex: number;
   startOffsetMs?: number;
   scheduledMs?: number;
@@ -139,7 +146,8 @@ export const createActiveDanmakuBullet = ({
 }): ActiveBullet => {
   const defaultDurationMs = calculateDefaultDanmakuDuration(runtime.playbackRate);
   const baseParams = {
-    id: comment.id,
+    commentId: comment.id,
+    instanceId,
     text: comment.text,
     colorHex: comment.colorHex,
     mode: comment.mode,

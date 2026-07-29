@@ -1,5 +1,6 @@
+import { defaultSettings, parseDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { DANDAN_COMMENT_MODE, type DandanComment } from '@/services/dandanplay';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   applyDanmakuDensityLimit,
@@ -7,6 +8,13 @@ import {
   shouldKeepCommentMode,
   shouldKeepCommentSource,
 } from './danmakuFilters';
+
+vi.mock('@/lib/storage', () => ({
+  storage: {
+    getString: vi.fn(),
+    set: vi.fn(),
+  },
+}));
 
 const comment = (comment: Partial<DandanComment>): DandanComment => ({
   id: 1,
@@ -30,6 +38,65 @@ const baseOptions = {
   playbackRate: 1,
   fontSize: 24,
 };
+
+describe('danmaku settings persistence', () => {
+  it('enables danmaku by default', () => {
+    expect(parseDanmakuSettings()).toEqual(defaultSettings);
+    expect(defaultSettings.enabled).toBe(true);
+  });
+
+  it('merges defaults into settings persisted before enabled was added', () => {
+    const settings = parseDanmakuSettings(JSON.stringify({ opacity: 0.5, speed: 180 }));
+
+    expect(settings).toEqual({
+      ...defaultSettings,
+      opacity: 0.5,
+      speed: 180,
+    });
+    expect(settings.enabled).toBe(true);
+  });
+
+  it('migrates the legacy all-sources filter into the master switch', () => {
+    const settings = parseDanmakuSettings(JSON.stringify({ opacity: 0.5, danmakuFilter: 15 }));
+
+    expect(settings.enabled).toBe(false);
+    expect(settings.danmakuFilter).toBe(0);
+    expect(settings.opacity).toBe(0.5);
+  });
+
+  it('does not reinterpret settings saved with the new master switch', () => {
+    const settings = parseDanmakuSettings(JSON.stringify({ enabled: true, danmakuFilter: 15 }));
+
+    expect(settings.enabled).toBe(true);
+    expect(settings.danmakuFilter).toBe(15);
+  });
+
+  it('repairs malformed and out-of-range persisted values', () => {
+    const settings = parseDanmakuSettings(
+      JSON.stringify({
+        enabled: 'yes',
+        opacity: null,
+        speed: 'fast',
+        fontSize: 99,
+        heightRatio: -1,
+        danmakuFilter: 99.8,
+        danmakuModeFilter: -3,
+        danmakuDensityLimit: 9,
+        curEpOffset: null,
+        fontFamily: '',
+        fontWeight: '950',
+      }),
+    );
+
+    expect(settings).toEqual({
+      ...defaultSettings,
+      fontSize: 36,
+      heightRatio: 0.3,
+      danmakuFilter: 15,
+      danmakuDensityLimit: 4,
+    });
+  });
+});
 
 describe('danmakuFilters', () => {
   it('filters comments by source bitmask', () => {

@@ -10,6 +10,7 @@ import {
   createActiveDanmakuBullet,
   estimateDanmakuTextWidth,
   getDanmakuBulletTop,
+  removeActiveDanmakuBullet,
 } from './danmakuLayout';
 
 const comment = (comment: Partial<DandanComment>): DandanComment => ({
@@ -92,12 +93,14 @@ describe('danmakuLayout', () => {
     expect(
       createActiveDanmakuBullet({
         comment: comment({ mode: DANDAN_COMMENT_MODE.Top }),
+        instanceId: 41,
         rowIndex: 1,
         textWidth: 120,
         runtime,
       }),
     ).toMatchObject({
-      id: 1,
+      commentId: 1,
+      instanceId: 41,
       top: 32,
       durationMs: 4000,
       textWidth: 120,
@@ -106,6 +109,7 @@ describe('danmakuLayout', () => {
     expect(
       createActiveDanmakuBullet({
         comment: comment({ mode: DANDAN_COMMENT_MODE.Scroll }),
+        instanceId: 42,
         rowIndex: 1,
         startOffsetMs: 100,
         scheduledMs: 200,
@@ -113,10 +117,31 @@ describe('danmakuLayout', () => {
         runtime,
       }),
     ).toMatchObject({
+      commentId: 1,
+      instanceId: 42,
       top: 32,
       startOffsetMs: 100,
       scheduledMs: 200,
       durationMs: 9591,
     });
+  });
+
+  it('expires only one render instance when a source comment is recreated after seeking', () => {
+    const first = createActiveDanmakuBullet({
+      comment: comment({ id: 1 }),
+      instanceId: 41,
+      rowIndex: 1,
+      textWidth: 120,
+      runtime,
+    });
+    const recreated = createActiveDanmakuBullet({
+      comment: comment({ id: 1 }),
+      instanceId: 42,
+      rowIndex: 2,
+      textWidth: 120,
+      runtime,
+    });
+
+    expect(removeActiveDanmakuBullet([first, recreated], 41)).toEqual([recreated]);
   });
 });

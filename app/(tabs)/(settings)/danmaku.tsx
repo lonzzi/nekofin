@@ -44,6 +44,12 @@ export default function DanmakuSettingsScreen() {
   return (
     <NativeSettingsForm testID="danmaku-settings-form">
       <NativeSettingsSection title="基础设置">
+        <NativeSettingsSwitch
+          title={<SettingsTitle>显示弹幕</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary="控制播放器中的弹幕总开关" />}
+          value={settings.enabled}
+          onValueChange={(value) => updateSetting('enabled', value)}
+        />
         <NativeSettingsSlider
           title={<SettingsTitle>透明度</SettingsTitle>}
           subtitle={<SettingsSubtitle primary="弹幕显示的透明度" />}

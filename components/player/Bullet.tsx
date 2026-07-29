@@ -27,7 +27,7 @@ export function Bullet({
 }: {
   width: number;
   data: ActiveBullet;
-  onExpire: (id: number) => void;
+  onExpire: (instanceId: number) => void;
   fontSize: number;
   fontFamily: string;
   fontWeight: TextStyle['fontWeight'];
@@ -80,8 +80,8 @@ export function Bullet({
   }, [data.durationMs, data.startOffsetMs, width, translateX, initTranslateX]);
 
   const handleExpire = useCallback(() => {
-    onExpire(data.id);
-  }, [data.id, onExpire]);
+    onExpire(data.instanceId);
+  }, [data.instanceId, onExpire]);
 
   const scheduleFadeAndRemoval = useCallback(() => {
     if (removeTimeoutRef.current) clearTimeout(removeTimeoutRef.current);
