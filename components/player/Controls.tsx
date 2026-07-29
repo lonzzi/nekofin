@@ -12,17 +12,14 @@ import { BottomOverlayGradient, ContentOverlayScrim, TopOverlayGradient } from '
 import { DanmakuPanel } from './panels/DanmakuPanel';
 import { DanmakuSearchPanel } from './panels/DanmakuSearchPanel';
 import { EpisodePanel } from './panels/EpisodePanel';
-import { PlaybackPanel } from './panels/PlaybackPanel';
 import { PlayerPanelHost } from './panels/PlayerPanelHost';
 import {
   getActivePlayerPanelRoute,
   INITIAL_PLAYER_PANEL_STATE,
   isPlayerPanelOpen,
   playerPanelReducer,
-  type PlayerPanelRootRoute,
   type PlayerPanelRoute,
 } from './panels/playerPanelRoute';
-import { TrackPanel } from './panels/TrackPanel';
 import { MediaStats, MediaTrack, MediaTracks, PlayerContext } from './PlayerContext';
 import { TopControls } from './TopControls';
 
@@ -103,8 +100,10 @@ export function Controls({
   const controlsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activePanel = getActivePlayerPanelRoute(panelState);
   const isPanelOpen = isPlayerPanelOpen(panelState);
+  const isPanelOpenRef = useRef(isPanelOpen);
+  isPanelOpenRef.current = isPanelOpen;
 
-  const openPanel = useCallback((route: PlayerPanelRootRoute) => {
+  const openPanel = useCallback((route: PlayerPanelRoute) => {
     if (controlsTimeout.current) {
       clearTimeout(controlsTimeout.current);
       controlsTimeout.current = null;
@@ -132,14 +131,14 @@ export function Controls({
   const hideControlsWithDelay = useCallback(() => {
     clearControlsTimeout();
 
-    if (isPanelOpen || isScreenReaderEnabled) {
+    if (isPanelOpenRef.current || isScreenReaderEnabled) {
       return;
     }
 
     controlsTimeout.current = setTimeout(() => {
       if (
         !isDragging &&
-        !isPanelOpen &&
+        !isPanelOpenRef.current &&
         !isGestureSeekingActive.value &&
         !isVolumeGestureActive.value &&
         !isBrightnessGestureActive.value
@@ -151,7 +150,6 @@ export function Controls({
     clearControlsTimeout,
     isDragging,
     isScreenReaderEnabled,
-    isPanelOpen,
     isGestureSeekingActive,
     isVolumeGestureActive,
     isBrightnessGestureActive,
@@ -237,12 +235,8 @@ export function Controls({
     showControls,
     setShowControls,
     fadeAnim,
-    activePanel,
     isPanelOpen,
     openPanel,
-    pushPanel,
-    backPanel,
-    closePanel,
     isDragging,
     setIsDragging,
     isGestureSeekingActive,
@@ -265,25 +259,19 @@ export function Controls({
   const panelTitle =
     activePanel?.key === 'episodes'
       ? '剧集'
-      : activePanel?.key === 'tracks'
-        ? '字幕与音轨'
-        : activePanel?.key === 'playback'
-          ? '播放设置'
-          : activePanel?.key === 'danmakuSearch'
-            ? '搜索弹幕'
-            : '弹幕';
+      : activePanel?.key === 'danmakuSearch'
+        ? '搜索弹幕'
+        : '弹幕';
   const panelSubtitle =
     activePanel?.key === 'episodes'
       ? currentEpisodeIndex >= 0
         ? `${currentEpisodeIndex + 1} / ${episodes.length}`
         : `${episodes.length} 集`
-      : activePanel?.key === 'playback'
-        ? `${rate}× · ${aspectRatio === 'fill' ? '铺满' : (aspectRatio ?? '自适应')}`
-        : activePanel?.key === 'danmakuSearch'
-          ? '手动匹配番剧与剧集'
-          : activePanel?.key === 'danmaku'
-            ? `${danmakuComments.length} 条弹幕`
-            : undefined;
+      : activePanel?.key === 'danmakuSearch'
+        ? '手动匹配番剧与剧集'
+        : activePanel?.key === 'danmaku'
+          ? `${danmakuComments.length} 条弹幕`
+          : undefined;
 
   const handleEpisodeSelect = useCallback(
     (episodeId: string) => {
@@ -291,10 +279,6 @@ export function Controls({
       onEpisodeSelect(episodeId);
     },
     [closePanel, onEpisodeSelect],
-  );
-  const handlePanelRateChange = useCallback(
-    (nextRate: number) => onRateChange?.(nextRate),
-    [onRateChange],
   );
   const handleOpenDanmakuSearch = useCallback(
     () => pushPanel({ key: 'danmakuSearch' }),
@@ -315,25 +299,6 @@ export function Controls({
             currentItemId={currentItem?.id}
             episodes={episodes}
             onSelectEpisode={handleEpisodeSelect}
-          />
-        );
-      case 'tracks':
-        return (
-          <TrackPanel
-            initialTab={activePanel.tab}
-            onAudioTrackChange={onAudioTrackChange}
-            onSubtitleTrackChange={onSubtitleTrackChange}
-            selectedTracks={selectedTracks}
-            tracks={tracks}
-          />
-        );
-      case 'playback':
-        return (
-          <PlaybackPanel
-            aspectRatio={aspectRatio}
-            onAspectRatioChange={onAspectRatioChange}
-            onRateChange={handlePanelRateChange}
-            rate={rate}
           />
         );
       case 'danmaku':

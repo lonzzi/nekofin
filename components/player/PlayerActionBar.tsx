@@ -1,11 +1,18 @@
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useMemo } from 'react';
+import { MenuView, type NativeActionEvent } from '@react-native-menu/menu';
+import { useCallback, useMemo, type ComponentProps, type ComponentType } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { usePlayer } from './PlayerContext';
 import { derivePlayerActionButtons, type PlayerActionButtonKey } from './playerControlModel';
 import { PlayerGlassSurface } from './PlayerGlassSurface';
+import {
+  deriveDanmakuMenuActions,
+  derivePlaybackMenuActions,
+  deriveTrackMenuActions,
+  parsePlayerMenuAction,
+} from './playerMenuModel';
 
 const icons: Record<PlayerActionButtonKey, keyof typeof Ionicons.glyphMap> = {
   episodes: 'albums-outline',
@@ -14,10 +21,72 @@ const icons: Record<PlayerActionButtonKey, keyof typeof Ionicons.glyphMap> = {
   playback: 'options-outline',
 };
 
+type AccessibleMenuViewProps = ComponentProps<typeof MenuView> & {
+  accessibilityLabel: string;
+  accessibilityRole: 'button';
+};
+
+// MenuView forwards native View props, but its public type omits accessibility props.
+const AccessibleMenuView = MenuView as ComponentType<AccessibleMenuViewProps>;
+
+type ActionButtonProps = {
+  accessible?: boolean;
+  accessibilityLabel: string;
+  actionKey: PlayerActionButtonKey;
+  danmakuEnabled?: boolean;
+  onPress?: () => void;
+};
+
+function ActionButton({
+  accessible = true,
+  accessibilityLabel,
+  actionKey,
+  danmakuEnabled,
+  onPress,
+}: ActionButtonProps) {
+  return (
+    <Pressable
+      accessible={accessible}
+      accessibilityElementsHidden={!accessible}
+      accessibilityLabel={accessible ? accessibilityLabel : undefined}
+      accessibilityRole={accessible ? 'button' : undefined}
+      importantForAccessibility={accessible ? 'auto' : 'no-hide-descendants'}
+      onPress={onPress}
+      style={({ pressed }) => [styles.button, pressed ? styles.pressed : null]}
+    >
+      <View style={styles.iconWrap}>
+        <Ionicons name={icons[actionKey]} size={18} color="#fff" />
+        {actionKey === 'danmaku' ? (
+          <View
+            accessibilityElementsHidden
+            style={[styles.statusDot, danmakuEnabled ? styles.statusDotEnabled : null]}
+          />
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
+
 export function PlayerActionBar() {
-  const { danmakuComments, episodes, fadeAnim, isMovie, openPanel, rate, showControls } =
-    usePlayer();
-  const { settings } = useDanmakuSettings();
+  const {
+    aspectRatio,
+    clearControlsTimeout,
+    danmakuComments,
+    episodes,
+    fadeAnim,
+    hideControlsWithDelay,
+    isMovie,
+    onAspectRatioChange,
+    onAudioTrackChange,
+    onRateChange,
+    onSubtitleTrackChange,
+    openPanel,
+    rate,
+    selectedTracks,
+    showControls,
+    tracks,
+  } = usePlayer();
+  const { settings, setSettings } = useDanmakuSettings();
   const actions = useMemo(
     () =>
       derivePlayerActionButtons({
@@ -27,23 +96,65 @@ export function PlayerActionBar() {
       }),
     [danmakuComments.length, episodes.length, isMovie],
   );
+  const danmakuMenuActions = useMemo(
+    () =>
+      deriveDanmakuMenuActions({
+        commentCount: danmakuComments.length,
+        enabled: settings.enabled,
+      }),
+    [danmakuComments.length, settings.enabled],
+  );
+  const trackMenuActions = useMemo(
+    () => deriveTrackMenuActions(tracks, selectedTracks),
+    [selectedTracks, tracks],
+  );
+  const playbackMenuActions = useMemo(
+    () => derivePlaybackMenuActions(rate, aspectRatio),
+    [aspectRatio, rate],
+  );
 
-  const handlePress = (key: PlayerActionButtonKey) => {
-    switch (key) {
-      case 'episodes':
-        openPanel({ key: 'episodes' });
-        break;
-      case 'danmaku':
-        openPanel({ key: 'danmaku' });
-        break;
-      case 'tracks':
-        openPanel({ key: 'tracks' });
-        break;
-      case 'playback':
-        openPanel({ key: 'playback' });
-        break;
-    }
-  };
+  const handleDanmakuAction = useCallback(
+    ({ nativeEvent }: NativeActionEvent) => {
+      const selection = parsePlayerMenuAction(nativeEvent.event);
+      switch (selection?.kind) {
+        case 'danmakuToggle':
+          setSettings({ ...settings, enabled: !settings.enabled });
+          break;
+        case 'danmakuSettings':
+          openPanel({ key: 'danmaku' });
+          break;
+        case 'danmakuSearch':
+          openPanel({ key: 'danmakuSearch' });
+          break;
+      }
+    },
+    [openPanel, setSettings, settings],
+  );
+  const handleTrackAction = useCallback(
+    ({ nativeEvent }: NativeActionEvent) => {
+      const selection = parsePlayerMenuAction(nativeEvent.event);
+      if (selection?.kind === 'audioTrack') {
+        onAudioTrackChange?.(selection.trackIndex);
+      } else if (selection?.kind === 'subtitleTrack') {
+        onSubtitleTrackChange?.(selection.trackIndex);
+      }
+    },
+    [onAudioTrackChange, onSubtitleTrackChange],
+  );
+  const handlePlaybackAction = useCallback(
+    ({ nativeEvent }: NativeActionEvent) => {
+      const selection = parsePlayerMenuAction(nativeEvent.event);
+      if (selection?.kind === 'rate') {
+        onRateChange?.(selection.rate);
+      } else if (selection?.kind === 'aspectRatio') {
+        onAspectRatioChange?.(selection.aspectRatio);
+      }
+    },
+    [onAspectRatioChange, onRateChange],
+  );
+  const handleEpisodesPress = useCallback(() => {
+    openPanel({ key: 'episodes' });
+  }, [openPanel]);
 
   return (
     <PlayerGlassSurface
@@ -56,32 +167,79 @@ export function PlayerActionBar() {
     >
       <View style={styles.row}>
         {actions.map((action, index) => {
-          const isDanmaku = action.key === 'danmaku';
-          const accessibilityLabel = isDanmaku
-            ? `${action.accessibilityLabel}，${settings.enabled ? '已开启' : '已关闭'}`
-            : action.key === 'playback' && rate !== 1
-              ? `${action.accessibilityLabel}，当前 ${rate} 倍速`
-              : action.accessibilityLabel;
+          const accessibilityLabel =
+            action.key === 'danmaku'
+              ? `${action.accessibilityLabel}，${settings.enabled ? '已开启' : '已关闭'}`
+              : action.key === 'playback' && rate !== 1
+                ? `${action.accessibilityLabel}，当前 ${rate} 倍速`
+                : action.accessibilityLabel;
+          const actionButton = (
+            <ActionButton
+              accessible={action.key === 'episodes'}
+              accessibilityLabel={accessibilityLabel}
+              actionKey={action.key}
+              danmakuEnabled={settings.enabled}
+              onPress={action.key === 'episodes' ? handleEpisodesPress : undefined}
+            />
+          );
 
           return (
             <View key={action.key} style={styles.itemGroup}>
-              {index > 0 && <View style={styles.separator} />}
-              <Pressable
-                accessibilityLabel={accessibilityLabel}
-                accessibilityRole="button"
-                onPress={() => handlePress(action.key)}
-                style={({ pressed }) => [styles.button, pressed && styles.pressed]}
-              >
-                <View style={styles.iconWrap}>
-                  <Ionicons name={icons[action.key]} size={18} color="#fff" />
-                  {isDanmaku && (
-                    <View
-                      accessibilityElementsHidden
-                      style={[styles.statusDot, settings.enabled && styles.statusDotEnabled]}
-                    />
-                  )}
-                </View>
-              </Pressable>
+              {index > 0 ? <View style={styles.separator} /> : null}
+              {action.key === 'episodes' ? (
+                actionButton
+              ) : action.key === 'danmaku' ? (
+                <AccessibleMenuView
+                  accessibilityLabel={accessibilityLabel}
+                  accessibilityRole="button"
+                  actions={danmakuMenuActions}
+                  isAnchoredToRight
+                  onCloseMenu={hideControlsWithDelay}
+                  onOpenMenu={clearControlsTimeout}
+                  onPressAction={handleDanmakuAction}
+                  shouldOpenOnLongPress={false}
+                  style={styles.menuAnchor}
+                  testID="player-danmaku-menu"
+                  themeVariant="dark"
+                  title="弹幕"
+                >
+                  {actionButton}
+                </AccessibleMenuView>
+              ) : action.key === 'tracks' ? (
+                <AccessibleMenuView
+                  accessibilityLabel={accessibilityLabel}
+                  accessibilityRole="button"
+                  actions={trackMenuActions}
+                  isAnchoredToRight
+                  onCloseMenu={hideControlsWithDelay}
+                  onOpenMenu={clearControlsTimeout}
+                  onPressAction={handleTrackAction}
+                  shouldOpenOnLongPress={false}
+                  style={styles.menuAnchor}
+                  testID="player-track-menu"
+                  themeVariant="dark"
+                  title="字幕与音轨"
+                >
+                  {actionButton}
+                </AccessibleMenuView>
+              ) : (
+                <AccessibleMenuView
+                  accessibilityLabel={accessibilityLabel}
+                  accessibilityRole="button"
+                  actions={playbackMenuActions}
+                  isAnchoredToRight
+                  onCloseMenu={hideControlsWithDelay}
+                  onOpenMenu={clearControlsTimeout}
+                  onPressAction={handlePlaybackAction}
+                  shouldOpenOnLongPress={false}
+                  style={styles.menuAnchor}
+                  testID="player-playback-menu"
+                  themeVariant="dark"
+                  title="播放设置"
+                >
+                  {actionButton}
+                </AccessibleMenuView>
+              )}
             </View>
           );
         })}
@@ -109,6 +267,11 @@ const styles = StyleSheet.create({
   itemGroup: {
     alignItems: 'center',
     flexDirection: 'row',
+  },
+  menuAnchor: {
+    backgroundColor: 'transparent',
+    height: 46,
+    width: 44,
   },
   separator: {
     backgroundColor: 'rgba(255,255,255,0.18)',

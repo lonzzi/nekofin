@@ -1,20 +1,11 @@
-export type PlayerTrackPanelTab = 'subtitle' | 'audio';
-
-export type PlayerPanelRoute =
-  | { key: 'episodes' }
-  | { key: 'tracks'; tab?: PlayerTrackPanelTab }
-  | { key: 'playback' }
-  | { key: 'danmaku' }
-  | { key: 'danmakuSearch'; animeId?: number };
-
-export type PlayerPanelRootRoute = Exclude<PlayerPanelRoute, { key: 'danmakuSearch' }>;
+export type PlayerPanelRoute = { key: 'episodes' } | { key: 'danmaku' } | { key: 'danmakuSearch' };
 
 export type PlayerPanelState = {
   stack: readonly PlayerPanelRoute[];
 };
 
 export type PlayerPanelAction =
-  | { type: 'OPEN'; route: PlayerPanelRootRoute }
+  | { type: 'OPEN'; route: PlayerPanelRoute }
   | { type: 'PUSH'; route: PlayerPanelRoute }
   | { type: 'BACK' }
   | { type: 'CLOSE' };

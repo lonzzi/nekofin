@@ -13,14 +13,14 @@ describe('player panel route reducer', () => {
       type: 'OPEN',
       route: { key: 'episodes' },
     });
-    const tracksState = playerPanelReducer(episodesState, {
+    const searchState = playerPanelReducer(episodesState, {
       type: 'OPEN',
-      route: { key: 'tracks', tab: 'audio' },
+      route: { key: 'danmakuSearch' },
     });
 
-    expect(tracksState).toEqual({ stack: [{ key: 'tracks', tab: 'audio' }] });
-    expect(getActivePlayerPanelRoute(tracksState)).toEqual({ key: 'tracks', tab: 'audio' });
-    expect(isPlayerPanelOpen(tracksState)).toBe(true);
+    expect(searchState).toEqual({ stack: [{ key: 'danmakuSearch' }] });
+    expect(getActivePlayerPanelRoute(searchState)).toEqual({ key: 'danmakuSearch' });
+    expect(isPlayerPanelOpen(searchState)).toBe(true);
   });
 
   it('pushes a nested route and backs up to its parent', () => {
@@ -30,23 +30,20 @@ describe('player panel route reducer', () => {
     });
     const searchState = playerPanelReducer(danmakuState, {
       type: 'PUSH',
-      route: { key: 'danmakuSearch', animeId: 42 },
+      route: { key: 'danmakuSearch' },
     });
 
     expect(searchState).toEqual({
-      stack: [{ key: 'danmaku' }, { key: 'danmakuSearch', animeId: 42 }],
+      stack: [{ key: 'danmaku' }, { key: 'danmakuSearch' }],
     });
-    expect(getActivePlayerPanelRoute(searchState)).toEqual({
-      key: 'danmakuSearch',
-      animeId: 42,
-    });
+    expect(getActivePlayerPanelRoute(searchState)).toEqual({ key: 'danmakuSearch' });
     expect(playerPanelReducer(searchState, { type: 'BACK' })).toEqual(danmakuState);
   });
 
   it('closes a root panel when navigating back', () => {
     const state = playerPanelReducer(INITIAL_PLAYER_PANEL_STATE, {
       type: 'OPEN',
-      route: { key: 'playback' },
+      route: { key: 'episodes' },
     });
     const closedState = playerPanelReducer(state, { type: 'BACK' });
 

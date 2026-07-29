@@ -4,7 +4,7 @@ import type { HdrStateChangeEvent } from 'expo-mpv';
 import { createContext, useContext } from 'react';
 import { SharedValue } from 'react-native-reanimated';
 
-import type { PlayerPanelRootRoute, PlayerPanelRoute } from './panels/playerPanelRoute';
+import type { PlayerPanelRoute } from './panels/playerPanelRoute';
 
 export type TrackInfo = {
   name: string;
@@ -74,12 +74,8 @@ export type PlayerContextValue = {
   showControls: boolean;
   setShowControls: (show: boolean) => void;
   fadeAnim: SharedValue<number>;
-  activePanel?: PlayerPanelRoute;
   isPanelOpen: boolean;
-  openPanel: (route: PlayerPanelRootRoute) => void;
-  pushPanel: (route: PlayerPanelRoute) => void;
-  backPanel: () => void;
-  closePanel: () => void;
+  openPanel: (route: PlayerPanelRoute) => void;
   isDragging: boolean;
   setIsDragging: (dragging: boolean) => void;
   isGestureSeekingActive: SharedValue<boolean>;
