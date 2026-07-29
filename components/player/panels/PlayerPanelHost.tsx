@@ -49,6 +49,7 @@ export function PlayerPanelHost({
 }: PlayerPanelHostProps) {
   const focusRef = useRef<View>(null);
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const modalShownRef = useRef(false);
   const lastPresentationRef = useRef<PanelPresentation>({
     bodyStyle,
     children,
@@ -82,8 +83,18 @@ export function PlayerPanelHost({
     }, 120);
   }, []);
 
+  const handleShow = useCallback(() => {
+    modalShownRef.current = true;
+    focusTitle();
+  }, [focusTitle]);
+
   useEffect(() => {
-    if (visible) focusTitle();
+    if (!visible) {
+      modalShownRef.current = false;
+    } else if (modalShownRef.current) {
+      focusTitle();
+    }
+
     return () => {
       if (focusTimerRef.current) {
         clearTimeout(focusTimerRef.current);
@@ -104,7 +115,7 @@ export function PlayerPanelHost({
       backdropColor="#111318"
       hardwareAccelerated
       onRequestClose={requestClose}
-      onShow={focusTitle}
+      onShow={handleShow}
       presentationStyle={Platform.OS === 'ios' ? 'formSheet' : 'fullScreen'}
       supportedOrientations={[...supportedOrientations]}
       visible={visible}

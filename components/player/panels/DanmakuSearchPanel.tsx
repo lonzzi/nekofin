@@ -6,7 +6,7 @@ import {
   type DandanEpisode,
 } from '@/services/dandanplay';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import {
   AccessibilityInfo,
   ActivityIndicator,
@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 
 type DanmakuSearchPanelProps = {
+  ref?: Ref<DanmakuSearchPanelRef>;
   onCommentsLoaded: (
     comments: DandanComment[],
     episodeInfo: { animeTitle: string; episodeTitle: string },
@@ -28,13 +29,25 @@ type DanmakuSearchPanelProps = {
   onLoaded: () => void;
 };
 
-export function DanmakuSearchPanel({ onCommentsLoaded, onLoaded }: DanmakuSearchPanelProps) {
+export type DanmakuSearchPanelRef = {
+  cancelPending: () => void;
+};
+
+export function DanmakuSearchPanel({ ref, onCommentsLoaded, onLoaded }: DanmakuSearchPanelProps) {
   const [keyword, setKeyword] = useState('');
   const [animes, setAnimes] = useState<DandanAnime[]>([]);
   const [selectedAnime, setSelectedAnime] = useState<DandanAnime | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
+
+  const cancelPending = useCallback(() => {
+    requestId.current += 1;
+    setLoading(false);
+    setError(null);
+  }, []);
+
+  useImperativeHandle(ref, () => ({ cancelPending }), [cancelPending]);
 
   useEffect(
     () => () => {

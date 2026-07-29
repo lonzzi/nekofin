@@ -54,9 +54,9 @@ const LoadingIndicator = ({
             </Text>
           )}
         </>
-      ) : (
-        title && <Text style={styles.loadingTitle}>{title}</Text>
-      )}
+      ) : title ? (
+        <Text style={styles.loadingTitle}>{title}</Text>
+      ) : null}
     </View>
   );
 };
@@ -452,7 +452,11 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     (trackId: number) => {
       const targetPlayer = player.current;
       const targetSource = loadedSourceRef.current;
-      targetPlayer?.setSubtitleTrack(trackId);
+      if (trackId === -1) {
+        void targetPlayer?.setPropertyString('sid', 'no');
+      } else {
+        void targetPlayer?.setSubtitleTrack(trackId);
+      }
       setCurrentTrackIds((prev) => ({ ...prev, sid: trackId }));
       setTimeout(() => void refreshMpvTracks(targetPlayer, targetSource), 200);
     },
@@ -503,7 +507,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
 
   return (
     <View style={styles.container}>
-      {streamInfo?.url && initialTime >= 0 && (
+      {streamInfo?.url && initialTime >= 0 ? (
         <ExpoMpvView
           key={streamInfo.url}
           ref={player}
@@ -603,7 +607,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
             syncPlaybackStop(currentTime.value);
           }}
         />
-      )}
+      ) : null}
 
       {showLoading && <LoadingIndicator bufferInfo={bufferInfo} />}
 

@@ -10,7 +10,7 @@ import { BottomControls } from './BottomControls';
 import { GestureHandler } from './GestureHandler';
 import { BottomOverlayGradient, ContentOverlayScrim, TopOverlayGradient } from './OverlayGradients';
 import { DanmakuPanel } from './panels/DanmakuPanel';
-import { DanmakuSearchPanel } from './panels/DanmakuSearchPanel';
+import { DanmakuSearchPanel, type DanmakuSearchPanelRef } from './panels/DanmakuSearchPanel';
 import { EpisodePanel } from './panels/EpisodePanel';
 import { PlayerPanelHost } from './panels/PlayerPanelHost';
 import {
@@ -98,6 +98,7 @@ export function Controls({
 
   const fadeAnim = useSharedValue(0);
   const controlsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const danmakuSearchPanelRef = useRef<DanmakuSearchPanelRef>(null);
   const activePanel = getActivePlayerPanelRoute(panelState);
   const isPanelOpen = isPlayerPanelOpen(panelState);
   const isPanelOpenRef = useRef(isPanelOpen);
@@ -115,9 +116,11 @@ export function Controls({
     dispatchPanel({ type: 'PUSH', route });
   }, []);
   const backPanel = useCallback(() => {
+    danmakuSearchPanelRef.current?.cancelPending();
     dispatchPanel({ type: 'BACK' });
   }, []);
   const closePanel = useCallback(() => {
+    danmakuSearchPanelRef.current?.cancelPending();
     dispatchPanel({ type: 'CLOSE' });
   }, []);
 
@@ -304,7 +307,13 @@ export function Controls({
       case 'danmaku':
         return <DanmakuPanel onSearch={handleOpenDanmakuSearch} />;
       case 'danmakuSearch':
-        return <DanmakuSearchPanel onCommentsLoaded={handleCommentsLoaded} onLoaded={closePanel} />;
+        return (
+          <DanmakuSearchPanel
+            ref={danmakuSearchPanelRef}
+            onCommentsLoaded={handleCommentsLoaded}
+            onLoaded={closePanel}
+          />
+        );
       default:
         return null;
     }

@@ -1,8 +1,15 @@
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { MenuView, type NativeActionEvent } from '@react-native-menu/menu';
-import { useCallback, useMemo, type ComponentProps, type ComponentType } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { MenuView, type MenuComponentRef, type NativeActionEvent } from '@react-native-menu/menu';
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  type ComponentProps,
+  type ComponentType,
+  type RefAttributes,
+} from 'react';
+import { Platform, Pressable, StyleSheet, View, type ViewProps } from 'react-native';
 
 import { usePlayer } from './PlayerContext';
 import { derivePlayerActionButtons, type PlayerActionButtonKey } from './playerControlModel';
@@ -21,13 +28,41 @@ const icons: Record<PlayerActionButtonKey, keyof typeof Ionicons.glyphMap> = {
   playback: 'options-outline',
 };
 
-type AccessibleMenuViewProps = ComponentProps<typeof MenuView> & {
+type PlayerMenuProps = Omit<ComponentProps<typeof MenuView>, 'ref'> & {
   accessibilityLabel: string;
   accessibilityRole: 'button';
 };
 
-// MenuView forwards native View props, but its public type omits accessibility props.
-const AccessibleMenuView = MenuView as ComponentType<AccessibleMenuViewProps>;
+type AccessibleMenuViewProps = PlayerMenuProps &
+  Pick<ViewProps, 'accessibilityActions' | 'onAccessibilityAction'>;
+
+const androidMenuAccessibilityActions: NonNullable<ViewProps['accessibilityActions']> = [
+  { name: 'activate', label: '打开菜单' },
+];
+
+const AccessibleMenuView = MenuView as ComponentType<
+  AccessibleMenuViewProps & RefAttributes<MenuComponentRef>
+>;
+
+function PlayerMenu(props: PlayerMenuProps) {
+  const menuRef = useRef<MenuComponentRef>(null);
+  const handleAccessibilityAction = useCallback<NonNullable<ViewProps['onAccessibilityAction']>>(
+    (event) => {
+      if (event.nativeEvent.actionName === 'activate') menuRef.current?.show();
+    },
+    [],
+  );
+
+  // MenuView forwards native View props, but its public type omits accessibility props.
+  return (
+    <AccessibleMenuView
+      {...props}
+      accessibilityActions={Platform.OS === 'android' ? androidMenuAccessibilityActions : undefined}
+      onAccessibilityAction={Platform.OS === 'android' ? handleAccessibilityAction : undefined}
+      ref={menuRef}
+    />
+  );
+}
 
 type ActionButtonProps = {
   accessible?: boolean;
@@ -189,7 +224,7 @@ export function PlayerActionBar() {
               {action.key === 'episodes' ? (
                 actionButton
               ) : action.key === 'danmaku' ? (
-                <AccessibleMenuView
+                <PlayerMenu
                   accessibilityLabel={accessibilityLabel}
                   accessibilityRole="button"
                   actions={danmakuMenuActions}
@@ -204,9 +239,9 @@ export function PlayerActionBar() {
                   title="弹幕"
                 >
                   {actionButton}
-                </AccessibleMenuView>
+                </PlayerMenu>
               ) : action.key === 'tracks' ? (
-                <AccessibleMenuView
+                <PlayerMenu
                   accessibilityLabel={accessibilityLabel}
                   accessibilityRole="button"
                   actions={trackMenuActions}
@@ -221,9 +256,9 @@ export function PlayerActionBar() {
                   title="字幕与音轨"
                 >
                   {actionButton}
-                </AccessibleMenuView>
+                </PlayerMenu>
               ) : (
-                <AccessibleMenuView
+                <PlayerMenu
                   accessibilityLabel={accessibilityLabel}
                   accessibilityRole="button"
                   actions={playbackMenuActions}
@@ -238,7 +273,7 @@ export function PlayerActionBar() {
                   title="播放设置"
                 >
                   {actionButton}
-                </AccessibleMenuView>
+                </PlayerMenu>
               )}
             </View>
           );
