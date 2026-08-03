@@ -71,6 +71,26 @@ describe('danmaku settings persistence', () => {
     expect(settings.danmakuFilter).toBe(15);
   });
 
+  it('persists an explicit overlap policy and defaults unknown values safely', () => {
+    expect(parseDanmakuSettings(JSON.stringify({ collisionPolicy: 'allow' })).collisionPolicy).toBe(
+      'allow',
+    );
+    expect(
+      parseDanmakuSettings(JSON.stringify({ collisionPolicy: 'sometimes' })).collisionPolicy,
+    ).toBe('avoid');
+  });
+
+  it('migrates legacy speed and offset values into the ranges exposed by the UI', () => {
+    expect(parseDanmakuSettings(JSON.stringify({ curEpOffset: 60, speed: 400 }))).toMatchObject({
+      curEpOffset: 5,
+      speed: 240,
+    });
+    expect(parseDanmakuSettings(JSON.stringify({ curEpOffset: -60, speed: 40 }))).toMatchObject({
+      curEpOffset: -5,
+      speed: 80,
+    });
+  });
+
   it('repairs malformed and out-of-range persisted values', () => {
     const settings = parseDanmakuSettings(
       JSON.stringify({
@@ -82,6 +102,7 @@ describe('danmaku settings persistence', () => {
         danmakuFilter: 99.8,
         danmakuModeFilter: -3,
         danmakuDensityLimit: 9,
+        collisionPolicy: 'sometimes',
         curEpOffset: null,
         fontFamily: '',
         fontWeight: '950',
@@ -127,15 +148,13 @@ describe('danmakuFilters', () => {
   });
 
   it('sorts comments when density limit is disabled', () => {
-    expect(
-      applyDanmakuDensityLimit(
-        [comment({ id: 2, timeInSeconds: 20 }), comment({ id: 1, timeInSeconds: 10 })],
-        baseOptions,
-      ).map((item) => item.id),
-    ).toEqual([1, 2]);
+    const comments = [comment({ id: 2, timeInSeconds: 20 }), comment({ id: 1, timeInSeconds: 10 })];
+
+    expect(applyDanmakuDensityLimit(comments, baseOptions).map((item) => item.id)).toEqual([1, 2]);
+    expect(comments.map((item) => item.id)).toEqual([2, 1]);
   });
 
-  it('keeps early comments and limits dense later buckets', () => {
+  it('leaves density admission to the runtime active-view limit', () => {
     const comments = [
       comment({ id: 1, timeInSeconds: 2 }),
       comment({ id: 2, timeInSeconds: 20 }),
@@ -153,6 +172,15 @@ describe('danmakuFilters', () => {
       fontSize: 40,
     });
 
-    expect(result.map((item) => item.id)).toEqual([1, 2, 3, 4]);
+    expect(result.map((item) => item.id)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('drops comments moved before the start instead of bursting them at zero', () => {
+    const result = filterDanmakuComments(
+      [comment({ id: 1, timeInSeconds: 0.25 }), comment({ id: 2, timeInSeconds: 1.5 })],
+      { ...baseOptions, curEpOffset: -0.5 },
+    );
+
+    expect(result).toEqual([expect.objectContaining({ id: 2, timeInSeconds: 1 })]);
   });
 });

@@ -1,3 +1,4 @@
+import { usePlayerLab } from '@/components/dev/player-lab/PlayerLabEntry';
 import {
   NativeSettingsForm,
   NativeSettingsItem,
@@ -16,6 +17,7 @@ import { useCallback } from 'react';
 export default function SettingsScreen() {
   const { themePreference, setThemePreference } = useThemePreference();
   const { updateSettings } = usePerformanceMonitorActions();
+  const playerLab = usePlayerLab();
   const { isUnlocked, registerVersionTap } = usePerformanceDiagnosticsUnlock();
   const router = useTracedRouter('settings');
 
@@ -57,14 +59,25 @@ export default function SettingsScreen() {
           />
         </NativeSettingsSection>
 
-        {isUnlocked ? (
+        {isUnlocked || playerLab.available ? (
           <NativeSettingsSection title="开发诊断">
-            <NativeSettingsItem
-              title={<SettingsTitle>性能分析</SettingsTitle>}
-              subtitle={<SettingsSubtitle primary="Native FPS、CPU、内存、路由和网络 trace" />}
-              disclosure
-              onPress={() => router.push('/performance')}
-            />
+            {playerLab.available ? (
+              <NativeSettingsItem
+                title={<SettingsTitle>Player Lab</SettingsTitle>}
+                subtitle={<SettingsSubtitle primary="播放器 UI、播放状态与高密弹幕压力测试" />}
+                disclosure
+                onPress={playerLab.open}
+                testID="open-player-lab"
+              />
+            ) : null}
+            {isUnlocked ? (
+              <NativeSettingsItem
+                title={<SettingsTitle>性能分析</SettingsTitle>}
+                subtitle={<SettingsSubtitle primary="Native FPS、CPU、内存、路由和网络 trace" />}
+                disclosure
+                onPress={() => router.push('/performance')}
+              />
+            ) : null}
           </NativeSettingsSection>
         ) : null}
 

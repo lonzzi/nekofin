@@ -153,7 +153,7 @@ export function PlayerActionBar() {
       const selection = parsePlayerMenuAction(nativeEvent.event);
       switch (selection?.kind) {
         case 'danmakuToggle':
-          setSettings({ ...settings, enabled: !settings.enabled });
+          setSettings((current) => ({ ...current, enabled: !current.enabled }));
           break;
         case 'danmakuSettings':
           openPanel({ key: 'danmaku' });
@@ -163,7 +163,7 @@ export function PlayerActionBar() {
           break;
       }
     },
-    [openPanel, setSettings, settings],
+    [openPanel, setSettings],
   );
   const handleTrackAction = useCallback(
     ({ nativeEvent }: NativeActionEvent) => {

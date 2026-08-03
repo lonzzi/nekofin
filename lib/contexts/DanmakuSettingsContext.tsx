@@ -1,7 +1,17 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import type { TextStyle } from 'react-native';
 
 import { storage } from '../storage';
+
+export type DanmakuCollisionPolicy = 'avoid' | 'allow';
 
 export type DanmakuSettingsType = {
   enabled: boolean;
@@ -12,6 +22,7 @@ export type DanmakuSettingsType = {
   danmakuFilter: number;
   danmakuModeFilter: number;
   danmakuDensityLimit: number;
+  collisionPolicy: DanmakuCollisionPolicy;
   curEpOffset: number;
   fontFamily: string;
   fontWeight: TextStyle['fontWeight'];
@@ -19,7 +30,7 @@ export type DanmakuSettingsType = {
 
 type DanmakuSettingsContextValue = {
   settings: DanmakuSettingsType;
-  setSettings: (next: DanmakuSettingsType) => void;
+  setSettings: Dispatch<SetStateAction<DanmakuSettingsType>>;
 };
 
 export const defaultSettings: DanmakuSettingsType = {
@@ -31,6 +42,7 @@ export const defaultSettings: DanmakuSettingsType = {
   danmakuFilter: 0,
   danmakuModeFilter: 0,
   danmakuDensityLimit: 0,
+  collisionPolicy: 'avoid',
   curEpOffset: 0,
   fontFamily: '"Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif',
   fontWeight: '700',
@@ -92,7 +104,7 @@ export function parseDanmakuSettings(savedSettings?: string): DanmakuSettingsTyp
           ? parsedSettings.enabled
           : defaultSettings.enabled,
       opacity: finiteNumber(parsedSettings.opacity, defaultSettings.opacity, 0.1, 1),
-      speed: finiteNumber(parsedSettings.speed, defaultSettings.speed, 40, 400),
+      speed: finiteNumber(parsedSettings.speed, defaultSettings.speed, 80, 240),
       fontSize: finiteNumber(parsedSettings.fontSize, defaultSettings.fontSize, 12, 36),
       heightRatio: finiteNumber(parsedSettings.heightRatio, defaultSettings.heightRatio, 0.3, 1),
       // The old quick toggle disabled danmaku by filtering every source and
@@ -113,12 +125,11 @@ export function parseDanmakuSettings(savedSettings?: string): DanmakuSettingsTyp
         0,
         4,
       ),
-      curEpOffset: finiteNumber(
-        parsedSettings.curEpOffset,
-        defaultSettings.curEpOffset,
-        -3600,
-        3600,
-      ),
+      collisionPolicy:
+        parsedSettings.collisionPolicy === 'allow' || parsedSettings.collisionPolicy === 'avoid'
+          ? parsedSettings.collisionPolicy
+          : defaultSettings.collisionPolicy,
+      curEpOffset: finiteNumber(parsedSettings.curEpOffset, defaultSettings.curEpOffset, -5, 5),
       fontFamily,
       fontWeight,
     };
@@ -129,8 +140,17 @@ export function parseDanmakuSettings(savedSettings?: string): DanmakuSettingsTyp
 
 const DanmakuSettingsContext = createContext<DanmakuSettingsContextValue | null>(null);
 
-export function DanmakuSettingsProvider({ children }: { children: React.ReactNode }) {
+export function DanmakuSettingsProvider({
+  children,
+  initialSettings,
+  persist = true,
+}: {
+  children: React.ReactNode;
+  initialSettings?: DanmakuSettingsType;
+  persist?: boolean;
+}) {
   const [settings, setSettings] = useState<DanmakuSettingsType>(() => {
+    if (initialSettings) return initialSettings;
     const savedSettings = storage.getString('danmakuSettings');
     return parseDanmakuSettings(savedSettings);
   });
@@ -138,8 +158,9 @@ export function DanmakuSettingsProvider({ children }: { children: React.ReactNod
   const value = useMemo(() => ({ settings, setSettings }), [settings]);
 
   useEffect(() => {
+    if (!persist) return;
     storage.set('danmakuSettings', JSON.stringify(settings));
-  }, [settings]);
+  }, [persist, settings]);
 
   return (
     <DanmakuSettingsContext.Provider value={value}>{children}</DanmakuSettingsContext.Provider>

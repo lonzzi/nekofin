@@ -9,7 +9,6 @@ export interface DanmakuFilterOptions {
   height: number;
   heightRatio: number;
   speed: number;
-  playbackRate: number;
   fontSize: number;
 }
 
@@ -66,73 +65,28 @@ export const shouldKeepCommentMode = (comment: DandanComment, danmakuModeFilter:
 
 export const applyDanmakuDensityLimit = (
   comments: DandanComment[],
-  {
-    danmakuDensityLimit,
-    width,
-    height,
-    heightRatio,
-    speed,
-    playbackRate,
-    fontSize,
-  }: Pick<
+  _options: Pick<
     DanmakuFilterOptions,
-    | 'danmakuDensityLimit'
-    | 'width'
-    | 'height'
-    | 'heightRatio'
-    | 'speed'
-    | 'playbackRate'
-    | 'fontSize'
+    'danmakuDensityLimit' | 'width' | 'height' | 'heightRatio' | 'speed' | 'fontSize'
   >,
 ) => {
-  if (danmakuDensityLimit <= 0) return comments.sort((a, b) => a.timeInSeconds - b.timeInSeconds);
-
-  const earlyDensityGraceSeconds = 8;
-  const containerHeight = height * heightRatio - 18;
-  const duration = Math.ceil(width / Math.max(1, speed * Math.max(0.25, playbackRate)));
-  const lines = Math.floor(containerHeight / fontSize) - 1;
-
-  const limit = (9 - danmakuDensityLimit * 2) * lines;
-  const verticalLimit = lines - 1 > 0 ? lines - 1 : 1;
-
-  const timeBuckets: Record<number, number> = {};
-  const verticalTimeBuckets: Record<number, number> = {};
-  const resultComments: DandanComment[] = [];
-
-  comments.forEach((comment) => {
-    if (comment.timeInSeconds <= earlyDensityGraceSeconds) {
-      resultComments.push(comment);
-      return;
-    }
-
-    const timeIndex = Math.ceil(comment.timeInSeconds / duration);
-    timeBuckets[timeIndex] ??= 0;
-    verticalTimeBuckets[timeIndex] ??= 0;
-
-    if (comment.mode === DANDAN_COMMENT_MODE.Top || comment.mode === DANDAN_COMMENT_MODE.Bottom) {
-      if (verticalTimeBuckets[timeIndex] < verticalLimit) {
-        verticalTimeBuckets[timeIndex]++;
-        resultComments.push(comment);
-      }
-      return;
-    }
-
-    if (timeBuckets[timeIndex] < limit) {
-      timeBuckets[timeIndex]++;
-      resultComments.push(comment);
-    }
-  });
-
-  return resultComments;
+  // Density is enforced against the actual number of mounted StrokeText views
+  // in DanmakuLayer. Static media-time buckets cannot model long text, adjacent
+  // buckets, playback rate, or fixed comments and can still overload a frame.
+  // Keep this stage immutable and deterministic so the scheduler can advance a
+  // single sorted cursor and drop overflow without leaving a backlog.
+  return comments.slice().sort((a, b) => a.timeInSeconds - b.timeInSeconds);
 };
 
 export const filterDanmakuComments = (comments: DandanComment[], options: DanmakuFilterOptions) => {
   if (!comments.length) return [];
 
-  const offsetComments = comments.map((comment) => ({
-    ...comment,
-    timeInSeconds: comment.timeInSeconds + options.curEpOffset,
-  }));
+  const offsetComments = comments
+    .map((comment) => ({
+      ...comment,
+      timeInSeconds: comment.timeInSeconds + options.curEpOffset,
+    }))
+    .filter((comment) => comment.timeInSeconds >= 0);
 
   const filteredBySource = offsetComments.filter((comment) =>
     shouldKeepCommentSource(comment, options.danmakuFilter),

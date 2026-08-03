@@ -24,6 +24,8 @@ import { MediaStats, MediaTrack, MediaTracks, PlayerContext } from './PlayerCont
 import { TopControls } from './TopControls';
 
 type ControlsProps = {
+  autoHideControls?: boolean;
+  initiallyVisible?: boolean;
   title: string;
   isPlaying: boolean;
   isLoading: boolean;
@@ -58,6 +60,8 @@ type ControlsProps = {
 };
 
 export function Controls({
+  autoHideControls = true,
+  initiallyVisible = false,
   isPlaying,
   isLoading,
   duration,
@@ -88,7 +92,7 @@ export function Controls({
   onEpisodeSelect,
 }: ControlsProps) {
   const [panelState, dispatchPanel] = useReducer(playerPanelReducer, INITIAL_PLAYER_PANEL_STATE);
-  const [showControls, setShowControls] = useState(false);
+  const [showControls, setShowControls] = useState(initiallyVisible);
   const [isDragging, setIsDragging] = useState(false);
   const [isReduceMotionEnabled, setIsReduceMotionEnabled] = useState(false);
   const [isScreenReaderEnabled, setIsScreenReaderEnabled] = useState(false);
@@ -134,7 +138,7 @@ export function Controls({
   const hideControlsWithDelay = useCallback(() => {
     clearControlsTimeout();
 
-    if (isPanelOpenRef.current || isScreenReaderEnabled) {
+    if (!autoHideControls || isPanelOpenRef.current || isScreenReaderEnabled) {
       return;
     }
 
@@ -150,6 +154,7 @@ export function Controls({
       }
     }, 3000);
   }, [
+    autoHideControls,
     clearControlsTimeout,
     isDragging,
     isScreenReaderEnabled,

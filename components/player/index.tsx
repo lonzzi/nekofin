@@ -16,13 +16,24 @@ import {
   type PlaybackState,
   type TrackInfo,
 } from 'expo-mpv';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 
 import { usePlaybackSync } from '../../hooks/usePlaybackSync';
 import { Controls } from './Controls';
 import { DanmakuLayer, DanmakuLayerRef } from './DanmakuLayer';
+import {
+  acknowledgePlaybackSeek,
+  createPlaybackSeekGateState,
+  evaluatePlaybackProgress,
+  failPlaybackSeek,
+  PLAYBACK_SEEK_WATCHDOG_MS,
+  recoverTimedOutPlaybackSeek,
+  requestPlaybackSeek,
+  resolvePlaybackSeekCommand,
+  type PlaybackSeekCompletion,
+} from './playbackSeekGate';
 import {
   deriveBufferedProgress,
   deriveDurationMs,
@@ -81,6 +92,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
 
   // High-level playback state machine from mpv (idle/loading/playing/buffering/paused/ended).
   const [playbackState, setPlaybackState] = useState<PlaybackState>('idle');
+  const playbackStateRef = useRef<PlaybackState>('idle');
   // HDR/Dolby Vision state for the title-bar badge.
   const [hdrState, setHdrState] = useState<HdrStateChangeEvent | null>(null);
   // Buffered-ahead progress (0-1) for the seek bar; SharedValue avoids re-render per tick.
@@ -117,11 +129,23 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   >(undefined);
 
   const player = useRef<ExpoMpvViewRef>(null);
+  const isMountedRef = useRef(true);
+  const activePlaybackContextRef = useRef<object | null>(null);
   const isPlayerReadyRef = useRef(false);
   const loadedSourceRef = useRef<string | null>(null);
   const hasInitialSeeked = useRef(false);
   const danmakuLayer = useRef<DanmakuLayerRef>(null);
   const currentTime = useSharedValue(0);
+  const sourceResumeTimeMsRef = useRef(0);
+  const [isNativeSeeking, setIsNativeSeeking] = useState(false);
+  const playbackSeekGateRef = useRef(createPlaybackSeekGateState());
+  const playbackSeekWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearPlaybackSeekWatchdog = useCallback(() => {
+    if (!playbackSeekWatchdogRef.current) return;
+    clearTimeout(playbackSeekWatchdogRef.current);
+    playbackSeekWatchdogRef.current = null;
+  }, []);
 
   const [manualComments, setManualComments] = useState<DandanComment[]>([]);
   const [useManualComments, setUseManualComments] = useState(false);
@@ -161,6 +185,29 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     streamDeviceId,
   });
 
+  const playbackSourceUrl = streamInfo?.url ?? null;
+  const playbackContext = useMemo(
+    () => ({ itemId, sourceUrl: playbackSourceUrl }),
+    [itemId, playbackSourceUrl],
+  );
+
+  useLayoutEffect(() => {
+    activePlaybackContextRef.current = playbackContext;
+    return () => {
+      if (activePlaybackContextRef.current === playbackContext) {
+        activePlaybackContextRef.current = null;
+      }
+    };
+  }, [playbackContext]);
+
+  const isPlaybackContextActive = useCallback(
+    (context: object, targetPlayer?: ExpoMpvViewRef) =>
+      isMountedRef.current &&
+      activePlaybackContextRef.current === context &&
+      (!targetPlayer || player.current === targetPlayer),
+    [],
+  );
+
   useEffect(() => {
     setDanmakuEpisodeInfo(autoCommentsData?.episodeInfo);
   }, [autoCommentsData?.episodeInfo]);
@@ -176,6 +223,14 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     loadedSourceRef.current = null;
     hasInitialSeeked.current = false;
     currentTime.value = 0;
+    sourceResumeTimeMsRef.current = 0;
+    clearPlaybackSeekWatchdog();
+    playbackSeekGateRef.current = createPlaybackSeekGateState(
+      0,
+      performance.now(),
+      playbackSeekGateRef.current.generation,
+    );
+    setIsNativeSeeking(false);
     danmakuLayer.current?.cleanup();
     setManualComments([]);
     setUseManualComments(false);
@@ -184,22 +239,56 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     setIsLoaded(false);
     setIsBuffering(true);
     setIsStopped(false);
+    playbackStateRef.current = 'idle';
     setPlaybackState('idle');
-  }, [currentTime, itemId]);
+  }, [clearPlaybackSeekWatchdog, currentTime, itemId]);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      clearPlaybackSeekWatchdog();
+      const currentGate = playbackSeekGateRef.current;
+      playbackSeekGateRef.current = createPlaybackSeekGateState(
+        currentGate.confirmedPositionTimeMs,
+        performance.now(),
+        currentGate.generation,
+      );
+    };
+  }, [clearPlaybackSeekWatchdog]);
+
+  useEffect(() => {
+    const sourceResumeTimeMs = currentTime.get();
+    sourceResumeTimeMsRef.current = sourceResumeTimeMs;
+    clearPlaybackSeekWatchdog();
+    playbackSeekGateRef.current = createPlaybackSeekGateState(
+      sourceResumeTimeMs,
+      performance.now(),
+      playbackSeekGateRef.current.generation,
+    );
+    danmakuLayer.current?.cleanup();
+    if (playbackSourceUrl) {
+      setIsNativeSeeking(true);
+      danmakuLayer.current?.seek(sourceResumeTimeMs);
+    } else {
+      setIsNativeSeeking(false);
+    }
     isPlayerReadyRef.current = false;
     loadedSourceRef.current = null;
     hasInitialSeeked.current = false;
     setIsLoaded(false);
     setIsBuffering(true);
+    setIsPlaying(false);
+    setIsStopped(false);
+    playbackStateRef.current = 'idle';
+    setPlaybackState('idle');
     setMpvTracks({ audio: [], subtitle: [] });
     setCurrentTrackIds({ vid: 0, aid: 0, sid: 0 });
     setMediaInfo(null);
     setHdrState(null);
     setBufferInfo(null);
     isBufferingRef.current = false;
-  }, [streamInfo?.url]);
+  }, [clearPlaybackSeekWatchdog, currentTime, playbackSourceUrl]);
 
   const handleCommentsLoaded = (
     newComments: DandanComment[],
@@ -279,6 +368,13 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     );
   }, [isBuffering, streamInfo?.url, isLoaded, playbackState]);
 
+  const danmakuPlaybackState = useMemo<PlaybackState>(() => {
+    if (isStopped) return 'ended';
+    if (!streamInfo?.url || !isLoaded) return 'loading';
+    if (isBuffering) return 'buffering';
+    return playbackState;
+  }, [isBuffering, isLoaded, isStopped, playbackState, streamInfo?.url]);
+
   const duration = useMemo(() => {
     return deriveDurationMs(itemDetail, mediaInfo?.duration);
   }, [itemDetail, mediaInfo?.duration]);
@@ -298,6 +394,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     const playbackPositionTicks = itemDetail.userData?.playbackPositionTicks ?? 0;
     const startTimeMs = Math.round(ticksToMilliseconds(playbackPositionTicks));
     currentTime.value = startTimeMs;
+    if (!isPlayerReadyRef.current) sourceResumeTimeMsRef.current = startTimeMs;
     setInitialTime(ticksToSeconds(playbackPositionTicks));
   }, [itemDetail, currentTime]);
 
@@ -410,6 +507,91 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     [],
   );
 
+  const applyPlaybackSeekCompletion = useCallback(
+    (completion: PlaybackSeekCompletion) => {
+      clearPlaybackSeekWatchdog();
+      setIsNativeSeeking(false);
+      currentTime.set(completion.playbackTimeMs);
+      danmakuLayer.current?.completeSeek(completion.playbackTimeMs, completion.cursorTimeMs);
+      syncPlaybackProgress(completion.playbackTimeMs, false, { force: true });
+    },
+    [clearPlaybackSeekWatchdog, currentTime, syncPlaybackProgress],
+  );
+
+  const requestNativeSeek = useCallback(
+    (playerView: ExpoMpvViewRef, targetTimeMs: number) => {
+      const requestContext = activePlaybackContextRef.current;
+      if (!requestContext || !isPlaybackContextActive(requestContext, playerView)) return;
+
+      const now = performance.now();
+      const requestedState = requestPlaybackSeek(playbackSeekGateRef.current, targetTimeMs, now, {
+        isPlaying: playbackStateRef.current === 'playing',
+        playbackRate: rate,
+      });
+      playbackSeekGateRef.current = requestedState;
+      const pendingSeek = requestedState.pendingSeek;
+      if (!pendingSeek) return;
+
+      clearPlaybackSeekWatchdog();
+      setIsNativeSeeking(true);
+      currentTime.set(pendingSeek.targetTimeMs);
+      danmakuLayer.current?.seek(pendingSeek.targetTimeMs);
+
+      const generation = pendingSeek.generation;
+      playbackSeekWatchdogRef.current = setTimeout(() => {
+        playbackSeekWatchdogRef.current = null;
+        if (!isPlaybackContextActive(requestContext, playerView)) return;
+        const recovered = recoverTimedOutPlaybackSeek(
+          playbackSeekGateRef.current,
+          generation,
+          performance.now(),
+          { trustResolvedCommand: playbackStateRef.current !== 'playing' },
+        );
+        playbackSeekGateRef.current = recovered.state;
+        if (recovered.completion) applyPlaybackSeekCompletion(recovered.completion);
+      }, PLAYBACK_SEEK_WATCHDOG_MS);
+
+      void playerView
+        .seekTo(pendingSeek.targetTimeMs / 1000)
+        .then(() => {
+          if (!isPlaybackContextActive(requestContext, playerView)) return;
+          playbackSeekGateRef.current = resolvePlaybackSeekCommand(
+            playbackSeekGateRef.current,
+            generation,
+          );
+        })
+        .catch(() => {
+          if (!isPlaybackContextActive(requestContext, playerView)) return;
+          const failed = failPlaybackSeek(
+            playbackSeekGateRef.current,
+            generation,
+            performance.now(),
+          );
+          playbackSeekGateRef.current = failed.state;
+          if (failed.completion) applyPlaybackSeekCompletion(failed.completion);
+        });
+    },
+    [
+      applyPlaybackSeekCompletion,
+      clearPlaybackSeekWatchdog,
+      currentTime,
+      isPlaybackContextActive,
+      rate,
+    ],
+  );
+
+  const failPendingNativeSeek = useCallback(() => {
+    const pendingSeek = playbackSeekGateRef.current.pendingSeek;
+    if (!pendingSeek) return;
+    const failed = failPlaybackSeek(
+      playbackSeekGateRef.current,
+      pendingSeek.generation,
+      performance.now(),
+    );
+    playbackSeekGateRef.current = failed.state;
+    if (failed.completion) applyPlaybackSeekCompletion(failed.completion);
+  }, [applyPlaybackSeekCompletion]);
+
   const handleSeek = useCallback(
     (position: number) => {
       const playerView = player.current;
@@ -425,15 +607,10 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
 
       const normalizedPosition = Math.max(0, Math.min(position, 1));
       const targetTimeMs = normalizedPosition * duration; // ms
-      const targetTimeSec = targetTimeMs / 1000; // seconds for mpv
-      void playerView.seekTo(targetTimeSec);
-      danmakuLayer.current?.seek(targetTimeMs);
-      currentTime.value = targetTimeMs;
-      syncPlaybackProgress(targetTimeMs, false, { force: true });
-      setIsBuffering(false);
+      requestNativeSeek(playerView, targetTimeMs);
       setIsStopped(false);
     },
-    [currentTime, duration, streamInfo?.url, syncPlaybackProgress],
+    [duration, requestNativeSeek, streamInfo?.url],
   );
 
   // trackId here is mpv's real aid/sid (from mpvTracks[].index).
@@ -507,26 +684,50 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
 
   return (
     <View style={styles.container}>
-      {streamInfo?.url && initialTime >= 0 ? (
+      {playbackSourceUrl && initialTime >= 0 ? (
         <ExpoMpvView
-          key={streamInfo.url}
+          key={`${itemId}:${playbackSourceUrl}`}
           ref={player}
           style={styles.video}
-          source={streamInfo.url}
+          source={playbackSourceUrl}
           speed={rate}
           onPlaybackStateChange={({ nativeEvent }) => {
+            if (!isPlaybackContextActive(playbackContext)) return;
+            playbackStateRef.current = nativeEvent.state;
             setPlaybackState(nativeEvent.state);
             setIsPlaying(nativeEvent.isPlaying);
             if (nativeEvent.state === 'playing' || nativeEvent.state === 'paused') {
               setIsStopped(false);
             }
-            if (!nativeEvent.isPlaying) {
+            if (!nativeEvent.isPlaying && !playbackSeekGateRef.current.pendingSeek) {
               syncPlaybackProgress(currentTime.value, true, { force: true });
             }
           }}
           onProgress={({ nativeEvent }) => {
-            currentTime.value = nativeEvent.position * 1000;
-            syncPlaybackProgress(currentTime.value, false);
+            if (
+              !isPlaybackContextActive(playbackContext) ||
+              loadedSourceRef.current !== playbackSourceUrl
+            ) {
+              return;
+            }
+            const positionMs = nativeEvent.position * 1000;
+            const decision = evaluatePlaybackProgress({
+              isPlaying: playbackStateRef.current === 'playing',
+              playbackRate: rate,
+              positionTimeMs: positionMs,
+              state: playbackSeekGateRef.current,
+              wallTimeMs: performance.now(),
+            });
+            playbackSeekGateRef.current = decision.state;
+            if (decision.accepted) {
+              if (decision.completion) {
+                applyPlaybackSeekCompletion(decision.completion);
+              } else {
+                danmakuLayer.current?.syncPlaybackTime(positionMs);
+                currentTime.set(positionMs);
+                syncPlaybackProgress(positionMs, false);
+              }
+            }
             bufferedProgress.set(
               deriveBufferedProgress({
                 positionSeconds: nativeEvent.position,
@@ -551,26 +752,36 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
               setBufferInfo(null);
             }
           }}
+          onSeek={() => {
+            if (
+              !isPlaybackContextActive(playbackContext) ||
+              loadedSourceRef.current !== playbackSourceUrl
+            ) {
+              return;
+            }
+            playbackSeekGateRef.current = acknowledgePlaybackSeek(playbackSeekGateRef.current);
+          }}
           onHdrStateChange={({ nativeEvent }) => {
+            if (!isPlaybackContextActive(playbackContext)) return;
             setHdrState(nativeEvent);
           }}
           onLoad={({ nativeEvent }) => {
+            if (!isPlaybackContextActive(playbackContext)) return;
             isPlayerReadyRef.current = true;
-            loadedSourceRef.current = streamInfo?.url ?? null;
+            loadedSourceRef.current = playbackSourceUrl;
             // mpv can report `isPlaying` while it is still opening the source.
             // Resume only after file-loaded, when seek commands are accepted.
             if (!hasInitialSeeked.current) {
               const fallbackDurationSeconds = duration > 0 ? duration / 1000 : 0;
               const loadedDurationSeconds =
                 nativeEvent.duration > 0 ? nativeEvent.duration : fallbackDurationSeconds;
+              const requestedResumeSeconds = sourceResumeTimeMsRef.current / 1000;
               const resumePositionSeconds =
                 loadedDurationSeconds > 0
-                  ? Math.min(Math.max(0, initialTime), loadedDurationSeconds)
-                  : Math.max(0, initialTime);
-              if (resumePositionSeconds > 0) {
-                currentTime.value = resumePositionSeconds * 1000;
-                void player.current?.seekTo(resumePositionSeconds);
-              }
+                  ? Math.min(Math.max(0, requestedResumeSeconds), loadedDurationSeconds)
+                  : Math.max(0, requestedResumeSeconds);
+              const playerView = player.current;
+              if (playerView) requestNativeSeek(playerView, resumePositionSeconds * 1000);
               hasInitialSeeked.current = true;
             }
             setIsLoaded(true);
@@ -584,13 +795,16 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
             syncPlaybackStart(currentTime.value);
             // Populate the track picker from mpv's real track list.
             const targetPlayer = player.current;
-            const targetSource = streamInfo?.url ?? null;
+            const targetSource = playbackSourceUrl;
             setTimeout(() => void refreshMpvTracks(targetPlayer, targetSource), 300);
           }}
           onBuffer={({ nativeEvent }) => {
+            if (!isPlaybackContextActive(playbackContext)) return;
             setIsBuffering(nativeEvent.isBuffering);
           }}
           onError={({ nativeEvent }) => {
+            if (!isPlaybackContextActive(playbackContext)) return;
+            failPendingNativeSeek();
             isPlayerReadyRef.current = false;
             loadedSourceRef.current = null;
             setIsBuffering(false);
@@ -601,6 +815,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
             Alert.alert('Error', nativeEvent.error);
           }}
           onEnd={() => {
+            if (!isPlaybackContextActive(playbackContext)) return;
             setIsPlaying(false);
             setIsStopped(true);
             syncPlaybackProgress(currentTime.value, true, { force: true });
@@ -615,7 +830,8 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
         <DanmakuLayer
           ref={danmakuLayer}
           currentTime={currentTime}
-          isPlaying={!showLoading && !isStopped && isPlaying}
+          isSeeking={isNativeSeeking}
+          playbackState={danmakuPlaybackState}
           comments={comments}
           playbackRate={rate}
           {...settings}

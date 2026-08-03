@@ -1,6 +1,7 @@
 import {
   NativeSettingsForm,
   NativeSettingsItem,
+  NativeSettingsPicker,
   NativeSettingsSection,
   NativeSettingsSlider,
   NativeSettingsSwitch,
@@ -17,7 +18,7 @@ export default function DanmakuSettingsScreen() {
   const { settings, setSettings } = useDanmakuSettings();
 
   const updateSetting = <K extends keyof typeof settings>(key: K, value: (typeof settings)[K]) => {
-    setSettings({ ...settings, [key]: value });
+    setSettings((current) => ({ ...current, [key]: value }));
   };
 
   const FONT_SIZE_MIN = 12;
@@ -29,11 +30,17 @@ export default function DanmakuSettingsScreen() {
     Math.round(FONT_SIZE_MIN + sliderValue * FONT_SIZE_RANGE);
 
   const toggleFilter = (bit: number) => {
-    updateSetting('danmakuFilter', settings.danmakuFilter ^ bit);
+    setSettings((current) => ({
+      ...current,
+      danmakuFilter: current.danmakuFilter ^ bit,
+    }));
   };
 
   const toggleModeFilter = (bit: number) => {
-    updateSetting('danmakuModeFilter', settings.danmakuModeFilter ^ bit);
+    setSettings((current) => ({
+      ...current,
+      danmakuModeFilter: current.danmakuModeFilter ^ bit,
+    }));
   };
 
   const handleResetToDefault = () => {
@@ -80,6 +87,61 @@ export default function DanmakuSettingsScreen() {
           onValueChange={(value) => updateSetting('heightRatio', value)}
           formatValue={(value) => `${Math.round(value * 100)}%`}
         />
+      </NativeSettingsSection>
+
+      <NativeSettingsSection title="运动与密度">
+        <NativeSettingsSlider
+          title={<SettingsTitle>滚动速度</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary="长弹幕会在此基础上自动提速" />}
+          value={Math.max(80, Math.min(240, settings.speed))}
+          min={80}
+          max={240}
+          step={10}
+          disabled={!settings.enabled}
+          onValueChange={(value) => updateSetting('speed', Math.round(value))}
+          formatValue={(value) => `${Math.round(value)} px/s`}
+        />
+        <NativeSettingsPicker
+          title={<SettingsTitle>屏幕密度</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary="同时限制轨道拥挤度与同屏弹幕数量" />}
+          value={String(settings.danmakuDensityLimit)}
+          disabled={!settings.enabled}
+          options={[
+            { title: '自动', value: '0' },
+            { title: '宽松', value: '1' },
+            { title: '标准', value: '2' },
+            { title: '严格', value: '3' },
+            { title: '极简', value: '4' },
+          ]}
+          onValueChange={(value) => updateSetting('danmakuDensityLimit', Number(value))}
+        />
+        <NativeSettingsSwitch
+          title={<SettingsTitle>防止重叠</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary="预测追尾并避开其他类型占用的轨道" />}
+          value={settings.collisionPolicy === 'avoid'}
+          disabled={!settings.enabled}
+          onValueChange={(value) => updateSetting('collisionPolicy', value ? 'avoid' : 'allow')}
+        />
+      </NativeSettingsSection>
+
+      <NativeSettingsSection title="时间校准">
+        <NativeSettingsSlider
+          title={<SettingsTitle>弹幕偏移</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary="弹幕偏晚时向左调，偏早时向右调" />}
+          value={Math.max(-5, Math.min(5, settings.curEpOffset))}
+          min={-5}
+          max={5}
+          step={0.5}
+          disabled={!settings.enabled}
+          onValueChange={(value) => updateSetting('curEpOffset', value)}
+          formatValue={(value) => `${value > 0 ? '+' : ''}${value.toFixed(1)}s`}
+        />
+        {settings.curEpOffset !== 0 ? (
+          <NativeSettingsItem
+            title={<SettingsActionTitle tone="accent">偏移归零</SettingsActionTitle>}
+            onPress={() => updateSetting('curEpOffset', 0)}
+          />
+        ) : null}
       </NativeSettingsSection>
 
       <NativeSettingsSection title="弹幕来源过滤">

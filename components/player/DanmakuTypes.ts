@@ -1,5 +1,6 @@
 import { DandanCommentMode } from '@/services/dandanplay';
-import { TextStyle } from 'react-native';
+
+export type { DanmakuSettingsType } from '@/lib/contexts/DanmakuSettingsContext';
 
 export type ActiveBullet = {
   commentId: number;
@@ -8,22 +9,9 @@ export type ActiveBullet = {
   colorHex: string;
   top: number;
   durationMs: number;
+  mediaDurationMs: number;
   mode: DandanCommentMode;
   startOffsetMs: number;
   scheduledMs: number;
   textWidth: number;
-};
-
-export type DanmakuSettingsType = {
-  enabled: boolean;
-  opacity: number;
-  speed: number;
-  fontSize: number;
-  heightRatio: number;
-  danmakuFilter: number;
-  danmakuModeFilter: number;
-  danmakuDensityLimit: number;
-  curEpOffset: number;
-  fontFamily: string;
-  fontWeight: TextStyle['fontWeight'];
 };

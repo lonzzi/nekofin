@@ -4,8 +4,10 @@
   "version": "0.1.0",
   "scripts": {
     "start": "expo start",
+    "start:dev": "APP_VARIANT=development expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "ios:dev": "APP_VARIANT=development expo run:ios",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:smoke": "vitest run smoke",

@@ -1,9 +1,8 @@
 // @refresh reset
 
-import { useCurrentTime } from '@/hooks/useCurrentTime';
-import { usePreciseTimer } from '@/hooks/usePreciseTimer';
 import { defaultSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { DANDAN_COMMENT_MODE, DandanComment } from '@/services/dandanplay';
+import type { PlaybackState } from 'expo-mpv';
 import React, {
   useCallback,
   useEffect,
@@ -16,57 +15,66 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SharedValue } from 'react-native-reanimated';
 
 import { Bullet } from './Bullet';
+import {
+  calculateDanmakuActiveHardLimit,
+  DANMAKU_SCROLL_DIRECTION,
+  isDanmakuLaneBlockedAtTime,
+  isScrollingDanmakuEntrySafe,
+  selectDanmakuFallbackLane,
+} from './danmakuCollision';
 import { filterDanmakuComments } from './danmakuFilters';
 import {
   calculateDanmakuLayout,
   calculateDanmakuRows,
+  calculateDanmakuScrollTrajectory,
   calculateEffectiveScrollSpeed,
   calculateScrollDurationMs,
   createActiveDanmakuBullet,
   estimateDanmakuTextWidth,
-  removeActiveDanmakuBullet,
+  getDanmakuBulletTop,
+  getDanmakuOccupiedVisualRows,
 } from './danmakuLayout';
+import {
+  calculateDanmakuSchedulerResolutionMs,
+  calculateDanmakuWakeDelayMs,
+  collectDueDanmakuEntries,
+  findFirstTimedCommentAtOrAfter,
+  findNextDanmakuEventTimeMs,
+  normalizeDanmakuPlaybackRate,
+  prepareDanmakuTimeline,
+  removeExpiredDanmakuEntries,
+  type TimedDanmakuEntry,
+} from './danmakuScheduler';
 import { ActiveBullet, DanmakuSettingsType } from './DanmakuTypes';
 
 export type DanmakuLayerRef = {
   seek: (timeMs: number) => void;
+  completeSeek: (playbackTimeMs: number, cursorTimeMs: number) => void;
+  syncPlaybackTime: (timeMs: number) => void;
   cleanup: () => void;
 };
 
 type DanmakuLayerProps = {
   ref?: React.RefObject<DanmakuLayerRef | null>;
   currentTime: SharedValue<number>;
-  isPlaying: boolean;
+  isSeeking: boolean;
+  playbackState: PlaybackState;
   comments: DandanComment[];
   density?: number;
   playbackRate?: number;
 } & Partial<DanmakuSettingsType>;
 
-type TimedDanmakuComment = {
-  comment: DandanComment;
-  timeMs: number;
-};
-
-function findFirstTimedCommentAtOrAfter(comments: TimedDanmakuComment[], timeMs: number) {
-  let low = 0;
-  let high = comments.length;
-
-  while (low < high) {
-    const mid = Math.floor((low + high) / 2);
-    if (comments[mid].timeMs < timeMs) {
-      low = mid + 1;
-    } else {
-      high = mid;
-    }
-  }
-
-  return low;
-}
+const CLOCK_DRIFT_RESET_THRESHOLD_MS = 750;
+const MAX_LATE_COMMENT_WALL_MS = 250;
+const MAX_ACCEPTED_PER_SCHEDULER_RUN = 24;
+const MAX_CANDIDATES_PER_SCHEDULER_RUN = 96;
+const MAX_TEXT_WIDTH_CACHE_SIZE = 2048;
 
 export function DanmakuLayer({
   ref,
   currentTime,
-  isPlaying,
+  isSeeking,
+  playbackState,
   comments,
   density = 1,
   playbackRate = 1,
@@ -77,26 +85,28 @@ export function DanmakuLayer({
   danmakuFilter = defaultSettings.danmakuFilter,
   danmakuModeFilter = defaultSettings.danmakuModeFilter,
   danmakuDensityLimit = defaultSettings.danmakuDensityLimit,
+  collisionPolicy = defaultSettings.collisionPolicy,
   curEpOffset = defaultSettings.curEpOffset,
   fontFamily = defaultSettings.fontFamily,
   fontWeight = defaultSettings.fontWeight,
 }: DanmakuLayerProps) {
-  const { time: currentTimeMs, sync } = usePreciseTimer({
-    interval: 100,
-    isRunning: isPlaying,
-    playbackRate,
-  });
-
-  const videoTime = useCurrentTime({ time: currentTime });
-
   const { width, height } = useWindowDimensions();
+  const safePlaybackRate = normalizeDanmakuPlaybackRate(playbackRate);
   const [active, setActive] = useState<ActiveBullet[]>([]);
-  const lastTimeMsRef = useRef<number>(-1);
-  // DandanPlay cids are 64-bit integers and can collide after JSON parses them
-  // as JavaScript numbers. Object identity keeps distinct source rows distinct.
-  const processedCommentsRef = useRef<Set<DandanComment>>(new Set());
+  const activeRef = useRef<ActiveBullet[]>([]);
+  const timedCommentsRef = useRef<TimedDanmakuEntry<DandanComment>[]>([]);
   const nextCommentIndexRef = useRef(0);
   const nextBulletInstanceIdRef = useRef(0);
+  const schedulerResolutionRef = useRef(16);
+  const schedulerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const schedulerDeadlineRef = useRef<number | null>(null);
+  const schedulerTimerTokenRef = useRef(0);
+  const runSchedulerRef = useRef<() => void>(() => {});
+  const scheduleNextWakeRef = useRef<() => void>(() => {});
+  const playbackStateRef = useRef<PlaybackState>(playbackState);
+  const playbackRateRef = useRef(normalizeDanmakuPlaybackRate(playbackRate));
+  const playbackClockRef = useRef({ mediaTimeMs: 0, wallTimeMs: 0 });
+  const isSeekingRef = useRef(isSeeking);
 
   const widthCacheRef = useRef<Map<string, number>>(new Map());
   const lineHeight = fontSize + 8;
@@ -104,14 +114,20 @@ export function DanmakuLayer({
 
   const layout = useMemo(() => calculateDanmakuLayout(rows), [rows]);
 
-  const rowMinGapPx = 50;
-  const scrollLaneNextAvailableRef = useRef<number[]>([]);
+  const densityIndex = Math.max(0, Math.min(4, Math.trunc(danmakuDensityLimit)));
+  const rowMinGapPx = [40, 24, 40, 56, 72][densityIndex];
+  const activeHardLimit = calculateDanmakuActiveHardLimit(layout.scrollRows, densityIndex);
+  const scrollLeftLaneNextAvailableRef = useRef<number[]>([]);
+  const scrollRightLaneNextAvailableRef = useRef<number[]>([]);
   const topLaneNextAvailableRef = useRef<number[]>([]);
   const bottomLaneNextAvailableRef = useRef<number[]>([]);
 
   const ensureLanes = useCallback(() => {
-    if (scrollLaneNextAvailableRef.current.length !== layout.scrollRows) {
-      scrollLaneNextAvailableRef.current = new Array(layout.scrollRows).fill(0);
+    if (scrollLeftLaneNextAvailableRef.current.length !== layout.scrollRows) {
+      scrollLeftLaneNextAvailableRef.current = new Array(layout.scrollRows).fill(0);
+    }
+    if (scrollRightLaneNextAvailableRef.current.length !== layout.scrollRows) {
+      scrollRightLaneNextAvailableRef.current = new Array(layout.scrollRows).fill(0);
     }
     if (topLaneNextAvailableRef.current.length !== layout.topRows) {
       topLaneNextAvailableRef.current = new Array(layout.topRows).fill(0);
@@ -121,56 +137,92 @@ export function DanmakuLayer({
     }
   }, [layout.scrollRows, layout.topRows, layout.bottomRows]);
 
-  const handleCleanup = useCallback(() => {
+  const clearSchedulerTimer = useCallback(() => {
+    schedulerTimerTokenRef.current += 1;
+    if (schedulerTimerRef.current) {
+      clearTimeout(schedulerTimerRef.current);
+      schedulerTimerRef.current = null;
+    }
+    schedulerDeadlineRef.current = null;
+  }, []);
+
+  const clearActiveBullets = useCallback(() => {
+    activeRef.current = [];
     setActive([]);
-    processedCommentsRef.current.clear();
+  }, []);
+
+  const pruneExpiredBullets = useCallback((timeMs: number) => {
+    const retained = removeExpiredDanmakuEntries(activeRef.current, timeMs);
+    if (retained === activeRef.current) return;
+    activeRef.current = retained;
+    setActive(retained);
+  }, []);
+
+  const resetLanes = useCallback(() => {
     ensureLanes();
-    scrollLaneNextAvailableRef.current.fill(0);
+    scrollLeftLaneNextAvailableRef.current.fill(0);
+    scrollRightLaneNextAvailableRef.current.fill(0);
     topLaneNextAvailableRef.current.fill(0);
     bottomLaneNextAvailableRef.current.fill(0);
-    lastTimeMsRef.current = -1;
-    nextCommentIndexRef.current = 0;
   }, [ensureLanes]);
 
-  const handleSeek = useCallback(
-    (timeMs: number) => {
-      handleCleanup();
-      sync(timeMs);
-    },
-    [handleCleanup, sync],
-  );
+  const shiftActiveTimeline = useCallback((deltaMs: number) => {
+    if (!Number.isFinite(deltaMs) || Math.abs(deltaMs) < 1) return;
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      seek: (timeMs: number) => {
-        handleSeek(timeMs);
-      },
-      cleanup: () => {
-        handleCleanup();
-      },
-    }),
-    [handleCleanup, handleSeek],
-  );
+    // Existing bullets keep animating on the UI thread. Shift only their media
+    // lifecycle anchors so a small native clock correction cannot remove them
+    // before their StrokeText animation actually reaches the edge.
+    activeRef.current = activeRef.current.map((bullet) => ({
+      ...bullet,
+      scheduledMs: Math.max(0, bullet.scheduledMs + deltaMs),
+    }));
+
+    const shiftLaneDeadlines = (deadlines: number[]) =>
+      deadlines.map((deadline) => (deadline > 0 ? Math.max(0, deadline + deltaMs) : 0));
+    scrollLeftLaneNextAvailableRef.current = shiftLaneDeadlines(
+      scrollLeftLaneNextAvailableRef.current,
+    );
+    scrollRightLaneNextAvailableRef.current = shiftLaneDeadlines(
+      scrollRightLaneNextAvailableRef.current,
+    );
+    topLaneNextAvailableRef.current = shiftLaneDeadlines(topLaneNextAvailableRef.current);
+    bottomLaneNextAvailableRef.current = shiftLaneDeadlines(bottomLaneNextAvailableRef.current);
+  }, []);
+
+  const handleCleanup = useCallback(() => {
+    clearSchedulerTimer();
+    clearActiveBullets();
+    resetLanes();
+    nextCommentIndexRef.current = 0;
+    isSeekingRef.current = false;
+  }, [clearActiveBullets, clearSchedulerTimer, resetLanes]);
 
   const estimateTextWidth = useCallback(
     (text: string): number => {
-      const key = `${fontSize}|${text}`;
-      const cached = (widthCacheRef.current as Map<string, number>).get(key);
+      const key = `${fontFamily}|${fontWeight}|${fontSize}|${text}`;
+      const cached = widthCacheRef.current.get(key);
       if (cached != null) return cached;
-      const val = estimateDanmakuTextWidth({ text, fontSize, containerWidth: width });
-      if (widthCacheRef.current.size > 10000) widthCacheRef.current.clear();
+      const val = estimateDanmakuTextWidth({ text, fontSize });
+      if (widthCacheRef.current.size >= MAX_TEXT_WIDTH_CACHE_SIZE) {
+        const oldestKey = widthCacheRef.current.keys().next().value;
+        if (oldestKey != null) widthCacheRef.current.delete(oldestKey);
+      }
       widthCacheRef.current.set(key, val);
       return val;
     },
-    [fontSize, width],
+    [fontFamily, fontSize, fontWeight],
   );
 
   // 根据文字长度调整速度（长弹幕更快），返回 px/s
   const computeEffectiveSpeed = useCallback(
     (textWidth: number): number =>
-      calculateEffectiveScrollSpeed({ textWidth, speed, width, playbackRate }),
-    [speed, width, playbackRate],
+      calculateEffectiveScrollSpeed({
+        textWidth,
+        speed,
+        width,
+        playbackRate: safePlaybackRate,
+      }),
+    [safePlaybackRate, speed, width],
   );
 
   const createDanmakuBullet = useCallback(
@@ -193,135 +245,134 @@ export function DanmakuLayer({
           heightRatio,
           lineHeight,
           layout,
-          playbackRate,
+          playbackRate: safePlaybackRate,
           speed,
           width,
         },
       });
     },
-    [estimateTextWidth, lineHeight, height, heightRatio, layout, playbackRate, speed, width],
+    [estimateTextWidth, lineHeight, height, heightRatio, layout, safePlaybackRate, speed, width],
   );
 
   const pickScrollRow = useCallback(
     (
       tMs: number,
       text: string,
+      mode: DandanComment['mode'],
+      activeByRow: Map<number, ActiveBullet[]>,
     ): { rowIndex: number; nextAvailableMs: number; scheduledMs: number } | null => {
       ensureLanes();
       const newTextWidth = estimateTextWidth(text);
-      const vEff = computeEffectiveSpeed(newTextWidth); // px/s
-      const vEffPxPerMs = Math.max(0.01, vEff / 1000);
+      const vEff = computeEffectiveSpeed(newTextWidth);
       const newDurationMs = calculateScrollDurationMs({
         width,
         textWidth: newTextWidth,
         speed: vEff,
       });
+      const newMediaDurationMs = newDurationMs * safePlaybackRate;
       const newTotalDistance = width + newTextWidth + 300;
-      const deltaCurrMs = Math.ceil(((newTextWidth + rowMinGapPx) / Math.max(1, vEff)) * 1000);
+      const newVelocity = newTotalDistance / Math.max(1, newMediaDurationMs);
+      const deltaCurrMs = Math.ceil(
+        (((newTextWidth + rowMinGapPx) / Math.max(1, vEff)) * 1000 + 16) * safePlaybackRate,
+      );
       const gapBuffer = Math.max(8, newTextWidth * 0.05);
-
-      let bestChoice = -1;
-      let bestScheduleMs = tMs + 10000;
+      const direction =
+        mode === DANDAN_COMMENT_MODE.Scroll
+          ? DANMAKU_SCROLL_DIRECTION.RightToLeft
+          : DANMAKU_SCROLL_DIRECTION.LeftToRight;
+      const laneDeadlines =
+        mode === DANDAN_COMMENT_MODE.Scroll
+          ? scrollLeftLaneNextAvailableRef.current
+          : scrollRightLaneNextAvailableRef.current;
+      const fallbackCandidates: {
+        activeCount: number;
+        availableAtMs: number;
+        rowIndex: number;
+      }[] = [];
 
       for (let i = 0; i < layout.scrollRows; i++) {
-        const laneAvail = scrollLaneNextAvailableRef.current[i] ?? 0;
-        let earliestStartMs = Math.max(laneAvail, tMs);
+        const laneAvail = laneDeadlines[i] ?? 0;
+        const activeInRow = activeByRow.get(i) ?? [];
+        fallbackCandidates.push({
+          activeCount: activeInRow.length,
+          availableAtMs: laneAvail,
+          rowIndex: i,
+        });
 
-        const rowTop = i * lineHeight;
-        const activeInRow = active.filter(
-          (b) =>
-            (b.mode === DANDAN_COMMENT_MODE.Scroll ||
-              b.mode === DANDAN_COMMENT_MODE.ScrollBottom) &&
-            Math.abs(b.top - rowTop) < lineHeight / 2,
-        );
+        if (laneAvail > tMs) continue;
 
         const requiredGapBase = Math.max(rowMinGapPx, gapBuffer);
+        let overlaps = false;
 
-        let adjustedScheduleMs = earliestStartMs;
-        const maxProbeMs = tMs + 6000; // 最多等6秒避免饿死
-
-        const willOverlapAt = (probeMs: number): boolean => {
-          for (const b of activeInRow) {
-            const elapsed = probeMs - b.scheduledMs + Math.max(0, b.startOffsetMs || 0);
-            if (elapsed <= 0) continue; // 还未出现
-            if (elapsed >= b.durationMs) continue; // 已经离场
-
-            const progress = Math.max(0, Math.min(1, elapsed / b.durationMs));
-            const prevTextWidth = b.textWidth || estimateTextWidth(b.text);
-            const requiredGap = Math.max(requiredGapBase, prevTextWidth * 0.15);
-
-            if (b.mode === DANDAN_COMMENT_MODE.Scroll) {
-              // 左滚（从右到左）
-              const totalDist = width + (b.textWidth || estimateTextWidth(b.text)) + 300;
-              const headX = width - totalDist * progress;
-              const tailX = headX + prevTextWidth;
-              // 入场门槛：前车尾部需越过安全阈值
-              if (tailX > width - requiredGap) return true;
-
-              // 追尾检测：新车更快会在可视窗口内追上
-              const prevV = totalDist / Math.max(1, b.durationMs); // px/ms
-              const newV = newTotalDistance / Math.max(1, newDurationMs); // px/ms
-              if (newV > prevV) {
-                const d0 = width - tailX; // 初始 head_new - tail_prev
-                const surplus = d0 - requiredGap; // 初始冗余间距
-                if (surplus >= 0) {
-                  const tCatch = surplus / (newV - prevV);
-                  const remPrev = Math.max(0, b.durationMs - elapsed);
-                  if (tCatch >= 0 && tCatch < remPrev - 30) return true;
-                }
-              }
-            } else if (b.mode === DANDAN_COMMENT_MODE.ScrollBottom) {
-              // 右滚（从左到右）
-              const totalDist = width + (b.textWidth || estimateTextWidth(b.text)) + 300;
-              const headX = -100 + totalDist * progress;
-              const tailX = headX + prevTextWidth;
-              // 入场门槛：前车头部需进入可视区域一定距离
-              if (headX < requiredGap) return true;
-
-              // 追尾检测
-              const prevV = totalDist / Math.max(1, b.durationMs); // px/ms
-              const newV = newTotalDistance / Math.max(1, newDurationMs); // px/ms
-              if (newV > prevV) {
-                const d0 = tailX - -100; // 初始 tail_prev - head_new
-                const surplus = d0 - requiredGap;
-                if (surplus >= 0) {
-                  const tCatch = surplus / (newV - prevV);
-                  const remPrev = Math.max(0, b.durationMs - elapsed);
-                  if (tCatch >= 0 && tCatch < remPrev - 30) return true;
-                }
-              }
-            }
+        for (const bullet of activeInRow) {
+          const elapsedMediaMs = tMs - bullet.scheduledMs;
+          if (
+            !isDanmakuLaneBlockedAtTime({
+              atTimeMs: tMs,
+              mediaDurationMs: bullet.mediaDurationMs,
+              scheduledMs: bullet.scheduledMs,
+            })
+          ) {
+            continue;
           }
-          return false;
-        };
 
-        // 如果当前时刻会重叠，则推迟至不重叠的最早时间
-        if (willOverlapAt(adjustedScheduleMs)) {
-          // 估算需要等待的时间：使前车尾部越过安全阈值
-          // 采用线性探测，步长与速度成比例，最多探测到 maxProbeMs
-          const stepMs = Math.max(30, Math.round((newTextWidth * 0.5) / vEffPxPerMs));
-          let probe = adjustedScheduleMs + stepMs;
-          while (probe <= maxProbeMs && willOverlapAt(probe)) probe += stepMs;
-          adjustedScheduleMs = probe;
+          if (
+            bullet.mode !== DANDAN_COMMENT_MODE.Scroll &&
+            bullet.mode !== DANDAN_COMMENT_MODE.ScrollBottom
+          ) {
+            overlaps = true;
+            break;
+          }
+
+          if (bullet.mode !== mode) {
+            overlaps = true;
+            break;
+          }
+
+          const progress = Math.max(0, Math.min(1, elapsedMediaMs / bullet.mediaDurationMs));
+          const previousTextWidth = bullet.textWidth || estimateTextWidth(bullet.text);
+          const requiredGap = Math.max(requiredGapBase, previousTextWidth * 0.15);
+          const previousTrajectory = calculateDanmakuScrollTrajectory({
+            mode: bullet.mode,
+            progress,
+            textWidth: previousTextWidth,
+            width,
+          });
+          const previousTotalDistance = previousTrajectory.totalDistance;
+          const isSafe = isScrollingDanmakuEntrySafe({
+            previous: {
+              direction,
+              leftPx: previousTrajectory.left,
+              speedPxPerMediaMs: previousTotalDistance / Math.max(1, bullet.mediaDurationMs),
+              widthPx: previousTextWidth,
+            },
+            incoming: {
+              direction,
+              speedPxPerMediaMs: newVelocity,
+            },
+            safeSeparationPx: requiredGap,
+            viewportWidthPx: width,
+          });
+          if (!isSafe) {
+            overlaps = true;
+            break;
+          }
         }
 
-        if (adjustedScheduleMs < bestScheduleMs) {
-          bestChoice = i;
-          bestScheduleMs = adjustedScheduleMs;
+        if (!overlaps) {
+          const nextAvailableMs = tMs + deltaCurrMs;
+          laneDeadlines[i] = nextAvailableMs;
+          return { rowIndex: i, nextAvailableMs, scheduledMs: tMs };
         }
       }
 
-      if (bestChoice !== -1 && bestScheduleMs - tMs < 6000) {
-        const finalScheduleMs = bestScheduleMs;
-        const nextAvailableMs = finalScheduleMs + deltaCurrMs;
-
-        scrollLaneNextAvailableRef.current[bestChoice] = nextAvailableMs;
-
-        return {
-          rowIndex: bestChoice,
-          nextAvailableMs,
-          scheduledMs: finalScheduleMs,
-        };
+      if (collisionPolicy === 'allow') {
+        const fallback = selectDanmakuFallbackLane(fallbackCandidates);
+        if (fallback) {
+          const nextAvailableMs = tMs + deltaCurrMs;
+          laneDeadlines[fallback.rowIndex] = nextAvailableMs;
+          return { rowIndex: fallback.rowIndex, nextAvailableMs, scheduledMs: tMs };
+        }
       }
 
       return null;
@@ -331,80 +382,99 @@ export function DanmakuLayer({
       layout.scrollRows,
       estimateTextWidth,
       computeEffectiveSpeed,
+      collisionPolicy,
+      rowMinGapPx,
       width,
-      active,
-      lineHeight,
+      safePlaybackRate,
     ],
   );
 
   const pickTopRow = useCallback(
-    (tMs: number): { rowIndex: number; nextAvailableMs: number; scheduledMs: number } | null => {
+    (
+      tMs: number,
+      activeByRow: Map<number, ActiveBullet[]>,
+    ): { rowIndex: number; nextAvailableMs: number; scheduledMs: number } | null => {
       ensureLanes();
       const deltaMs = 4000;
+      const fallbackCandidates: {
+        activeCount: number;
+        availableAtMs: number;
+        rowIndex: number;
+      }[] = [];
 
-      const activeBulletsInTopRows = active.filter(
-        (b) =>
-          b.mode === DANDAN_COMMENT_MODE.Top && b.top >= 0 && b.top < layout.topRows * lineHeight,
-      );
-
-      let chosen = -1;
       for (let i = 0; i < layout.topRows; i++) {
         const avail = topLaneNextAvailableRef.current[i] ?? 0;
-        const rowTop = i * lineHeight;
-
-        const hasActiveBulletInRow = activeBulletsInTopRows.some(
-          (b) => Math.abs(b.top - rowTop) < lineHeight / 2,
-        );
-
-        if (avail <= tMs && !hasActiveBulletInRow) {
-          chosen = i;
-          break;
+        const activeCount = activeByRow.get(i)?.length ?? 0;
+        fallbackCandidates.push({ activeCount, availableAtMs: avail, rowIndex: i });
+        if (avail <= tMs && activeCount === 0) {
+          const nextAvailableMs = tMs + deltaMs;
+          topLaneNextAvailableRef.current[i] = nextAvailableMs;
+          return { rowIndex: i, nextAvailableMs, scheduledMs: tMs };
         }
       }
 
-      if (chosen !== -1) {
+      if (collisionPolicy === 'allow') {
+        const fallback = selectDanmakuFallbackLane(fallbackCandidates);
+        if (!fallback) return null;
         const nextAvailableMs = tMs + deltaMs;
-        topLaneNextAvailableRef.current[chosen] = nextAvailableMs;
-        return { rowIndex: chosen, nextAvailableMs, scheduledMs: tMs };
+        topLaneNextAvailableRef.current[fallback.rowIndex] = nextAvailableMs;
+        return { rowIndex: fallback.rowIndex, nextAvailableMs, scheduledMs: tMs };
       }
 
       return null;
     },
-    [ensureLanes, layout.topRows, active, lineHeight],
+    [collisionPolicy, ensureLanes, layout.topRows],
   );
 
   const pickBottomRow = useCallback(
-    (tMs: number): { rowIndex: number; nextAvailableMs: number; scheduledMs: number } | null => {
+    (
+      tMs: number,
+      activeByRow: Map<number, ActiveBullet[]>,
+    ): { rowIndex: number; nextAvailableMs: number; scheduledMs: number } | null => {
       ensureLanes();
       const deltaMs = 4000;
+      const fallbackCandidates: {
+        activeCount: number;
+        availableAtMs: number;
+        rowIndex: number;
+      }[] = [];
 
-      const activeBulletsInBottomRows = active.filter((b) => b.mode === DANDAN_COMMENT_MODE.Bottom);
-
-      let chosen = -1;
       for (let i = layout.bottomRows - 1; i >= 0; i--) {
         const avail = bottomLaneNextAvailableRef.current[i] ?? 0;
-        const bottomStart = height * heightRatio - lineHeight;
-        const rowTop = bottomStart - (layout.bottomRows - 1 - i) * lineHeight;
-
-        const hasActiveBulletInRow = activeBulletsInBottomRows.some(
-          (b) => Math.abs(b.top - rowTop) < lineHeight / 2,
+        const occupiedRows = getDanmakuOccupiedVisualRows({
+          lineHeight,
+          top: getDanmakuBulletTop({
+            mode: DANDAN_COMMENT_MODE.Bottom,
+            rowIndex: i,
+            lineHeight,
+            height,
+            heightRatio,
+            bottomRows: layout.bottomRows,
+          }),
+        });
+        const activeCount = occupiedRows.reduce(
+          (count, visualRow) => count + (activeByRow.get(visualRow)?.length ?? 0),
+          0,
         );
-
-        if (avail <= tMs && !hasActiveBulletInRow) {
-          chosen = i;
-          break;
+        fallbackCandidates.push({ activeCount, availableAtMs: avail, rowIndex: i });
+        if (avail <= tMs && activeCount === 0) {
+          const nextAvailableMs = tMs + deltaMs;
+          bottomLaneNextAvailableRef.current[i] = nextAvailableMs;
+          return { rowIndex: i, nextAvailableMs, scheduledMs: tMs };
         }
       }
 
-      if (chosen !== -1) {
+      if (collisionPolicy === 'allow') {
+        const fallback = selectDanmakuFallbackLane(fallbackCandidates);
+        if (!fallback) return null;
         const nextAvailableMs = tMs + deltaMs;
-        bottomLaneNextAvailableRef.current[chosen] = nextAvailableMs;
-        return { rowIndex: chosen, nextAvailableMs, scheduledMs: tMs };
+        bottomLaneNextAvailableRef.current[fallback.rowIndex] = nextAvailableMs;
+        return { rowIndex: fallback.rowIndex, nextAvailableMs, scheduledMs: tMs };
       }
 
       return null;
     },
-    [ensureLanes, layout.bottomRows, active, height, heightRatio, lineHeight],
+    [collisionPolicy, ensureLanes, height, heightRatio, layout.bottomRows, lineHeight],
   );
 
   // 弹幕过滤和密度控制
@@ -419,7 +489,6 @@ export function DanmakuLayer({
         height,
         heightRatio,
         speed,
-        playbackRate,
         fontSize,
       }),
     [
@@ -432,247 +501,372 @@ export function DanmakuLayer({
       height,
       heightRatio,
       speed,
-      playbackRate,
       fontSize,
     ],
   );
 
-  const timedComments = useMemo(
-    () =>
-      filteredComments
-        .map((comment) => ({
-          comment,
-          timeMs: Math.round(comment.timeInSeconds * 1000),
-        }))
-        .sort((a, b) => a.timeMs - b.timeMs),
-    [filteredComments],
+  const timedComments = useMemo(() => prepareDanmakuTimeline(filteredComments), [filteredComments]);
+  const schedulerResolutionMs = useMemo(
+    () => calculateDanmakuSchedulerResolutionMs(timedComments),
+    [timedComments],
   );
 
-  useEffect(() => {
-    processedCommentsRef.current.clear();
-    nextCommentIndexRef.current = findFirstTimedCommentAtOrAfter(
-      timedComments,
-      Math.max(0, lastTimeMsRef.current),
-    );
-  }, [timedComments]);
-
-  useEffect(() => {
-    sync(videoTime);
-  }, [sync, videoTime]);
-
-  useEffect(() => {
-    if (!isPlaying) return;
-    if (currentTimeMs === lastTimeMsRef.current) return;
-    const prevMs = lastTimeMsRef.current;
-    lastTimeMsRef.current = currentTimeMs;
-
-    const fromMs = Math.min(prevMs, currentTimeMs);
-    const toMs = Math.max(prevMs, currentTimeMs);
-
-    const maxTimeDiff = 5000; // 最多显示前后5秒的弹幕
-    const windowStartMs = Math.max(fromMs, currentTimeMs - maxTimeDiff);
-    const shouldResetCursor = prevMs < 0 || currentTimeMs < prevMs || toMs - fromMs > 300;
-    const lowerBoundIndex = findFirstTimedCommentAtOrAfter(timedComments, windowStartMs);
-    let nextIndex = shouldResetCursor
-      ? lowerBoundIndex
-      : Math.max(nextCommentIndexRef.current, lowerBoundIndex);
-    const slice: DandanComment[] = [];
-
-    while (nextIndex < timedComments.length) {
-      const { comment, timeMs: tMs } = timedComments[nextIndex];
-      if (tMs > toMs) break;
-
-      const timeDiff = Math.abs(tMs - currentTimeMs);
-      if (tMs > fromMs && timeDiff <= maxTimeDiff && !processedCommentsRef.current.has(comment)) {
-        slice.push(comment);
-      }
-
-      nextIndex++;
+  const getEstimatedPlaybackTime = useCallback((wallTimeMs = performance.now()) => {
+    const clock = playbackClockRef.current;
+    if (playbackStateRef.current !== 'playing' || isSeekingRef.current) {
+      return clock.mediaTimeMs;
     }
 
+    return (
+      clock.mediaTimeMs +
+      Math.max(0, wallTimeMs - clock.wallTimeMs) *
+        normalizeDanmakuPlaybackRate(playbackRateRef.current)
+    );
+  }, []);
+
+  const resetTimelineAt = useCallback(
+    (timeMs: number, wallTimeMs = performance.now()) => {
+      const safeTimeMs = Math.max(0, Number.isFinite(timeMs) ? timeMs : 0);
+      clearSchedulerTimer();
+      playbackClockRef.current = { mediaTimeMs: safeTimeMs, wallTimeMs };
+      nextCommentIndexRef.current = findFirstTimedCommentAtOrAfter(
+        timedCommentsRef.current,
+        safeTimeMs,
+      );
+      resetLanes();
+      clearActiveBullets();
+    },
+    [clearActiveBullets, clearSchedulerTimer, resetLanes],
+  );
+
+  const getNextScheduledEventTime = useCallback(() => {
+    const nextComment = timedCommentsRef.current[nextCommentIndexRef.current];
+    return findNextDanmakuEventTimeMs({
+      activeBullets: activeRef.current,
+      nextCommentTimeMs: nextComment?.timeMs ?? null,
+    });
+  }, []);
+
+  const scheduleNextWake = useCallback(() => {
+    clearSchedulerTimer();
+    if (playbackStateRef.current !== 'playing' || isSeekingRef.current) return;
+
+    const nextEventTimeMs = getNextScheduledEventTime();
+    const delayMs = calculateDanmakuWakeDelayMs({
+      currentTimeMs: getEstimatedPlaybackTime(),
+      nextCommentTimeMs: nextEventTimeMs,
+      playbackRate: playbackRateRef.current,
+      resolutionMs: schedulerResolutionRef.current,
+    });
+    if (delayMs == null) return;
+
+    const timerToken = schedulerTimerTokenRef.current;
+    schedulerDeadlineRef.current = performance.now() + delayMs;
+    schedulerTimerRef.current = setTimeout(() => {
+      if (timerToken !== schedulerTimerTokenRef.current) return;
+      schedulerTimerRef.current = null;
+      schedulerDeadlineRef.current = null;
+      runSchedulerRef.current();
+    }, delayMs);
+  }, [clearSchedulerTimer, getEstimatedPlaybackTime, getNextScheduledEventTime]);
+
+  const runScheduler = useCallback(() => {
+    if (playbackStateRef.current !== 'playing' || isSeekingRef.current) return;
+
+    const nowMs = getEstimatedPlaybackTime();
+    const safeRate = normalizeDanmakuPlaybackRate(playbackRateRef.current);
+
+    const { due, nextIndex } = collectDueDanmakuEntries({
+      comments: timedCommentsRef.current,
+      maxCandidates: MAX_CANDIDATES_PER_SCHEDULER_RUN,
+      minimumCandidateTimeMs: nowMs - MAX_LATE_COMMENT_WALL_MS * safeRate,
+      startIndex: nextCommentIndexRef.current,
+      // Never mount a future comment just to fill the current frame window.
+      // Equal-time bursts and comments already due after a delayed callback are
+      // still consumed together, without creating an early one-frame flash.
+      throughTimeMs: nowMs,
+    });
     nextCommentIndexRef.current = nextIndex;
 
-    if (slice.length === 0) return;
+    const retainedActive = removeExpiredDanmakuEntries(activeRef.current, nowMs);
+    let nextActive =
+      retainedActive.length === activeRef.current.length ? activeRef.current : retainedActive;
+    let didChangeActive = retainedActive.length !== activeRef.current.length;
+    if (didChangeActive) activeRef.current = nextActive;
+    const activeByVisualRow = new Map<number, ActiveBullet[]>();
 
-    const windowMs = toMs - fromMs;
-    const nextActiveBullets: ActiveBullet[] = [];
-
-    if (windowMs > 300) {
-      for (const c of slice) {
-        const tMs = Math.round(c.timeInSeconds * 1000);
-        if (processedCommentsRef.current.has(c)) {
-          continue;
-        }
-
-        let pickRowFn: (
-          tMs: number,
-          text: string,
-        ) => { rowIndex: number; nextAvailableMs: number; scheduledMs: number } | null;
-        let updateLaneFn: (rowIndex: number, nextAvailableMs: number) => void;
-
-        switch (c.mode) {
-          case DANDAN_COMMENT_MODE.Top:
-            pickRowFn = pickTopRow;
-            updateLaneFn = (rowIndex, nextAvailableMs) => {
-              topLaneNextAvailableRef.current[rowIndex] = nextAvailableMs;
-            };
-            break;
-          case DANDAN_COMMENT_MODE.Bottom:
-            pickRowFn = pickBottomRow;
-            updateLaneFn = (rowIndex, nextAvailableMs) => {
-              bottomLaneNextAvailableRef.current[rowIndex] = nextAvailableMs;
-            };
-            break;
-          case DANDAN_COMMENT_MODE.Scroll:
-          case DANDAN_COMMENT_MODE.ScrollBottom:
-            pickRowFn = pickScrollRow;
-            updateLaneFn = (rowIndex, nextAvailableMs) => {
-              scrollLaneNextAvailableRef.current[rowIndex] = nextAvailableMs;
-            };
-            break;
-          default:
-            continue;
-        }
-
-        const picked = pickRowFn(tMs, c.text);
-        if (picked) {
-          const { rowIndex, nextAvailableMs, scheduledMs } = picked;
-          updateLaneFn(rowIndex, nextAvailableMs);
-
-          if (scheduledMs === tMs) {
-            const lateOffset = Math.max(0, toMs - scheduledMs);
-            const maxOffset =
-              c.mode === DANDAN_COMMENT_MODE.Top || c.mode === DANDAN_COMMENT_MODE.Bottom
-                ? Math.max(0, Math.round(3700 / Math.max(0.25, playbackRate)))
-                : Math.max(
-                    0,
-                    Math.max(
-                      4000,
-                      Math.round(
-                        ((width + estimateTextWidth(c.text) + 300) /
-                          Math.max(1, speed * Math.max(0.25, playbackRate))) *
-                          1000,
-                      ),
-                    ) - 300,
-                  );
-            const startOffsetMs = Math.min(lateOffset, maxOffset);
-
-            const bullet = createDanmakuBullet(c, rowIndex, startOffsetMs, scheduledMs);
-            nextActiveBullets.push(bullet);
-            processedCommentsRef.current.add(c);
-          } else {
-            const bullet = createDanmakuBullet(c, rowIndex, 0, scheduledMs);
-            nextActiveBullets.push(bullet);
-            processedCommentsRef.current.add(c);
-          }
-        }
-      }
-    } else {
-      for (const c of slice) {
-        const tMs = Math.round(c.timeInSeconds * 1000);
-        if (processedCommentsRef.current.has(c)) {
-          continue;
-        }
-
-        if (!isPlaying) return;
-
-        let pickRowFn: (
-          tMs: number,
-          text: string,
-        ) => { rowIndex: number; nextAvailableMs: number; scheduledMs: number } | null;
-
-        switch (c.mode) {
-          case DANDAN_COMMENT_MODE.Top:
-            pickRowFn = pickTopRow;
-            break;
-          case DANDAN_COMMENT_MODE.Bottom:
-            pickRowFn = pickBottomRow;
-            break;
-          case DANDAN_COMMENT_MODE.Scroll:
-          case DANDAN_COMMENT_MODE.ScrollBottom:
-            pickRowFn = pickScrollRow;
-            break;
-          default:
-            return;
-        }
-
-        const picked = pickRowFn(tMs, c.text);
-        if (picked) {
-          const { rowIndex, scheduledMs } = picked;
-          const extraDelay = Math.max(0, scheduledMs - tMs);
-
-          if (extraDelay === 0) {
-            const bullet = createDanmakuBullet(c, rowIndex, 0, tMs);
-            nextActiveBullets.push(bullet);
-            processedCommentsRef.current.add(c);
-          } else {
-            const bullet = createDanmakuBullet(c, rowIndex, 0, tMs + extraDelay);
-            nextActiveBullets.push(bullet);
-            processedCommentsRef.current.add(c);
-          }
-        }
+    for (const bullet of activeRef.current) {
+      for (const visualRow of getDanmakuOccupiedVisualRows({ lineHeight, top: bullet.top })) {
+        const rowBullets = activeByVisualRow.get(visualRow);
+        if (rowBullets) rowBullets.push(bullet);
+        else activeByVisualRow.set(visualRow, [bullet]);
       }
     }
 
-    if (nextActiveBullets.length > 0) {
-      setActive((prev) => [...prev, ...nextActiveBullets]);
+    let acceptedThisRun = 0;
+    for (const { comment, timeMs } of due) {
+      if ((nowMs - timeMs) / safeRate > MAX_LATE_COMMENT_WALL_MS) continue;
+      if (
+        nextActive.length >= activeHardLimit ||
+        acceptedThisRun >= MAX_ACCEPTED_PER_SCHEDULER_RUN
+      ) {
+        continue;
+      }
+
+      // A timer can wake up to one frame late. Place every accepted entry on
+      // the current media clock so lane occupancy, expiry, and animation all
+      // share one timestamp instead of making a late comment jump mid-flight.
+      const placementTimeMs = nowMs;
+      let picked: { rowIndex: number; scheduledMs: number } | null;
+      switch (comment.mode) {
+        case DANDAN_COMMENT_MODE.Top:
+          picked = pickTopRow(placementTimeMs, activeByVisualRow);
+          break;
+        case DANDAN_COMMENT_MODE.Bottom:
+          picked = pickBottomRow(placementTimeMs, activeByVisualRow);
+          break;
+        case DANDAN_COMMENT_MODE.Scroll:
+        case DANDAN_COMMENT_MODE.ScrollBottom:
+          picked = pickScrollRow(placementTimeMs, comment.text, comment.mode, activeByVisualRow);
+          break;
+        default:
+          continue;
+      }
+
+      if (!picked) continue;
+      if (!didChangeActive) {
+        nextActive = activeRef.current.slice();
+        activeRef.current = nextActive;
+        didChangeActive = true;
+      }
+
+      const bullet = createDanmakuBullet(comment, picked.rowIndex, 0, picked.scheduledMs);
+      nextActive.push(bullet);
+      acceptedThisRun += 1;
+      for (const visualRow of getDanmakuOccupiedVisualRows({ lineHeight, top: bullet.top })) {
+        const rowBullets = activeByVisualRow.get(visualRow);
+        if (rowBullets) rowBullets.push(bullet);
+        else activeByVisualRow.set(visualRow, [bullet]);
+      }
     }
+
+    if (didChangeActive) setActive(nextActive);
+    scheduleNextWakeRef.current();
   }, [
-    currentTimeMs,
-    isPlaying,
-    timedComments,
-    rows,
-    layout,
-    height,
-    width,
-    speed,
+    activeHardLimit,
+    createDanmakuBullet,
+    getEstimatedPlaybackTime,
     lineHeight,
-    heightRatio,
-    active,
-    ensureLanes,
-    pickTopRow,
     pickBottomRow,
     pickScrollRow,
-    createDanmakuBullet,
-    estimateTextWidth,
-    playbackRate,
+    pickTopRow,
   ]);
 
   useEffect(() => {
-    const processedComments = processedCommentsRef.current;
-    return () => {
-      processedComments.clear();
-    };
-  }, []);
+    runSchedulerRef.current = runScheduler;
+    scheduleNextWakeRef.current = scheduleNextWake;
+  }, [runScheduler, scheduleNextWake]);
 
-  const handleExpire = useCallback((instanceId: number) => {
-    setActive((prev) => removeActiveDanmakuBullet(prev, instanceId));
-  }, []);
+  useEffect(() => {
+    timedCommentsRef.current = timedComments;
+    schedulerResolutionRef.current = schedulerResolutionMs;
+    const rawTimeMs = currentTime.get();
+    const anchorTimeMs =
+      isSeekingRef.current || playbackClockRef.current.wallTimeMs === 0
+        ? rawTimeMs
+        : getEstimatedPlaybackTime();
+
+    // Rebuilding filters/layout must not release an in-flight native seek.
+    resetTimelineAt(anchorTimeMs);
+    if (!isSeekingRef.current) scheduleNextWakeRef.current();
+  }, [
+    currentTime,
+    getEstimatedPlaybackTime,
+    resetTimelineAt,
+    schedulerResolutionMs,
+    timedComments,
+  ]);
+
+  useEffect(() => {
+    if (isSeekingRef.current === isSeeking) return;
+    isSeekingRef.current = isSeeking;
+    resetTimelineAt(currentTime.get());
+    if (!isSeeking) scheduleNextWakeRef.current();
+  }, [currentTime, isSeeking, resetTimelineAt]);
+
+  useEffect(() => {
+    const now = performance.now();
+    const estimatedTimeMs = getEstimatedPlaybackTime(now);
+
+    playbackStateRef.current = playbackState;
+    playbackRateRef.current = safePlaybackRate;
+    playbackClockRef.current = {
+      mediaTimeMs: estimatedTimeMs,
+      wallTimeMs: now,
+    };
+
+    pruneExpiredBullets(estimatedTimeMs);
+    clearSchedulerTimer();
+
+    if (playbackState === 'ended' || playbackState === 'idle') {
+      nextCommentIndexRef.current = findFirstTimedCommentAtOrAfter(
+        timedCommentsRef.current,
+        playbackClockRef.current.mediaTimeMs,
+      );
+      resetLanes();
+      clearActiveBullets();
+      return;
+    }
+
+    if (playbackState === 'playing') scheduleNextWakeRef.current();
+  }, [
+    clearActiveBullets,
+    clearSchedulerTimer,
+    getEstimatedPlaybackTime,
+    playbackState,
+    pruneExpiredBullets,
+    resetLanes,
+    safePlaybackRate,
+  ]);
+
+  const handleSeek = useCallback(
+    (timeMs: number) => {
+      if (!Number.isFinite(timeMs) || timeMs < 0) return;
+      isSeekingRef.current = true;
+      resetTimelineAt(timeMs);
+    },
+    [resetTimelineAt],
+  );
+
+  const handleCompleteSeek = useCallback(
+    (playbackTimeMs: number, cursorTimeMs: number) => {
+      const safePlaybackTimeMs = Math.max(0, Number.isFinite(playbackTimeMs) ? playbackTimeMs : 0);
+      const safeCursorTimeMs = Math.max(
+        0,
+        Number.isFinite(cursorTimeMs) ? cursorTimeMs : safePlaybackTimeMs,
+      );
+
+      isSeekingRef.current = false;
+      clearSchedulerTimer();
+      playbackClockRef.current = {
+        mediaTimeMs: safePlaybackTimeMs,
+        wallTimeMs: performance.now(),
+      };
+      nextCommentIndexRef.current = findFirstTimedCommentAtOrAfter(
+        timedCommentsRef.current,
+        safeCursorTimeMs,
+      );
+      scheduleNextWakeRef.current();
+    },
+    [clearSchedulerTimer],
+  );
+
+  const handleSyncPlaybackTime = useCallback(
+    (timeMs: number) => {
+      if (!Number.isFinite(timeMs) || timeMs < 0 || isSeekingRef.current) return;
+
+      const now = performance.now();
+      const estimatedTimeMs = getEstimatedPlaybackTime(now);
+      const safeRate = normalizeDanmakuPlaybackRate(playbackRateRef.current);
+      const driftWallTimeMs = Math.abs(timeMs - estimatedTimeMs) / safeRate;
+
+      if (driftWallTimeMs > CLOCK_DRIFT_RESET_THRESHOLD_MS) {
+        resetTimelineAt(timeMs, now);
+        scheduleNextWakeRef.current();
+        return;
+      }
+
+      shiftActiveTimeline(timeMs - estimatedTimeMs);
+      playbackClockRef.current = { mediaTimeMs: timeMs, wallTimeMs: now };
+
+      const deadlineMs = schedulerDeadlineRef.current;
+      const nextEventTimeMs = getNextScheduledEventTime();
+      if (deadlineMs == null || nextEventTimeMs == null) return;
+
+      const revisedDelayMs = calculateDanmakuWakeDelayMs({
+        currentTimeMs: timeMs,
+        nextCommentTimeMs: nextEventTimeMs,
+        playbackRate: safeRate,
+        resolutionMs: schedulerResolutionRef.current,
+      });
+      if (
+        revisedDelayMs != null &&
+        Math.abs(now + revisedDelayMs - deadlineMs) >
+          Math.max(32, schedulerResolutionRef.current * 2)
+      ) {
+        scheduleNextWakeRef.current();
+      }
+    },
+    [getEstimatedPlaybackTime, getNextScheduledEventTime, resetTimelineAt, shiftActiveTimeline],
+  );
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      seek: handleSeek,
+      completeSeek: handleCompleteSeek,
+      syncPlaybackTime: handleSyncPlaybackTime,
+      cleanup: handleCleanup,
+    }),
+    [handleCleanup, handleCompleteSeek, handleSeek, handleSyncPlaybackTime],
+  );
+
+  useEffect(
+    () => () => {
+      clearSchedulerTimer();
+    },
+    [clearSchedulerTimer],
+  );
 
   const effectiveOpacity = danmakuFilter === 15 ? 0 : opacity;
 
   return (
-    <View
-      style={[StyleSheet.absoluteFill, { opacity: effectiveOpacity, overflow: 'hidden' }]}
-      pointerEvents="none"
-    >
-      {active.map((b) => (
-        <MemoBullet
-          key={b.instanceId}
-          width={width}
-          data={b}
-          onExpire={handleExpire}
-          fontSize={fontSize}
-          fontFamily={fontFamily}
-          fontWeight={fontWeight}
-          isPlaying={isPlaying}
-          playbackRate={playbackRate}
-        />
-      ))}
+    <View style={[StyleSheet.absoluteFill, { opacity: effectiveOpacity }]} pointerEvents="none">
+      <View style={{ height: Math.max(0, height * heightRatio), overflow: 'hidden', width }}>
+        {active.map((b) => (
+          <MemoBullet
+            key={b.instanceId}
+            width={width}
+            data={b}
+            fontSize={fontSize}
+            fontFamily={fontFamily}
+            fontWeight={fontWeight}
+            isPlaying={playbackState === 'playing'}
+            playbackRate={safePlaybackRate}
+          />
+        ))}
+      </View>
     </View>
   );
 }
 
-const MemoBullet = React.memo(Bullet);
+const MemoBullet = React.memo(Bullet, (previous, next) => {
+  if (
+    previous.width !== next.width ||
+    previous.fontSize !== next.fontSize ||
+    previous.fontFamily !== next.fontFamily ||
+    previous.fontWeight !== next.fontWeight ||
+    previous.isPlaying !== next.isPlaying ||
+    previous.playbackRate !== next.playbackRate
+  ) {
+    return false;
+  }
+
+  if (previous.data === next.data) return true;
+
+  // Native clock correction shifts timeline anchors for collision bookkeeping
+  // only. Ignore those fields so the next scheduler update does not rerender
+  // every expensive StrokeTextView.
+  return (
+    previous.data.instanceId === next.data.instanceId &&
+    previous.data.text === next.data.text &&
+    previous.data.colorHex === next.data.colorHex &&
+    previous.data.mode === next.data.mode &&
+    previous.data.top === next.data.top &&
+    previous.data.startOffsetMs === next.data.startOffsetMs &&
+    previous.data.durationMs === next.data.durationMs &&
+    previous.data.textWidth === next.data.textWidth
+  );
+});
 
 export default DanmakuLayer;

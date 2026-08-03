@@ -29,15 +29,23 @@ const modeFilters = [
   { bit: 1, label: '底部' },
 ];
 
+const densityProfiles = [
+  { value: 0, label: '自动' },
+  { value: 1, label: '宽松' },
+  { value: 2, label: '标准' },
+  { value: 3, label: '严格' },
+  { value: 4, label: '极简' },
+];
+
 export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
   const { danmakuComments, danmakuEpisodeInfo } = usePlayer();
   const { settings, setSettings } = useDanmakuSettings();
 
   const updateSetting = useCallback(
     <K extends keyof typeof settings>(key: K, value: (typeof settings)[K]) => {
-      setSettings({ ...settings, [key]: value });
+      setSettings((current) => ({ ...current, [key]: value }));
     },
-    [setSettings, settings],
+    [setSettings],
   );
 
   return (
@@ -106,6 +114,61 @@ export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
         />
       </Section>
 
+      <Section title="流动与密度" disabled={!settings.enabled}>
+        <SettingSlider
+          disabled={!settings.enabled}
+          format={(value) => `${Math.round(value)} px/s`}
+          label="滚动速度"
+          max={240}
+          min={80}
+          onChange={(value) => updateSetting('speed', Math.round(value))}
+          step={10}
+          value={Math.max(80, Math.min(240, settings.speed))}
+        />
+        <View style={styles.choiceBlock}>
+          <View style={styles.settingHeader}>
+            <Text style={styles.settingLabel}>屏幕密度</Text>
+            <Text style={styles.settingHint}>限制同屏文字数量</Text>
+          </View>
+          <View style={styles.chipRowCompact}>
+            {densityProfiles.map(({ label, value }) => (
+              <ChoiceChip
+                key={value}
+                disabled={!settings.enabled}
+                label={label}
+                onPress={() => updateSetting('danmakuDensityLimit', value)}
+                selected={settings.danmakuDensityLimit === value}
+              />
+            ))}
+          </View>
+        </View>
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleText}>
+            <Text style={styles.settingLabel}>防止重叠</Text>
+            <Text style={styles.settingHint}>预测追尾并避开固定弹幕</Text>
+          </View>
+          <Switch
+            accessibilityLabel="防止弹幕重叠"
+            disabled={!settings.enabled}
+            onValueChange={(enabled) =>
+              updateSetting('collisionPolicy', enabled ? 'avoid' : 'allow')
+            }
+            trackColor={{ false: '#454752', true: '#0A84FF' }}
+            value={settings.collisionPolicy === 'avoid'}
+          />
+        </View>
+        <SettingSlider
+          disabled={!settings.enabled}
+          format={(value) => `${value > 0 ? '+' : ''}${value.toFixed(1)}s`}
+          label="时间校准"
+          max={5}
+          min={-5}
+          onChange={(value) => updateSetting('curEpOffset', value)}
+          step={0.5}
+          value={Math.max(-5, Math.min(5, settings.curEpOffset))}
+        />
+      </Section>
+
       <Section title="弹幕来源" disabled={!settings.enabled}>
         <View style={styles.chipRow}>
           {sourceFilters.map(({ bit, label }) => {
@@ -115,7 +178,12 @@ export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
                 key={bit}
                 disabled={!settings.enabled}
                 label={label}
-                onPress={() => updateSetting('danmakuFilter', settings.danmakuFilter ^ bit)}
+                onPress={() =>
+                  setSettings((current) => ({
+                    ...current,
+                    danmakuFilter: current.danmakuFilter ^ bit,
+                  }))
+                }
                 selected={selected}
               />
             );
@@ -132,7 +200,12 @@ export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
                 key={bit}
                 disabled={!settings.enabled}
                 label={label}
-                onPress={() => updateSetting('danmakuModeFilter', settings.danmakuModeFilter ^ bit)}
+                onPress={() =>
+                  setSettings((current) => ({
+                    ...current,
+                    danmakuModeFilter: current.danmakuModeFilter ^ bit,
+                  }))
+                }
                 selected={selected}
               />
             );
@@ -289,6 +362,35 @@ function FilterChip({
   );
 }
 
+function ChoiceChip({
+  disabled,
+  label,
+  onPress,
+  selected,
+}: {
+  disabled?: boolean;
+  label: string;
+  onPress: () => void;
+  selected: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected, disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.choiceChip,
+        selected && styles.choiceChipSelected,
+        pressed && styles.pressed,
+      ]}
+    >
+      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   content: {
     gap: 18,
@@ -375,6 +477,11 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     fontWeight: '600',
   },
+  settingHint: {
+    color: 'rgba(255,255,255,0.46)',
+    fontSize: 10,
+    fontWeight: '500',
+  },
   settingSlider: {
     height: 28,
     width: '100%',
@@ -384,6 +491,44 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     padding: 12,
+  },
+  chipRowCompact: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+  },
+  choiceBlock: {
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  choiceChip: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderCurve: 'continuous',
+    borderRadius: 999,
+    justifyContent: 'center',
+    minHeight: 32,
+    paddingHorizontal: 12,
+  },
+  choiceChipSelected: {
+    backgroundColor: 'rgba(10,132,255,0.8)',
+  },
+  toggleRow: {
+    alignItems: 'center',
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: 58,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  toggleText: {
+    flex: 1,
+    gap: 3,
   },
   chip: {
     alignItems: 'center',

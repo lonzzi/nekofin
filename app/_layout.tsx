@@ -1,3 +1,4 @@
+import { PLAYER_LAB_AVAILABLE } from '@/components/dev/player-lab/PlayerLabEntry';
 import { PerformanceOverlay } from '@/components/performance/PerformanceOverlay';
 import { DanmakuSettingsProvider } from '@/lib/contexts/DanmakuSettingsContext';
 import { MediaServerProvider } from '@/lib/contexts/MediaServerContext';
@@ -122,6 +123,14 @@ function RootNavigation() {
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false, orientation: 'portrait_up' }} />
         <Stack.Screen name="player" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="player-lab"
+          options={{
+            contentStyle: { backgroundColor: '#090B10' },
+            headerShown: false,
+            orientation: PLAYER_LAB_AVAILABLE ? 'landscape' : 'portrait_up',
+          }}
+        />
         <Stack.Screen name="+not-found" />
       </Stack>
       <PerformanceRouteObserver />
