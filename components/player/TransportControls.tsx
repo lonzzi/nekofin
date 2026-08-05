@@ -18,7 +18,6 @@ export function TransportControls() {
     hasPreviousEpisode,
     hideControlsWithDelay,
     isMovie,
-    isLoading,
     isPlaying,
     onNextEpisode,
     onPlayPause,
@@ -67,10 +66,6 @@ export function TransportControls() {
   const playButtonWidth = isCompact ? 52 : 56;
   const coreGroupWidth = sideButtonWidth * 2 + playButtonWidth;
   const episodeGroupWidth = sideButtonWidth * 2;
-
-  // The player owns a richer buffering overlay with progress and transfer rate,
-  // so the bottom transport bar stays out of the way while loading.
-  if (isLoading) return null;
 
   return (
     <View pointerEvents={showControls ? 'box-none' : 'none'} style={styles.container}>

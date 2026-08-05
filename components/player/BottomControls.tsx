@@ -103,7 +103,10 @@ export function BottomControls() {
           style={[styles.bottomRow, stackBottomControls && styles.stackedBottomRow]}
         >
           <TransportControls />
-          <View pointerEvents="box-none" style={styles.actionRow}>
+          <View
+            pointerEvents="box-none"
+            style={[styles.actionRow, !stackBottomControls && styles.inlineActionRow]}
+          >
             <PlayerActionBar />
           </View>
         </View>
@@ -155,5 +158,8 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     alignSelf: 'flex-end',
+  },
+  inlineActionRow: {
+    marginLeft: 'auto',
   },
 });

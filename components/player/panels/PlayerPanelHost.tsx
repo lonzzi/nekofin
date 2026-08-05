@@ -1,17 +1,9 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import {
-  AccessibilityInfo,
-  findNodeHandle,
-  Modal,
-  Platform,
-  StyleSheet,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-
-import { PlayerPanelHeader } from './PlayerPanelHeader';
+import { useAppTheme } from '@/lib/theme';
+import { BottomSheet, Button, Column, Text as NativeText, Row, Spacer } from '@expo/ui';
+import { fillMaxHeight, fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
+import { frame } from '@expo/ui/swift-ui/modifiers';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { Platform } from 'react-native';
 
 export type PlayerPanelHostProps = {
   visible: boolean;
@@ -20,23 +12,16 @@ export type PlayerPanelHostProps = {
   children: ReactNode;
   onDismiss: () => void;
   onBack?: () => void;
-  bodyStyle?: StyleProp<ViewStyle>;
   testID?: string;
 };
 
-type PanelPresentation = Pick<
-  PlayerPanelHostProps,
-  'bodyStyle' | 'children' | 'onBack' | 'subtitle' | 'title'
->;
+type PanelPresentation = Pick<PlayerPanelHostProps, 'children' | 'onBack' | 'subtitle' | 'title'>;
 
-const supportedOrientations = [
-  'portrait',
-  'portrait-upside-down',
-  'landscape',
-  'landscape-left',
-  'landscape-right',
-] as const;
-
+/**
+ * A fully native player sheet. @expo/ui maps this to SwiftUI Sheet on iOS and
+ * Material 3 ModalBottomSheet on Android; its header and every panel body are
+ * native nodes as well, so no JS drawer or hand-built modal chrome is involved.
+ */
 export function PlayerPanelHost({
   visible,
   title,
@@ -44,116 +29,70 @@ export function PlayerPanelHost({
   children,
   onDismiss,
   onBack,
-  bodyStyle,
   testID = 'player-panel-host',
 }: PlayerPanelHostProps) {
-  const focusRef = useRef<View>(null);
-  const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const modalShownRef = useRef(false);
+  const theme = useAppTheme();
   const lastPresentationRef = useRef<PanelPresentation>({
-    bodyStyle,
     children,
     onBack,
     subtitle,
     title,
   });
-  const [reduceTransparency, setReduceTransparency] = useState(false);
 
   useEffect(() => {
-    void AccessibilityInfo.isReduceTransparencyEnabled().then(setReduceTransparency);
-    const subscription = AccessibilityInfo.addEventListener(
-      'reduceTransparencyChanged',
-      setReduceTransparency,
-    );
-    return () => subscription.remove();
-  }, []);
-
-  useEffect(() => {
-    if (visible) {
-      lastPresentationRef.current = { bodyStyle, children, onBack, subtitle, title };
-    }
-  }, [bodyStyle, children, onBack, subtitle, title, visible]);
-
-  const focusTitle = useCallback(() => {
-    if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
-    focusTimerRef.current = setTimeout(() => {
-      focusTimerRef.current = null;
-      const reactTag = findNodeHandle(focusRef.current);
-      if (reactTag != null) AccessibilityInfo.setAccessibilityFocus(reactTag);
-    }, 120);
-  }, []);
-
-  const handleShow = useCallback(() => {
-    modalShownRef.current = true;
-    focusTitle();
-  }, [focusTitle]);
-
-  useEffect(() => {
-    if (!visible) {
-      modalShownRef.current = false;
-    } else if (modalShownRef.current) {
-      focusTitle();
-    }
-
-    return () => {
-      if (focusTimerRef.current) {
-        clearTimeout(focusTimerRef.current);
-        focusTimerRef.current = null;
-      }
-    };
-  }, [focusTitle, title, visible]);
+    if (visible) lastPresentationRef.current = { children, onBack, subtitle, title };
+  }, [children, onBack, subtitle, title, visible]);
 
   const presentation = visible
-    ? { bodyStyle, children, onBack, subtitle, title }
+    ? { children, onBack, subtitle, title }
     : lastPresentationRef.current;
-  const requestClose = Platform.OS === 'ios' ? onDismiss : (presentation.onBack ?? onDismiss);
+  const fillModifiers =
+    Platform.OS === 'ios'
+      ? [frame({ maxHeight: Infinity, maxWidth: Infinity, alignment: 'topLeading' })]
+      : [fillMaxWidth(), fillMaxHeight()];
+  const rowModifiers =
+    Platform.OS === 'ios'
+      ? [frame({ maxWidth: Infinity, alignment: 'leading' })]
+      : [fillMaxWidth()];
 
   return (
-    <Modal
-      allowSwipeDismissal={Platform.OS === 'ios'}
-      animationType="slide"
-      backdropColor="#111318"
-      hardwareAccelerated
-      onRequestClose={requestClose}
-      onShow={handleShow}
-      presentationStyle={Platform.OS === 'ios' ? 'formSheet' : 'fullScreen'}
-      supportedOrientations={[...supportedOrientations]}
-      visible={visible}
+    <BottomSheet
+      isPresented={visible}
+      onDismiss={onDismiss}
+      showDragIndicator
+      snapPoints={['full']}
+      testID={testID}
     >
-      <SafeAreaProvider>
-        <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={styles.sheet}>
-          <View
-            accessibilityViewIsModal
-            onAccessibilityEscape={presentation.onBack ?? onDismiss}
-            style={styles.content}
-            testID={testID}
-          >
-            <PlayerPanelHeader
-              focusRef={focusRef}
-              onBack={presentation.onBack}
-              onClose={onDismiss}
-              reduceTransparency={reduceTransparency}
-              subtitle={presentation.subtitle}
-              title={presentation.title}
-            />
-            <View style={[styles.body, presentation.bodyStyle]}>{presentation.children}</View>
-          </View>
-        </SafeAreaView>
-      </SafeAreaProvider>
-    </Modal>
+      <Column modifiers={fillModifiers} spacing={10}>
+        <Row alignment="center" modifiers={rowModifiers} spacing={8}>
+          {presentation.onBack ? (
+            <Button label="返回" onPress={presentation.onBack} variant="text" />
+          ) : null}
+          <Column spacing={1}>
+            <NativeText
+              numberOfLines={1}
+              textStyle={{ color: theme.colors.text, fontSize: 20, fontWeight: '700' }}
+            >
+              {presentation.title}
+            </NativeText>
+            {presentation.subtitle ? (
+              <NativeText
+                numberOfLines={1}
+                textStyle={{
+                  color: theme.colors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: '500',
+                }}
+              >
+                {presentation.subtitle}
+              </NativeText>
+            ) : null}
+          </Column>
+          <Spacer flexible />
+          <Button label="完成" onPress={onDismiss} variant="text" />
+        </Row>
+        {presentation.children}
+      </Column>
+    </BottomSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  sheet: {
-    backgroundColor: '#111318',
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-  },
-  body: {
-    flex: 1,
-    minHeight: 0,
-  },
-});

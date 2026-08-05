@@ -1,5 +1,14 @@
 import { useAppTheme } from '@/lib/theme';
-import { Button, FieldGroup, ListItem, Text as NativeText, Picker, Slider, Switch } from '@expo/ui';
+import {
+  Button,
+  FieldGroup,
+  ListItem,
+  Text as NativeText,
+  Picker,
+  Slider,
+  Switch,
+  type ListItemProps,
+} from '@expo/ui';
 import { Host as ComposeHost } from '@expo/ui/jetpack-compose';
 import {
   Host as SwiftHost,
@@ -135,6 +144,7 @@ export function NativeSettingsItem({
   disclosure = false,
   onPress,
   testID,
+  modifiers,
 }: {
   title: ReactNode;
   subtitle?: ReactNode;
@@ -144,6 +154,7 @@ export function NativeSettingsItem({
   disclosure?: boolean;
   onPress?: () => void;
   testID?: string;
+  modifiers?: ListItemProps['modifiers'];
 }) {
   const resolvedTrailing = trailing ?? (disclosure ? <NativeDisclosureIndicator /> : value);
 
@@ -154,6 +165,7 @@ export function NativeSettingsItem({
       supportingText={subtitle}
       trailing={resolvedTrailing}
       testID={testID}
+      modifiers={modifiers}
     >
       {title}
     </ListItem>

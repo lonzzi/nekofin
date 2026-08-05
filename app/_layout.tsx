@@ -20,10 +20,11 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 import { defaultShouldDehydrateQuery, QueryClient, type Query } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { StatusBar } from 'expo-status-bar';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -52,9 +53,24 @@ const persister = createAsyncStoragePersister({
 });
 
 export default function RootLayout() {
+  const pathname = usePathname();
   const [loaded] = useFonts({
     Roboto: require('../assets/fonts/Roboto-Regular.ttf'),
   });
+
+  useEffect(() => {
+    if (pathname.startsWith('/player')) return;
+
+    // Wait until the active tab's native stack has published its final
+    // orientation mask, then restore the portrait app shell.
+    const restoreTimer = setTimeout(() => {
+      void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(
+        (error) => console.warn('Failed to restore the app orientation', error),
+      );
+    }, 700);
+
+    return () => clearTimeout(restoreTimer);
+  }, [pathname]);
 
   if (!loaded) {
     // Async font loading only occurs in development.
@@ -122,7 +138,7 @@ function RootNavigation() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false, orientation: 'portrait_up' }} />
-        <Stack.Screen name="player" options={{ headerShown: false }} />
+        <Stack.Screen name="player" options={{ headerShown: false, orientation: 'all' }} />
         <Stack.Screen
           name="player-lab"
           options={{

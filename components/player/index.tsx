@@ -781,7 +781,11 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
                   ? Math.min(Math.max(0, requestedResumeSeconds), loadedDurationSeconds)
                   : Math.max(0, requestedResumeSeconds);
               const playerView = player.current;
-              if (playerView) requestNativeSeek(playerView, resumePositionSeconds * 1000);
+              if (playerView && resumePositionSeconds > 0.05) {
+                requestNativeSeek(playerView, resumePositionSeconds * 1000);
+              } else {
+                setIsNativeSeeking(false);
+              }
               hasInitialSeeked.current = true;
             }
             setIsLoaded(true);

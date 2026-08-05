@@ -1,24 +1,27 @@
 import {
+  NativeSettingsButton,
+  NativeSettingsForm,
+  NativeSettingsItem,
+  NativeSettingsSection,
+} from '@/components/ui/NativeSettings';
+import {
+  SettingsSubtitle,
+  SettingsSymbol,
+  SettingsTitle,
+  SettingsValue,
+} from '@/components/ui/SettingsVisual';
+import {
   getCommentsByEpisodeId,
   searchAnimesByKeyword,
   type DandanAnime,
   type DandanComment,
   type DandanEpisode,
 } from '@/services/dandanplay';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { List as NativeList, TextInput as NativeTextInput, useNativeState } from '@expo/ui';
+import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
+import { frame } from '@expo/ui/swift-ui/modifiers';
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
-import {
-  AccessibilityInfo,
-  ActivityIndicator,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { AccessibilityInfo, Platform } from 'react-native';
 
 type DanmakuSearchPanelProps = {
   ref?: Ref<DanmakuSearchPanelRef>;
@@ -34,6 +37,7 @@ export type DanmakuSearchPanelRef = {
 };
 
 export function DanmakuSearchPanel({ ref, onCommentsLoaded, onLoaded }: DanmakuSearchPanelProps) {
+  const keywordState = useNativeState('');
   const [keyword, setKeyword] = useState('');
   const [animes, setAnimes] = useState<DandanAnime[]>([]);
   const [selectedAnime, setSelectedAnime] = useState<DandanAnime | null>(null);
@@ -56,25 +60,28 @@ export function DanmakuSearchPanel({ ref, onCommentsLoaded, onLoaded }: DanmakuS
     [],
   );
 
-  const handleSearch = useCallback(async () => {
-    const query = keyword.trim();
-    if (!query || loading) return;
+  const handleSearch = useCallback(
+    async (submittedKeyword?: string) => {
+      const query = (submittedKeyword ?? keyword).trim();
+      if (!query || loading) return;
 
-    const currentRequest = ++requestId.current;
-    setLoading(true);
-    setError(null);
-    setSelectedAnime(null);
-    try {
-      const results = await searchAnimesByKeyword(query);
-      if (requestId.current !== currentRequest) return;
-      setAnimes(results);
-      if (results.length === 0) setError('没有找到匹配的番剧，换个关键词试试');
-    } catch {
-      if (requestId.current === currentRequest) setError('搜索失败，请检查网络后重试');
-    } finally {
-      if (requestId.current === currentRequest) setLoading(false);
-    }
-  }, [keyword, loading]);
+      const currentRequest = ++requestId.current;
+      setLoading(true);
+      setError(null);
+      setSelectedAnime(null);
+      try {
+        const results = await searchAnimesByKeyword(query);
+        if (requestId.current !== currentRequest) return;
+        setAnimes(results);
+        if (results.length === 0) setError('没有找到匹配的番剧，换个关键词试试');
+      } catch {
+        if (requestId.current === currentRequest) setError('搜索失败，请检查网络后重试');
+      } finally {
+        if (requestId.current === currentRequest) setLoading(false);
+      }
+    },
+    [keyword, loading],
+  );
 
   const handleKeywordChange = useCallback((nextKeyword: string) => {
     requestId.current += 1;
@@ -109,320 +116,114 @@ export function DanmakuSearchPanel({ ref, onCommentsLoaded, onLoaded }: DanmakuS
     [loading, onCommentsLoaded, onLoaded, selectedAnime],
   );
 
-  const renderAnime = useCallback(
-    ({ item }: { item: DandanAnime }) => (
-      <Pressable
-        accessibilityLabel={`${item.animeTitle}，${item.episodes.length} 集`}
-        accessibilityRole="button"
-        onPress={() => {
-          setError(null);
-          setSelectedAnime(item);
-        }}
-        style={({ pressed }) => [styles.resultRow, pressed && styles.pressed]}
-      >
-        <View style={styles.resultText}>
-          <Text style={styles.resultTitle} numberOfLines={2}>
-            {item.animeTitle}
-          </Text>
-          <Text style={styles.resultSubtitle}>
-            {item.typeDescription} · {item.episodes.length} 集
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={17} color="rgba(255,255,255,0.42)" />
-      </Pressable>
-    ),
-    [],
-  );
+  const showAnimeResults = !selectedAnime && animes.length > 0;
+  const inputModifiers = Platform.OS === 'ios' ? [frame({ maxWidth: Infinity })] : [fillMaxWidth()];
 
-  const renderEpisode = useCallback(
-    ({ item, index }: { item: DandanEpisode; index: number }) => (
-      <Pressable
-        accessibilityLabel={item.episodeTitle}
-        accessibilityRole="button"
-        disabled={loading}
-        onPress={() => void handleEpisodeSelect(item)}
-        style={({ pressed }) => [styles.resultRow, pressed && styles.pressed]}
-      >
-        <View style={styles.episodeIndex}>
-          <Text style={styles.episodeIndexText}>{index + 1}</Text>
-        </View>
-        <Text style={[styles.resultTitle, styles.episodeTitle]} numberOfLines={2}>
-          {item.episodeTitle}
-        </Text>
-        <Ionicons name="arrow-down-circle-outline" size={19} color="#64D2FF" />
-      </Pressable>
-    ),
-    [handleEpisodeSelect, loading],
-  );
-
-  const data: (DandanAnime | DandanEpisode)[] = selectedAnime ? selectedAnime.episodes : animes;
-
-  return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={8}
-      style={styles.container}
-    >
-      {selectedAnime ? (
-        <Pressable
-          accessibilityLabel="返回番剧搜索结果"
-          accessibilityRole="button"
+  if (selectedAnime) {
+    return (
+      <NativeList testID="player-danmaku-search">
+        <NativeSettingsItem
+          leading={<SettingsSymbol name="chevron.backward" />}
+          title={<SettingsTitle>返回搜索结果</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary={selectedAnime.animeTitle} lines={2} />}
           onPress={() => {
             requestId.current += 1;
             setLoading(false);
             setError(null);
             setSelectedAnime(null);
           }}
-          style={({ pressed }) => [styles.selectionHeader, pressed && styles.pressed]}
-        >
-          <Ionicons name="chevron-back" size={18} color="#64D2FF" />
-          <View style={styles.selectionText}>
-            <Text style={styles.selectionEyebrow}>选择剧集</Text>
-            <Text style={styles.selectionTitle} numberOfLines={1}>
-              {selectedAnime.animeTitle}
-            </Text>
-          </View>
-        </Pressable>
-      ) : (
-        <View style={styles.searchRow}>
-          <View style={styles.searchField}>
-            <Ionicons name="search" size={18} color="rgba(255,255,255,0.46)" />
-            <TextInput
-              accessibilityLabel="番剧名称"
+        />
+        {error ? (
+          <NativeSettingsItem
+            leading={<SettingsSymbol name="exclamationmark.triangle" tone="danger" />}
+            title={<SettingsTitle>{error}</SettingsTitle>}
+          />
+        ) : null}
+        {selectedAnime.episodes.length > 0 ? (
+          selectedAnime.episodes.map((episode, index) => (
+            <NativeSettingsItem
+              key={episode.episodeId}
+              leading={<SettingsValue label={String(index + 1)} tone="muted" />}
+              title={<SettingsTitle>{episode.episodeTitle}</SettingsTitle>}
+              trailing={loading ? <SettingsValue label="加载中…" tone="muted" /> : undefined}
+              disclosure={!loading}
+              onPress={loading ? undefined : () => void handleEpisodeSelect(episode)}
+            />
+          ))
+        ) : (
+          <NativeSettingsItem title={<SettingsTitle>这个条目没有可用剧集</SettingsTitle>} />
+        )}
+      </NativeList>
+    );
+  }
+
+  return (
+    <NativeSettingsForm hosted surface="sheet" testID="player-danmaku-search">
+      <NativeSettingsSection title="搜索番剧">
+        <NativeSettingsItem
+          leading={<SettingsSymbol name="magnifyingglass" />}
+          title={
+            <NativeTextInput
+              value={keywordState}
+              onChangeText={handleKeywordChange}
+              onSubmitEditing={(submitted) => void handleSearch(submitted)}
+              placeholder="输入番剧名称"
               autoCapitalize="none"
               autoCorrect={false}
-              clearButtonMode="while-editing"
-              onChangeText={handleKeywordChange}
-              onSubmitEditing={() => void handleSearch()}
-              placeholder="输入番剧名称"
-              placeholderTextColor="rgba(255,255,255,0.38)"
               returnKeyType="search"
-              style={styles.searchInput}
-              value={keyword}
+              modifiers={inputModifiers}
+              style={{ height: 40 }}
+              testID="player-danmaku-search-input"
             />
-          </View>
-          <Pressable
-            accessibilityLabel="搜索"
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !keyword.trim() || loading }}
-            disabled={!keyword.trim() || loading}
-            onPress={() => void handleSearch()}
-            style={({ pressed }) => [
-              styles.searchButton,
-              (!keyword.trim() || loading) && styles.disabled,
-              pressed && styles.pressed,
-            ]}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.searchButtonText}>搜索</Text>
-            )}
-          </Pressable>
-        </View>
-      )}
+          }
+        />
+        <NativeSettingsButton
+          label={loading ? '正在搜索…' : '搜索'}
+          disabled={!keyword.trim() || loading}
+          onPress={() => void handleSearch()}
+        />
+      </NativeSettingsSection>
 
-      {!!error && (
-        <Text accessibilityLiveRegion="assertive" accessibilityRole="alert" style={styles.feedback}>
-          {error}
-        </Text>
-      )}
+      {error ? (
+        <NativeSettingsSection title="提示">
+          <NativeSettingsItem
+            leading={<SettingsSymbol name="exclamationmark.triangle" tone="danger" />}
+            title={<SettingsTitle>{error}</SettingsTitle>}
+          />
+        </NativeSettingsSection>
+      ) : null}
 
-      <FlatList
-        contentContainerStyle={[styles.listContent, data.length === 0 && styles.emptyList]}
-        data={data}
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-        keyExtractor={(item) =>
-          'episodeId' in item ? `episode-${item.episodeId}` : `anime-${item.animeId}`
-        }
-        ListEmptyComponent={
-          !loading && !error ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="sparkles-outline" size={25} color="rgba(255,255,255,0.32)" />
-              <Text style={styles.emptyTitle}>
-                {selectedAnime ? '这个条目没有可用剧集' : '搜索番剧后选择对应剧集'}
-              </Text>
-              {!selectedAnime && <Text style={styles.emptySubtitle}>建议使用正式中文名称</Text>}
-            </View>
-          ) : null
-        }
-        renderItem={({ item, index }) =>
-          'episodeId' in item ? renderEpisode({ item, index }) : renderAnime({ item })
-        }
-        showsVerticalScrollIndicator={false}
-      />
+      {showAnimeResults ? (
+        <NativeSettingsSection title={`搜索结果 · ${animes.length}`}>
+          {animes.map((anime) => (
+            <NativeSettingsItem
+              key={anime.animeId}
+              leading={<SettingsSymbol name="tv" />}
+              title={<SettingsTitle>{anime.animeTitle}</SettingsTitle>}
+              subtitle={
+                <SettingsSubtitle
+                  primary={`${anime.typeDescription} · ${anime.episodes.length} 集`}
+                />
+              }
+              disclosure
+              onPress={() => {
+                setError(null);
+                setSelectedAnime(anime);
+              }}
+            />
+          ))}
+        </NativeSettingsSection>
+      ) : null}
 
-      {selectedAnime && loading && (
-        <View style={styles.loadingOverlay} pointerEvents="none">
-          <ActivityIndicator color="#fff" />
-          <Text style={styles.loadingText}>正在加载弹幕…</Text>
-        </View>
-      )}
-    </KeyboardAvoidingView>
+      {!loading && !error && !showAnimeResults ? (
+        <NativeSettingsSection>
+          <NativeSettingsItem
+            leading={<SettingsSymbol name="sparkles" tone="muted" />}
+            title={<SettingsTitle>搜索番剧后选择对应剧集</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary="建议使用正式中文名称" />}
+          />
+        </NativeSettingsSection>
+      ) : null}
+    </NativeSettingsForm>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    gap: 9,
-    padding: 14,
-    paddingBottom: 10,
-  },
-  searchField: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderCurve: 'continuous',
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    flex: 1,
-    flexDirection: 'row',
-    gap: 8,
-    minHeight: 44,
-    paddingHorizontal: 12,
-  },
-  searchInput: {
-    color: '#fff',
-    flex: 1,
-    fontSize: 14,
-    height: 44,
-    paddingVertical: 0,
-  },
-  searchButton: {
-    alignItems: 'center',
-    backgroundColor: '#0A84FF',
-    borderCurve: 'continuous',
-    borderRadius: 14,
-    justifyContent: 'center',
-    minHeight: 44,
-    minWidth: 62,
-    paddingHorizontal: 13,
-  },
-  searchButtonText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  selectionHeader: {
-    alignItems: 'center',
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: 8,
-    minHeight: 58,
-    paddingHorizontal: 14,
-  },
-  selectionText: {
-    flex: 1,
-    gap: 2,
-  },
-  selectionEyebrow: {
-    color: '#64D2FF',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  selectionTitle: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  feedback: {
-    color: '#FF9F0A',
-    fontSize: 12,
-    lineHeight: 17,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  listContent: {
-    paddingBottom: 24,
-    paddingHorizontal: 10,
-  },
-  emptyList: {
-    flexGrow: 1,
-  },
-  resultRow: {
-    alignItems: 'center',
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: 10,
-    minHeight: 58,
-    paddingHorizontal: 8,
-    paddingVertical: 9,
-  },
-  resultText: {
-    flex: 1,
-    gap: 3,
-  },
-  resultTitle: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 18,
-  },
-  resultSubtitle: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 10,
-  },
-  episodeIndex: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 10,
-    height: 34,
-    justifyContent: 'center',
-    width: 34,
-  },
-  episodeIndexText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 11,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '700',
-  },
-  episodeTitle: {
-    flex: 1,
-  },
-  emptyState: {
-    alignItems: 'center',
-    flex: 1,
-    gap: 7,
-    justifyContent: 'center',
-    padding: 30,
-  },
-  emptyTitle: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 13,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    color: 'rgba(255,255,255,0.34)',
-    fontSize: 11,
-  },
-  loadingOverlay: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(10,11,14,0.72)',
-    bottom: 0,
-    gap: 8,
-    justifyContent: 'center',
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 58,
-  },
-  loadingText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  disabled: {
-    opacity: 0.35,
-  },
-  pressed: {
-    opacity: 0.55,
-  },
-});

@@ -9,7 +9,15 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
 import { BlurView } from 'expo-blur';
 import React, { useCallback, useMemo } from 'react';
-import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import {
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  Text,
+  View,
+  ViewStyle,
+  type GestureResponderEvent,
+} from 'react-native';
 import { Content, Item, ItemIcon, ItemTitle, Root as Menu, Trigger } from 'zeego/context-menu';
 
 import { ItemImage } from '../ItemImage';
@@ -130,13 +138,17 @@ export const EpisodeCard = React.memo(function EpisodeCard({
     if (route) router.push(route);
   }, [item, router]);
 
-  const handlePlay = useCallback(() => {
-    if (!item.id) return;
-    router.push({
-      pathname: '/player',
-      params: { itemId: item.id },
-    });
-  }, [item.id, router]);
+  const handlePlay = useCallback(
+    (event?: GestureResponderEvent) => {
+      event?.stopPropagation();
+      if (!item.id) return;
+      router.push({
+        pathname: '/player',
+        params: { itemId: item.id },
+      });
+    },
+    [item.id, router],
+  );
 
   const currentUserData = item.userData;
   const rawPlayedPercentage = currentUserData?.playedPercentage;
@@ -150,13 +162,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
 
   return (
     <CardActionMenu item={item} actionServer={actionServer}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`打开 ${itemTitle}`}
-        style={[styles.card, { width: 200 }, style]}
-        disabled={disabled}
-        onPress={onPress || openDetails}
-      >
+      <View style={[styles.card, { width: 200 }, style]}>
         <ShadowedGlassCard radius={12} surface="transparent">
           <CoverFrame aspectRatio={16 / 9} emphasized={showBorder} radius={14}>
             <ItemImage
@@ -173,16 +179,11 @@ export const EpisodeCard = React.memo(function EpisodeCard({
                 blurMethod="dimezisBlurViewSdk31Plus"
                 blurReductionFactor={2}
                 style={styles.playButton}
+                pointerEvents="none"
               >
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.playButtonInner,
-                    pressed && styles.playButtonPressed,
-                  ]}
-                  onPress={handlePlay}
-                >
+                <View style={styles.playButtonInner}>
                   <Ionicons name="play" size={27} color="#fff" />
-                </Pressable>
+                </View>
               </BlurView>
             )}
             {isPlayed && (
@@ -232,7 +233,28 @@ export const EpisodeCard = React.memo(function EpisodeCard({
             </View>
           )}
         </ShadowedGlassCard>
-      </Pressable>
+        <Pressable
+          accessibilityLabel={`打开 ${itemTitle}`}
+          accessibilityRole="button"
+          disabled={disabled}
+          onPress={onPress || openDetails}
+          style={StyleSheet.absoluteFill}
+        />
+        {showPlayButton ? (
+          <View pointerEvents="box-none" style={styles.playButtonLayer}>
+            <Pressable
+              accessibilityLabel={`播放 ${itemTitle}`}
+              accessibilityRole="button"
+              disabled={disabled}
+              onPress={handlePlay}
+              style={({ pressed }) => [
+                styles.playButtonHitTarget,
+                pressed && styles.playButtonPressed,
+              ]}
+            />
+          </View>
+        ) : null}
+      </View>
     </CardActionMenu>
   );
 });
@@ -392,6 +414,22 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  playButtonLayer: {
+    alignItems: 'center',
+    aspectRatio: 16 / 9,
+    justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 4,
+  },
+  playButtonHitTarget: {
+    borderCurve: 'continuous',
+    borderRadius: 999,
+    height: 48,
+    width: 48,
   },
   playButtonPressed: {
     backgroundColor: 'rgba(255,255,255,0.12)',

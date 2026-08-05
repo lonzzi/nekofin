@@ -49,7 +49,7 @@ const absoluteFill = {
   top: 0,
 };
 
-const MOCK_EPISODES: MediaItem[] = Array.from({ length: 3 }, (_, index) => ({
+const MOCK_EPISODES: MediaItem[] = Array.from({ length: 120 }, (_, index) => ({
   id: `player-lab-episode-${index + 1}`,
   name: `Player Lab Episode ${index + 1}`,
   type: 'Episode',
@@ -57,6 +57,8 @@ const MOCK_EPISODES: MediaItem[] = Array.from({ length: 3 }, (_, index) => ({
   seriesName: 'Player Lab Fixture',
   parentIndexNumber: 1,
   indexNumber: index + 1,
+  overview: `用于验证长剧集列表、封面占位与当前集定位的第 ${index + 1} 集。`,
+  runTimeTicks: (22 * 60 + (index % 8) * 30) * 10_000_000,
 }));
 
 const MOCK_TRACKS = {
@@ -106,7 +108,7 @@ export function PlayerLabScreen({ onClose }: PlayerLabScreenProps) {
   const [sourceLoading, setSourceLoading] = useState(false);
   const [sourceError, setSourceError] = useState<string | null>(null);
   const [inspectorVisible, setInspectorVisible] = useState(false);
-  const [episodeIndex, setEpisodeIndex] = useState(1);
+  const [episodeIndex, setEpisodeIndex] = useState(72);
   const [selectedAudioTrack, setSelectedAudioTrack] = useState(1);
   const [selectedSubtitleTrack, setSelectedSubtitleTrack] = useState(-1);
 
@@ -340,7 +342,9 @@ export function PlayerLabScreen({ onClose }: PlayerLabScreenProps) {
         onAudioTrackChange={setSelectedAudioTrack}
         onCommentsLoaded={handleCommentsLoaded}
         onEpisodeSelect={selectEpisode}
-        onNextEpisode={() => selectEpisode(MOCK_EPISODES[Math.min(2, episodeIndex + 1)].id)}
+        onNextEpisode={() =>
+          selectEpisode(MOCK_EPISODES[Math.min(MOCK_EPISODES.length - 1, episodeIndex + 1)].id)
+        }
         onPlayPause={handlePlayPause}
         onPreviousEpisode={() => selectEpisode(MOCK_EPISODES[Math.max(0, episodeIndex - 1)].id)}
         onRateChange={handleRateChange}

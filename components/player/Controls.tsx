@@ -23,6 +23,8 @@ import {
 import { MediaStats, MediaTrack, MediaTracks, PlayerContext } from './PlayerContext';
 import { TopControls } from './TopControls';
 
+const PLAYER_CONTROLS_AUTO_HIDE_DELAY_MS = 6000;
+
 type ControlsProps = {
   autoHideControls?: boolean;
   initiallyVisible?: boolean;
@@ -61,7 +63,7 @@ type ControlsProps = {
 
 export function Controls({
   autoHideControls = true,
-  initiallyVisible = false,
+  initiallyVisible = true,
   isPlaying,
   isLoading,
   duration,
@@ -138,7 +140,7 @@ export function Controls({
   const hideControlsWithDelay = useCallback(() => {
     clearControlsTimeout();
 
-    if (!autoHideControls || isPanelOpenRef.current || isScreenReaderEnabled) {
+    if (!autoHideControls || isLoading || isPanelOpenRef.current || isScreenReaderEnabled) {
       return;
     }
 
@@ -152,11 +154,12 @@ export function Controls({
       ) {
         scheduleOnRN(setShowControls, false);
       }
-    }, 3000);
+    }, PLAYER_CONTROLS_AUTO_HIDE_DELAY_MS);
   }, [
     autoHideControls,
     clearControlsTimeout,
     isDragging,
+    isLoading,
     isScreenReaderEnabled,
     isGestureSeekingActive,
     isVolumeGestureActive,
