@@ -1,0 +1,17 @@
+diff --git a/ios/LinearGradientView.swift b/ios/LinearGradientView.swift
+--- a/ios/LinearGradientView.swift
++++ b/ios/LinearGradientView.swift
+@@ -23,6 +23,13 @@
+   #if !os(macOS)
+   override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+     super.traitCollectionDidChange(previousTraitCollection)
++    // Navigation can change non-color traits. Keep the existing gradient bitmap
++    // unless its colors or display scale need to be rendered again.
++    guard previousTraitCollection == nil ||
++      traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) ||
++      traitCollection.displayScale != previousTraitCollection?.displayScale else {
++      return
++    }
+     layer.setNeedsDisplay()
+   }
+   #else

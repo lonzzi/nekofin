@@ -79,7 +79,7 @@ export default function TranscodingSettingsScreen() {
     <>
       <Stack.Title large>转码设置</Stack.Title>
       <NativeSettingsForm testID="transcoding-settings-form">
-        <NativeSettingsSection title="播放设置">
+        <NativeSettingsSection title="播放">
           <NativeSettingsPicker
             title={<SettingsTitle>视频方向</SettingsTitle>}
             value={videoOrientation}
@@ -88,10 +88,10 @@ export default function TranscodingSettingsScreen() {
           />
         </NativeSettingsSection>
 
-        <NativeSettingsSection title="转码设置">
+        <NativeSettingsSection title="转码">
           <NativeSettingsSwitch
             title={<SettingsTitle>启用转码</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="当设备无法直接播放时启用转码" />}
+            subtitle={<SettingsSubtitle primary="无法直接播放时，让服务器转换视频格式。" />}
             value={enableTranscoding}
             onValueChange={handleTranscodingToggle}
           />
@@ -102,22 +102,19 @@ export default function TranscodingSettingsScreen() {
             options={bitrateOptions}
             onValueChange={handleBitrateChange}
           />
-          <NativeSettingsSwitch
-            disabled={!enableTranscoding}
-            title={<SettingsTitle>字幕烧录</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="转码时将字幕烧录到视频中" />}
-            value={enableSubtitleBurnIn}
-            onValueChange={handleSubtitleBurnInToggle}
-          />
-        </NativeSettingsSection>
-
-        <NativeSettingsSection title="编码设置">
           <NativeSettingsPicker
             disabled={!enableTranscoding}
-            title={<SettingsTitle>编码器</SettingsTitle>}
+            title={<SettingsTitle>视频编码</SettingsTitle>}
             value={selectedCodec}
             options={codecOptions}
             onValueChange={handleCodecSelection}
+          />
+          <NativeSettingsSwitch
+            disabled={!enableTranscoding}
+            title={<SettingsTitle>字幕烧录</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary="字幕合入画面，增加转码负载。" />}
+            value={enableSubtitleBurnIn}
+            onValueChange={handleSubtitleBurnInToggle}
           />
         </NativeSettingsSection>
       </NativeSettingsForm>

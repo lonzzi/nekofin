@@ -5,7 +5,7 @@ import {
   NativeSettingsPicker,
   NativeSettingsSection,
 } from '@/components/ui/NativeSettings';
-import { SettingsSubtitle, SettingsSymbol, SettingsTitle } from '@/components/ui/SettingsVisual';
+import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { ThemePreference, useThemePreference } from '@/lib/contexts/ThemePreferenceContext';
 import { usePerformanceMonitorActions } from '@/lib/performance/PerformanceMonitorContext';
@@ -59,33 +59,10 @@ export default function SettingsScreen() {
           />
         </NativeSettingsSection>
 
-        {isUnlocked || playerLab.available ? (
-          <NativeSettingsSection title="开发诊断">
-            {playerLab.available ? (
-              <NativeSettingsItem
-                title={<SettingsTitle>Player Lab</SettingsTitle>}
-                subtitle={<SettingsSubtitle primary="播放器 UI、播放状态与高密弹幕压力测试" />}
-                disclosure
-                onPress={playerLab.open}
-                testID="open-player-lab"
-              />
-            ) : null}
-            {isUnlocked ? (
-              <NativeSettingsItem
-                title={<SettingsTitle>性能分析</SettingsTitle>}
-                subtitle={<SettingsSubtitle primary="Native FPS、CPU、内存、路由和网络 trace" />}
-                disclosure
-                onPress={() => router.push('/performance')}
-              />
-            ) : null}
-          </NativeSettingsSection>
-        ) : null}
-
         <NativeSettingsSection title="存储空间">
           <NativeSettingsItem
-            leading={<SettingsSymbol name="externaldrive" tone="muted" />}
             title={<SettingsTitle>缓存管理</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="清理图片、媒体库、下载和诊断日志缓存" />}
+            subtitle={<SettingsSubtitle primary="查看并清理媒体文件、媒体库数据与诊断日志。" />}
             disclosure
             onPress={() => router.push('/cache')}
           />
@@ -104,6 +81,28 @@ export default function SettingsScreen() {
             subtitle={<SettingsSubtitle primary="MPL-2.0 License" />}
           />
         </NativeSettingsSection>
+
+        {isUnlocked || playerLab.available ? (
+          <NativeSettingsSection title="开发诊断">
+            {playerLab.available ? (
+              <NativeSettingsItem
+                title={<SettingsTitle>Player Lab</SettingsTitle>}
+                subtitle={<SettingsSubtitle primary="播放器预览和弹幕压力测试" />}
+                disclosure
+                onPress={playerLab.open}
+                testID="open-player-lab"
+              />
+            ) : null}
+            {isUnlocked ? (
+              <NativeSettingsItem
+                title={<SettingsTitle>性能分析</SettingsTitle>}
+                subtitle={<SettingsSubtitle primary="FPS、内存、路由和请求状态" />}
+                disclosure
+                onPress={() => router.push('/performance')}
+              />
+            ) : null}
+          </NativeSettingsSection>
+        ) : null}
       </NativeSettingsForm>
     </>
   );

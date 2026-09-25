@@ -1,56 +1,86 @@
 # Nekofin
 
 <div align="center">
-  <img src="https://socialify.git.ci/lonzzi/nekofin/image?logo=https%3A%2F%2Fgithub.com%2Flonzzi%2Fnekofin%2Fblob%2Fmain%2Fassets%2Fimages%2Fsplash-icon.png%3Fraw%3Dtrue&name=1&owner=1&pattern=Solid&stargazers=1&theme=Dark" alt="nekofin" />
+  <img src="https://socialify.git.ci/lonzzi/nekofin/image?logo=https%3A%2F%2Fgithub.com%2Flonzzi%2Fnekofin%2Fblob%2Fmain%2Fassets%2Fimages%2Fsplash-icon.png%3Fraw%3Dtrue&name=1&owner=1&pattern=Solid&stargazers=1&theme=Dark" alt="Nekofin" />
+  <p><strong>把自建媒体库装进口袋。</strong></p>
+  <p>面向 Jellyfin 与 Emby 的 iOS、Android 客户端 · Expo · React Native · MPV</p>
 </div>
 
-一个基于 Expo 开发的跨平台媒体播放客户端，支持 Jellyfin 和 Emby 媒体服务器。
+Nekofin 帮你连接自建媒体服务器，在手机上浏览电影与剧集、搜索片库、查看详情，并用 MPV 接着观看。它也支持多服务器账号、播放进度同步、音轨与字幕切换、弹幕和深浅色主题。
 
-## 📸 预览
+## 应用预览
+
+下面是 iOS 模拟器中的应用界面预览。海报和片库内容会随连接的媒体服务器变化。
 
 <div align="center">
-  <img src="docs/screenshots/home.webp" width="200" alt="首页" />
-  <img src="docs/screenshots/detail.webp" width="200" alt="详情" />
-  <img src="docs/screenshots/player.webp" width="200" alt="播放器" />
-  <img src="docs/screenshots/search.webp" width="200" alt="搜索" />
+<table>
+  <tbody>
+    <tr>
+      <td align="center"><img src="docs/screenshots/home.webp" width="240" alt="浅色主题下的片库首页" /><br /><sub>片库首页 · 浅色</sub></td>
+      <td align="center"><img src="docs/screenshots/home-dark.webp" width="240" alt="暗色主题下的片库首页" /><br /><sub>片库首页 · 暗色</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="docs/screenshots/detail.webp" width="240" alt="剧集详情与继续观看" /><br /><sub>剧集详情</sub></td>
+      <td align="center"><img src="docs/screenshots/search.webp" width="240" alt="跨服务器搜索入口" /><br /><sub>聚合搜索</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="docs/screenshots/player.webp" width="320" alt="横屏 MPV 播放器" /><br /><sub>MPV 播放器</sub></td>
+      <td align="center"><img src="docs/screenshots/settings.webp" width="240" alt="应用设置与主题选项" /><br /><sub>设置</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="docs/screenshots/transcoding.webp" width="240" alt="播放方向与视频转码选项" /><br /><sub>转码设置</sub></td>
+      <td align="center"><img src="docs/screenshots/danmaku.webp" width="240" alt="弹幕显示、排布与同步设置" /><br /><sub>弹幕设置</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="docs/screenshots/cache.webp" width="240" alt="媒体缓存分类与清理" /><br /><sub>缓存管理</sub></td>
+      <td align="center"><img src="docs/screenshots/movie.webp" width="240" alt="电影详情页" /><br /><sub>电影详情</sub></td>
+    </tr>
+  </tbody>
+</table>
 </div>
 
-## ✨ 功能特色
+## 功能
 
-- 📱 跨平台支持：iOS 和 Android 双平台
-- 🎬 媒体播放：基于 mpv 的高性能视频播放器
-- 💬 弹幕支持：集成弹弹play，支持弹幕搜索和显示
-- 🎯 多服务器：同时支持 Jellyfin 和 Emby（实验性支持）媒体服务器
+- **连接片库**：管理多个 Jellyfin、Emby 账号，浏览电影、剧集、收藏和继续观看
+- **查找内容**：搜索当前服务器，或聚合搜索已连接的媒体服务器
+- **查看详情**：浏览影片、剧集与单集信息，并管理收藏和观看状态
+- **继续观看**：通过 MPV 播放器同步进度，选择音轨、字幕、倍速和画面比例
+- **调整弹幕**：搜索弹幕，控制字体、透明度、速度、显示区域与密度
+- **切换外观**：使用浅色、暗色或跟随系统主题
 
-## 🛠 技术栈
+## 开始使用
 
-- React Native
-- Expo
-- mpv Player
+从 [GitHub Releases](https://github.com/lonzzi/nekofin/releases) 获取可用版本。添加 Jellyfin 或 Emby 账号后，进入媒体库即可浏览与搜索；打开影片或剧集详情可以继续播放。
 
-## 📥 下载
+## 本地开发
 
-- **Nightly**：<a href="https://github.com/lonzzi/nekofin/releases/tag/nightly"><img src="https://github.com/user-attachments/assets/cf61e197-d756-4606-a8ad-fb591f79fdfc" alt="Nightly Downloads" height="55" /></a>
-- **Stable**：Coming soon
+需要 Bun 和 Xcode。项目包含原生播放器与 Expo 原生模块，请使用开发客户端构建运行。
 
-## 🗺️ Roadmap
+```sh
+bun install
+bun run ios:dev
+```
 
-- [x] 基础播放功能
-- [x] 弹幕支持
-- [x] Jellyfin 服务器支持
-- [x] 多服务器管理
-- [ ] Emby 完整支持
-- [ ] 下载功能
-- [ ] 完善版本切换和字幕切换
-- [ ] 支持在播放器内切换转码码率
+运行检查：
 
-## 🙏 致谢
+```sh
+bun run typecheck
+bun run test
+```
 
-- [Streamyfin](https://github.com/streamyfin/streamyfin)
-- [Jellyfin](https://jellyfin.org/)
-- [弹弹play (DanDanPlay)](https://www.dandanplay.com/)
-- [expo-libvlc-player](https://github.com/cornejobarraza/expo-libvlc-player)
+## 技术栈
 
-## 📄 License
+React Native · Expo · Expo Router · MPV · TypeScript
+
+## 下载
+
+- **Nightly**：[GitHub Nightly Releases](https://github.com/lonzzi/nekofin/releases/tag/nightly)
+- **Stable**：即将推出
+
+## 致谢
+
+[Streamyfin](https://github.com/streamyfin/streamyfin) · [Jellyfin](https://jellyfin.org/) · [弹弹play](https://www.dandanplay.com/) · [expo-libvlc-player](https://github.com/cornejobarraza/expo-libvlc-player)
+
+## License
 
 [MPL-2.0](LICENSE)

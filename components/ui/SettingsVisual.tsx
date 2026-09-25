@@ -52,8 +52,8 @@ export function SettingsTitle({ children }: { children: string }) {
       numberOfLines={1}
       textStyle={{
         color: theme.colors.text,
-        fontSize: 16,
-        fontWeight: '500',
+        fontSize: 17,
+        fontWeight: '400',
         lineHeight: 22,
       }}
     >
@@ -109,7 +109,7 @@ export function SettingsSubtitle({
         numberOfLines={lines}
         textStyle={{
           color: theme.colors.textSecondary,
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: '400',
           lineHeight: 18,
         }}

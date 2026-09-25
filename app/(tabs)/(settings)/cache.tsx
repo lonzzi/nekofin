@@ -19,6 +19,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
+import { Stack } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
@@ -132,8 +133,6 @@ export default function CacheSettingsScreen() {
 
   const queryCacheBytes = getPersistedQueryCacheBytes();
   const diagnosticBytes = getStoredPerformanceLogBytes();
-  const queryCacheCount = queryClient.getQueryCache().getAll().length;
-
   useEffect(() => {
     let cancelled = false;
 
@@ -223,90 +222,97 @@ export default function CacheSettingsScreen() {
   );
 
   return (
-    <NativeSettingsForm testID="cache-settings-form">
-      <NativeSettingsSection title="缓存项目">
-        <NativeSettingsItem
-          testID="cache-row-video"
-          title={<SettingsTitle>视频缓存</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.video)} />}
-          trailing={<SettingsValue label={clearingLabel('video')} tone="danger" />}
-          onPress={() => void clearTarget('video', () => clearCacheUris(cacheUriGroups.video))}
-        />
-        <NativeSettingsItem
-          testID="cache-row-image"
-          title={<SettingsTitle>图片缓存</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.image)} />}
-          trailing={<SettingsValue label={clearingLabel('image')} tone="danger" />}
-          onPress={() => void clearTarget('image', clearImageCache)}
-        />
-        <NativeSettingsItem
-          testID="cache-row-subtitle"
-          title={<SettingsTitle>字幕缓存</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.subtitle)} />}
-          trailing={<SettingsValue label={clearingLabel('subtitle')} tone="danger" />}
-          onPress={() =>
-            void clearTarget('subtitle', () => clearCacheUris(cacheUriGroups.subtitle))
-          }
-        />
-        <NativeSettingsItem
-          testID="cache-row-media"
-          title={<SettingsTitle>媒体库缓存</SettingsTitle>}
-          subtitle={
-            <SettingsSubtitle
-              primary={formatStorageBytes(queryCacheBytes)}
-              secondary={`${queryCacheCount} 个内存 query，会同时清理离线缓存。`}
-              lines={1}
-            />
-          }
-          trailing={<SettingsValue label={clearingLabel('media')} tone="danger" />}
-          onPress={() => void clearTarget('media', clearMediaCache)}
-        />
-        <NativeSettingsItem
-          testID="cache-row-download"
-          title={<SettingsTitle>下载缓存</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.download)} />}
-          trailing={<SettingsValue label={clearingLabel('download')} tone="danger" />}
-          onPress={() =>
-            void clearTarget('download', () => clearCacheUris(cacheUriGroups.download))
-          }
-        />
-        <NativeSettingsItem
-          testID="cache-row-temporary"
-          title={<SettingsTitle>临时缓存</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.temporary)} />}
-          trailing={<SettingsValue label={clearingLabel('temporary')} tone="danger" />}
-          onPress={() =>
-            void clearTarget('temporary', () => clearCacheUris(cacheUriGroups.temporary))
-          }
-        />
-        <NativeSettingsItem
-          testID="cache-row-diagnostics"
-          title={<SettingsTitle>诊断日志</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary={formatStorageBytes(diagnosticBytes)} />}
-          trailing={<SettingsValue label={clearingLabel('diagnostics')} tone="danger" />}
-          onPress={() => void clearTarget('diagnostics', clearDiagnosticsCache)}
-        />
-      </NativeSettingsSection>
+    <>
+      <Stack.Title large>缓存管理</Stack.Title>
+      <NativeSettingsForm testID="cache-settings-form">
+        <NativeSettingsSection title="媒体文件">
+          <NativeSettingsItem
+            testID="cache-row-video"
+            title={<SettingsTitle>视频缓存</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.video)} />}
+            trailing={<SettingsValue label={clearingLabel('video')} tone="danger" />}
+            onPress={() => void clearTarget('video', () => clearCacheUris(cacheUriGroups.video))}
+          />
+          <NativeSettingsItem
+            testID="cache-row-image"
+            title={<SettingsTitle>图片缓存</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.image)} />}
+            trailing={<SettingsValue label={clearingLabel('image')} tone="danger" />}
+            onPress={() => void clearTarget('image', clearImageCache)}
+          />
+          <NativeSettingsItem
+            testID="cache-row-subtitle"
+            title={<SettingsTitle>字幕缓存</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.subtitle)} />}
+            trailing={<SettingsValue label={clearingLabel('subtitle')} tone="danger" />}
+            onPress={() =>
+              void clearTarget('subtitle', () => clearCacheUris(cacheUriGroups.subtitle))
+            }
+          />
+          <NativeSettingsItem
+            testID="cache-row-download"
+            title={<SettingsTitle>下载缓存</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.download)} />}
+            trailing={<SettingsValue label={clearingLabel('download')} tone="danger" />}
+            onPress={() =>
+              void clearTarget('download', () => clearCacheUris(cacheUriGroups.download))
+            }
+          />
+          <NativeSettingsItem
+            testID="cache-row-temporary"
+            title={<SettingsTitle>临时缓存</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.temporary)} />}
+            trailing={<SettingsValue label={clearingLabel('temporary')} tone="danger" />}
+            onPress={() =>
+              void clearTarget('temporary', () => clearCacheUris(cacheUriGroups.temporary))
+            }
+          />
+        </NativeSettingsSection>
 
-      <NativeSettingsSection title="总计">
-        <NativeSettingsItem
-          title={<SettingsTitle>缓存大小</SettingsTitle>}
-          trailing={
-            <SettingsValue
-              label={measuring ? '计算中' : formatStorageBytes(totalBytes)}
-              tone="muted"
-            />
-          }
-        />
-        <NativeSettingsItem
-          title={
-            <SettingsActionTitle>
-              {clearingTarget === 'all' ? '清理中' : '一键清理'}
-            </SettingsActionTitle>
-          }
-          onPress={() => void clearTarget('all', clearAllCaches)}
-        />
-      </NativeSettingsSection>
-    </NativeSettingsForm>
+        <NativeSettingsSection title="应用数据">
+          <NativeSettingsItem
+            testID="cache-row-media"
+            title={<SettingsTitle>媒体库缓存</SettingsTitle>}
+            subtitle={
+              <SettingsSubtitle
+                primary={formatStorageBytes(queryCacheBytes)}
+                secondary="清理后，媒体库页面会重新从服务器加载数据。"
+                lines={1}
+              />
+            }
+            trailing={<SettingsValue label={clearingLabel('media')} tone="danger" />}
+            onPress={() => void clearTarget('media', clearMediaCache)}
+          />
+          <NativeSettingsItem
+            testID="cache-row-diagnostics"
+            title={<SettingsTitle>诊断日志</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={formatStorageBytes(diagnosticBytes)} />}
+            trailing={<SettingsValue label={clearingLabel('diagnostics')} tone="danger" />}
+            onPress={() => void clearTarget('diagnostics', clearDiagnosticsCache)}
+          />
+        </NativeSettingsSection>
+
+        <NativeSettingsSection title="总览与清理">
+          <NativeSettingsItem
+            title={<SettingsTitle>缓存大小</SettingsTitle>}
+            trailing={
+              <SettingsValue
+                label={measuring ? '计算中' : formatStorageBytes(totalBytes)}
+                tone="muted"
+              />
+            }
+          />
+          <NativeSettingsItem
+            title={
+              <SettingsActionTitle>
+                {clearingTarget === 'all' ? '清理中' : '一键清理'}
+              </SettingsActionTitle>
+            }
+            subtitle={<SettingsSubtitle primary="清理所有缓存和诊断日志。" />}
+            onPress={() => void clearTarget('all', clearAllCaches)}
+          />
+        </NativeSettingsSection>
+      </NativeSettingsForm>
+    </>
   );
 }
