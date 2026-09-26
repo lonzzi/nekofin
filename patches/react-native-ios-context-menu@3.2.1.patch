@@ -1,0 +1,10 @@
+diff --git a/ios/RNIContextMenu/RNIMenuActionItem.swift b/ios/RNIContextMenu/RNIMenuActionItem.swift
+--- a/ios/RNIContextMenu/RNIMenuActionItem.swift
++++ b/ios/RNIContextMenu/RNIMenuActionItem.swift
+@@ -184,5 +184,5 @@
+     #if swift(>=5.5)
+-    if #available(iOS 15.0, *) {
++    if #available(iOS 16.0, *) {
+       action.subtitle =
+            self.actionSubtitle
+         ?? self.fallbackActionSubtitle;

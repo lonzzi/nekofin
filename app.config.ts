@@ -31,7 +31,7 @@ const getAppName = () => {
   return 'nekofin';
 };
 
-export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
+export default ({ config: _config }: { config: ExpoConfig }): ExpoConfig => {
   return {
     name: getAppName(),
     slug: 'nekofin',
@@ -111,6 +111,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => {
             buildReactNativeFromSource: true,
             reactNativeReleaseLevel: 'stable',
             deploymentTarget: '16.4',
+            enableSceneSupport: true,
           },
           android: {
             reactNativeReleaseLevel: 'stable',
