@@ -542,7 +542,8 @@ export function streamInfoQueryOptions({
         startTimeTicks: item.userData?.playbackPositionTicks || 0,
         deviceId,
         maxStreamingBitrate: keyOptions.enableTranscoding ? keyOptions.maxBitrate : undefined,
-        alwaysBurnInSubtitleWhenTranscoding: keyOptions.enableSubtitleBurnIn,
+        alwaysBurnInSubtitleWhenTranscoding:
+          keyOptions.enableTranscoding && keyOptions.enableSubtitleBurnIn,
       });
     },
     staleTime: 0,

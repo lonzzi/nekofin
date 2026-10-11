@@ -1,31 +1,22 @@
-import { useCarouselHeaderLayers } from '@/components/home/CarouselHeader';
-import { HomeAtmosphereScrollView } from '@/components/home/HomeAtmosphereScrollView';
-import { Section } from '@/components/media/Section';
-import { NATIVE_HEADER_ACTIONS } from '@/components/navigation/nativeHeaderModel';
-import { getNativeToolbarIcon } from '@/components/navigation/nativeToolbarIcons';
+import { HomeAccountMenu } from '@/components/home/HomeAccountMenu';
+import { MediaHomeContent } from '@/components/home/MediaHomeContent';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { UserViewSection } from '@/components/user-view/UserViewSection';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useHomeSections } from '@/hooks/useHomeSections';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { useAppTheme, useMediaHeroHeight } from '@/lib/theme';
-import { Stack } from 'expo-router';
-import { useIsFocused } from 'expo-router/react-navigation';
+import { useAppTheme } from '@/lib/theme';
 import { useCallback, useMemo } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 export default function HomeScreen() {
   const { servers, currentServer, isInitialized } = useMediaServers();
   const theme = useAppTheme();
-  const backgroundColor = theme.colors.background;
-  const carouselHeight = useMediaHeroHeight();
 
   const router = useTracedRouter('server-library');
 
   const { sections, randomItemsQuery } = useHomeSections(currentServer);
-  const isFocused = useIsFocused();
 
   const carouselItems = useMemo(() => {
     return randomItemsQuery.data ?? [];
@@ -58,31 +49,7 @@ export default function HomeScreen() {
     return handlers;
   }, [sections, router]);
 
-  const { backgroundImageInfo, headerImage, headerOverlay } = useCarouselHeaderLayers({
-    items: carouselItems,
-    height: carouselHeight,
-    isFocused,
-    isLoading: randomItemsQuery.isLoading,
-  });
-
-  const toolbar = (
-    <>
-      <Stack.Screen options={{ headerTintColor: theme.colors.text }} />
-      <Stack.Toolbar placement="right">
-        {NATIVE_HEADER_ACTIONS.serverLibrary.map((action) => (
-          <Stack.Toolbar.Button
-            key={action.key}
-            accessibilityLabel={action.label}
-            icon={getNativeToolbarIcon(action.androidDrawable, action.iosIcon)}
-            onPress={() => router.push(action.route)}
-            tintColor={theme.colors.text}
-          >
-            {action.label}
-          </Stack.Toolbar.Button>
-        ))}
-      </Stack.Toolbar>
-    </>
-  );
+  const toolbar = <HomeAccountMenu server={currentServer} />;
 
   if (servers.length === 0 && isInitialized) {
     return (
@@ -125,81 +92,24 @@ export default function HomeScreen() {
   return (
     <>
       {toolbar}
-      <HomeAtmosphereScrollView
-        backgroundColor={backgroundColor}
-        contentStyle={{
-          gap: theme.spacing.xs,
-          paddingBottom: theme.spacing.lg,
-        }}
-        headerFadeMode="mask"
-        headerHeight={carouselHeight}
-        headerImage={headerImage}
-        headerOverlay={headerOverlay}
-        imageInfo={backgroundImageInfo}
-        isDark={theme.isDark}
-        optimizeAtmosphereImageLoading
-      >
-        <View style={[styles.content, { gap: theme.spacing.lg, marginTop: theme.spacing.md }]}>
-          {sections.map((section) => {
-            if (section.type === 'resume') {
-              if (!section.isLoading && section.items.length === 0) return null;
-              return (
-                <Section
-                  key={section.key}
-                  title={section.title}
-                  onViewAll={handleViewAllResume}
-                  items={section.items}
-                  isLoading={section.isLoading}
-                />
-              );
-            }
-            if (section.type === 'nextup') {
-              if (!section.isLoading && section.items.length === 0) return null;
-              return (
-                <Section
-                  key={section.key}
-                  title={section.title}
-                  onViewAll={handleViewAllNextup}
-                  items={section.items}
-                  isLoading={section.isLoading}
-                />
-              );
-            }
-            if (section.type === 'userview') {
-              return (
-                <UserViewSection
-                  key={section.key}
-                  title={section.title}
-                  userView={section.items}
-                  isLoading={section.isLoading}
-                />
-              );
-            }
-            if (section.type === 'latest') {
-              if (!section.isLoading && section.items.length === 0) return null;
-              return (
-                <Section
-                  key={section.key}
-                  title={section.title}
-                  onViewAll={latestViewAllHandlers[section.key]}
-                  items={section.items}
-                  isLoading={section.isLoading}
-                  type="series"
-                />
-              );
-            }
-            return null;
-          })}
-        </View>
-      </HomeAtmosphereScrollView>
+      <MediaHomeContent
+        carouselItems={carouselItems}
+        isCarouselLoading={randomItemsQuery.isLoading}
+        sections={sections.map((section) => ({
+          ...section,
+          onViewAll:
+            section.type === 'resume'
+              ? handleViewAllResume
+              : section.type === 'nextup'
+                ? handleViewAllNextup
+                : latestViewAllHandlers[section.key],
+        }))}
+      />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    position: 'relative',
-  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',

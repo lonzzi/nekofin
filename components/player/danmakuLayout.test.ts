@@ -36,6 +36,38 @@ const runtime = {
 };
 
 describe('danmakuLayout', () => {
+  it('keeps scrolling media lifetime independent of playback rate, including narrow previews', () => {
+    for (const textWidth of [50, 200, 800]) {
+      const durations = [0.5, 1, 2, 4].map(
+        (playbackRate) =>
+          createActiveDanmakuBullet({
+            comment: comment({}),
+            instanceId: 1,
+            rowIndex: 0,
+            textWidth,
+            runtime: { ...runtime, width: 320, speed: 240, playbackRate },
+          }).mediaDurationMs,
+      );
+      expect(Math.max(...durations) - Math.min(...durations)).toBeLessThanOrEqual(4);
+    }
+  });
+
+  it('makes longer text move faster at every supported playback rate', () => {
+    for (const playbackRate of [0.5, 1, 2, 4]) {
+      const velocities = [50, 200, 500].map((textWidth) => {
+        const bullet = createActiveDanmakuBullet({
+          comment: comment({}),
+          instanceId: 1,
+          rowIndex: 0,
+          textWidth,
+          runtime: { ...runtime, playbackRate },
+        });
+        return (runtime.width + textWidth + 300) / bullet.durationMs;
+      });
+      expect(velocities[1]).toBeGreaterThan(velocities[0]);
+      expect(velocities[2]).toBeGreaterThan(velocities[1]);
+    }
+  });
   it('calculates row counts and layout with minimums', () => {
     expect(
       calculateDanmakuRows({ height: 200, heightRatio: 0.5, lineHeight: 32, density: 1 }),

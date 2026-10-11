@@ -1,37 +1,21 @@
 import { GroupedStackRoutes } from '@/components/GroupedStackRoutes';
+import { getNativeListStackOptions } from '@/components/navigation/nativeListStackOptions';
 import { usePerformanceStackScreenListeners } from '@/lib/performance/PerformanceMonitorContext';
 import { useAppTheme } from '@/lib/theme';
-import { isLiquidGlassAvailable } from 'expo-glass-effect';
+import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import { Stack } from 'expo-router';
-import { Platform } from 'react-native';
 
-export default function HomeLayout() {
+function SearchLayout() {
   const theme = useAppTheme();
-  const backgroundColor = theme.colors.background;
-  const stackScreenListeners = usePerformanceStackScreenListeners('search');
-
+  const screenListeners = usePerformanceStackScreenListeners('search');
   return (
     <Stack
-      screenListeners={stackScreenListeners}
-      screenOptions={{
-        headerTransparent: Platform.OS === 'ios',
-        headerShadowVisible: false,
-        headerBlurEffect: isLiquidGlassAvailable() ? undefined : 'prominent',
-        headerBackButtonDisplayMode: 'minimal',
-        headerLargeStyle: {
-          backgroundColor: isLiquidGlassAvailable() ? undefined : backgroundColor,
-        },
-      }}
+      screenListeners={screenListeners}
+      screenOptions={getNativeListStackOptions(theme.colors.background)}
     >
-      <Stack.Screen
-        name="index"
-        options={{
-          title: '搜索',
-          headerLargeTitle: true,
-          headerLargeTitleShadowVisible: false,
-        }}
-      />
+      <Stack.Screen name="index" options={{ title: '搜索' }} />
       {GroupedStackRoutes()}
     </Stack>
   );
 }
+export default withOuterTheme(SearchLayout);

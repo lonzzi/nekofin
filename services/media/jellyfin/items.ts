@@ -29,7 +29,9 @@ export async function getLatestItems(
     sortOrder: [opts?.sortOrder ?? 'Descending'],
     includeItemTypes: opts?.includeItemTypes ?? ['Movie', 'Series', 'Episode'],
     recursive: true,
-    filters: ['IsNotFolder'],
+    // Series are folder items; excluding folders would drop them from aggregate home.
+    filters: opts?.includeItemTypes?.includes('Series') ? undefined : ['IsNotFolder'],
+    fields: ['DateCreated', 'PrimaryImageAspectRatio'],
     years: opts?.year ? [opts.year] : undefined,
     tags: opts?.tags,
   });
@@ -44,7 +46,7 @@ export async function getLatestItemsByFolder(
   return await getUserLibraryApi(api).getLatestMedia({
     userId,
     limit,
-    fields: ['PrimaryImageAspectRatio', 'Path'],
+    fields: ['PrimaryImageAspectRatio', 'Path', 'DateCreated'],
     imageTypeLimit: 1,
     enableImageTypes: ['Primary', 'Backdrop', 'Thumb'],
     parentId: folderId,
@@ -300,10 +302,11 @@ export async function getRandomItems(
     recursive: true,
     includeItemTypes: ['Movie', 'Series'],
     sortBy: ['Random'],
-    fields: ['ParentId'],
-    imageTypeLimit: 0,
+    fields: ['ParentId', 'PrimaryImageAspectRatio'],
+    imageTypeLimit: 1,
+    enableImageTypes: ['Primary', 'Backdrop', 'Thumb', 'Logo'],
     enableTotalRecordCount: false,
-    enableImages: false,
+    enableImages: true,
   });
   return res.data?.Items ?? [];
 }

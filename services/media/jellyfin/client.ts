@@ -105,6 +105,7 @@ export async function authenticateAndSaveServer(
       userAvatar: `${normalizedAddress}/Users/${authResult.data.User.Id}/Images/Primary?quality=90`,
       accessToken: authResult.data.AccessToken,
       type: 'jellyfin',
+      remoteServerId: systemInfo.data?.Id || undefined,
     };
 
     await addServer(serverInfo);

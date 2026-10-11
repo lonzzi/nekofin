@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { getSourcedMediaKey, type GetMediaItemSource } from '../media/mediaSource';
 import { SkeletonUserViewCard } from '../ui/Skeleton';
 import { UserViewCard } from './UserViewCard';
 
@@ -22,10 +23,12 @@ export const UserViewSection = React.memo(function UserViewSection({
   userView,
   isLoading,
   title,
+  getItemSource,
 }: {
   userView: MediaItem[];
   isLoading?: boolean;
   title?: string;
+  getItemSource?: GetMediaItemSource;
 }) {
   const theme = useAppTheme();
   const { width: viewportWidth } = useWindowDimensions();
@@ -46,8 +49,10 @@ export const UserViewSection = React.memo(function UserViewSection({
   );
 
   const renderItem: ListRenderItem<MediaItem> = useCallback(
-    ({ item }) => <UserViewCard item={item} title={item.name || '未知标题'} />,
-    [],
+    ({ item }) => (
+      <UserViewCard item={item} title={item.name || '未知标题'} source={getItemSource?.(item)} />
+    ),
+    [getItemSource],
   );
 
   const renderSkeletonItem = useCallback(() => <SkeletonUserViewCard />, []);
@@ -111,7 +116,9 @@ export const UserViewSection = React.memo(function UserViewSection({
         {...listPerformanceConfig}
         data={userViewItems}
         horizontal
-        keyExtractor={itemKeyExtractor}
+        keyExtractor={
+          getItemSource ? (item) => getSourcedMediaKey(item, getItemSource(item)) : itemKeyExtractor
+        }
         removeClippedSubviews={false}
         showsHorizontalScrollIndicator={false}
         style={styles.userViewList}

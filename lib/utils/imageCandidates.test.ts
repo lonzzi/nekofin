@@ -38,6 +38,51 @@ describe('resolveImageCandidate', () => {
     });
   });
 
+  it.each<{
+    name: string;
+    images: Partial<BaseItemDto>;
+    imageType: ImageType;
+    imageTag: string;
+    itemId: string;
+  }>([
+    {
+      name: 'background before the text-bearing thumbnail',
+      images: { BackdropImageTags: ['backdrop-tag'], ImageTags: { Thumb: 'thumb-tag' } },
+      imageType: ImageType.Backdrop,
+      imageTag: 'backdrop-tag',
+      itemId: 'item-1',
+    },
+    {
+      name: 'inherited background before the item thumbnail',
+      images: {
+        ParentBackdropImageTags: ['backdrop-tag'],
+        ParentBackdropItemId: 'series-1',
+        ImageTags: { Thumb: 'thumb-tag' },
+      },
+      imageType: ImageType.Backdrop,
+      imageTag: 'backdrop-tag',
+      itemId: 'series-1',
+    },
+    {
+      name: 'thumbnail when there is no background',
+      images: { ImageTags: { Thumb: 'thumb-tag', Primary: 'primary-tag' } },
+      imageType: ImageType.Thumb,
+      imageTag: 'thumb-tag',
+      itemId: 'item-1',
+    },
+    {
+      name: 'poster when there is no background or thumbnail',
+      images: { ImageTags: { Primary: 'primary-tag' } },
+      imageType: ImageType.Primary,
+      imageTag: 'primary-tag',
+      itemId: 'item-1',
+    },
+  ])('uses $name for carousel artwork', ({ images, imageType, imageTag, itemId }) => {
+    expect(
+      resolveImageCandidate(item(images), { preferBackdrop: true, preferThumb: true }),
+    ).toEqual({ imageType, imageTag, itemId, height: undefined });
+  });
+
   it('inherits episode parent backdrop when thumb is preferred and no thumb exists', () => {
     expect(
       resolveImageCandidate(

@@ -1,4 +1,4 @@
-import { usePlayerLab } from '@/components/dev/player-lab/PlayerLabEntry';
+import { OuterTitle } from '@/components/outer/OuterPrimitives';
 import {
   NativeSettingsForm,
   NativeSettingsItem,
@@ -7,102 +7,60 @@ import {
 } from '@/components/ui/NativeSettings';
 import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
-import { ThemePreference, useThemePreference } from '@/lib/contexts/ThemePreferenceContext';
-import { usePerformanceMonitorActions } from '@/lib/performance/PerformanceMonitorContext';
-import { usePerformanceDiagnosticsUnlock } from '@/lib/performance/usePerformanceDiagnosticsUnlock';
-import Constants from 'expo-constants';
-import { Stack } from 'expo-router';
-import { useCallback } from 'react';
+import { useThemePreference, type ThemePreference } from '@/lib/contexts/ThemePreferenceContext';
 
 export default function SettingsScreen() {
-  const { themePreference, setThemePreference } = useThemePreference();
-  const { updateSettings } = usePerformanceMonitorActions();
-  const playerLab = usePlayerLab();
-  const { isUnlocked, registerVersionTap } = usePerformanceDiagnosticsUnlock();
   const router = useTracedRouter('settings');
-
-  const handleVersionPress = useCallback(() => {
-    const didUnlock = registerVersionTap();
-    if (didUnlock) {
-      updateSettings({ enabled: false, overlayVisible: false });
-      router.push('/performance');
-    }
-  }, [registerVersionTap, router, updateSettings]);
-
+  const { themePreference, setThemePreference } = useThemePreference();
   return (
     <>
-      <Stack.Title large>设置</Stack.Title>
+      <OuterTitle>设置</OuterTitle>
       <NativeSettingsForm testID="settings-form">
-        <NativeSettingsSection title="播放">
+        <NativeSettingsSection title="观影体验">
           <NativeSettingsItem
-            title={<SettingsTitle>转码设置</SettingsTitle>}
+            title={<SettingsTitle>播放与画质</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary="方向、默认倍速与转码偏好" />}
             disclosure
-            onPress={() => router.push('/transcoding')}
+            onPress={() => router.push('/playback')}
           />
           <NativeSettingsItem
-            title={<SettingsTitle>弹幕设置</SettingsTitle>}
+            title={<SettingsTitle>音频与字幕</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary="默认语言与字幕显示" />}
+            disclosure
+            onPress={() => router.push('/audio')}
+          />
+          <NativeSettingsItem
+            title={<SettingsTitle>弹幕</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary="效果预览、速度与内容过滤" />}
             disclosure
             onPress={() => router.push('/danmaku')}
           />
         </NativeSettingsSection>
-
-        <NativeSettingsSection title="外观">
+        <NativeSettingsSection title="应用">
           <NativeSettingsPicker
-            title={<SettingsTitle>主题</SettingsTitle>}
+            title={<SettingsTitle>外观</SettingsTitle>}
             value={themePreference}
             options={[
-              { title: '系统', value: 'system' },
+              { title: '跟随系统', value: 'system' },
               { title: '浅色', value: 'light' },
-              { title: '暗色', value: 'dark' },
+              { title: '深色', value: 'dark' },
             ]}
             onValueChange={(value) => setThemePreference(value as ThemePreference)}
           />
-        </NativeSettingsSection>
-
-        <NativeSettingsSection title="存储空间">
           <NativeSettingsItem
-            title={<SettingsTitle>缓存管理</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="查看并清理媒体文件、媒体库数据与诊断日志。" />}
+            title={<SettingsTitle>存储管理</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary="临时缓存与本地文件分开管理" />}
             disclosure
             onPress={() => router.push('/cache')}
           />
         </NativeSettingsSection>
-
-        <NativeSettingsSection title="关于">
+        <NativeSettingsSection title="支持">
           <NativeSettingsItem
-            title={<SettingsTitle>版本信息</SettingsTitle>}
-            subtitle={
-              <SettingsSubtitle primary={`nekofin v${Constants.expoConfig?.version || '1.0.0'}`} />
-            }
-            onPress={handleVersionPress}
-          />
-          <NativeSettingsItem
-            title={<SettingsTitle>开源协议</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="MPL-2.0 License" />}
+            title={<SettingsTitle>帮助与关于</SettingsTitle>}
+            disclosure
+            onPress={() => router.push('/about')}
           />
         </NativeSettingsSection>
-
-        {isUnlocked || playerLab.available ? (
-          <NativeSettingsSection title="开发诊断">
-            {playerLab.available ? (
-              <NativeSettingsItem
-                title={<SettingsTitle>Player Lab</SettingsTitle>}
-                subtitle={<SettingsSubtitle primary="播放器预览和弹幕压力测试" />}
-                disclosure
-                onPress={playerLab.open}
-                testID="open-player-lab"
-              />
-            ) : null}
-            {isUnlocked ? (
-              <NativeSettingsItem
-                title={<SettingsTitle>性能分析</SettingsTitle>}
-                subtitle={<SettingsSubtitle primary="FPS、内存、路由和请求状态" />}
-                disclosure
-                onPress={() => router.push('/performance')}
-              />
-            ) : null}
-          </NativeSettingsSection>
-        ) : null}
       </NativeSettingsForm>
     </>
   );

@@ -9,6 +9,7 @@ import {
   normalizeDanmakuPlaybackRate,
   prepareDanmakuTimeline,
   removeExpiredDanmakuEntries,
+  shiftDanmakuTimeline,
 } from './danmakuScheduler';
 
 type Comment = { id: number; timeInSeconds: number };
@@ -167,7 +168,7 @@ describe('danmakuScheduler', () => {
         playbackRate: 2,
         resolutionMs: 10,
       }),
-    ).toBe(125);
+    ).toBe(100);
     expect(
       calculateDanmakuWakeDelayMs({
         currentTimeMs: 1000,
@@ -175,7 +176,7 @@ describe('danmakuScheduler', () => {
         playbackRate: 1,
         resolutionMs: 10,
       }),
-    ).toBe(1000);
+    ).toBe(100);
     expect(
       calculateDanmakuWakeDelayMs({
         currentTimeMs: 1300,
@@ -207,7 +208,7 @@ describe('danmakuScheduler', () => {
         playbackRate: 0.5,
         resolutionMs: 10,
       }),
-    ).toBe(500);
+    ).toBe(100);
     expect(
       calculateDanmakuWakeDelayMs({
         currentTimeMs: 1000,
@@ -225,4 +226,21 @@ describe('danmakuScheduler', () => {
       }),
     ).toBe(16);
   });
+});
+
+describe('native progress clock corrections', () => {
+  it.each([250, 1000, -1000, 4000])(
+    'keeps visible progress and lifetime across a %dms correction',
+    (delta) => {
+      const bullet = { instanceId: 1, scheduledMs: 100, mediaDurationMs: 6000 };
+      const before = 1500;
+      const [shifted] = shiftDanmakuTimeline([bullet], delta);
+      expect(shifted.instanceId).toBe(1);
+      expect((before + delta - shifted.scheduledMs) / shifted.mediaDurationMs).toBe(
+        (before - bullet.scheduledMs) / bullet.mediaDurationMs,
+      );
+      expect(removeExpiredDanmakuEntries([shifted], before + delta)).toHaveLength(1);
+      expect(removeExpiredDanmakuEntries([shifted], 6100 + delta)).toHaveLength(0);
+    },
+  );
 });

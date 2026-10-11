@@ -20,7 +20,7 @@ type NavigationToolbarAction = {
 
 type DetailToolbarPresentation = {
   androidDrawable: AndroidToolbarDrawable;
-  iosIcon: 'checkmark.circle' | 'checkmark.circle.fill' | 'heart' | 'heart.fill';
+  iosIcon: 'checkmark' | 'heart' | 'heart.fill';
   label: string;
 };
 
@@ -75,12 +75,12 @@ export const DETAIL_TOOLBAR_STATES = {
   watched: {
     off: {
       androidDrawable: 'checkmarkCircleOutline',
-      iosIcon: 'checkmark.circle',
+      iosIcon: 'checkmark',
       label: '标记为已观看',
     },
     on: {
       androidDrawable: 'checkmarkCircle',
-      iosIcon: 'checkmark.circle.fill',
+      iosIcon: 'checkmark',
       label: '标记为未观看',
     },
   },

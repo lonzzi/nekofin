@@ -1,7 +1,7 @@
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaActions } from '@/hooks/useMediaActions';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
-import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
+import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/theme';
 import { ImageUrlInfo } from '@/lib/utils/image';
 import { MediaItem, MediaServerInfo } from '@/services/media/types';
@@ -23,12 +23,15 @@ import { Content, Item, ItemIcon, ItemTitle, Root as Menu, Trigger } from 'zeego
 import { ItemImage } from '../ItemImage';
 import { CoverFrame } from '../ui/CoverFrame';
 import { ShadowedGlassCard } from '../ui/GlassCard';
+import { IconSymbol } from '../ui/IconSymbol';
 import {
   getEpisodeCardRoute,
   getImagePreferenceOptions,
   getSeriesCardRoute,
   getSubtitle,
 } from './cardHelpers';
+import type { MediaItemSource } from './mediaSource';
+import { ServerSourceLabel } from './ServerSourceLabel';
 
 export { getSubtitle } from './cardHelpers';
 
@@ -102,7 +105,8 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   disabled = false,
   showPlayButton = false,
   showBorder = false,
-  actionServer,
+  actionServer: actionServerProp,
+  source,
 }: {
   item: MediaItem;
   style?: StyleProp<ViewStyle>;
@@ -114,12 +118,15 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   showPlayButton?: boolean;
   showBorder?: boolean;
   actionServer?: MediaServerInfo;
+  source?: MediaItemSource;
 }) {
   const router = useTracedRouter('episode-card');
+  const { currentServer, setCurrentServer } = useMediaServers();
   const theme = useAppTheme();
-  const { accentColor } = useAccentColor();
 
-  const mediaAdapter = useMediaAdapter();
+  const currentAdapter = useMediaAdapter();
+  const mediaAdapter = source?.adapter ?? currentAdapter;
+  const actionServer = actionServerProp ?? source?.server;
 
   const imageInfo = useMemo(
     () =>
@@ -135,19 +142,23 @@ export const EpisodeCard = React.memo(function EpisodeCard({
 
   const openDetails = useCallback(() => {
     const route = getEpisodeCardRoute(item);
-    if (route) router.push(route);
-  }, [item, router]);
+    if (route) {
+      if (actionServer && actionServer.id !== currentServer?.id) setCurrentServer(actionServer);
+      router.push(route);
+    }
+  }, [actionServer, currentServer?.id, item, router, setCurrentServer]);
 
   const handlePlay = useCallback(
     (event?: GestureResponderEvent) => {
       event?.stopPropagation();
       if (!item.id) return;
+      if (actionServer && actionServer.id !== currentServer?.id) setCurrentServer(actionServer);
       router.push({
         pathname: '/player',
         params: { itemId: item.id },
       });
     },
-    [item.id, router],
+    [actionServer, currentServer?.id, item.id, router, setCurrentServer],
   );
 
   const currentUserData = item.userData;
@@ -188,18 +199,17 @@ export const EpisodeCard = React.memo(function EpisodeCard({
             )}
             {isPlayed && (
               <View
-                style={[
-                  styles.playedOverlay,
-                  {
-                    backgroundColor: theme.colors.mediaChrome,
-                    borderRadius: theme.radius.pill,
-                    padding: theme.spacing.xxs,
-                    right: theme.spacing.sm,
-                    top: theme.spacing.sm,
-                  },
-                ]}
+                accessible={false}
+                importantForAccessibility="no-hide-descendants"
+                pointerEvents="none"
+                style={[styles.playedOverlay, { backgroundColor: theme.colors.tint }]}
               >
-                <Ionicons name="checkmark-circle" size={24} color={accentColor} />
+                <IconSymbol
+                  name="checkmark"
+                  size={14}
+                  weight="semibold"
+                  color={theme.colors.inverseText}
+                />
               </View>
             )}
             {playedPercentage !== undefined && playedPercentage > 0 && playedPercentage < 100 && (
@@ -230,11 +240,12 @@ export const EpisodeCard = React.memo(function EpisodeCard({
               >
                 {getSubtitle(item)}
               </Text>
+              {source && <ServerSourceLabel name={source.server.name} />}
             </View>
           )}
         </ShadowedGlassCard>
         <Pressable
-          accessibilityLabel={`打开 ${itemTitle}`}
+          accessibilityLabel={`打开 ${itemTitle}${isPlayed ? '，已观看' : ''}`}
           accessibilityRole="button"
           disabled={disabled}
           onPress={onPress || openDetails}
@@ -267,7 +278,8 @@ export const SeriesCard = React.memo(function SeriesCard({
   hideSubtitle = false,
   showBorder = false,
   onPress,
-  actionServer,
+  actionServer: actionServerProp,
+  source,
 }: {
   item: MediaItem;
   style?: StyleProp<ViewStyle>;
@@ -277,11 +289,15 @@ export const SeriesCard = React.memo(function SeriesCard({
   showBorder?: boolean;
   onPress?: () => void;
   actionServer?: MediaServerInfo;
+  source?: MediaItemSource;
 }) {
   const theme = useAppTheme();
   const router = useTracedRouter('series-card');
+  const { currentServer, setCurrentServer } = useMediaServers();
 
-  const mediaAdapter = useMediaAdapter();
+  const currentAdapter = useMediaAdapter();
+  const mediaAdapter = source?.adapter ?? currentAdapter;
+  const actionServer = actionServerProp ?? source?.server;
 
   const imageInfo = useMemo(
     () =>
@@ -304,11 +320,12 @@ export const SeriesCard = React.memo(function SeriesCard({
 
     const route = getSeriesCardRoute(item);
     if (route) {
+      if (actionServer && actionServer.id !== currentServer?.id) setCurrentServer(actionServer);
       router.push(route);
     } else {
       console.warn('Unknown type:', item.type);
     }
-  }, [item, onPress, router]);
+  }, [actionServer, currentServer?.id, item, onPress, router, setCurrentServer]);
 
   const card = (
     <Pressable
@@ -350,6 +367,7 @@ export const SeriesCard = React.memo(function SeriesCard({
               {getSubtitle(item)}
             </Text>
           )}
+          {source && <ServerSourceLabel name={source.server.name} />}
         </View>
       </ShadowedGlassCard>
     </Pressable>
@@ -394,6 +412,13 @@ const styles = StyleSheet.create({
   },
   playedOverlay: {
     position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 2,
   },
   playButton: {

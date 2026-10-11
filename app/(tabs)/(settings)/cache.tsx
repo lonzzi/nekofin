@@ -1,3 +1,4 @@
+import { OuterTitle } from '@/components/outer/OuterPrimitives';
 import {
   NativeSettingsForm,
   NativeSettingsItem,
@@ -9,6 +10,7 @@ import {
   SettingsTitle,
   SettingsValue,
 } from '@/components/ui/SettingsVisual';
+import { TEMPORARY_FILE_CACHE_KEYS } from '@/lib/cachePolicy';
 import { getStoredPerformanceLogBytes } from '@/lib/performance/performanceLogStorage';
 import { usePerformanceMonitorActions } from '@/lib/performance/PerformanceMonitorContext';
 import {
@@ -16,12 +18,13 @@ import {
   formatStorageBytes,
   getPersistedQueryCacheBytes,
 } from '@/lib/queryPersistence';
+import { useAppTheme } from '@/lib/theme';
+import { Column, RNHostView } from '@expo/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
-import { Stack } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Text, View } from 'react-native';
 
 type FileCacheKey = 'video' | 'image' | 'subtitle' | 'download' | 'temporary';
 type ClearTarget = FileCacheKey | 'media' | 'diagnostics' | 'all';
@@ -124,12 +127,14 @@ async function measureFileCacheSizes(): Promise<FileCacheSizes> {
 }
 
 export default function CacheSettingsScreen() {
+  const theme = useAppTheme();
   const queryClient = useQueryClient();
   const { clear: clearDiagnosticsCache } = usePerformanceMonitorActions();
   const [fileCacheSizes, setFileCacheSizes] = useState<FileCacheSizes>(emptyFileCacheSizes);
   const [revision, setRevision] = useState(0);
   const [measuring, setMeasuring] = useState(true);
   const [clearingTarget, setClearingTarget] = useState<ClearTarget | null>(null);
+  const clearingRef = useRef(false);
 
   const queryCacheBytes = getPersistedQueryCacheBytes();
   const diagnosticBytes = getStoredPerformanceLogBytes();
@@ -163,6 +168,8 @@ export default function CacheSettingsScreen() {
 
   const clearTarget = useCallback(
     async (target: ClearTarget, action: () => Promise<void> | void) => {
+      if (clearingRef.current) return;
+      clearingRef.current = true;
       setClearingTarget(target);
       try {
         await action();
@@ -170,6 +177,7 @@ export default function CacheSettingsScreen() {
         console.warn('Failed to clear cache', target, error);
         Alert.alert('清理失败', error instanceof Error ? error.message : '请稍后再试。');
       } finally {
+        clearingRef.current = false;
         setClearingTarget(null);
         refresh();
       }
@@ -191,13 +199,11 @@ export default function CacheSettingsScreen() {
   }, []);
 
   const clearAllCaches = useCallback(async () => {
-    await Promise.all([
-      clearCacheUris(cacheUriGroups.video),
-      clearImageCache(),
-      clearCacheUris(cacheUriGroups.subtitle),
-      clearCacheUris(cacheUriGroups.download),
-      clearCacheUris(cacheUriGroups.temporary),
-    ]);
+    await Promise.all(
+      TEMPORARY_FILE_CACHE_KEYS.map((key) =>
+        key === 'image' ? clearImageCache() : clearCacheUris(cacheUriGroups[key]),
+      ),
+    );
     clearMediaCache();
     clearDiagnosticsCache();
   }, [clearDiagnosticsCache, clearImageCache, clearMediaCache]);
@@ -223,9 +229,49 @@ export default function CacheSettingsScreen() {
 
   return (
     <>
-      <Stack.Title large>缓存管理</Stack.Title>
+      <OuterTitle>存储管理</OuterTitle>
       <NativeSettingsForm testID="cache-settings-form">
-        <NativeSettingsSection title="媒体文件">
+        <NativeSettingsSection title="本机空间">
+          <Column style={{ height: 150 }}>
+            <RNHostView>
+              <View style={{ padding: 8, gap: 14, width: '100%' }}>
+                <Text style={{ fontSize: 36, fontWeight: '600', color: theme.colors.text }}>
+                  {measuring ? '计算中…' : formatStorageBytes(totalBytes)}
+                </Text>
+                <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>
+                  已统计的本地文件与缓存
+                </Text>
+                <View
+                  style={{
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: theme.colors.surfaceMuted,
+                    flexDirection: 'row',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <View
+                    style={{
+                      flex: Math.max(totalBytes - fileCacheSizes.download, 0),
+                      backgroundColor: theme.colors.tint,
+                    }}
+                  />
+                  <View
+                    style={{
+                      flex: fileCacheSizes.download,
+                      backgroundColor: theme.colors.textSecondary,
+                    }}
+                  />
+                </View>
+                <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
+                  临时数据 {formatStorageBytes(totalBytes - fileCacheSizes.download)} · 本地下载{' '}
+                  {formatStorageBytes(fileCacheSizes.download)}
+                </Text>
+              </View>
+            </RNHostView>
+          </Column>
+        </NativeSettingsSection>
+        <NativeSettingsSection title="临时数据">
           <NativeSettingsItem
             testID="cache-row-video"
             title={<SettingsTitle>视频缓存</SettingsTitle>}
@@ -250,15 +296,6 @@ export default function CacheSettingsScreen() {
             }
           />
           <NativeSettingsItem
-            testID="cache-row-download"
-            title={<SettingsTitle>下载缓存</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.download)} />}
-            trailing={<SettingsValue label={clearingLabel('download')} tone="danger" />}
-            onPress={() =>
-              void clearTarget('download', () => clearCacheUris(cacheUriGroups.download))
-            }
-          />
-          <NativeSettingsItem
             testID="cache-row-temporary"
             title={<SettingsTitle>临时缓存</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.temporary)} />}
@@ -269,6 +306,29 @@ export default function CacheSettingsScreen() {
           />
         </NativeSettingsSection>
 
+        <NativeSettingsSection title="本地内容">
+          <NativeSettingsItem
+            testID="cache-row-download"
+            title={<SettingsTitle>本地下载文件</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.download)} />}
+            trailing={<SettingsValue label={clearingLabel('download')} tone="danger" />}
+            onPress={() =>
+              Alert.alert(
+                '删除本地下载文件？',
+                '这些文件不会包含在临时缓存清理中。删除后需要重新下载。',
+                [
+                  { text: '取消', style: 'cancel' },
+                  {
+                    text: '删除',
+                    style: 'destructive',
+                    onPress: () =>
+                      void clearTarget('download', () => clearCacheUris(cacheUriGroups.download)),
+                  },
+                ],
+              )
+            }
+          />
+        </NativeSettingsSection>
         <NativeSettingsSection title="应用数据">
           <NativeSettingsItem
             testID="cache-row-media"
@@ -305,10 +365,10 @@ export default function CacheSettingsScreen() {
           <NativeSettingsItem
             title={
               <SettingsActionTitle>
-                {clearingTarget === 'all' ? '清理中' : '一键清理'}
+                {clearingTarget === 'all' ? '清理中' : '清理临时缓存'}
               </SettingsActionTitle>
             }
-            subtitle={<SettingsSubtitle primary="清理所有缓存和诊断日志。" />}
+            subtitle={<SettingsSubtitle primary="保留本地下载文件、账号与偏好设置。" />}
             onPress={() => void clearTarget('all', clearAllCaches)}
           />
         </NativeSettingsSection>

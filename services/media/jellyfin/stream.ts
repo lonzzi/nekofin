@@ -125,7 +125,7 @@ export const getStreamInfo = async ({
   maxStreamingBitrate,
   playSessionId,
   deviceProfile,
-  audioStreamIndex = 0,
+  audioStreamIndex,
   subtitleStreamIndex = undefined,
   mediaSourceId,
   deviceId,
@@ -161,16 +161,17 @@ export const getStreamInfo = async ({
       },
       {
         method: 'POST',
-        params: {
+        data: {
+          userId,
+          deviceProfile,
           startTimeTicks: 0,
           isPlayback: true,
           autoOpenLiveStream: true,
           maxStreamingBitrate,
           audioStreamIndex,
+          subtitleStreamIndex,
+          mediaSourceId,
           alwaysBurnInSubtitleWhenTranscoding,
-        },
-        data: {
-          deviceProfile,
         },
       },
     );
@@ -184,6 +185,7 @@ export const getStreamInfo = async ({
       startTimeTicks: 0,
       maxStreamingBitrate,
       userId,
+      playSessionId: sessionId,
     });
 
     return {
@@ -209,6 +211,7 @@ export const getStreamInfo = async ({
         maxStreamingBitrate,
         audioStreamIndex,
         mediaSourceId,
+        alwaysBurnInSubtitleWhenTranscoding,
       },
     },
   );
@@ -218,7 +221,10 @@ export const getStreamInfo = async ({
   }
 
   sessionId = res.data.PlaySessionId || null;
-  mediaSource = res.data.MediaSources?.[0];
+  mediaSource =
+    (mediaSourceId
+      ? res.data.MediaSources?.find((source) => source.Id === mediaSourceId)
+      : undefined) ?? res.data.MediaSources?.[0];
 
   const url = getPlaybackUrl(api, item.Id!, mediaSource, {
     subtitleStreamIndex,
@@ -227,7 +233,7 @@ export const getStreamInfo = async ({
     startTimeTicks,
     maxStreamingBitrate,
     userId,
-    playSessionId: playSessionId || undefined,
+    playSessionId: sessionId || playSessionId || undefined,
   });
 
   return {

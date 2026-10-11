@@ -1,32 +1,34 @@
-import { EpisodeCard, SeriesCard } from '@/components/media/Card';
+import { ItemImage } from '@/components/ItemImage';
 import {
   getEpisodeCardRoute,
   getImagePreferenceOptions,
   getSeriesCardRoute,
 } from '@/components/media/cardHelpers';
-import PageScrollView from '@/components/PageScrollView';
+import { OuterScreenOptions } from '@/components/outer/OuterPrimitives';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { FilterChoice, FilterRow } from '@/components/ui/FilterControls';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
+import { useEmptyListLayout } from '@/hooks/useEmptyListLayout';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/theme';
+import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import { createMediaAdapterWithApi, createMediaApiFromServerInfo } from '@/services/media';
 import { mediaQueryKeys } from '@/services/media/queryKeys';
-import { MediaItem, MediaServerInfo } from '@/services/media/types';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import type { MediaItem, MediaServerInfo } from '@/services/media/types';
 import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
 import { queryOptions } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
-  TextInputChangeEvent,
   View,
 } from 'react-native';
-import { SearchBarCommands } from 'react-native-screens';
 
 type AggregateSearchResult = {
   key: string;
@@ -35,7 +37,6 @@ type AggregateSearchResult = {
   imageUrl?: string;
   blurhash?: string;
 };
-
 function aggregateSearchQueryOptions({
   servers,
   keyword,
@@ -47,12 +48,15 @@ function aggregateSearchQueryOptions({
 
   return queryOptions({
     enabled: servers.length > 0 && trimmedKeyword.length > 0,
-    queryKey: mediaQueryKeys.aggregateSearchItems(
-      servers.map((server) => server.id),
-      trimmedKeyword,
-    ),
-    queryFn: async (): Promise<AggregateSearchResult[]> => {
-      if (trimmedKeyword.length === 0) return [];
+    queryKey: [
+      ...mediaQueryKeys.aggregateSearchItems(
+        servers.map((server) => server.id),
+        trimmedKeyword,
+      ),
+      'outer-list-v2',
+    ],
+    queryFn: async (): Promise<{ items: AggregateSearchResult[]; failedServers: string[] }> => {
+      if (trimmedKeyword.length === 0) return { items: [], failedServers: [] };
 
       const settled = await Promise.allSettled(
         servers.map(async (server) => {
@@ -67,11 +71,7 @@ function aggregateSearchQueryOptions({
           return items.map((item) => {
             const imageInfo = adapter.getImageInfo({
               item,
-              opts: getImagePreferenceOptions(
-                item.type === 'Episode' || item.type === 'Movie'
-                  ? ImageType.Thumb
-                  : ImageType.Primary,
-              ),
+              opts: getImagePreferenceOptions(ImageType.Primary),
             });
 
             return {
@@ -85,285 +85,213 @@ function aggregateSearchQueryOptions({
         }),
       );
 
-      return settled.flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
+      return {
+        items: settled.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
+        failedServers: settled.flatMap((result, index) =>
+          result.status === 'rejected' ? [servers[index].name] : [],
+        ),
+      };
     },
     staleTime: 60 * 1000,
   });
 }
 
-export default function AggregateSearchScreen() {
+function AggregateSearchScreen() {
   const { servers, setCurrentServer } = useMediaServers();
-  const [keyword, setKeyword] = useState('');
-  const theme = useAppTheme();
+  const t = useAppTheme();
   const router = useTracedRouter('aggregate-search');
-  const searchBarRef = useRef<SearchBarCommands>(null);
-
-  const debouncedKeyword = useDebouncedValue(keyword, 300);
-  const effectiveKeyword = useMemo(() => debouncedKeyword.trim(), [debouncedKeyword]);
-
-  const {
-    data: results = [],
-    isLoading,
-    isFetching,
-    isError,
-    refetch,
-  } = useQueryWithFocus(
-    aggregateSearchQueryOptions({
-      servers,
-      keyword: effectiveKeyword,
-    }),
+  const { onLayout, emptyContentStyle } = useEmptyListLayout();
+  const [keyword, setKeyword] = useState('');
+  const [debounced, setDebounced] = useState('');
+  const [filter, setFilter] = useState('all');
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(keyword.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [keyword]);
+  const query = useQueryWithFocus(aggregateSearchQueryOptions({ servers, keyword: debounced }));
+  const results = useMemo(
+    () =>
+      query.data?.items.filter((result) => filter === 'all' || result.item.type === filter) ?? [],
+    [query.data, filter],
   );
-
-  const searchBar = (
-    <Stack.SearchBar
-      ref={searchBarRef}
-      placeholder="搜索所有服务器"
-      onChangeText={(event: TextInputChangeEvent) => {
-        setKeyword(event.nativeEvent.text);
-      }}
-      onCancelButtonPress={() => setKeyword('')}
-      hideWhenScrolling={false}
-      cancelButtonText="取消"
-    />
-  );
-
-  const handleOpenResult = useCallback(
-    (result: AggregateSearchResult) => {
+  const open = (result: AggregateSearchResult) => {
+    const route =
+      result.item.type === 'Series' || result.item.type === 'Season'
+        ? getSeriesCardRoute(result.item)
+        : getEpisodeCardRoute(result.item);
+    if (route) {
       setCurrentServer(result.server);
-      const route =
-        result.item.type === 'Series' || result.item.type === 'Season'
-          ? getSeriesCardRoute(result.item)
-          : getEpisodeCardRoute(result.item);
-
-      if (route) {
-        router.push(route);
-      }
-    },
-    [router, setCurrentServer],
-  );
-
-  const groupedResults = useMemo(() => {
-    const serverIdToGroup = new Map<
-      string,
-      { server: MediaServerInfo; items: AggregateSearchResult[] }
-    >();
-    for (const result of results) {
-      const group = serverIdToGroup.get(result.server.id);
-      if (group) {
-        group.items.push(result);
-      } else {
-        serverIdToGroup.set(result.server.id, { server: result.server, items: [result] });
-      }
+      router.push(route);
     }
-    return Array.from(serverIdToGroup.values());
-  }, [results]);
-
-  const renderCard = useCallback(
-    ({ item: result }: { item: AggregateSearchResult }) => {
-      const isSeries = result.item.type === 'Series' || result.item.type === 'Season';
-      const imgInfo = { url: result.imageUrl, blurhash: result.blurhash };
-      if (isSeries) {
-        return (
-          <SeriesCard
-            item={result.item}
-            imgInfo={imgInfo}
-            actionServer={result.server}
-            onPress={() => handleOpenResult(result)}
-          />
-        );
-      }
-      return (
-        <EpisodeCard
-          item={result.item}
-          imgInfo={imgInfo}
-          actionServer={result.server}
-          onPress={() => handleOpenResult(result)}
-        />
-      );
-    },
-    [handleOpenResult],
-  );
-
-  const cardSeparator = useCallback(
-    () => <View style={{ width: theme.spacing.lg }} />,
-    [theme.spacing.lg],
-  );
-
-  if (effectiveKeyword.length === 0) {
-    return (
-      <>
-        {searchBar}
-        <View style={[styles.emptyContainer, { backgroundColor: theme.colors.background }]}>
-          <Ionicons name="search" size={34} color={theme.colors.textTertiary} />
-          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>搜索所有服务器</Text>
-          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-            已连接 {servers.length} 个服务器，输入关键词后会聚合 Jellyfin 和 Emby 结果。
-          </Text>
-        </View>
-      </>
-    );
-  }
-
-  if (results.length === 0) {
-    return (
-      <>
-        {searchBar}
-        <View style={[styles.emptyContainer, { backgroundColor: theme.colors.background }]}>
-          {isLoading ? (
-            <ActivityIndicator color={theme.colors.tint} />
-          ) : (
-            <>
-              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>没有找到内容</Text>
-              {isError ? (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => refetch()}
-                  style={({ pressed }) => [
-                    styles.retryButton,
-                    { borderColor: theme.colors.separator },
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={[styles.retryText, { color: theme.colors.tint }]}>重试</Text>
-                </Pressable>
-              ) : null}
-            </>
-          )}
-        </View>
-      </>
-    );
-  }
-
+  };
+  const pending = keyword.trim() !== debounced || query.isLoading;
+  const hasKeyword = !!keyword.trim();
+  const isEmpty = !hasKeyword || pending || results.length === 0;
   return (
     <>
-      {searchBar}
-      <PageScrollView
-        style={{ flex: 1, backgroundColor: theme.colors.background }}
-        contentContainerStyle={styles.listContent}
-      >
-        <View style={styles.listHeader}>
-          <Text style={[styles.countText, { color: theme.colors.textSecondary }]}>
-            {isFetching ? '搜索中' : `${results.length} 个结果`}
-          </Text>
-        </View>
-        {groupedResults.map((group) => (
-          <View key={group.server.id} style={styles.serverGroup}>
-            <View style={styles.groupTitleRow}>
-              <Text numberOfLines={1} style={[styles.groupTitle, { color: theme.colors.text }]}>
-                {group.server.name}
-              </Text>
-              <View style={[styles.serverPill, { backgroundColor: theme.colors.surfaceMuted }]}>
-                <Text style={[styles.serverPillText, { color: theme.colors.textSecondary }]}>
-                  {group.server.type.toUpperCase()} · {group.items.length}
+      <OuterScreenOptions title="搜索" />
+      <Stack.SearchBar
+        placeholder="搜索所有服务器"
+        hideWhenScrolling={false}
+        cancelButtonText="取消"
+        onChangeText={(e) => setKeyword(e.nativeEvent.text)}
+        onCancelButtonPress={() => setKeyword('')}
+      />
+      <FlatList
+        data={hasKeyword && !pending ? results : []}
+        keyExtractor={(item) => item.key}
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
+        style={{ backgroundColor: t.colors.background }}
+        onLayout={onLayout}
+        contentContainerStyle={[
+          styles.list,
+          isEmpty && styles.emptyList,
+          isEmpty && emptyContentStyle,
+        ]}
+        ListHeaderComponentStyle={isEmpty ? styles.emptyHeader : undefined}
+        ListHeaderComponent={
+          <View style={isEmpty ? styles.emptyHeader : undefined}>
+            <View style={styles.filters}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <FilterRow>
+                  {[
+                    { label: '全部', value: 'all' },
+                    { label: '电影', value: 'Movie' },
+                    { label: '剧集', value: 'Series' },
+                    { label: '单集', value: 'Episode' },
+                  ].map((item) => (
+                    <FilterChoice
+                      key={item.value}
+                      label={item.label}
+                      active={filter === item.value}
+                      onPress={() => setFilter(item.value)}
+                    />
+                  ))}
+                </FilterRow>
+              </ScrollView>
+              {hasKeyword && query.data?.failedServers.length ? (
+                <View style={[styles.failure, { borderColor: t.colors.separator }]}>
+                  <Text style={{ color: t.colors.textSecondary, flex: 1, lineHeight: 21 }}>
+                    {query.data.failedServers.join('、')} 未能完成搜索
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => void query.refetch()}
+                    style={styles.retry}
+                  >
+                    <Text style={{ color: t.colors.tint }}>重试</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+              {hasKeyword && !pending ? (
+                <Text style={[styles.count, { color: t.colors.textSecondary }]}>
+                  {results.length} 个结果 · {servers.length} 个账号
                 </Text>
-              </View>
+              ) : null}
             </View>
-            <FlatList
-              data={group.items}
-              renderItem={renderCard}
-              keyExtractor={(item) => item.key}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.cardRow}
-              ItemSeparatorComponent={cardSeparator}
-            />
+            {isEmpty ? (
+              <View style={styles.empty}>
+                {pending && hasKeyword ? (
+                  <ActivityIndicator color={t.colors.tint} />
+                ) : (
+                  <EmptyState
+                    icon={servers.length ? 'search' : 'server'}
+                    title={
+                      !servers.length
+                        ? '尚未添加服务器'
+                        : hasKeyword
+                          ? '没有找到结果'
+                          : '输入片名开始搜索'
+                    }
+                    description={
+                      !servers.length
+                        ? '请先在服务器页面添加账号。'
+                        : hasKeyword
+                          ? '请尝试其他片名或更短的关键词。'
+                          : undefined
+                    }
+                  />
+                )}
+              </View>
+            ) : null}
           </View>
-        ))}
-      </PageScrollView>
+        }
+        renderItem={({ item: result }) => (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${result.item.name}，来自 ${result.server.name}`}
+            onPress={() => open(result)}
+            style={({ pressed }) => [
+              styles.result,
+              { borderColor: t.colors.separator, opacity: pressed ? 0.65 : 1 },
+            ]}
+          >
+            <ItemImage
+              uri={result.imageUrl}
+              placeholderBlurhash={result.blurhash}
+              contentFit="cover"
+              style={[styles.poster, { backgroundColor: t.colors.surfaceMuted }]}
+            />
+            <View style={styles.resultText}>
+              <Text numberOfLines={2} style={[styles.name, { color: t.colors.text }]}>
+                {result.item.name}
+              </Text>
+              <Text style={{ color: t.colors.textSecondary, fontSize: 13 }}>
+                {[
+                  result.item.productionYear,
+                  result.item.type === 'Movie'
+                    ? '电影'
+                    : result.item.type === 'Series'
+                      ? '剧集'
+                      : result.item.type === 'Episode'
+                        ? '单集'
+                        : result.item.type,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </Text>
+              <Text numberOfLines={1} style={{ color: t.colors.tint, fontSize: 12 }}>
+                {result.server.name} · {result.server.type}
+              </Text>
+            </View>
+            <Text style={{ color: t.colors.textTertiary, fontSize: 22 }}>›</Text>
+          </Pressable>
+        )}
+      />
     </>
   );
 }
-
-function useDebouncedValue(value: string, delayMs: number) {
-  const [debounced, setDebounced] = React.useState<string>(value);
-
-  React.useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(timer);
-  }, [delayMs, value]);
-
-  return debounced;
-}
-
+export default withOuterTheme(AggregateSearchScreen);
 const styles = StyleSheet.create({
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingHorizontal: 36,
+  list: {
+    padding: 22,
+    paddingBottom: 120,
+    maxWidth: 840,
+    width: '100%',
+    alignSelf: 'center',
+    flexGrow: 1,
   },
-  emptyTitle: {
-    fontSize: 19,
-    fontWeight: '700',
-    lineHeight: 24,
-    textAlign: 'center',
-  },
-  emptyText: {
-    fontSize: 14,
-    fontWeight: '400',
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  listContent: {
-    paddingBottom: 36,
-  },
-  listHeader: {
-    paddingTop: 12,
-    paddingBottom: 10,
-    paddingHorizontal: 18,
-  },
-  countText: {
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 17,
-  },
-  serverGroup: {
-    paddingTop: 8,
-    paddingBottom: 12,
-  },
-  groupTitleRow: {
+  count: { fontSize: 12, paddingBottom: 8 },
+  emptyList: { paddingBottom: 22 },
+  emptyHeader: { flex: 1 },
+  filters: { gap: 16 },
+  empty: { flex: 1, justifyContent: 'center' },
+  result: {
     flexDirection: 'row',
+    gap: 18,
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 18,
-    marginBottom: 10,
+    paddingVertical: 18,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  groupTitle: {
-    flexShrink: 1,
-    fontSize: 18,
-    fontWeight: '700',
-    lineHeight: 23,
-  },
-  cardRow: {
-    paddingHorizontal: 18,
-    paddingVertical: 4,
-  },
-  serverPill: {
-    maxWidth: 140,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  serverPillText: {
-    fontSize: 11,
-    fontWeight: '700',
-    lineHeight: 14,
-  },
-  retryButton: {
-    minHeight: 36,
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
+  poster: { width: 76, height: 112, borderRadius: 8 },
+  resultText: { flex: 1, gap: 10 },
+  name: { fontSize: 18, fontWeight: '600', lineHeight: 25 },
+  failure: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: 12,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 18,
   },
-  retryText: {
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 18,
-  },
-  pressed: {
-    opacity: 0.68,
-  },
+  retry: { minWidth: 48, minHeight: 48, justifyContent: 'center' },
 });

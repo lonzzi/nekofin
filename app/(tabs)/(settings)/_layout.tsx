@@ -1,30 +1,28 @@
+import { getNativeListStackOptions } from '@/components/navigation/nativeListStackOptions';
 import { usePerformanceStackScreenListeners } from '@/lib/performance/PerformanceMonitorContext';
 import { useAppTheme } from '@/lib/theme';
-import { isLiquidGlassAvailable } from 'expo-glass-effect';
+import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import { Stack } from 'expo-router';
-import { Platform } from 'react-native';
 
-export default function HomeLayout() {
+function HomeLayout() {
   const theme = useAppTheme();
   const backgroundColor = theme.colors.backgroundGrouped;
   const stackScreenListeners = usePerformanceStackScreenListeners('settings');
 
   return (
     <Stack
+      initialRouteName="index"
       screenListeners={stackScreenListeners}
       screenOptions={{
-        headerTransparent: Platform.OS === 'ios',
-        headerShadowVisible: false,
-        headerBlurEffect: isLiquidGlassAvailable() ? undefined : 'prominent',
-        headerBackButtonDisplayMode: 'minimal',
-        headerLargeStyle: {
-          backgroundColor: isLiquidGlassAvailable() ? undefined : backgroundColor,
-        },
-        contentStyle: {
-          backgroundColor,
-        },
+        ...getNativeListStackOptions(backgroundColor),
+        headerTintColor: theme.colors.tint,
+        headerTitleStyle: { color: theme.colors.text },
+        headerLargeTitleStyle: { color: theme.colors.text },
       }}
     >
+      <Stack.Screen name="playback" options={{ title: '播放与画质' }} />
+      <Stack.Screen name="audio" options={{ title: '音频与字幕' }} />
+      <Stack.Screen name="about" options={{ title: '帮助与关于' }} />
       <Stack.Screen
         name="index"
         options={{
@@ -40,12 +38,6 @@ export default function HomeLayout() {
         }}
       />
       <Stack.Screen
-        name="transcoding"
-        options={{
-          headerTitle: '转码设置',
-        }}
-      />
-      <Stack.Screen
         name="performance"
         options={{
           headerTitle: '性能分析',
@@ -54,9 +46,11 @@ export default function HomeLayout() {
       <Stack.Screen
         name="cache"
         options={{
-          headerTitle: '缓存管理',
+          headerTitle: '存储管理',
         }}
       />
     </Stack>
   );
 }
+
+export default withOuterTheme(HomeLayout);

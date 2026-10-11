@@ -2,6 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { getDownloadUrl, getPlaybackUrl, getStreamInfo } from './stream';
 
+const { playbackInfo } = vi.hoisted(() => ({ playbackInfo: vi.fn() }));
+vi.mock('@jellyfin/sdk/lib/utils/api', () => ({
+  getMediaInfoApi: () => ({ getPlaybackInfo: playbackInfo }),
+}));
+
 describe('Jellyfin stream urls', () => {
   const api = {
     basePath: 'https://jellyfin.test',
@@ -80,5 +85,47 @@ describe('Jellyfin stream urls', () => {
     ).resolves.toBeNull();
 
     consoleSpy.mockRestore();
+  });
+
+  it('sends subtitle burn-in and lets Jellyfin choose the default audio stream', async () => {
+    playbackInfo.mockResolvedValue({
+      status: 200,
+      data: {
+        PlaySessionId: 'negotiated-session',
+        MediaSources: [{ Id: 'source-1' }],
+      },
+    });
+    const result = await getStreamInfo({
+      api,
+      item: { Id: 'item-1' },
+      userId: 'user-1',
+      startTimeTicks: 0,
+      deviceProfile: {},
+      alwaysBurnInSubtitleWhenTranscoding: true,
+    });
+    expect(playbackInfo.mock.lastCall?.[1].data).toMatchObject({
+      alwaysBurnInSubtitleWhenTranscoding: true,
+    });
+    expect(playbackInfo.mock.lastCall?.[1].data.audioStreamIndex).toBeUndefined();
+    expect(new URL(result!.url!).searchParams.get('playSessionId')).toBe('negotiated-session');
+  });
+
+  it('uses the requested media source rather than the first version', async () => {
+    playbackInfo.mockResolvedValue({
+      status: 200,
+      data: {
+        PlaySessionId: 'session',
+        MediaSources: [{ Id: 'wrong' }, { Id: 'chosen' }],
+      },
+    });
+    const result = await getStreamInfo({
+      api,
+      item: { Id: 'item-1' },
+      userId: 'user-1',
+      startTimeTicks: 0,
+      deviceProfile: {},
+      mediaSourceId: 'chosen',
+    });
+    expect(result?.mediaSource?.Id).toBe('chosen');
   });
 });

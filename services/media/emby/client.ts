@@ -5,7 +5,7 @@ import { createEmbyHeaders, wrapEmbyResponse } from './clientUtils';
 import type { EmbyApi } from './types';
 
 export function createEmbyApiClient(api: EmbyApi): ApiClient {
-  const client = createApiClient({ baseUrl: api.basePath });
+  const client = createApiClient({ baseUrl: api.basePath, timeoutMs: api.timeoutMs });
   client.addRequestInterceptor((config) => {
     const headers = createEmbyHeaders(api, getDeviceId(), config.headers);
     return { ...config, headers };

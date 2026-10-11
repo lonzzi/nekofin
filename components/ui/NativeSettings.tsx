@@ -1,4 +1,5 @@
 import { useAppTheme } from '@/lib/theme';
+import { useIsOuterTheme } from '@/lib/theme/OuterTheme';
 import {
   Button,
   FieldGroup,
@@ -47,12 +48,14 @@ export function NativeSettingsForm({
   surface?: 'page' | 'sheet';
 }) {
   const theme = useAppTheme();
+  const outer = useIsOuterTheme();
 
   const modifiers =
     Platform.OS === 'ios'
       ? [
           listSectionSpacing('compact'),
-          ...(surface === 'sheet' ? [scrollContentBackground('hidden')] : []),
+          ...(surface === 'sheet' || outer ? [scrollContentBackground('hidden')] : []),
+          tint(theme.colors.tint),
         ]
       : undefined;
 
@@ -71,6 +74,7 @@ export function NativeSettingsForm({
       <SwiftHost
         style={{
           flex: 1,
+          backgroundColor: theme.colors.backgroundGrouped,
         }}
         colorScheme={theme.colorScheme}
         useViewportSizeMeasurement
@@ -82,12 +86,7 @@ export function NativeSettingsForm({
 
   if (Platform.OS === 'android') {
     return (
-      <ComposeHost
-        style={{ flex: 1 }}
-        colorScheme={theme.colorScheme}
-        seedColor={theme.colors.tint}
-        useViewportSizeMeasurement
-      >
+      <ComposeHost style={{ flex: 1 }} colorScheme={theme.colorScheme} useViewportSizeMeasurement>
         {form}
       </ComposeHost>
     );

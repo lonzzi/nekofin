@@ -43,6 +43,7 @@ import {
   normalizeDanmakuPlaybackRate,
   prepareDanmakuTimeline,
   removeExpiredDanmakuEntries,
+  shiftDanmakuTimeline,
   type TimedDanmakuEntry,
 } from './danmakuScheduler';
 import { ActiveBullet, DanmakuSettingsType } from './DanmakuTypes';
@@ -62,6 +63,7 @@ type DanmakuLayerProps = {
   comments: DandanComment[];
   density?: number;
   playbackRate?: number;
+  viewport?: { width: number; height: number };
 } & Partial<DanmakuSettingsType>;
 
 const CLOCK_DRIFT_RESET_THRESHOLD_MS = 750;
@@ -89,8 +91,10 @@ export function DanmakuLayer({
   curEpOffset = defaultSettings.curEpOffset,
   fontFamily = defaultSettings.fontFamily,
   fontWeight = defaultSettings.fontWeight,
+  viewport,
 }: DanmakuLayerProps) {
-  const { width, height } = useWindowDimensions();
+  const windowDimensions = useWindowDimensions();
+  const { width, height } = viewport ?? windowDimensions;
   const safePlaybackRate = normalizeDanmakuPlaybackRate(playbackRate);
   const [active, setActive] = useState<ActiveBullet[]>([]);
   const activeRef = useRef<ActiveBullet[]>([]);
@@ -172,10 +176,7 @@ export function DanmakuLayer({
     // Existing bullets keep animating on the UI thread. Shift only their media
     // lifecycle anchors so a small native clock correction cannot remove them
     // before their StrokeText animation actually reaches the edge.
-    activeRef.current = activeRef.current.map((bullet) => ({
-      ...bullet,
-      scheduledMs: Math.max(0, bullet.scheduledMs + deltaMs),
-    }));
+    activeRef.current = shiftDanmakuTimeline(activeRef.current, deltaMs);
 
     const shiftLaneDeadlines = (deadlines: number[]) =>
       deadlines.map((deadline) => (deadline > 0 ? Math.max(0, deadline + deltaMs) : 0));
@@ -268,6 +269,7 @@ export function DanmakuLayer({
         width,
         textWidth: newTextWidth,
         speed: vEff,
+        playbackRate: safePlaybackRate,
       });
       const newMediaDurationMs = newDurationMs * safePlaybackRate;
       const newTotalDistance = width + newTextWidth + 300;
@@ -771,9 +773,12 @@ export function DanmakuLayer({
       const driftWallTimeMs = Math.abs(timeMs - estimatedTimeMs) / safeRate;
 
       if (driftWallTimeMs > CLOCK_DRIFT_RESET_THRESHOLD_MS) {
-        resetTimelineAt(timeMs, now);
-        scheduleNextWakeRef.current();
-        return;
+        // Native reports can be delayed/coalesced. Only an explicit seek should
+        // clear visible bullets; a clock correction must preserve their flight.
+        nextCommentIndexRef.current = Math.max(
+          nextCommentIndexRef.current,
+          findFirstTimedCommentAtOrAfter(timedCommentsRef.current, timeMs),
+        );
       }
 
       shiftActiveTimeline(timeMs - estimatedTimeMs);
@@ -797,7 +802,7 @@ export function DanmakuLayer({
         scheduleNextWakeRef.current();
       }
     },
-    [getEstimatedPlaybackTime, getNextScheduledEventTime, resetTimelineAt, shiftActiveTimeline],
+    [getEstimatedPlaybackTime, getNextScheduledEventTime, shiftActiveTimeline],
   );
 
   useImperativeHandle(

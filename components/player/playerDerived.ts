@@ -36,6 +36,7 @@ export function deriveExternalSubtitles(mediaStreams: RawMediaStream[] = [], bas
     .map((sub) => ({
       index: sub.Index ?? 0,
       name: sub.DisplayTitle ?? sub.Language ?? '',
+      language: sub.Language ?? undefined,
       url: `${basePath ?? ''}${sub.DeliveryUrl ?? ''}`,
     }));
 }
@@ -47,6 +48,7 @@ export function deriveExternalAudio(mediaStreams: RawMediaStream[] = [], basePat
     .map((audio) => ({
       index: audio.Index ?? 0,
       name: audio.DisplayTitle ?? audio.Language ?? '',
+      language: audio.Language ?? undefined,
       url: `${basePath ?? ''}${audio.DeliveryUrl ?? ''}`,
     }));
 }

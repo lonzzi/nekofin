@@ -4,6 +4,7 @@ import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { preferredTrackId } from '@/lib/playbackPreferences';
 import { generateDeviceProfile } from '@/lib/profiles/native';
 import { storage } from '@/lib/storage';
 import { formatBitrate, getDeviceId, ticksToMilliseconds, ticksToSeconds } from '@/lib/utils';
@@ -87,8 +88,8 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
   const [initialTime, setInitialTime] = useState<number>(-1);
-  const [rate, setRate] = useState(1);
-  const prevRateRef = useRef<number>(1);
+  const [rate, setRate] = useState(() => storage.getNumber('playback.defaultRate') ?? 1);
+  const prevRateRef = useRef<number>(rate);
 
   // High-level playback state machine from mpv (idle/loading/playing/buffering/paused/ended).
   const [playbackState, setPlaybackState] = useState<PlaybackState>('idle');
@@ -110,6 +111,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     subtitle: { index: number; name: string; language?: string }[];
   }>({ audio: [], subtitle: [] });
   const [currentTrackIds, setCurrentTrackIds] = useState({ vid: 0, aid: 0, sid: 0 });
+  const manualTrackChoice = useRef({ audio: false, subtitle: false });
   const [aspectRatio, setAspectRatio] = useState<string>('fit');
 
   // Playback settings only change on a settings round-trip (which remounts this
@@ -118,7 +120,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     () => ({
       enableTranscoding: storage.getBoolean('enableTranscoding') ?? false,
       enableSubtitleBurnIn: storage.getBoolean('enableSubtitleBurnIn') ?? false,
-      maxBitrate: storage.getNumber('maxBitrate') ?? 0,
+      maxBitrate: storage.getNumber('maxBitrate') ?? 20000000,
       selectedCodec: storage.getString('selectedCodec') ?? 'h264',
     }),
     [],
@@ -186,6 +188,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   });
 
   const playbackSourceUrl = streamInfo?.url ?? null;
+
   const playbackContext = useMemo(
     () => ({ itemId, sourceUrl: playbackSourceUrl }),
     [itemId, playbackSourceUrl],
@@ -282,6 +285,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     setIsStopped(false);
     playbackStateRef.current = 'idle';
     setPlaybackState('idle');
+    manualTrackChoice.current = { audio: false, subtitle: false };
     setMpvTracks({ audio: [], subtitle: [] });
     setCurrentTrackIds({ vid: 0, aid: 0, sid: 0 });
     setMediaInfo(null);
@@ -332,7 +336,31 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
             subtitle: list.filter((t) => t.type === 'sub').map(toEntry),
           });
         }
-        if (ids) setCurrentTrackIds(ids);
+        if (list && ids) {
+          const audio = preferredTrackId(
+            list.filter((t) => t.type === 'audio'),
+            storage.getString('playback.audioLanguage') ?? 'auto',
+          );
+          const subtitle =
+            storage.getBoolean('playback.subtitlesEnabled') === false
+              ? -1
+              : preferredTrackId(
+                  list.filter((t) => t.type === 'sub'),
+                  storage.getString('playback.subtitleLanguage') ?? 'auto',
+                );
+          if (!manualTrackChoice.current.audio && audio != null && audio !== ids.aid) {
+            await targetPlayer.setAudioTrack(audio);
+            if (player.current !== targetPlayer || loadedSourceRef.current !== targetSource) return;
+            ids.aid = audio;
+          }
+          if (!manualTrackChoice.current.subtitle && subtitle != null && subtitle !== ids.sid) {
+            if (subtitle === -1) await targetPlayer.setPropertyString('sid', 'no');
+            else await targetPlayer.setSubtitleTrack(subtitle);
+            ids.sid = subtitle;
+          }
+        }
+        if (ids && player.current === targetPlayer && loadedSourceRef.current === targetSource)
+          setCurrentTrackIds(ids);
       } catch (e) {
         console.warn('refreshMpvTracks error:', e);
       }
@@ -433,7 +461,16 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
           // Show the first external subtitle immediately ('select'); add the rest
           // without stealing selection ('auto') so the user can pick them from
           // the track menu (which is keyed by real mpv sid).
-          await targetPlayer.addSubtitle(sub.url, i === 0 ? 'select' : 'auto', sub.name);
+          await targetPlayer.addSubtitle(
+            sub.url,
+            i === 0 &&
+              !manualTrackChoice.current.subtitle &&
+              storage.getBoolean('playback.subtitlesEnabled') !== false
+              ? 'select'
+              : 'auto',
+            sub.name,
+            sub.language,
+          );
         } catch (error) {
           console.error(`Failed to load external subtitle: ${sub.name}`, error);
         }
@@ -471,7 +508,12 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
         if (cancelled) return;
         const audio = externalAudios[i];
         try {
-          await targetPlayer.addAudio(audio.url, i === 0 ? 'select' : 'auto', audio.name);
+          await targetPlayer.addAudio(
+            audio.url,
+            i === 0 && !manualTrackChoice.current.audio ? 'select' : 'auto',
+            audio.name,
+            audio.language,
+          );
         } catch (error) {
           console.error(`Failed to load external audio: ${audio.name}`, error);
         }
@@ -618,6 +660,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     (trackId: number) => {
       const targetPlayer = player.current;
       const targetSource = loadedSourceRef.current;
+      manualTrackChoice.current.audio = true;
       targetPlayer?.setAudioTrack(trackId);
       setCurrentTrackIds((prev) => ({ ...prev, aid: trackId }));
       setTimeout(() => void refreshMpvTracks(targetPlayer, targetSource), 200);
@@ -629,6 +672,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     (trackId: number) => {
       const targetPlayer = player.current;
       const targetSource = loadedSourceRef.current;
+      manualTrackChoice.current.subtitle = true;
       if (trackId === -1) {
         void targetPlayer?.setPropertyString('sid', 'no');
       } else {

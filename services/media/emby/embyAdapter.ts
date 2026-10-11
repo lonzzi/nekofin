@@ -121,6 +121,7 @@ export class EmbyAdapter extends MediaAdapter {
     const res = await this.getClient().get<EmbyPublicSystemInfo>(`/System/Info/Public`);
     const result = res.data;
     return {
+      id: result?.Id,
       serverName: result?.ServerName,
       version: result?.Version,
       operatingSystem: result?.OperatingSystem,
@@ -204,6 +205,7 @@ export class EmbyAdapter extends MediaAdapter {
         userAvatar: `${basePath}/Users/${userId}/Images/Primary?quality=90`,
         accessToken: token,
         type: 'emby',
+        remoteServerId: sys.id || undefined,
       };
       await addServer(serverInfo);
       return loginRes;

@@ -1,12 +1,9 @@
-import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
-import { useResolvedColorScheme } from '@/lib/contexts/ThemePreferenceContext';
-import { useMemo } from 'react';
+import { useContext } from 'react';
 
-import { createAppTheme } from './theme';
+import { OuterThemeContext, useOuterTheme } from './OuterTheme';
 
 export function useAppTheme() {
-  const colorScheme = useResolvedColorScheme();
-  const { accentColor } = useAccentColor();
-
-  return useMemo(() => createAppTheme({ accentColor, colorScheme }), [accentColor, colorScheme]);
+  const override = useContext(OuterThemeContext);
+  const theme = useOuterTheme();
+  return override ?? theme;
 }

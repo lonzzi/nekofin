@@ -100,7 +100,7 @@ export default function ServerSearchScreen() {
 
   const header = (
     <>
-      <Stack.Title>{effectiveKeyword.length === 0 ? '推荐' : '搜索'}</Stack.Title>
+      <Stack.Title large>{effectiveKeyword.length === 0 ? '推荐' : '搜索'}</Stack.Title>
       <Stack.SearchBar
         ref={searchBarRef}
         placeholder={

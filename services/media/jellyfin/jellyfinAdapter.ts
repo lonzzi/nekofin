@@ -145,6 +145,7 @@ export class JellyfinAdapter extends MediaAdapter {
     const api = this.requireApi();
     const result = await getSystemInfo(api);
     return {
+      id: result.data?.Id,
       serverName: result.data?.ServerName,
       version: result.data?.Version,
       operatingSystem: result.data?.OperatingSystem,

@@ -1,7 +1,7 @@
 import { getSystemColor } from '@/constants/SystemColor';
 import type { ResolvedColorScheme } from '@/lib/contexts/ThemePreferenceContext';
 
-import { brandColors, layout, opacity, radius, sizes, spacing, typography, zIndex } from './tokens';
+import { layout, opacity, radius, sizes, spacing, typography, zIndex } from './tokens';
 
 export type AppColorRole =
   | 'background'
@@ -29,10 +29,10 @@ export type AppColorRole =
 export type AppTheme = ReturnType<typeof createAppTheme>;
 
 export function createAppTheme({
-  accentColor,
   colorScheme,
+  accentColor = getSystemColor('systemBlue', colorScheme),
 }: {
-  accentColor: string;
+  accentColor?: string;
   colorScheme: ResolvedColorScheme;
 }) {
   const isDark = colorScheme === 'dark';
@@ -62,10 +62,6 @@ export function createAppTheme({
       mediaChromeSoft: 'rgba(255,255,255,0.18)',
       mediaChromeBorder: 'rgba(255,255,255,0.36)',
       mediaTextSecondary: 'rgba(255,255,255,0.86)',
-    },
-    media: {
-      jellyfin: brandColors.jellyfin,
-      emby: brandColors.emby,
     },
     spacing,
     layout,

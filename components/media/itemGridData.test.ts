@@ -26,6 +26,18 @@ describe('item grid data helpers', () => {
     ).toEqual([item('a', 'Movie'), item('b', 'Series')]);
   });
 
+  it('retains matching IDs from different servers in aggregate grids', () => {
+    const first = item('same', 'Movie');
+    const second = item('same', 'Movie');
+    const sources = new Map([
+      [first, 'a'],
+      [second, 'b'],
+    ]);
+    expect(
+      dedupeMediaItems([first, second, first], (item) => `${sources.get(item)}:${item.id}`),
+    ).toEqual([first, second]);
+  });
+
   it('groups media items in display order', () => {
     expect(
       groupMediaItems([item('e', 'Episode'), item('s', 'Series'), item('m', 'Movie')]),

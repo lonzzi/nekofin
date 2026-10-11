@@ -1,10 +1,12 @@
 import { HOME_CAROUSEL_IMAGE_WIDTHS } from '@/components/home/homePerformanceConfig';
 import { ItemImage } from '@/components/ItemImage';
+import { getSourcedMediaKey, type GetMediaItemSource } from '@/components/media/mediaSource';
 import { ThemedText } from '@/components/ThemedText';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { SkeletonMediaHero } from '@/components/ui/Skeleton';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
+import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/theme';
 import { formatRating } from '@/lib/utils';
 import { MediaItem } from '@/services/media/types';
@@ -28,6 +30,7 @@ interface CarouselHeaderProps {
   isFocused: boolean;
   isLoading?: boolean;
   showLogo?: boolean;
+  getItemSource?: GetMediaItemSource;
 }
 
 type CarouselImageInfo = {
@@ -38,6 +41,7 @@ type CarouselImageInfo = {
   imageUrl?: string;
   blurhash?: string;
   logoImageUrl?: string;
+  serverName?: string;
 };
 
 type RevealDirection = -1 | 1;
@@ -71,7 +75,7 @@ function CarouselImageLayer({ imageInfo, onImageReady }: CarouselImageLayerProps
         uri={imageUrl}
         style={[styles.carouselImage, { backgroundColor: mediaBackgroundColor }]}
         contentFit="cover"
-        contentPosition="left center"
+        contentPosition="center"
         cachePolicy="memory-disk"
         priority="high"
         placeholderBlurhash={imageInfo.blurhash}
@@ -145,35 +149,41 @@ function CarouselOverlay({ activeIndex, imageInfo, item, items, showLogo }: Caro
   const title = getCarouselItemTitle(item);
   const logoUrl = showLogo ? imageInfo?.logoImageUrl : undefined;
   const typeLabel = item.type === 'Movie' ? '电影' : item.type === 'Series' ? '剧集' : null;
+  const titleFallback = (
+    <ThemedText
+      style={[theme.typography.title3, styles.cardTitle, { color: theme.colors.inverseText }]}
+      numberOfLines={1}
+      ellipsizeMode="tail"
+    >
+      {title}
+    </ThemedText>
+  );
 
   return (
     <View pointerEvents="none" style={styles.bottomOverlay}>
       <View style={styles.cardInner}>
         <View style={styles.titleBounds}>
           {logoUrl ? (
-            <Image
-              source={{ uri: logoUrl }}
+            <ItemImage
+              uri={logoUrl}
               style={styles.cardLogo}
               contentFit="contain"
+              contentPosition="left center"
               cachePolicy="memory-disk"
               recyclingKey={logoUrl}
+              fallback={titleFallback}
             />
           ) : (
-            <ThemedText
-              style={[
-                theme.typography.title3,
-                styles.cardTitle,
-                { color: theme.colors.inverseText },
-              ]}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {title}
-            </ThemedText>
+            titleFallback
           )}
         </View>
 
         <View style={styles.cardMetaRow}>
+          {!!imageInfo?.serverName && (
+            <ThemedText style={[theme.typography.footnote, styles.cardMeta]} numberOfLines={1}>
+              {imageInfo.serverName}
+            </ThemedText>
+          )}
           {typeLabel && (
             <View style={styles.cardTag}>
               <ThemedText
@@ -217,7 +227,7 @@ function CarouselOverlay({ activeIndex, imageInfo, item, items, showLogo }: Caro
         <View style={styles.dotsRow}>
           {items.map((carouselItem, index) => (
             <View
-              key={getCarouselItemKey(carouselItem, index)}
+              key={index}
               style={[
                 styles.dot,
                 index === activeIndex && styles.dotActive,
@@ -251,6 +261,7 @@ export function useCarouselHeaderLayers({
   isFocused,
   isLoading = false,
   showLogo = false,
+  getItemSource,
 }: CarouselHeaderProps) {
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [autoTargetIndex, setAutoTargetIndex] = useState<number | null>(null);
@@ -265,7 +276,8 @@ export function useCarouselHeaderLayers({
   const readyImageUrlsRef = useRef(new Set<string>());
   const [readyImageUrls, setReadyImageUrls] = useState<ReadonlySet<string>>(() => new Set());
   const router = useTracedRouter('carousel');
-  const mediaAdapter = useMediaAdapter();
+  const currentAdapter = useMediaAdapter();
+  const { currentServer, setCurrentServer } = useMediaServers();
   const theme = useAppTheme();
   const { width: viewportWidth } = useWindowDimensions();
   const dragX = useSharedValue(0);
@@ -281,10 +293,22 @@ export function useCarouselHeaderLayers({
   const canReveal = items.length > 1;
   const cardWidth = Math.max(viewportWidth, 1);
 
-  const itemIdentity = useMemo(() => items.map(getCarouselItemKey).join('|'), [items]);
+  const itemIdentity = useMemo(
+    () =>
+      items
+        .map((item, index) =>
+          getItemSource
+            ? getSourcedMediaKey(item, getItemSource(item))
+            : getCarouselItemKey(item, index),
+        )
+        .join('|'),
+    [items, getItemSource],
+  );
 
   const carouselImageInfos = useMemo(() => {
     return items.map((item) => {
+      const source = getItemSource?.(item);
+      const mediaAdapter = source?.adapter ?? currentAdapter;
       const imageInfo = mediaAdapter.getImageInfo({
         item,
         opts: {
@@ -301,27 +325,35 @@ export function useCarouselHeaderLayers({
           width: HOME_CAROUSEL_IMAGE_WIDTHS.atmosphere,
         },
       });
-      const logoImageInfo = showLogo
-        ? mediaAdapter.getImageInfo({
-            item,
-            opts: { preferLogo: true, width: 400 },
-          })
-        : null;
+      const hasLogo = !!(
+        item.imageTags?.Logo ||
+        (item.parentLogoImageTag && item.parentLogoItemId)
+      );
+      const logoImageInfo =
+        showLogo && hasLogo
+          ? mediaAdapter.getImageInfo({
+              item,
+              opts: { preferLogo: true, width: 400 },
+            })
+          : null;
       return {
         atmosphere: {
           blurhash: atmosphereImageInfo.blurhash ?? imageInfo.blurhash,
           imageUrl: atmosphereImageInfo.url || imageInfo.url,
         },
+        serverName: source?.server.name,
         imageUrl: imageInfo.url,
         blurhash: imageInfo.blurhash,
-        logoImageUrl: logoImageInfo?.url?.replace('Primary', 'Logo'),
+        logoImageUrl: logoImageInfo?.url,
       };
     });
-  }, [items, mediaAdapter, showLogo]);
+  }, [items, currentAdapter, getItemSource, showLogo]);
 
   const handleCarouselItemPress = useCallback(
     (item: MediaItem) => {
       if (!item?.id) return;
+      const source = getItemSource?.(item);
+      if (source && currentServer?.id !== source.server.id) setCurrentServer(source.server);
 
       switch (item.type) {
         case 'Movie':
@@ -348,7 +380,7 @@ export function useCarouselHeaderLayers({
           }
       }
     },
-    [router],
+    [router, getItemSource, currentServer?.id, setCurrentServer],
   );
 
   const handleCarouselItemPressAtIndex = useCallback(
@@ -834,7 +866,11 @@ export function useCarouselHeaderLayers({
               <View pointerEvents="none" style={styles.preloadLayer}>
                 {preloadIndexes.map((index) => (
                   <CarouselImagePreloader
-                    key={getCarouselItemKey(items[index], index)}
+                    key={
+                      getItemSource
+                        ? getSourcedMediaKey(items[index], getItemSource(items[index]))
+                        : getCarouselItemKey(items[index], index)
+                    }
                     imageInfo={carouselImageInfos[index]}
                     onImageReady={markCarouselImageReady}
                   />
@@ -1032,8 +1068,8 @@ const styles = StyleSheet.create({
     ...TEXT_SHADOW,
   },
   cardLogo: {
-    height: 40,
-    width: '60%',
+    height: 56,
+    width: '70%',
     alignSelf: 'flex-start',
   },
   cardMetaRow: {

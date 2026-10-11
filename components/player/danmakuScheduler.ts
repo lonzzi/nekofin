@@ -10,7 +10,20 @@ export type ScheduledDanmakuLifetime = {
 };
 
 export const DANMAKU_FRAME_INTERVAL_MS = 16;
-export const DANMAKU_MAX_TIMER_DELAY_MS = 1000;
+// Scheduler heartbeat, not animation FPS or the native progress callback rate.
+export const DANMAKU_MAX_TIMER_DELAY_MS = 100;
+
+/** Preserve on-screen progress/lifetime when a native report corrects our clock.
+ * A negative anchor is valid near the beginning of a file: clamping it would
+ * change the remaining lifetime and disagree with the UI-thread animation.
+ */
+export function shiftDanmakuTimeline<T extends ScheduledDanmakuLifetime>(
+  bullets: T[],
+  deltaMs: number,
+): T[] {
+  if (!Number.isFinite(deltaMs) || Math.abs(deltaMs) < 1) return bullets;
+  return bullets.map((bullet) => ({ ...bullet, scheduledMs: bullet.scheduledMs + deltaMs }));
+}
 
 export function normalizeDanmakuPlaybackRate(playbackRate: number): number {
   if (!Number.isFinite(playbackRate) || playbackRate <= 0) return 1;

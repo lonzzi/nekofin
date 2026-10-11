@@ -1,0 +1,43 @@
+diff --git a/ios/helpers/image/RNSImageLoadingHelper.mm b/ios/helpers/image/RNSImageLoadingHelper.mm
+index 64beb499a6d661cb1bf02a1d88d6dd422081138d..6c541e7656117ba680c664320a4cf5f1ad9a0e35 100644
+--- a/ios/helpers/image/RNSImageLoadingHelper.mm
++++ b/ios/helpers/image/RNSImageLoadingHelper.mm
+@@ -13,6 +13,37 @@ + (void)loadImageSyncIfPossibleFromJsonSource:(nonnull NSDictionary *)jsonImageS
+   RCTImageSource *imageSource = [RCTConvert RCTImageSource:jsonImageSource];
+   RCTAssert(imageSource != nil, @"[RNScreens] Expected nonnil image source");
+-
++
++  // These small, immutable PNGs are generated locally before the toolbar is configured.
++  // Resolve them before UIBarButtonItem is created, including when returning from a screen.
++  NSURL *imageURL = imageSource.request.URL;
++  if (imageURL.isFileURL &&
++      [imageURL.URLByDeletingLastPathComponent.lastPathComponent isEqualToString:@"toolbar-avatars"] &&
++      imageSource.size.width > 0 && imageSource.size.width == imageSource.size.height &&
++      imageSource.size.width <= 64) {
++    static NSCache<NSString *, UIImage *> *avatars;
++    static dispatch_once_t onceToken;
++    dispatch_once(&onceToken, ^{
++      avatars = [NSCache new];
++      avatars.countLimit = 32;
++    });
++    NSString *key = [imageURL.absoluteString stringByAppendingString:NSStringFromCGSize(imageSource.size)];
++    UIImage *image = [avatars objectForKey:key];
++    if (image == nil) {
++      UIImage *original = [UIImage imageWithContentsOfFile:imageURL.path];
++      if (original.CGImage != nil) {
++        CGFloat scale = CGImageGetWidth(original.CGImage) / imageSource.size.width;
++        // Compensate for UIKit's horizontal image padding without shrinking the visible circle.
++        image = [[UIImage imageWithCGImage:original.CGImage scale:scale orientation:original.imageOrientation]
++            imageWithAlignmentRectInsets:UIEdgeInsetsMake(0, 2, 0, 2)];
++        [avatars setObject:image forKey:key];
++      }
++    }
++    if (image != nil) {
++      imageLoadingCompletionBlock([RNSImageLoadingHelper handleRenderingModeForImage:image isTemplate:isTemplate]);
++      return;
++    }
++  }
++
+ #if !defined(NDEBUG) // We're in debug mode here
+   if (imageSource.packagerAsset) {
+     // We use `+ [RCTConvert UIImage:]` only in debug mode, because it is deprecated, however

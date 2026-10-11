@@ -6,6 +6,7 @@ import {
   getFavoriteItemsPaged,
   getLatestItems,
   getLatestItemsByFolder,
+  getRandomItems,
   getRecommendedSearchKeywords,
 } from './items';
 
@@ -31,14 +32,15 @@ describe('emby items endpoints', () => {
     expect(client.get).toHaveBeenCalledWith('/Users/user-1/Items', {
       UserId: 'user-1',
       Recursive: true,
-      Filters: 'IsNotFolder',
+      Filters: undefined,
       Limit: 24,
       IncludeItemTypes: 'Movie,Series',
       SortBy: 'DateCreated',
       SortOrder: 'Descending',
       Years: 2024,
       Tags: 'anime,hdr',
-      Fields: 'BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,Status,EndDate,Path',
+      Fields:
+        'BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,Status,EndDate,Path,DateCreated',
       ImageTypeLimit: '1',
       EnableImageTypes: 'Primary,Backdrop,Thumb',
     });
@@ -72,7 +74,8 @@ describe('emby items endpoints', () => {
     expect(client.get).toHaveBeenCalledWith('/Users/user-1/Items/Latest', {
       Limit: 12,
       ParentId: 'folder-1',
-      Fields: 'BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,Status,EndDate,Path',
+      Fields:
+        'BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,Status,EndDate,Path,DateCreated',
       ImageTypeLimit: '1',
       EnableImageTypes: 'Primary,Backdrop,Thumb',
     });
@@ -146,5 +149,22 @@ describe('emby items endpoints', () => {
       EnableImages: false,
       Limit: 8,
     });
+  });
+
+  it('requests background and logo metadata for the home carousel', async () => {
+    const client = createClient();
+
+    await getRandomItems(client, { userId: 'user-1', limit: 6 });
+
+    expect(client.get).toHaveBeenCalledWith(
+      '/Users/user-1/Items',
+      expect.objectContaining({
+        IncludeItemTypes: 'Movie,Series',
+        SortBy: 'Random',
+        Limit: 6,
+        ImageTypeLimit: '1',
+        EnableImageTypes: 'Primary,Backdrop,Thumb,Logo',
+      }),
+    );
   });
 });

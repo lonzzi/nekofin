@@ -1,41 +1,32 @@
 import PageScrollView from '@/components/PageScrollView';
 import { ServerTypeIcon } from '@/components/servers/ServerTypeIcon';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { buildConnectionAddress } from '@/lib/serverConnection';
 import { useAppTheme } from '@/lib/theme';
-import type { MediaServerType } from '@/services/media/types';
+import { getMediaAdapter } from '@/services/media';
+import type { MediaServerInfo, MediaServerType } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { forwardRef, useCallback, useImperativeHandle, useState, type ReactNode } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { z } from 'zod';
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { GlassCard } from './ui/GlassCard';
 
 export interface AddServerFormHandle {
   submit: () => Promise<void>;
 }
-
-interface AddServerFormProps {
+interface Props {
+  existingServer?: MediaServerInfo;
   serverType: MediaServerType;
-  onLoadingChange?: (isLoading: boolean) => void;
+  onLoadingChange?: (loading: boolean) => void;
   onSuccess?: () => void;
 }
-
-const addServerSchema = z.object({
-  name: z.string().optional(),
-  note: z.string().optional(),
-  address: z.string().min(1, '请输入服务器地址'),
-  path: z.string().optional(),
-  port: z
-    .string()
-    .regex(/^\d{1,5}$/, '请输入有效端口')
-    .optional()
-    .or(z.literal('')),
-  username: z.string().min(1, '请输入用户名'),
-  password: z.string().optional(),
-});
-
-type AddServerFormData = z.infer<typeof addServerSchema>;
-
 const defaultPortByType: Record<MediaServerType, string> = {
   jellyfin: '8096',
   emby: '8096',
@@ -45,47 +36,6 @@ const serverTitleByType: Record<MediaServerType, string> = {
   jellyfin: 'Jellyfin',
   emby: 'Emby',
 };
-
-function normalizeHost(host: string) {
-  return host
-    .trim()
-    .replace(/^https?:\/\//i, '')
-    .replace(/\/+$/, '');
-}
-
-function normalizePath(path: string | undefined) {
-  const trimmed = path?.trim().replace(/^\/+/, '').replace(/\/+$/, '') ?? '';
-  return trimmed ? `/${trimmed}` : '';
-}
-
-function buildServerAddress({
-  address,
-  path,
-  port,
-  defaultPort,
-}: {
-  address: string;
-  path?: string;
-  port?: string;
-  defaultPort: string;
-}) {
-  try {
-    const rawAddress = address.trim();
-    const addressWithProtocol = /^https?:\/\//i.test(rawAddress)
-      ? rawAddress
-      : `http://${rawAddress}`;
-    const parsedAddress = new URL(addressWithProtocol);
-    const protocol = parsedAddress.protocol.replace(':', '');
-    const parsedPath = parsedAddress.pathname === '/' ? '' : parsedAddress.pathname;
-    const normalizedHost = normalizeHost(parsedAddress.hostname);
-    const normalizedPath = normalizePath(path?.trim() || parsedPath);
-    const normalizedPort = port?.trim() || parsedAddress.port || defaultPort;
-
-    return `${protocol}://${normalizedHost}${normalizedPort ? `:${normalizedPort}` : ''}${normalizedPath}`;
-  } catch {
-    throw new Error('服务器地址格式不正确');
-  }
-}
 
 function FormSection({ title, children }: { title?: string; children: ReactNode }) {
   const theme = useAppTheme();
@@ -164,87 +114,81 @@ function FormInput({
   );
 }
 
-export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>(
-  ({ serverType, onLoadingChange, onSuccess }, ref) => {
-    const { authenticateAndAddServer } = useMediaServers();
+export const AddServerForm = forwardRef<AddServerFormHandle, Props>(
+  ({ serverType, existingServer, onLoadingChange, onSuccess }, ref) => {
+    const { authenticateAndAddServer, updateServer } = useMediaServers();
+    const type = existingServer?.type ?? serverType;
     const theme = useAppTheme();
-    const [name, setName] = useState('');
-    const [note, setNote] = useState('');
-    const [address, setAddress] = useState('');
-    const [path, setPath] = useState('');
+    const [address, setAddress] = useState(existingServer?.address ?? '');
     const [port, setPort] = useState('');
-    const [username, setUsername] = useState('');
+    const [path, setPath] = useState('');
+    const [username, setUsername] = useState(existingServer?.username ?? '');
     const [password, setPassword] = useState('');
-    const [formError, setFormError] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-
-    const setLoading = useCallback(
-      (nextLoading: boolean) => {
-        setIsLoading(nextLoading);
-        onLoadingChange?.(nextLoading);
-      },
-      [onLoadingChange],
-    );
-
-    const handleSubmit = useCallback(async () => {
-      const result = addServerSchema.safeParse({
-        name: name.trim(),
-        note: note.trim(),
-        address: address.trim(),
-        path: path.trim(),
-        port: port.trim(),
-        username: username.trim(),
-        password: password.trim(),
-      } satisfies AddServerFormData);
-
-      if (!result.success) {
-        setFormError(result.error.issues[0]?.message ?? '请检查服务器信息');
+    const [name, setName] = useState(existingServer?.name ?? '');
+    const [note, setNote] = useState(existingServer?.note ?? '');
+    const [visible, setVisible] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const busyRef = useRef(false);
+    const [error, setError] = useState('');
+    const submit = useCallback(async () => {
+      if (busyRef.current) return;
+      setError('');
+      let resolved: string;
+      try {
+        resolved = buildConnectionAddress(address, port, path);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '请检查地址');
         return;
       }
-
-      setFormError(null);
-      setLoading(true);
+      if (!username.trim()) {
+        setError('请输入用户名');
+        return;
+      }
+      busyRef.current = true;
+      setBusy(true);
+      onLoadingChange?.(true);
       try {
-        await authenticateAndAddServer({
-          address: buildServerAddress({
-            address: result.data.address,
-            path: result.data.path,
-            port: result.data.port,
-            defaultPort: defaultPortByType[serverType],
-          }),
-          username: result.data.username,
-          password: result.data.password || '',
-          type: serverType,
-          name: result.data.name,
-          note: result.data.note,
-        });
-
-        Alert.alert('成功', '媒体账号添加成功', [{ text: '确定', onPress: onSuccess }]);
-      } catch (error) {
-        console.error('Authentication error:', error);
-        setFormError(
-          error instanceof Error ? error.message : '账号认证失败，请检查地址、用户名和密码',
-        );
+        const params = {
+          address: resolved,
+          username: username.trim(),
+          password,
+          type,
+          name: name.trim(),
+          note: note.trim(),
+        };
+        if (existingServer) {
+          await getMediaAdapter(type).authenticateAndSaveServer({
+            ...params,
+            addServer: async (authenticated) => {
+              await updateServer(existingServer.id, authenticated);
+            },
+          });
+        } else await authenticateAndAddServer(params);
+        setPassword('');
+        onSuccess?.();
+      } catch {
+        setError('连接失败。请检查服务器地址、网络和账号信息，然后重试。');
       } finally {
-        setLoading(false);
+        busyRef.current = false;
+        setBusy(false);
+        onLoadingChange?.(false);
       }
     }, [
       address,
-      authenticateAndAddServer,
+      port,
+      path,
+      username,
+      password,
+      type,
       name,
       note,
+      authenticateAndAddServer,
+      existingServer,
+      updateServer,
       onSuccess,
-      password,
-      path,
-      port,
-      serverType,
-      setLoading,
-      username,
+      onLoadingChange,
     ]);
-
-    useImperativeHandle(ref, () => ({ submit: handleSubmit }), [handleSubmit]);
-
+    useImperativeHandle(ref, () => ({ submit }), [submit]);
     return (
       <PageScrollView
         testID="add-media-account-form"
@@ -274,7 +218,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
               placeholder="可选"
               autoCapitalize="none"
               autoCorrect={false}
-              editable={!isLoading}
+              editable={!busy}
             />
           </FormRow>
           <FormRow label="备注" showSeparator={false}>
@@ -283,7 +227,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
               onChangeText={setNote}
               placeholder="可选"
               autoCorrect={false}
-              editable={!isLoading}
+              editable={!busy}
             />
           </FormRow>
         </FormSection>
@@ -298,7 +242,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
               autoCorrect={false}
               keyboardType="url"
               autoComplete="url"
-              editable={!isLoading}
+              editable={!busy}
             />
           </FormRow>
           <FormRow label="端口">
@@ -307,7 +251,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
               onChangeText={setPort}
               placeholder={`默认 ${defaultPortByType[serverType]}`}
               keyboardType="number-pad"
-              editable={!isLoading}
+              editable={!busy}
             />
           </FormRow>
           <FormRow label="路径" showSeparator={false}>
@@ -317,7 +261,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
               placeholder="可选，例如 /jellyfin"
               autoCapitalize="none"
               autoCorrect={false}
-              editable={!isLoading}
+              editable={!busy}
             />
           </FormRow>
         </FormSection>
@@ -331,7 +275,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
               autoCapitalize="none"
               autoCorrect={false}
               autoComplete="username"
-              editable={!isLoading}
+              editable={!busy}
             />
           </FormRow>
           <FormRow label="密码" showSeparator={false}>
@@ -340,21 +284,21 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
                 value={password}
                 onChangeText={setPassword}
                 placeholder="可选"
-                secureTextEntry={!isPasswordVisible}
+                secureTextEntry={!visible}
                 autoCapitalize="none"
                 autoCorrect={false}
                 autoComplete="password"
-                editable={!isLoading}
+                editable={!busy}
               />
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={isPasswordVisible ? '隐藏密码' : '显示密码'}
+                accessibilityLabel={visible ? '隐藏密码' : '显示密码'}
                 hitSlop={8}
-                onPress={() => setIsPasswordVisible((visible) => !visible)}
+                onPress={() => setVisible((visible) => !visible)}
                 style={({ pressed }) => [styles.passwordButton, pressed && styles.pressed]}
               >
                 <Ionicons
-                  name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
+                  name={visible ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
                   color={theme.colors.tint}
                 />
@@ -363,7 +307,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
           </FormRow>
         </FormSection>
 
-        {formError ? (
+        {error ? (
           <GlassCard
             radius={18}
             style={[
@@ -374,7 +318,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, AddServerFormProps>
             ]}
           >
             <Ionicons name="alert-circle-outline" size={20} color={theme.colors.danger} />
-            <Text style={[styles.errorText, { color: theme.colors.danger }]}>{formError}</Text>
+            <Text style={[styles.errorText, { color: theme.colors.danger }]}>{error}</Text>
           </GlassCard>
         ) : null}
       </PageScrollView>

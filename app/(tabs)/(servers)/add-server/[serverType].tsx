@@ -2,6 +2,7 @@ import { AddServerForm, type AddServerFormHandle } from '@/components/AddServerF
 import { getAddServerSavePresentation } from '@/components/navigation/nativeHeaderModel';
 import { getNativeToolbarIcon } from '@/components/navigation/nativeToolbarIcons';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
+import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import type { MediaServerType } from '@/services/media/types';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
@@ -16,8 +17,13 @@ function getServerType(value: string | string[] | undefined): MediaServerType {
 }
 
 export default function AddServerScreen() {
-  const { serverType: serverTypeParam } = useLocalSearchParams<{ serverType?: string }>();
-  const serverType = getServerType(serverTypeParam);
+  const { serverType: serverTypeParam, serverId } = useLocalSearchParams<{
+    serverType?: string;
+    serverId?: string;
+  }>();
+  const { servers } = useMediaServers();
+  const existingServer = servers.find((server) => server.id === serverId);
+  const serverType = existingServer?.type ?? getServerType(serverTypeParam);
   const formRef = useRef<AddServerFormHandle>(null);
   const router = useTracedRouter('add-server');
   const [isSaving, setIsSaving] = useState(false);
@@ -27,7 +33,7 @@ export default function AddServerScreen() {
 
   return (
     <>
-      <Stack.Title>{title}</Stack.Title>
+      <Stack.Title large>{title}</Stack.Title>
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           accessibilityLabel={savePresentation.accessibilityLabel}
@@ -44,6 +50,7 @@ export default function AddServerScreen() {
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <AddServerForm
+        existingServer={existingServer}
         ref={formRef}
         serverType={serverType}
         onLoadingChange={setIsSaving}

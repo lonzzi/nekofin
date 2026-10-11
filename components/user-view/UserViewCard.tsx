@@ -1,26 +1,32 @@
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
+import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/theme';
 import { MediaItem } from '@/services/media/types';
-import { Image } from 'expo-image';
 import React, { useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ItemImage } from '../ItemImage';
+import type { MediaItemSource } from '../media/mediaSource';
+import { ServerSourceLabel } from '../media/ServerSourceLabel';
 import { CoverFrame } from '../ui/CoverFrame';
 import { ShadowedGlassCard } from '../ui/GlassCard';
-import { IconSymbol } from '../ui/IconSymbol';
 
 export const UserViewCard = React.memo(function UserViewCard({
   item,
   title,
+  source,
 }: {
   item: MediaItem;
   title: string;
+  source?: MediaItemSource;
 }) {
   const router = useTracedRouter('user-view-card');
   const theme = useAppTheme();
 
-  const mediaAdapter = useMediaAdapter();
+  const currentAdapter = useMediaAdapter();
+  const mediaAdapter = source?.adapter ?? currentAdapter;
+  const { currentServer, setCurrentServer } = useMediaServers();
 
   const imageInfo = useMemo(
     () => mediaAdapter.getImageInfo({ item, opts: { width: 400 } }),
@@ -29,46 +35,33 @@ export const UserViewCard = React.memo(function UserViewCard({
 
   const handlePress = useCallback(() => {
     if (!item) return;
+    if (source && currentServer?.id !== source.server.id) setCurrentServer(source.server);
     router.push({
-      pathname: '/(tabs)/(servers)/folder/[id]',
+      pathname: source ? '/(tabs)/(home)/folder/[id]' : '/(tabs)/(servers)/folder/[id]',
       params: {
         id: item.id!,
         name: title,
         itemTypes: item.collectionType === 'movies' ? 'Movie' : 'Series',
       },
     });
-  }, [item, title, router]);
+  }, [item, title, router, source, currentServer?.id, setCurrentServer]);
 
   return (
-    <Pressable style={styles.userViewCard} onPress={handlePress}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`打开 ${source ? `${source.server.name} ` : ''}${title} 媒体库`}
+      style={styles.userViewCard}
+      onPress={handlePress}
+    >
       <ShadowedGlassCard radius={14} surface="transparent">
         <CoverFrame aspectRatio={16 / 9} radius={14}>
-          {imageInfo.url ? (
-            <Image
-              source={{ uri: imageInfo.url }}
-              placeholder={{
-                blurhash: imageInfo.blurhash,
-              }}
-              style={[styles.cover, { backgroundColor: theme.colors.surfaceMuted }]}
-              cachePolicy="disk"
-              contentFit="cover"
-              enforceEarlyResizing
-            />
-          ) : (
-            <View
-              style={[
-                styles.cover,
-                styles.coverPlaceholder,
-                { backgroundColor: theme.colors.surfaceMuted },
-              ]}
-            >
-              <IconSymbol
-                name="chevron.left.forwardslash.chevron.right"
-                size={48}
-                color={theme.colors.textTertiary}
-              />
-            </View>
-          )}
+          <ItemImage
+            uri={imageInfo.url}
+            placeholderBlurhash={imageInfo.blurhash}
+            style={[styles.cover, { backgroundColor: theme.colors.surfaceMuted }]}
+            cachePolicy="disk"
+            contentFit="cover"
+          />
         </CoverFrame>
         <View style={styles.userViewInfo}>
           <Text
@@ -77,6 +70,11 @@ export const UserViewCard = React.memo(function UserViewCard({
           >
             {title}
           </Text>
+          {source && (
+            <View style={{ alignItems: 'center' }}>
+              <ServerSourceLabel name={source.server.name} />
+            </View>
+          )}
         </View>
       </ShadowedGlassCard>
     </Pressable>
@@ -99,9 +97,5 @@ const styles = StyleSheet.create({
   cover: {
     width: '100%',
     height: '100%',
-  },
-  coverPlaceholder: {
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });

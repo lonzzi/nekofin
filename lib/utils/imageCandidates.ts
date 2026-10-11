@@ -64,6 +64,13 @@ export function resolveImageCandidate(
   } else if (isPerson(item)) {
     imageType = ImageType.Primary;
     imageTag = item.PrimaryImageTag;
+  } else if (preferBackdrop && item.BackdropImageTags?.[0]) {
+    imageType = ImageType.Backdrop;
+    imageTag = item.BackdropImageTags[0];
+  } else if (preferBackdrop && item.ParentBackdropImageTags?.[0] && item.ParentBackdropItemId) {
+    imageType = ImageType.Backdrop;
+    imageTag = item.ParentBackdropImageTags[0];
+    itemId = item.ParentBackdropItemId;
   } else if (preferThumb && item.ImageTags?.Thumb) {
     imageType = ImageType.Thumb;
     imageTag = item.ImageTags.Thumb;
@@ -73,17 +80,10 @@ export function resolveImageCandidate(
   } else if (preferLogo && item.ImageTags?.Logo) {
     imageType = ImageType.Logo;
     imageTag = item.ImageTags.Logo;
-  } else if (preferBackdrop && item.BackdropImageTags?.[0]) {
-    imageType = ImageType.Backdrop;
-    imageTag = item.BackdropImageTags[0];
   } else if (preferLogo && item.ParentLogoImageTag && item.ParentLogoItemId) {
     imageType = ImageType.Logo;
     imageTag = item.ParentLogoImageTag;
     itemId = item.ParentLogoItemId;
-  } else if (preferBackdrop && item.ParentBackdropImageTags?.[0] && item.ParentBackdropItemId) {
-    imageType = ImageType.Backdrop;
-    imageTag = item.ParentBackdropImageTags[0];
-    itemId = item.ParentBackdropItemId;
   } else if (preferThumb && item.SeriesThumbImageTag && inheritThumb) {
     imageType = ImageType.Thumb;
     imageTag = item.SeriesThumbImageTag;

@@ -42,14 +42,16 @@ export const getLatestItems = async (
   await client.get<EmbyItemsResponse>(`/Users/${userId}/Items`, {
     UserId: userId,
     Recursive: true,
-    Filters: 'IsNotFolder',
+    Filters: includeItemTypes?.includes('Series') ? undefined : 'IsNotFolder',
     Limit: limit,
     IncludeItemTypes: joinMediaItemTypes(includeItemTypes),
     SortBy: convertSortByToEmby(sortBy || []).join(','),
     SortOrder: sortOrder,
     Years: year,
     Tags: tags?.join(','),
-    ...defaultItemParams(),
+    ...defaultItemParams(
+      'BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,Status,EndDate,Path,DateCreated',
+    ),
   });
 
 export const getLatestItemsByFolder = async (
@@ -59,7 +61,9 @@ export const getLatestItemsByFolder = async (
   await client.get<BaseItemDto[]>(`/Users/${userId}/Items/Latest`, {
     Limit: limit,
     ParentId: folderId,
-    ...defaultItemParams(),
+    ...defaultItemParams(
+      'BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,Status,EndDate,Path,DateCreated',
+    ),
   });
 
 export const getNextUpItems = async (client: ApiClient, { userId, limit }: GetNextUpItemsParams) =>
@@ -261,6 +265,7 @@ export const getRandomItems = async (
     ...defaultItemParams(
       'BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,Status,EndDate,Path,ParentId',
     ),
+    EnableImageTypes: 'Primary,Backdrop,Thumb,Logo',
   });
 
 // ── Folders (browse library subfolders) ───────────────────────────

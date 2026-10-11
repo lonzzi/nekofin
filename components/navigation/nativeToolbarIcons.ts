@@ -1,3 +1,4 @@
+import type { MediaServerType } from '@/services/media/types';
 import type { ImageSourcePropType } from 'react-native';
 
 import type { AndroidToolbarDrawable } from './nativeHeaderModel';
@@ -22,6 +23,27 @@ const ANDROID_TOOLBAR_ICONS = {
   save: require('../../assets/drawables/save.png'),
   search: require('../../assets/drawables/search.png'),
 } as const satisfies Record<AndroidToolbarDrawable, ImageSourcePropType>;
+
+export const DETAIL_MORE_MENU_ICONS = {
+  more: process.env.EXPO_OS === 'ios' ? 'ellipsis' : require('../../assets/drawables/more.xml'),
+  external:
+    process.env.EXPO_OS === 'ios'
+      ? 'arrow.up.right.square'
+      : require('../../assets/drawables/open_external.xml'),
+  share:
+    process.env.EXPO_OS === 'ios'
+      ? 'square.and.arrow.up'
+      : require('../../assets/drawables/share.xml'),
+} as const;
+
+export function getServerMenuIcon(type: MediaServerType): ImageSourcePropType {
+  if (process.env.EXPO_OS === 'ios') {
+    return { uri: type === 'jellyfin' ? 'jellyfin-icon--color-on-light' : 'emby' };
+  }
+  return type === 'jellyfin'
+    ? require('../../assets/icons/jellyfin-icon--color-on-light.png')
+    : require('../../assets/drawables/emby.xml');
+}
 
 export function getNativeToolbarIcon(
   androidDrawable: AndroidToolbarDrawable,

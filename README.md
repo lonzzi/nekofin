@@ -1,7 +1,7 @@
 # Nekofin
 
 <div align="center">
-  <img src="https://socialify.git.ci/lonzzi/nekofin/image?logo=https%3A%2F%2Fgithub.com%2Flonzzi%2Fnekofin%2Fblob%2Fmain%2Fassets%2Fimages%2Fsplash-icon.png%3Fraw%3Dtrue&name=1&owner=1&pattern=Solid&stargazers=1&theme=Dark" alt="Nekofin" />
+  <img src="docs/images/readme-banner.png" width="640" height="320" alt="Nekofin 项目头图" />
   <p><strong>把自建媒体库装进口袋。</strong></p>
   <p>面向 Jellyfin 与 Emby 的 iOS、Android 客户端 · Expo · React Native · MPV</p>
 </div>
@@ -13,27 +13,25 @@ Nekofin 帮你连接自建媒体服务器，在手机上浏览电影与剧集、
 下面是 iOS 模拟器中的应用界面预览。海报和片库内容会随连接的媒体服务器变化。
 
 <div align="center">
-<table>
+<table width="100%">
   <tbody>
     <tr>
-      <td align="center"><img src="docs/screenshots/home.webp" width="240" alt="浅色主题下的片库首页" /><br /><sub>片库首页 · 浅色</sub></td>
-      <td align="center"><img src="docs/screenshots/home-dark.webp" width="240" alt="暗色主题下的片库首页" /><br /><sub>片库首页 · 暗色</sub></td>
+      <td align="center" valign="top" width="25%"><img src="docs/screenshots/home.webp" width="180" alt="浅色主题下的片库首页" /><br /><sub>片库首页 · 浅色</sub></td>
+      <td align="center" valign="top" width="25%"><img src="docs/screenshots/home-dark.webp" width="180" alt="暗色主题下的片库首页" /><br /><sub>片库首页 · 暗色</sub></td>
+      <td align="center" valign="top" width="25%"><img src="docs/screenshots/detail.webp" width="180" alt="剧集详情与继续观看" /><br /><sub>剧集详情</sub></td>
+      <td align="center" valign="top" width="25%"><img src="docs/screenshots/movie.webp" width="180" alt="电影详情页" /><br /><sub>电影详情</sub></td>
     </tr>
     <tr>
-      <td align="center"><img src="docs/screenshots/detail.webp" width="240" alt="剧集详情与继续观看" /><br /><sub>剧集详情</sub></td>
-      <td align="center"><img src="docs/screenshots/search.webp" width="240" alt="跨服务器搜索入口" /><br /><sub>聚合搜索</sub></td>
+      <td align="center" valign="top" width="25%"><img src="docs/screenshots/servers.webp" width="180" alt="多服务器账号管理" /><br /><sub>服务器管理</sub></td>
+      <td align="center" valign="top" width="25%"><img src="docs/screenshots/favorite.webp" width="180" alt="收藏的电影与剧集" /><br /><sub>我的收藏</sub></td>
+      <td align="center" valign="top" width="25%"><img src="docs/screenshots/search.webp" width="180" alt="跨服务器搜索入口" /><br /><sub>聚合搜索</sub></td>
+      <td align="center" valign="top" width="25%"><img src="docs/screenshots/player.webp" width="180" alt="横屏 MPV 播放器" /><br /><sub>MPV 播放器</sub></td>
     </tr>
     <tr>
-      <td align="center"><img src="docs/screenshots/player.webp" width="320" alt="横屏 MPV 播放器" /><br /><sub>MPV 播放器</sub></td>
-      <td align="center"><img src="docs/screenshots/settings.webp" width="240" alt="应用设置与主题选项" /><br /><sub>设置</sub></td>
-    </tr>
-    <tr>
-      <td align="center"><img src="docs/screenshots/transcoding.webp" width="240" alt="播放方向与视频转码选项" /><br /><sub>转码设置</sub></td>
-      <td align="center"><img src="docs/screenshots/danmaku.webp" width="240" alt="弹幕显示、排布与同步设置" /><br /><sub>弹幕设置</sub></td>
-    </tr>
-    <tr>
-      <td align="center"><img src="docs/screenshots/cache.webp" width="240" alt="媒体缓存分类与清理" /><br /><sub>缓存管理</sub></td>
-      <td align="center"><img src="docs/screenshots/movie.webp" width="240" alt="电影详情页" /><br /><sub>电影详情</sub></td>
+      <td align="center" valign="top" width="25%"><img src="docs/screenshots/settings.webp" width="180" alt="应用设置与主题选项" /><br /><sub>设置</sub></td>
+      <td align="center" valign="top" width="25%"><img src="docs/screenshots/transcoding.webp" width="180" alt="播放方向与视频转码选项" /><br /><sub>转码设置</sub></td>
+      <td align="center" valign="top" width="25%"><img src="docs/screenshots/danmaku.webp" width="180" alt="弹幕显示、排布与同步设置" /><br /><sub>弹幕设置</sub></td>
+      <td align="center" valign="top" width="25%"><img src="docs/screenshots/cache.webp" width="180" alt="媒体缓存分类与清理" /><br /><sub>缓存管理</sub></td>
     </tr>
   </tbody>
 </table>

@@ -1,9 +1,8 @@
 import { GroupedStackRoutes } from '@/components/GroupedStackRoutes';
+import { getNativeListStackOptions } from '@/components/navigation/nativeListStackOptions';
 import { usePerformanceStackScreenListeners } from '@/lib/performance/PerformanceMonitorContext';
 import { useAppTheme } from '@/lib/theme';
-import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Stack } from 'expo-router';
-import { Platform } from 'react-native';
 
 export default function ServersLayout() {
   const theme = useAppTheme();
@@ -15,22 +14,14 @@ export default function ServersLayout() {
     <Stack
       screenListeners={stackScreenListeners}
       screenOptions={{
-        headerTransparent: Platform.OS === 'ios',
-        headerShadowVisible: false,
-        headerBlurEffect: isLiquidGlassAvailable() ? undefined : 'prominent',
-        headerBackButtonDisplayMode: 'minimal',
-        headerLargeStyle: {
-          backgroundColor: isLiquidGlassAvailable() ? undefined : backgroundColor,
-        },
-        contentStyle: {
-          backgroundColor,
-        },
+        ...getNativeListStackOptions(backgroundColor),
       }}
     >
       <Stack.Screen
         name="index"
         options={{
           title: '服务器',
+          headerTitle: '服务器',
           headerLargeTitle: true,
           headerLargeTitleShadowVisible: false,
         }}
@@ -39,6 +30,7 @@ export default function ServersLayout() {
         name="library"
         options={{
           title: '',
+          headerLargeTitle: false,
           contentStyle: {
             backgroundColor: libraryBackgroundColor,
           },
@@ -85,6 +77,8 @@ export default function ServersLayout() {
           title: '服务器配置',
         }}
       />
+      <Stack.Screen name="server-lines/[serverId]" options={{ title: '服务器线路' }} />
+      <Stack.Screen name="server-line/[serverId]" options={{ title: '添加线路' }} />
       <Stack.Screen
         name="add-server/[serverType]"
         options={{

@@ -1,8 +1,3 @@
-export const brandColors = {
-  jellyfin: '#9C4DFF',
-  emby: '#4CAF50',
-} as const;
-
 export const spacing = {
   none: 0,
   xxs: 2,

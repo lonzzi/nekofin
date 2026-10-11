@@ -2,7 +2,7 @@ import type { Api } from '@jellyfin/sdk';
 
 import { embyAdapter, EmbyAdapter } from './emby/embyAdapter';
 import { EmbyApi } from './emby/index';
-import { createApiFromServerInfo as createJellyfinApiFromServerInfo } from './jellyfin';
+import { createApi, createApiFromServerInfo as createJellyfinApiFromServerInfo } from './jellyfin';
 import { jellyfinAdapter, JellyfinAdapter } from './jellyfin/jellyfinAdapter';
 import type { MediaAdapter, MediaServerInfo, MediaServerType } from './types';
 
@@ -23,15 +23,23 @@ export function createMediaAdapterWithApi(type: MediaServerType, api: Api | Emby
   }
 }
 
-export function createMediaApiFromServerInfo(serverInfo: MediaServerInfo): Api | EmbyApi {
+export function createMediaApiFromServerInfo(
+  serverInfo: MediaServerInfo,
+  cached = true,
+): Api | EmbyApi {
   if (serverInfo.type === 'emby') {
     return {
       basePath: serverInfo.address.replace(/\/$/, ''),
       accessToken: serverInfo.accessToken,
+      ...(cached ? {} : { timeoutMs: 8000 }),
     };
   }
 
-  return createJellyfinApiFromServerInfo(serverInfo);
+  if (cached) return createJellyfinApiFromServerInfo(serverInfo);
+  const api = createApi(serverInfo.address);
+  api.axiosInstance.defaults.timeout = 8000;
+  api.accessToken = serverInfo.accessToken;
+  return api;
 }
 
 export type { MediaAdapter, MediaServerType } from './types';

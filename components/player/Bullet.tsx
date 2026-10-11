@@ -78,7 +78,7 @@ export function Bullet({
     const remaining = remainingDurationRef.current;
     if (remaining <= 0) return;
 
-    runStartedAtRef.current = Date.now();
+    runStartedAtRef.current = performance.now();
 
     if (isScroll) {
       const endX = calculateDanmakuScrollTrajectory({
@@ -98,7 +98,7 @@ export function Bullet({
 
   const pauseRun = useCallback(() => {
     if (runStartedAtRef.current == null) return;
-    const elapsed = Date.now() - runStartedAtRef.current;
+    const elapsed = performance.now() - runStartedAtRef.current;
     runStartedAtRef.current = null;
 
     remainingDurationRef.current = Math.max(0, remainingDurationRef.current - elapsed);

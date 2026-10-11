@@ -1,3 +1,5 @@
+import { OuterTitle } from '@/components/outer/OuterPrimitives';
+import { DanmakuPreview } from '@/components/player/DanmakuPreview';
 import {
   NativeSettingsForm,
   NativeSettingsItem,
@@ -12,7 +14,7 @@ import {
   SettingsTitle,
 } from '@/components/ui/SettingsVisual';
 import { defaultSettings, useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
-import { Stack } from 'expo-router';
+import { Column, RNHostView } from '@expo/ui';
 import { Alert } from 'react-native';
 
 export default function DanmakuSettingsScreen() {
@@ -51,8 +53,15 @@ export default function DanmakuSettingsScreen() {
 
   return (
     <>
-      <Stack.Title large>弹幕设置</Stack.Title>
+      <OuterTitle>弹幕设置</OuterTitle>
       <NativeSettingsForm testID="danmaku-settings-form">
+        <NativeSettingsSection title="效果预览">
+          <Column style={{ height: 224 }}>
+            <RNHostView>
+              <DanmakuPreview />
+            </RNHostView>
+          </Column>
+        </NativeSettingsSection>
         <NativeSettingsSection title="显示">
           <NativeSettingsSwitch
             title={<SettingsTitle>显示弹幕</SettingsTitle>}
@@ -61,7 +70,7 @@ export default function DanmakuSettingsScreen() {
             onValueChange={(value) => updateSetting('enabled', value)}
           />
           <NativeSettingsSlider
-            title={<SettingsTitle>透明度</SettingsTitle>}
+            title={<SettingsTitle>不透明度</SettingsTitle>}
             value={settings.opacity}
             min={0.1}
             max={1.0}

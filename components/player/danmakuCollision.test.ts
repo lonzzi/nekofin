@@ -15,6 +15,47 @@ import {
 const viewportWidthPx = 1000;
 
 describe('danmakuCollision', () => {
+  it('never admits a faster follower that catches the leader within the visible viewport', () => {
+    for (const direction of Object.values(DANMAKU_SCROLL_DIRECTION)) {
+      for (const leaderWidth of [40, 200, 700]) {
+        for (const leaderSpeed of [0.08, 0.16, 0.32]) {
+          for (const followerSpeed of [0.1, 0.2, 0.4, 0.8]) {
+            for (const progress of [0.1, 0.3, 0.5, 0.8]) {
+              const left =
+                direction === DANMAKU_SCROLL_DIRECTION.RightToLeft
+                  ? 1000 - (1000 + leaderWidth) * progress
+                  : -leaderWidth + (1000 + leaderWidth) * progress;
+              const safe = isScrollingDanmakuEntrySafe({
+                previous: {
+                  direction,
+                  leftPx: left,
+                  widthPx: leaderWidth,
+                  speedPxPerMediaMs: leaderSpeed,
+                },
+                incoming: { direction, speedPxPerMediaMs: followerSpeed },
+                viewportWidthPx: 1000,
+                safeSeparationPx: 30,
+              });
+              if (!safe) continue;
+              for (let elapsed = 0; elapsed < 15000; elapsed += 25) {
+                if (direction === DANMAKU_SCROLL_DIRECTION.RightToLeft) {
+                  const right = left + leaderWidth - leaderSpeed * elapsed;
+                  const head = 1000 - followerSpeed * elapsed;
+                  if (right <= 0 || head <= 0) break;
+                  expect(head - right).toBeGreaterThanOrEqual(30 - 1e-6);
+                } else {
+                  const leaderLeft = left + leaderSpeed * elapsed;
+                  const head = followerSpeed * elapsed;
+                  if (leaderLeft >= 1000 || head >= 1000) break;
+                  expect(leaderLeft - head).toBeGreaterThanOrEqual(30 - 1e-6);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  });
   it('releases a right-to-left lane at the visible edge rather than animation overscan', () => {
     const result = evaluateScrollingDanmakuEntry({
       previous: {

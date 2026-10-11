@@ -115,20 +115,27 @@ export const calculateEffectiveScrollSpeed = ({
   const base = Math.max(50, speed);
   const ratio = Math.min(2, Math.max(0, textWidth / Math.max(1, width)));
   const factor = 1 + 0.4 * ratio;
-  return Math.min(base * factor * Math.max(0.25, playbackRate), 900);
+  // Limit speed on the media timeline, then apply playback rate. Otherwise a
+  // rate change gives existing and newly admitted bullets different velocities.
+  return Math.min(base * factor, 900) * Math.max(0.25, playbackRate);
 };
 
 export const calculateScrollDurationMs = ({
   width,
   textWidth,
   speed,
+  playbackRate = 1,
 }: {
   width: number;
   textWidth: number;
   speed: number;
+  playbackRate?: number;
 }): number => {
   const totalDistance = width + textWidth + 300;
-  return Math.max(3000, Math.round((totalDistance / Math.max(1, speed)) * 1000));
+  return Math.max(
+    3000 / Math.max(0.25, playbackRate),
+    Math.round((totalDistance / Math.max(1, speed)) * 1000),
+  );
 };
 
 export const calculateDanmakuScrollTrajectory = ({
@@ -253,6 +260,7 @@ export const createActiveDanmakuBullet = ({
       width: runtime.width,
       textWidth,
       speed: effectiveSpeed,
+      playbackRate: runtime.playbackRate,
     });
 
     return {

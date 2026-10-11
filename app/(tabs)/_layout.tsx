@@ -1,10 +1,9 @@
-import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
 import { useAppTheme } from '@/lib/theme';
-import { isLiquidGlassAvailable } from 'expo-glass-effect';
+import { useOuterTheme } from '@/lib/theme/OuterTheme';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
 export default function TabLayout() {
-  const { accentColor } = useAccentColor();
+  const accentColor = useOuterTheme().colors.tint;
   const theme = useAppTheme();
 
   return (
@@ -14,22 +13,27 @@ export default function TabLayout() {
       minimizeBehavior="onScrollDown"
       shadowColor="transparent"
     >
-      <NativeTabs.Trigger
-        name="(servers)"
-        contentStyle={{ backgroundColor: theme.colors.background }}
-      >
-        <NativeTabs.Trigger.Label>服务器</NativeTabs.Trigger.Label>
+      <NativeTabs.Trigger name="(home)" contentStyle={{ backgroundColor: theme.colors.background }}>
+        <NativeTabs.Trigger.Label>首页</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          drawable="storage"
-          sf={{ default: 'server.rack', selected: 'server.rack' }}
+          drawable="home"
+          sf={{ default: 'house', selected: 'house.fill' }}
           selectedColor={accentColor}
         />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(search)" role={isLiquidGlassAvailable() ? 'search' : undefined}>
-        <NativeTabs.Trigger.Label>搜索</NativeTabs.Trigger.Label>
+      <NativeTabs.Trigger name="(servers)">
+        <NativeTabs.Trigger.Label>服务器</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          drawable="search"
-          sf={{ default: 'magnifyingglass', selected: 'magnifyingglass' }}
+          drawable="storage"
+          sf={{ default: 'externaldrive', selected: 'externaldrive.fill' }}
+          selectedColor={accentColor}
+        />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="(favorites)">
+        <NativeTabs.Trigger.Label>收藏</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          drawable="heart_outline"
+          sf={{ default: 'heart', selected: 'heart.fill' }}
           selectedColor={accentColor}
         />
       </NativeTabs.Trigger>
@@ -38,6 +42,14 @@ export default function TabLayout() {
         <NativeTabs.Trigger.Icon
           drawable="settings"
           sf={{ default: 'gearshape', selected: 'gearshape.fill' }}
+          selectedColor={accentColor}
+        />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="(search)" role="search">
+        <NativeTabs.Trigger.Label>搜索</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          drawable="search"
+          sf="magnifyingglass"
           selectedColor={accentColor}
         />
       </NativeTabs.Trigger>

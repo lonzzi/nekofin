@@ -47,7 +47,7 @@ describe('custom Liquid Glass policy', () => {
     expect(cardSource).toContain('useGlassEffect = false');
     expect(detailSource).toContain('isLiquidGlassAvailable() && isGlassEffectAPIAvailable()');
     expect(detailSource).toContain('useGlassEffect');
-    expect(serversSource).toContain('useGlassEffect');
+    expect(serversSource).not.toContain('useGlassEffect');
   });
 
   it('fills information cards while media cards opt into transparent copy areas', () => {

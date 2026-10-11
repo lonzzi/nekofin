@@ -2,7 +2,6 @@ import { PLAYER_LAB_AVAILABLE } from '@/components/dev/player-lab/PlayerLabEntry
 import { PerformanceOverlay } from '@/components/performance/PerformanceOverlay';
 import { DanmakuSettingsProvider } from '@/lib/contexts/DanmakuSettingsContext';
 import { MediaServerProvider } from '@/lib/contexts/MediaServerContext';
-import { ThemeColorProvider } from '@/lib/contexts/ThemeColorContext';
 import { ThemePreferenceProvider } from '@/lib/contexts/ThemePreferenceContext';
 import {
   PerformanceMonitorProvider,
@@ -93,12 +92,10 @@ export default function RootLayout() {
         <ThemePreferenceProvider>
           <MediaServerProvider>
             <DanmakuSettingsProvider>
-              <ThemeColorProvider>
-                <PerformanceMonitorProvider>
-                  <RootNavigation />
-                  <PerformanceOverlay />
-                </PerformanceMonitorProvider>
-              </ThemeColorProvider>
+              <PerformanceMonitorProvider>
+                <RootNavigation />
+                <PerformanceOverlay />
+              </PerformanceMonitorProvider>
             </DanmakuSettingsProvider>
           </MediaServerProvider>
         </ThemePreferenceProvider>

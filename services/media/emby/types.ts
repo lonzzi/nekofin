@@ -1,9 +1,11 @@
 export type EmbyApi = {
   basePath: string;
   accessToken: string | null;
+  timeoutMs?: number;
 };
 
 export type EmbyPublicSystemInfo = {
+  Id?: string;
   ServerName?: string;
   Version?: string;
   OperatingSystem?: string;

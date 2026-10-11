@@ -124,6 +124,7 @@ export interface MediaUser {
 }
 
 export interface MediaSystemInfo {
+  id?: string | null;
   serverName?: string | null;
   version?: string | null;
   operatingSystem?: string | null;
@@ -198,6 +199,14 @@ export interface MediaServerInfo {
   accessToken: string;
   createdAt: number;
   type: MediaServerType;
+  remoteServerId?: string;
+  connections?: MediaServerConnection[];
+}
+
+export interface MediaServerConnection {
+  id: string;
+  name: string;
+  address: string;
 }
 
 // 占位的抽象类已下移整合

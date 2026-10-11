@@ -1,22 +1,35 @@
 import { HomeAtmosphereScrollView } from '@/components/home/HomeAtmosphereScrollView';
 import { DETAIL_TOOLBAR_STATES } from '@/components/navigation/nativeHeaderModel';
-import { getNativeToolbarIcon } from '@/components/navigation/nativeToolbarIcons';
+import {
+  DETAIL_MORE_MENU_ICONS,
+  getNativeToolbarIcon,
+} from '@/components/navigation/nativeToolbarIcons';
 import { DetailBundle, useDetailBundle } from '@/hooks/useDetailBundle';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import useRefresh from '@/hooks/useRefresh';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme, useMediaHeroHeight } from '@/lib/theme';
 import { mediaQueryKeys } from '@/services/media/queryKeys';
-import { useQueryClient, UseQueryResult } from '@tanstack/react-query';
-import { Image } from 'expo-image';
+import { itemDetailQueryOptions } from '@/services/media/queryOptions';
+import { useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack } from 'expo-router';
+import { openBrowserAsync } from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshControl, Text, useWindowDimensions, View } from 'react-native';
+import {
+  Alert,
+  Platform,
+  RefreshControl,
+  Share,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { ItemImage } from '../ItemImage';
 import { SkeletonDetailContent, SkeletonDetailHeader } from '../ui/Skeleton';
 import { detailViewStyles } from './common';
+import { getDetailExternalInfo } from './detailExternalLinks';
 import {
   resolveDetailToolbarState,
   withDetailToolbarOverride,
@@ -49,9 +62,6 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const [pendingFavoriteItemIds, setPendingFavoriteItemIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
-  const [pendingWatchedItemIds, setPendingWatchedItemIds] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
   const { data: bundle, isLoading, refetch } = query;
 
   const { width: windowWidth } = useWindowDimensions();
@@ -63,14 +73,29 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const item = bundle?.item;
   const currentItem = mode === 'episode' ? selectedItem : item;
   const currentItemId = currentItem?.id;
-  const { isFavorite, isWatched } = resolveDetailToolbarState({
+  const parentSeriesId =
+    currentItem?.type === 'Episode' || currentItem?.type === 'Season'
+      ? currentItem.seriesId || (currentItem.type === 'Season' ? currentItem.parentId : undefined)
+      : undefined;
+  const seriesQuery = useQuery({
+    ...itemDetailQueryOptions({
+      adapter: mediaAdapter,
+      currentServer,
+      itemId: parentSeriesId,
+    }),
+    staleTime: 10 * 60 * 1000,
+  });
+  const externalInfo = useMemo(
+    () => (currentItem ? getDetailExternalInfo(currentItem, seriesQuery.data) : undefined),
+    [currentItem, seriesQuery.data],
+  );
+  const { isFavorite } = resolveDetailToolbarState({
     itemId: currentItemId,
     itemIsFavorite: !!currentItem?.userData?.isFavorite,
     itemIsWatched: !!currentItem?.userData?.played,
     overrides: toolbarOverrides,
   });
   const isFavoritePending = !!currentItemId && pendingFavoriteItemIds.has(currentItemId);
-  const isWatchedPending = !!currentItemId && pendingWatchedItemIds.has(currentItemId);
   const seasons = bundle?.seasons ?? [];
   const nextUpItems = bundle?.nextUpItems ?? [];
   const episodes = bundle?.episodes ?? [];
@@ -92,41 +117,6 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     if (!item) return;
     setItem?.(item);
   }, [item, setItem]);
-
-  const handleToggleWatched = useCallback(async () => {
-    const actionItemId = currentItemId;
-    const userId = currentServer?.userId;
-    if (!userId || !actionItemId || pendingWatchedItemIds.has(actionItemId)) return;
-
-    const nextIsWatched = !isWatched;
-    setPendingWatchedItemIds((pendingIds) => new Set(pendingIds).add(actionItemId));
-    try {
-      if (nextIsWatched) {
-        await mediaAdapter.markItemPlayed({ userId, itemId: actionItemId });
-      } else {
-        await mediaAdapter.markItemUnplayed({ userId, itemId: actionItemId });
-      }
-      setToolbarOverrides((overrides) =>
-        withDetailToolbarOverride(overrides, actionItemId, 'watched', nextIsWatched),
-      );
-      markCurrentServerMediaStale();
-    } catch (error) {
-      console.error(nextIsWatched ? '标记为已看失败:' : '标记为未看失败:', error);
-    } finally {
-      setPendingWatchedItemIds((pendingIds) => {
-        const nextPendingIds = new Set(pendingIds);
-        nextPendingIds.delete(actionItemId);
-        return nextPendingIds;
-      });
-    }
-  }, [
-    currentItemId,
-    currentServer?.userId,
-    isWatched,
-    markCurrentServerMediaStale,
-    mediaAdapter,
-    pendingWatchedItemIds,
-  ]);
 
   const handleToggleFavorite = useCallback(async () => {
     const actionItemId = currentItemId;
@@ -163,25 +153,35 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     pendingFavoriteItemIds,
   ]);
 
-  const watchedPresentation = DETAIL_TOOLBAR_STATES.watched[isWatched ? 'on' : 'off'];
   const favoritePresentation = DETAIL_TOOLBAR_STATES.favorite[isFavorite ? 'on' : 'off'];
+  const handleOpenExternalLink = useCallback(
+    async (url: string) => {
+      try {
+        await openBrowserAsync(url, { controlsColor: theme.colors.tint });
+      } catch {
+        Alert.alert('无法打开页面', '请稍后重试');
+      }
+    },
+    [theme.colors.tint],
+  );
+  const handleShare = useCallback(async () => {
+    if (!externalInfo) return;
+    try {
+      await Share.share(
+        Platform.OS === 'ios'
+          ? { message: externalInfo.title, url: externalInfo.shareUrl }
+          : {
+              title: externalInfo.title,
+              message: `${externalInfo.title}\n${externalInfo.shareUrl}`,
+            },
+        { subject: externalInfo.title, dialogTitle: '分享影片信息', tintColor: theme.colors.tint },
+      );
+    } catch {
+      Alert.alert('无法分享', '请稍后重试');
+    }
+  }, [externalInfo, theme.colors.tint]);
   const toolbar = (
     <Stack.Toolbar placement="right">
-      {currentItemId ? (
-        <Stack.Toolbar.Button
-          accessibilityLabel={watchedPresentation.label}
-          disabled={isWatchedPending}
-          icon={getNativeToolbarIcon(
-            watchedPresentation.androidDrawable,
-            watchedPresentation.iosIcon,
-          )}
-          onPress={() => void handleToggleWatched()}
-          selected={isWatched}
-          tintColor={textColor}
-        >
-          {watchedPresentation.label}
-        </Stack.Toolbar.Button>
-      ) : null}
       {currentItemId ? (
         <Stack.Toolbar.Button
           accessibilityLabel={favoritePresentation.label}
@@ -197,6 +197,31 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
           {favoritePresentation.label}
         </Stack.Toolbar.Button>
       ) : null}
+      {externalInfo ? (
+        <Stack.Toolbar.Menu
+          accessibilityLabel="更多影片操作"
+          icon={DETAIL_MORE_MENU_ICONS.more}
+          tintColor={textColor}
+        >
+          <Stack.Toolbar.Menu inline>
+            {externalInfo.links.map((link) => (
+              <Stack.Toolbar.MenuAction
+                key={link.provider}
+                icon={DETAIL_MORE_MENU_ICONS.external}
+                onPress={() => void handleOpenExternalLink(link.url)}
+              >
+                {link.label}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
+          <Stack.Toolbar.MenuAction
+            icon={DETAIL_MORE_MENU_ICONS.share}
+            onPress={() => void handleShare()}
+          >
+            分享影片信息
+          </Stack.Toolbar.MenuAction>
+        </Stack.Toolbar.Menu>
+      ) : null}
     </Stack.Toolbar>
   );
 
@@ -209,10 +234,6 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     if (!item) return undefined;
     return mediaAdapter.getImageInfo({ item, opts: { preferLogo: true, width: 400 } }).url;
   }, [item, mediaAdapter]);
-  const logoImageSource = useMemo(
-    () => (logoImageUrl ? { uri: logoImageUrl } : undefined),
-    [logoImageUrl],
-  );
 
   if (isLoading || !item) {
     return (
@@ -290,14 +311,12 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
         isDark={theme.isDark}
         headerImage={
           <View style={[detailViewStyles.header, { backgroundColor: theme.colors.surfaceMuted }]}>
-            {headerImageUrl && (
-              <ItemImage
-                uri={headerImageUrl}
-                style={detailViewStyles.headerMedia}
-                placeholderBlurhash={headerImageInfo.blurhash}
-                contentFit="cover"
-              />
-            )}
+            <ItemImage
+              uri={headerImageUrl}
+              style={detailViewStyles.headerMedia}
+              placeholderBlurhash={headerImageInfo.blurhash}
+              contentFit="cover"
+            />
             {!!logoImageUrl && (
               <LinearGradient
                 colors={[theme.colors.mediaScrimSoft, 'rgba(0,0,0,0.16)', theme.colors.mediaScrim]}
@@ -310,8 +329,8 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
         }
         headerOverlay={
           logoImageUrl ? (
-            <Image
-              source={logoImageSource}
+            <ItemImage
+              uri={logoImageUrl}
               style={[
                 detailViewStyles.headerLogo,
                 {
@@ -323,6 +342,17 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
               cachePolicy="memory-disk"
               contentFit="contain"
               recyclingKey={logoImageUrl}
+              fallback={
+                <Text
+                  numberOfLines={2}
+                  style={[
+                    theme.typography.title2,
+                    { color: theme.colors.inverseText, textAlign: 'center' },
+                  ]}
+                >
+                  {title || item.name}
+                </Text>
+              }
             />
           ) : null
         }

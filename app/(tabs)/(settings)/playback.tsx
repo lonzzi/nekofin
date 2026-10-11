@@ -1,3 +1,4 @@
+import { OuterTitle } from '@/components/outer/OuterPrimitives';
 import {
   NativeSettingsForm,
   NativeSettingsPicker,
@@ -6,7 +7,6 @@ import {
 } from '@/components/ui/NativeSettings';
 import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { storage } from '@/lib/storage';
-import { Stack } from 'expo-router';
 import { useState } from 'react';
 
 const bitrateOptions = [
@@ -30,13 +30,11 @@ const codecOptions = [
   { title: 'H.265/HEVC', value: 'h265' },
 ];
 
-const videoOrientationOptions = [
-  { title: '横屏', value: 'landscape' },
-  { title: '竖屏', value: 'portrait' },
-  { title: '跟随系统', value: 'auto' },
-];
-
-export default function TranscodingSettingsScreen() {
+export default function PlaybackSettings() {
+  const [orientation, setOrientation] = useState(
+    storage.getString('videoOrientation') ?? 'landscape',
+  );
+  const [rate, setRate] = useState(String(storage.getNumber('playback.defaultRate') ?? 1));
   const [enableTranscoding, setEnableTranscoding] = useState(
     storage.getBoolean('enableTranscoding') ?? false,
   );
@@ -45,9 +43,6 @@ export default function TranscodingSettingsScreen() {
     storage.getBoolean('enableSubtitleBurnIn') ?? false,
   );
   const [selectedCodec, setSelectedCodec] = useState(storage.getString('selectedCodec') ?? 'h264');
-  const [videoOrientation, setVideoOrientation] = useState(
-    storage.getString('videoOrientation') ?? 'landscape',
-  );
 
   const handleBitrateChange = (value: string) => {
     const bitrateValue = parseInt(value, 10);
@@ -70,28 +65,43 @@ export default function TranscodingSettingsScreen() {
     storage.set('selectedCodec', value);
   };
 
-  const handleVideoOrientationChange = (value: string) => {
-    setVideoOrientation(value);
-    storage.set('videoOrientation', value);
-  };
-
   return (
     <>
-      <Stack.Title large>转码设置</Stack.Title>
-      <NativeSettingsForm testID="transcoding-settings-form">
-        <NativeSettingsSection title="播放">
+      <OuterTitle>播放与画质</OuterTitle>
+      <NativeSettingsForm testID="playback-settings-form">
+        <NativeSettingsSection title="播放默认值">
           <NativeSettingsPicker
-            title={<SettingsTitle>视频方向</SettingsTitle>}
-            value={videoOrientation}
-            options={videoOrientationOptions}
-            onValueChange={handleVideoOrientationChange}
+            title={<SettingsTitle>屏幕方向</SettingsTitle>}
+            value={orientation}
+            options={[
+              { title: '横屏', value: 'landscape' },
+              { title: '竖屏', value: 'portrait' },
+              { title: '跟随系统', value: 'auto' },
+            ]}
+            onValueChange={(v) => {
+              setOrientation(v);
+              storage.set('videoOrientation', v);
+            }}
+          />
+          <NativeSettingsPicker
+            title={<SettingsTitle>默认倍速</SettingsTitle>}
+            value={rate}
+            options={[0.5, 0.75, 1, 1.25, 1.5, 2].map((v) => ({
+              title: `${v}×`,
+              value: String(v),
+            }))}
+            onValueChange={(v) => {
+              setRate(v);
+              storage.set('playback.defaultRate', Number(v));
+            }}
           />
         </NativeSettingsSection>
-
-        <NativeSettingsSection title="转码">
+        <NativeSettingsSection title="画质与兼容性">
           <NativeSettingsSwitch
-            title={<SettingsTitle>启用转码</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="无法直接播放时，让服务器转换视频格式。" />}
+            title={<SettingsTitle>自定义转码</SettingsTitle>}
+            subtitle={
+              <SettingsSubtitle primary="设置码率和转码格式，兼容时仍优先直接播放。" lines={2} />
+            }
             value={enableTranscoding}
             onValueChange={handleTranscodingToggle}
           />

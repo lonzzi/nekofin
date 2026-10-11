@@ -4,15 +4,17 @@ import { createAppTheme } from './theme';
 import { resolveMediaHeroHeight } from './tokens';
 
 describe('createAppTheme', () => {
-  it('uses the current account accent as the tint color', () => {
-    const theme = createAppTheme({ accentColor: '#123456', colorScheme: 'light' });
+  it('uses system blue for both appearances by default', () => {
+    const lightTheme = createAppTheme({ colorScheme: 'light' });
+    const darkTheme = createAppTheme({ colorScheme: 'dark' });
 
-    expect(theme.colors.tint).toBe('#123456');
+    expect(lightTheme.colors.tint).toBe('#007AFF');
+    expect(darkTheme.colors.tint).toBe('#0A84FF');
   });
 
   it('resolves semantic backgrounds from the active color scheme', () => {
-    const lightTheme = createAppTheme({ accentColor: '#123456', colorScheme: 'light' });
-    const darkTheme = createAppTheme({ accentColor: '#123456', colorScheme: 'dark' });
+    const lightTheme = createAppTheme({ colorScheme: 'light' });
+    const darkTheme = createAppTheme({ colorScheme: 'dark' });
 
     expect(lightTheme.colors.background).toBe('#FFFFFF');
     expect(darkTheme.colors.background).toBe('#000000');
@@ -20,7 +22,7 @@ describe('createAppTheme', () => {
   });
 
   it('exposes the shared layout foundations through the theme', () => {
-    const theme = createAppTheme({ accentColor: '#123456', colorScheme: 'light' });
+    const theme = createAppTheme({ colorScheme: 'light' });
 
     expect(theme.spacing.page).toBe(20);
     expect(theme.layout.mediaHero.heightRatio).toBe(0.75);

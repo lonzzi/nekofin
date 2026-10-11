@@ -1,4 +1,4 @@
-import { useAccentColor } from '@/lib/contexts/ThemeColorContext';
+import { useAppTheme } from '@/lib/theme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { useState } from 'react';
@@ -10,15 +10,15 @@ interface AvatarImageProps {
 }
 
 export function AvatarImage({ avatarUri, style }: AvatarImageProps) {
-  const [imageError, setImageError] = useState(false);
-  const { accentColor } = useAccentColor();
+  const [failedUri, setFailedUri] = useState<string>();
+  const theme = useAppTheme();
 
-  if (!avatarUri || imageError) {
+  if (!avatarUri || failedUri === avatarUri) {
     return (
       <View
         style={[
           style,
-          { backgroundColor: accentColor, justifyContent: 'center', alignItems: 'center' },
+          { backgroundColor: theme.colors.tint, justifyContent: 'center', alignItems: 'center' },
         ]}
       >
         <Ionicons name="person" size={20} color="white" />
@@ -28,10 +28,11 @@ export function AvatarImage({ avatarUri, style }: AvatarImageProps) {
 
   return (
     <Image
+      key={avatarUri}
       source={{ uri: avatarUri }}
       style={style}
       contentFit="cover"
-      onError={() => setImageError(true)}
+      onError={() => setFailedUri(avatarUri)}
     />
   );
 }

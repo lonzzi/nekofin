@@ -16,6 +16,7 @@ import {
 import { SafeGlassContainer } from '../ui/GlassCard';
 import { SkeletonCard, SkeletonSectionHeader } from '../ui/Skeleton';
 import { EpisodeCard, SeriesCard } from './Card';
+import { getSourcedMediaKey, type GetMediaItemSource } from './mediaSource';
 
 export const Section = React.memo(function Section({
   title,
@@ -23,12 +24,14 @@ export const Section = React.memo(function Section({
   items,
   isLoading,
   type = 'episode',
+  getItemSource,
 }: {
   title: string;
-  onViewAll: () => void;
+  onViewAll?: () => void;
   items: MediaItem[];
   isLoading: boolean;
   type?: 'episode' | 'series';
+  getItemSource?: GetMediaItemSource;
 }) {
   const theme = useAppTheme();
   const { width: viewportWidth } = useWindowDimensions();
@@ -48,13 +51,20 @@ export const Section = React.memo(function Section({
   );
 
   const renderEpisodeItem: ListRenderItem<MediaItem> = useCallback(
-    ({ item }) => <EpisodeCard item={item} style={episodeCardStyle} showPlayButton />,
-    [],
+    ({ item }) => (
+      <EpisodeCard
+        item={item}
+        source={getItemSource?.(item)}
+        style={episodeCardStyle}
+        showPlayButton
+      />
+    ),
+    [getItemSource],
   );
 
   const renderSeriesItem: ListRenderItem<MediaItem> = useCallback(
-    ({ item }) => <SeriesCard item={item} />,
-    [],
+    ({ item }) => <SeriesCard item={item} source={getItemSource?.(item)} />,
+    [getItemSource],
   );
 
   const renderSkeletonItem = useCallback(() => <SkeletonCard type={type} />, [type]);
@@ -88,7 +98,9 @@ export const Section = React.memo(function Section({
         { gap: theme.spacing.md, paddingHorizontal: theme.spacing.page },
       ]}
       renderItem={renderItem}
-      keyExtractor={itemKeyExtractor}
+      keyExtractor={
+        getItemSource ? (item) => getSourcedMediaKey(item, getItemSource(item)) : itemKeyExtractor
+      }
     />
   ) : (
     <View style={[styles.emptyContainer, { paddingHorizontal: theme.spacing.page }]}>
@@ -110,7 +122,11 @@ export const Section = React.memo(function Section({
       {isLoading ? (
         <SkeletonSectionHeader />
       ) : (
-        <Pressable onPress={onViewAll}>
+        <Pressable
+          accessibilityRole={onViewAll ? 'button' : undefined}
+          accessibilityLabel={onViewAll ? `查看全部${title}` : undefined}
+          onPress={onViewAll}
+        >
           <View style={[styles.sectionHeader, { paddingHorizontal: theme.spacing.page }]}>
             <Text
               style={[theme.typography.title3, styles.sectionTitle, { color: theme.colors.text }]}
@@ -119,13 +135,15 @@ export const Section = React.memo(function Section({
             >
               {title}
             </Text>
-            <View style={styles.viewAllButton}>
-              <Ionicons
-                name="chevron-forward"
-                size={theme.sizes.iconMd}
-                color={theme.colors.text}
-              />
-            </View>
+            {onViewAll && (
+              <View style={styles.viewAllButton}>
+                <Ionicons
+                  name="chevron-forward"
+                  size={theme.sizes.iconMd}
+                  color={theme.colors.text}
+                />
+              </View>
+            )}
           </View>
         </Pressable>
       )}

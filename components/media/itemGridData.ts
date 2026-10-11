@@ -62,14 +62,19 @@ const groupTitleMap: Record<string, string> = {
   Other: '其他',
 };
 
-export function dedupeMediaItems(items: MediaItem[]): MediaItem[] {
+export function dedupeMediaItems(
+  items: MediaItem[],
+  getKey: (item: MediaItem) => string = (item) => item.id!,
+): MediaItem[] {
   const merged: MediaItem[] = [];
   const seen = new Set<string>();
 
   for (const item of items) {
-    if (!item.id || seen.has(item.id)) continue;
+    if (!item.id) continue;
+    const key = getKey(item);
+    if (seen.has(key)) continue;
     merged.push(item);
-    seen.add(item.id);
+    seen.add(key);
   }
 
   return merged;

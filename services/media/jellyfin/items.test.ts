@@ -4,11 +4,15 @@ import {
   getAvailableFilters,
   getEpisodesBySeason,
   getFavoriteItemsPaged,
+  getLatestItems,
+  getLatestItemsByFolder,
+  getRandomItems,
   searchItems,
 } from './items';
 
 const mocks = vi.hoisted(() => ({
   getItems: vi.fn(),
+  getLatestMedia: vi.fn(),
   getQueryFiltersLegacy: vi.fn(),
 }));
 
@@ -23,7 +27,7 @@ vi.mock('@jellyfin/sdk/lib/utils/api', () => ({
   getLibraryApi: () => ({}),
   getSearchApi: () => ({}),
   getTvShowsApi: () => ({}),
-  getUserLibraryApi: () => ({}),
+  getUserLibraryApi: () => ({ getLatestMedia: mocks.getLatestMedia }),
   getUserViewsApi: () => ({}),
 }));
 
@@ -32,7 +36,52 @@ describe('Jellyfin item requests', () => {
 
   beforeEach(() => {
     mocks.getItems.mockReset();
+    mocks.getLatestMedia.mockReset();
     mocks.getQueryFiltersLegacy.mockReset();
+  });
+
+  it('requests creation dates for chronological aggregation of library additions', async () => {
+    mocks.getLatestMedia.mockResolvedValue({ data: [] });
+    await getLatestItemsByFolder(api, 'user-1', 'library-1', 16);
+    expect(mocks.getLatestMedia).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        parentId: 'library-1',
+        limit: 16,
+        fields: expect.arrayContaining(['DateCreated']),
+      }),
+    );
+  });
+
+  it('includes series and creation dates in the latest items for aggregate home', async () => {
+    mocks.getItems.mockResolvedValue({ data: { Items: [] } });
+    await getLatestItems(api, 'user-1', 20, { includeItemTypes: ['Movie', 'Series'] });
+    expect(mocks.getItems).toHaveBeenCalledWith(
+      expect.objectContaining({
+        includeItemTypes: ['Movie', 'Series'],
+        filters: undefined,
+        fields: ['DateCreated', 'PrimaryImageAspectRatio'],
+        sortBy: ['DateCreated'],
+        sortOrder: ['Descending'],
+      }),
+    );
+  });
+
+  it('enables background and logo metadata for the home carousel', async () => {
+    mocks.getItems.mockResolvedValue({ data: { Items: [] } });
+
+    await getRandomItems(api, 'user-1', 6);
+
+    expect(mocks.getItems).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        limit: 6,
+        includeItemTypes: ['Movie', 'Series'],
+        imageTypeLimit: 1,
+        enableImageTypes: ['Primary', 'Backdrop', 'Thumb', 'Logo'],
+        enableImages: true,
+      }),
+    );
   });
 
   it('builds paged favorite requests with optional filters', async () => {

@@ -62,12 +62,12 @@ describe('native header model', () => {
       watched: {
         off: {
           androidDrawable: 'checkmarkCircleOutline',
-          iosIcon: 'checkmark.circle',
+          iosIcon: 'checkmark',
           label: '标记为已观看',
         },
         on: {
           androidDrawable: 'checkmarkCircle',
-          iosIcon: 'checkmark.circle.fill',
+          iosIcon: 'checkmark',
           label: '标记为未观看',
         },
       },

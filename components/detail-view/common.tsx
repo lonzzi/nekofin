@@ -2,7 +2,6 @@ import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { layout, radius, spacing, typography, useAppTheme } from '@/lib/theme';
 import { formatChineseDurationFromTicks, formatRating } from '@/lib/utils';
 import { MediaItem } from '@/services/media/types';
-import { BottomSheet, RNHostView } from '@expo/ui';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useEffect, useMemo, useState } from 'react';
@@ -11,6 +10,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 
 import { ThemedText } from '../ThemedText';
 import { GlassCard, ShadowedGlassCard } from '../ui/GlassCard';
+import { OverviewSheet } from './OverviewSheet';
 
 const detailDateFormatter = new Intl.DateTimeFormat('zh-CN', {
   year: 'numeric',
@@ -208,6 +208,9 @@ export const ItemOverview = ({
     <>
       <View style={detailViewStyles.overviewContainer}>
         <Text
+          accessible={false}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
           style={[detailViewStyles.overview, { opacity: 0, position: 'absolute' }]}
           onTextLayout={handleTextLayout}
         >
@@ -220,7 +223,11 @@ export const ItemOverview = ({
           {overview}
         </Text>
         {textLines > OVERVIEW_COLLAPSED_LINES ? (
-          <Pressable onPress={handleShowMore}>
+          <Pressable
+            onPress={handleShowMore}
+            accessibilityRole="button"
+            accessibilityLabel="查看更多剧情简介"
+          >
             <Text style={[detailViewStyles.overview, { color: accentColor }]}>查看更多</Text>
           </Pressable>
         ) : reserveCollapsedSpace ? (
@@ -233,18 +240,11 @@ export const ItemOverview = ({
         ) : null}
       </View>
 
-      <BottomSheet
+      <OverviewSheet
+        overview={overview}
         isPresented={isOverviewPresented}
         onDismiss={() => setIsOverviewPresented(false)}
-        testID="item-overview-sheet"
-      >
-        <RNHostView matchContents>
-          <View style={detailViewStyles.modalContent}>
-            <Text style={[detailViewStyles.modalTitle, { color: textColor }]}>剧情简介</Text>
-            <Text style={[detailViewStyles.modalOverview, { color: textColor }]}>{overview}</Text>
-          </View>
-        </RNHostView>
-      </BottomSheet>
+      />
     </>
   );
 };
@@ -373,18 +373,6 @@ export const detailViewStyles = StyleSheet.create({
   overviewContainer: {
     gap: spacing.sm,
     marginBottom: spacing.sm,
-  },
-  modalContent: {
-    paddingHorizontal: spacing.page,
-    paddingBottom: spacing.page,
-    gap: spacing.lg,
-  },
-  modalTitle: {
-    ...typography.title3,
-  },
-  modalOverview: {
-    ...typography.body,
-    lineHeight: 24,
   },
   infoBlock: {
     marginTop: spacing.xs,
