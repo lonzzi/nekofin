@@ -22,6 +22,8 @@ export default function PageScrollView({
   const {
     contentInset,
     contentInsetAdjustmentBehavior = 'automatic',
+    automaticallyAdjustKeyboardInsets = Platform.OS === 'ios',
+    keyboardDismissMode = Platform.OS === 'ios' ? 'interactive' : 'on-drag',
     scrollIndicatorInsets,
     ...scrollViewProps
   } = rest;
@@ -32,6 +34,8 @@ export default function PageScrollView({
       scrollToOverflowEnabled={true}
       nestedScrollEnabled
       contentInsetAdjustmentBehavior={contentInsetAdjustmentBehavior}
+      automaticallyAdjustKeyboardInsets={automaticallyAdjustKeyboardInsets}
+      keyboardDismissMode={keyboardDismissMode}
       contentInset={{
         ...contentInset,
         bottom: (contentInset?.bottom ?? 0) + bottomContentInset,

@@ -9,10 +9,15 @@ import {
   usePerformanceStackScreenListeners,
 } from '@/lib/performance/PerformanceMonitorContext';
 import {
+  resolveVideoOrientationLock,
+  resolveVideoScreenOrientation,
+} from '@/lib/playerOrientation';
+import {
   QUERY_CACHE_BUSTER,
   QUERY_CACHE_STORAGE_KEY,
   queryPersistenceStorage,
 } from '@/lib/queryPersistence';
+import { storage } from '@/lib/storage';
 import { useAppTheme } from '@/lib/theme';
 import { mediaQueryKeys } from '@/services/media/queryKeys';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
@@ -23,9 +28,10 @@ import { Stack, usePathname } from 'expo-router';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo } from 'react';
-import { Platform } from 'react-native';
+import { useLayoutEffect, useMemo } from 'react';
+import { AppState, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useMMKVString } from 'react-native-mmkv';
 
 import 'react-native-reanimated';
 
@@ -52,24 +58,9 @@ const persister = createAsyncStoragePersister({
 });
 
 export default function RootLayout() {
-  const pathname = usePathname();
   const [loaded] = useFonts({
     Roboto: require('../assets/fonts/Roboto-Regular.ttf'),
   });
-
-  useEffect(() => {
-    if (pathname.startsWith('/player')) return;
-
-    // Wait until the active tab's native stack has published its final
-    // orientation mask, then restore the portrait app shell.
-    const restoreTimer = setTimeout(() => {
-      void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(
-        (error) => console.warn('Failed to restore the app orientation', error),
-      );
-    }, 700);
-
-    return () => clearTimeout(restoreTimer);
-  }, [pathname]);
 
   if (!loaded) {
     // Async font loading only occurs in development.
@@ -106,7 +97,33 @@ export default function RootLayout() {
 
 function RootNavigation() {
   const appTheme = useAppTheme();
+  const pathname = usePathname();
+  const [videoOrientation] = useMMKVString('videoOrientation', storage);
   const stackScreenListeners = usePerformanceStackScreenListeners('root');
+  const isPlayerRoute = pathname === '/player' || pathname.startsWith('/player/');
+  const isPlayerLabRoute = PLAYER_LAB_AVAILABLE && pathname.startsWith('/player-lab');
+  const orientationLock = isPlayerRoute
+    ? resolveVideoOrientationLock(videoOrientation)
+    : isPlayerLabRoute
+      ? ScreenOrientation.OrientationLock.LANDSCAPE
+      : ScreenOrientation.OrientationLock.PORTRAIT_UP;
+
+  useLayoutEffect(() => {
+    if (Platform.OS !== 'android') return;
+    // iOS rotates with the native screen lifecycle. Android needs an explicit lock.
+    const applyOrientation = async () => {
+      await ScreenOrientation.lockAsync(orientationLock).catch((error) => {
+        console.warn('Failed to apply the route orientation', error);
+      });
+    };
+    void applyOrientation();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void applyOrientation();
+    });
+    return () => {
+      subscription.remove();
+    };
+  }, [orientationLock]);
 
   const navigationTheme = useMemo(() => {
     const baseTheme = appTheme.isDark ? DarkTheme : DefaultTheme;
@@ -132,22 +149,43 @@ function RootNavigation() {
           headerTransparent: Platform.OS === 'ios',
           headerBackTitle: '',
           headerBackButtonDisplayMode: 'minimal',
+          orientation: Platform.OS === 'ios' ? 'portrait_up' : undefined,
+          statusBarHidden: Platform.OS === 'ios' ? false : undefined,
+          statusBarStyle: Platform.OS === 'ios' ? (appTheme.isDark ? 'light' : 'dark') : undefined,
         }}
       >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false, orientation: 'portrait_up' }} />
-        <Stack.Screen name="player" options={{ headerShown: false, orientation: 'all' }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="player"
+          options={{
+            headerShown: false,
+            animation: 'none',
+            orientation:
+              Platform.OS === 'ios' ? resolveVideoScreenOrientation(videoOrientation) : undefined,
+            gestureEnabled: false,
+            statusBarHidden: Platform.OS === 'ios' ? true : undefined,
+            autoHideHomeIndicator: true,
+            contentStyle: { backgroundColor: '#000' },
+          }}
+        />
         <Stack.Screen
           name="player-lab"
           options={{
             contentStyle: { backgroundColor: '#090B10' },
             headerShown: false,
-            orientation: PLAYER_LAB_AVAILABLE ? 'landscape' : 'portrait_up',
+            orientation: Platform.OS === 'ios' && PLAYER_LAB_AVAILABLE ? 'landscape' : undefined,
+            statusBarHidden: Platform.OS === 'ios' && PLAYER_LAB_AVAILABLE ? true : undefined,
           }}
         />
         <Stack.Screen name="+not-found" />
       </Stack>
       <PerformanceRouteObserver />
-      <StatusBar style={appTheme.isDark ? 'light' : 'dark'} />
+      {Platform.OS !== 'ios' && (
+        <StatusBar
+          hidden={isPlayerRoute || isPlayerLabRoute}
+          style={appTheme.isDark ? 'light' : 'dark'}
+        />
+      )}
     </ThemeProvider>
   );
 }

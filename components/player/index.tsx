@@ -931,8 +931,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   video: {
-    height: '100%',
-    width: '100%',
+    ...StyleSheet.absoluteFill,
   },
   bufferingOverlay: {
     alignItems: 'center',

@@ -213,6 +213,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, Props>(
         <FormSection>
           <FormRow label="名称">
             <FormInput
+              accessibilityLabel="服务器名称"
               value={name}
               onChangeText={setName}
               placeholder="可选"
@@ -223,6 +224,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, Props>(
           </FormRow>
           <FormRow label="备注" showSeparator={false}>
             <FormInput
+              accessibilityLabel="服务器备注"
               value={note}
               onChangeText={setNote}
               placeholder="可选"
@@ -235,6 +237,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, Props>(
         <FormSection title="服务器地址">
           <FormRow label="地址">
             <FormInput
+              accessibilityLabel="服务器地址"
               value={address}
               onChangeText={setAddress}
               placeholder="IP、域名或完整链接"
@@ -247,6 +250,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, Props>(
           </FormRow>
           <FormRow label="端口">
             <FormInput
+              accessibilityLabel="服务器端口"
               value={port}
               onChangeText={setPort}
               placeholder={`默认 ${defaultPortByType[serverType]}`}
@@ -256,6 +260,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, Props>(
           </FormRow>
           <FormRow label="路径" showSeparator={false}>
             <FormInput
+              accessibilityLabel="服务器路径"
               value={path}
               onChangeText={setPath}
               placeholder="可选，例如 /jellyfin"
@@ -269,6 +274,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, Props>(
         <FormSection title="登录信息">
           <FormRow label="用户">
             <FormInput
+              accessibilityLabel="用户名"
               value={username}
               onChangeText={setUsername}
               placeholder="用户名"
@@ -281,6 +287,7 @@ export const AddServerForm = forwardRef<AddServerFormHandle, Props>(
           <FormRow label="密码" showSeparator={false}>
             <View style={styles.passwordRow}>
               <FormInput
+                accessibilityLabel="密码"
                 value={password}
                 onChangeText={setPassword}
                 placeholder="可选"

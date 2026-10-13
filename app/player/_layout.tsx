@@ -1,92 +1,91 @@
-import {
-  resolveVideoOrientationLock,
-  useOrientation,
-  type VideoOrientationPreference,
-} from '@/hooks/useOrientation';
+import { resolveVideoScreenOrientation } from '@/lib/playerOrientation';
 import { storage } from '@/lib/storage';
 import { NavigationBar } from 'expo-navigation-bar';
-import { Stack, useNavigation } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { AppState, Platform } from 'react-native';
-
-type TransitionNavigation = {
-  addListener: (
-    event: 'transitionEnd',
-    listener: (event: { data?: { closing?: boolean } }) => void,
-  ) => () => void;
-};
+import { Stack } from 'expo-router';
+import {
+  useNavigation,
+  usePreventRemove,
+  type NavigationAction,
+} from 'expo-router/react-navigation';
+import * as ScreenOrientation from 'expo-screen-orientation';
+import { useEffect, useState } from 'react';
+import { AppState, Platform, useWindowDimensions } from 'react-native';
+import { useMMKVString } from 'react-native-mmkv';
 
 export default function Layout() {
+  const [videoOrientation] = useMMKVString('videoOrientation', storage);
   const navigation = useNavigation();
-  const { lockOrientation } = useOrientation();
+  const { width, height } = useWindowDimensions();
+  const [pendingExit, setPendingExit] = useState<NavigationAction | null>(null);
+  const [portraitTransitionCompleted, setPortraitTransitionCompleted] = useState(false);
+  const canFinishExit = portraitTransitionCompleted && width <= height;
+  // iPad multitasking can keep a landscape window despite a portrait orientation mask.
+  const coordinatePortraitExit = Platform.OS === 'ios' && !Platform.isPad;
+
+  usePreventRemove(coordinatePortraitExit && !canFinishExit, ({ data }) => {
+    setPendingExit(data.action);
+    // A portrait player can leave immediately; a landscape player remains mounted
+    // until UIKit completes its rotation, so the returning screen never uses stale dimensions.
+    if (width <= height) {
+      void ScreenOrientation.getOrientationAsync()
+        .then((orientation) => {
+          if (orientation === ScreenOrientation.Orientation.PORTRAIT_UP) {
+            setPortraitTransitionCompleted(true);
+          }
+        })
+        .catch((error) => console.warn('Failed to read the player orientation', error));
+    }
+  });
 
   useEffect(() => {
-    if (Platform.OS === 'android') {
-      NavigationBar.setHidden(true);
-    }
-    StatusBar.setHidden(true);
-
-    const preference = (storage.getString('videoOrientation') ??
-      'landscape') as VideoOrientationPreference;
-    const playerOrientation = resolveVideoOrientationLock(preference);
-    const parentNavigation = navigation.getParent() as unknown as TransitionNavigation | undefined;
-    let active = true;
-    let orientationApplied = false;
-    let orientationTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const applyPlayerOrientation = () => {
-      if (!active || orientationApplied) return;
-      orientationApplied = true;
-      void lockOrientation(playerOrientation);
-    };
-    const schedulePlayerOrientation = (delay: number) => {
-      if (!active || orientationApplied || orientationTimer) return;
-      orientationTimer = setTimeout(() => {
-        orientationTimer = null;
-        applyPlayerOrientation();
-      }, delay);
-    };
-
-    // Let the native push finish before changing the window geometry. Locking
-    // during that transition can make iOS cancel the first presentation.
-    const removeTransitionListener = parentNavigation?.addListener('transitionEnd', (event) => {
-      if (event.data?.closing !== true) schedulePlayerOrientation(300);
-    });
-    const fallbackTimer = setTimeout(() => schedulePlayerOrientation(0), 900);
-
-    // iOS can reset the orientation lock while the app is backgrounded. Once
-    // this screen has finished presenting, reapply the user's player setting.
-    const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'active' && orientationApplied && active) {
-        void lockOrientation(playerOrientation);
+    if (!pendingExit) return;
+    const subscription = ScreenOrientation.addOrientationChangeListener(({ orientationInfo }) => {
+      if (orientationInfo.orientation === ScreenOrientation.Orientation.PORTRAIT_UP) {
+        setPortraitTransitionCompleted(true);
       }
     });
-
+    // A completed rotation can be missed while Expo's registry is suspended in background.
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      void ScreenOrientation.getOrientationAsync()
+        .then((orientation) => {
+          if (orientation === ScreenOrientation.Orientation.PORTRAIT_UP) {
+            setPortraitTransitionCompleted(true);
+          }
+        })
+        .catch((error) => console.warn('Failed to read the player orientation', error));
+    });
     return () => {
-      active = false;
-      clearTimeout(fallbackTimer);
-      if (orientationTimer) clearTimeout(orientationTimer);
-      removeTransitionListener?.();
+      ScreenOrientation.removeOrientationChangeListener(subscription);
       appStateSubscription.remove();
-      if (Platform.OS === 'android') {
-        NavigationBar.setHidden(false);
-      }
-      StatusBar.setHidden(false);
     };
-  }, [lockOrientation, navigation]);
+  }, [pendingExit]);
+
+  useEffect(() => {
+    if (pendingExit && canFinishExit) navigation.dispatch(pendingExit);
+  }, [canFinishExit, navigation, pendingExit]);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    NavigationBar.setHidden(true);
+    return () => NavigationBar.setHidden(false);
+  }, []);
 
   return (
-    <Stack>
-      <Stack.Screen
-        name="index"
-        options={{
-          headerShown: false,
-          autoHideHomeIndicator: true,
-          title: '',
-          animation: 'fade',
-        }}
-      />
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        orientation:
+          Platform.OS === 'ios'
+            ? pendingExit
+              ? 'portrait_up'
+              : resolveVideoScreenOrientation(videoOrientation)
+            : undefined,
+        statusBarHidden: Platform.OS === 'ios' ? true : undefined,
+        autoHideHomeIndicator: true,
+        contentStyle: { backgroundColor: '#000' },
+      }}
+    >
+      <Stack.Screen name="index" options={{ title: '', animation: 'none' }} />
     </Stack>
   );
 }

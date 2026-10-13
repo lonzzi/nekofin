@@ -45,6 +45,7 @@ export default ({ config: _config }: { config: ExpoConfig }): ExpoConfig => {
       supportsTablet: true,
       bundleIdentifier: getUniqueIdentifier(),
       infoPlist: {
+        UIViewControllerBasedStatusBarAppearance: true,
         NSAppTransportSecurity: {
           NSAllowsArbitraryLoads: true,
         },

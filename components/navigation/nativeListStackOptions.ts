@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 export function getNativeListStackOptions(backgroundColor: string) {
   const ios = Platform.OS === 'ios';
   return {
+    orientation: ios ? 'portrait_up' : undefined,
     headerTransparent: ios,
     headerLargeTitle: ios,
     headerShadowVisible: false,
