@@ -1,4 +1,5 @@
 import { AddServerForm, type AddServerFormHandle } from '@/components/AddServerForm';
+import { HeaderButton, HeaderToolbar } from '@/components/navigation/HeaderToolbar';
 import { getAddServerSavePresentation } from '@/components/navigation/nativeHeaderModel';
 import { getNativeToolbarIcon } from '@/components/navigation/nativeToolbarIcons';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
@@ -34,8 +35,8 @@ export default function AddServerScreen() {
   return (
     <>
       <Stack.Title large>{title}</Stack.Title>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
+      <HeaderToolbar placement="right">
+        <HeaderButton
           accessibilityLabel={savePresentation.accessibilityLabel}
           disabled={savePresentation.disabled}
           icon={
@@ -47,8 +48,8 @@ export default function AddServerScreen() {
           variant="done"
         >
           {savePresentation.label}
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
+        </HeaderButton>
+      </HeaderToolbar>
       <AddServerForm
         existingServer={existingServer}
         ref={formRef}

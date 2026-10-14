@@ -1,6 +1,7 @@
 import { useAppTheme } from '@/lib/theme';
 import { useOuterTheme } from '@/lib/theme/OuterTheme';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { Platform } from 'react-native';
 
 export default function TabLayout() {
   const accentColor = useOuterTheme().colors.tint;
@@ -12,8 +13,14 @@ export default function TabLayout() {
       blurEffect="systemUltraThinMaterial"
       minimizeBehavior="onScrollDown"
       shadowColor="transparent"
+      // Android's default is opaque primary; keep repeated native ripples translucent.
+      rippleColor={Platform.OS === 'android' ? `${accentColor.slice(0, 7)}1A` : undefined}
     >
-      <NativeTabs.Trigger name="(home)" contentStyle={{ backgroundColor: theme.colors.background }}>
+      <NativeTabs.Trigger
+        name="(home)"
+        contentStyle={{ backgroundColor: theme.colors.background }}
+        disableAutomaticContentInsets={Platform.OS === 'android'}
+      >
         <NativeTabs.Trigger.Label>首页</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           drawable="home"

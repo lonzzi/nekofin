@@ -3,7 +3,7 @@ import { spacing } from '@/lib/theme';
 import { useMemo } from 'react';
 import { useWindowDimensions } from 'react-native';
 
-export function useGridLayout(type?: 'series' | 'episode') {
+export function useGridLayout(type?: 'series' | 'episode', minItemWidth?: number) {
   const isTablet = useIsTablet();
   const { width } = useWindowDimensions();
 
@@ -29,6 +29,7 @@ export function useGridLayout(type?: 'series' | 'episode') {
       }
     }
 
+    targetItemWidth = Math.max(targetItemWidth, minItemWidth ?? 0);
     numColumns = Math.floor(availableWidth / targetItemWidth);
 
     numColumns = Math.max(2, Math.min(numColumns, isTablet ? 8 : 4));
@@ -41,5 +42,5 @@ export function useGridLayout(type?: 'series' | 'episode') {
       itemWidth,
       gap,
     };
-  }, [isTablet, type, width]);
+  }, [isTablet, minItemWidth, type, width]);
 }

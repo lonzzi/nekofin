@@ -1,3 +1,4 @@
+import { getNativeToolbarIcon } from '@/components/navigation/nativeToolbarIcons';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { getServerConnections } from '@/lib/serverConnections';
 import { useAppTheme } from '@/lib/theme';
@@ -5,7 +6,9 @@ import { getCachedToolbarAvatar, getToolbarAvatar } from '@/modules/toolbar-avat
 import type { MediaServerInfo } from '@/services/media/types';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
+
+import { AccountMenu, AccountMenuAction, AccountToolbar } from './AccountMenu';
 
 // Keep a 4 pt inset between the avatar and the native 44 pt button.
 const AVATAR_DIAMETER = 36;
@@ -53,7 +56,9 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
     () =>
       avatarUri
         ? { uri: avatarUri, width: AVATAR_DIAMETER, height: AVATAR_DIAMETER }
-        : ('person' as const),
+        : Platform.OS === 'android'
+          ? require('../../assets/drawables/account.xml')
+          : getNativeToolbarIcon('person', 'person'),
     [avatarUri],
   );
 
@@ -65,10 +70,10 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
   return (
     <>
       <Stack.Screen options={{ headerTintColor: theme.colors.text }} />
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu
+      <AccountToolbar placement="right">
+        <AccountMenu
           icon={avatarIcon}
-          iconRenderingMode="original"
+          iconRenderingMode={avatarUri || Platform.OS === 'android' ? 'original' : 'template'}
           disabled={switching}
           accessibilityLabel={
             switching
@@ -76,25 +81,30 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
               : `${server?.username || '用户'}，切换首页视图和服务器线路`
           }
         >
-          <Stack.Toolbar.Menu inline title="首页视图">
-            <Stack.Toolbar.MenuAction onPress={() => selectView(null)} subtitle="查看所有服务器">
+          <AccountMenu inline title="首页视图">
+            <AccountMenuAction
+              onPress={() => selectView(null)}
+              subtitle="查看所有服务器"
+              isOn={homeServerId === null}
+            >
               聚合视图
-            </Stack.Toolbar.MenuAction>
+            </AccountMenuAction>
             {servers.map((item) => (
-              <Stack.Toolbar.MenuAction
+              <AccountMenuAction
                 key={item.id}
                 onPress={() => selectView(item)}
                 subtitle={item.username}
+                isOn={homeServerId === item.id}
               >
                 {item.name}
-              </Stack.Toolbar.MenuAction>
+              </AccountMenuAction>
             ))}
-          </Stack.Toolbar.Menu>
+          </AccountMenu>
           {server ? (
-            <Stack.Toolbar.Menu title="服务器线路">
-              <Stack.Toolbar.Menu inline title={server.name}>
+            <AccountMenu title="服务器线路">
+              <AccountMenu inline title={server.name}>
                 {connections.map((line) => (
-                  <Stack.Toolbar.MenuAction
+                  <AccountMenuAction
                     key={line.id}
                     subtitle={line.address}
                     onPress={() => {
@@ -110,10 +120,10 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
                     }}
                   >
                     {line.name}
-                  </Stack.Toolbar.MenuAction>
+                  </AccountMenuAction>
                 ))}
-              </Stack.Toolbar.Menu>
-              <Stack.Toolbar.MenuAction
+              </AccountMenu>
+              <AccountMenuAction
                 onPress={() =>
                   router.push({
                     pathname: '/(tabs)/(servers)/server-lines/[serverId]',
@@ -122,14 +132,14 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
                 }
               >
                 管理线路
-              </Stack.Toolbar.MenuAction>
-            </Stack.Toolbar.Menu>
+              </AccountMenuAction>
+            </AccountMenu>
           ) : null}
-          <Stack.Toolbar.MenuAction onPress={() => router.navigate('/(tabs)/(servers)')}>
+          <AccountMenuAction onPress={() => router.navigate('/(tabs)/(servers)')}>
             服务器
-          </Stack.Toolbar.MenuAction>
-        </Stack.Toolbar.Menu>
-      </Stack.Toolbar>
+          </AccountMenuAction>
+        </AccountMenu>
+      </AccountToolbar>
     </>
   );
 }

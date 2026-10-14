@@ -7,6 +7,7 @@ export type AndroidToolbarDrawable =
   | 'film'
   | 'heart'
   | 'heartOutline'
+  | 'person'
   | 'save'
   | 'search';
 

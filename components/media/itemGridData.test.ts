@@ -1,7 +1,12 @@
 import type { MediaItem } from '@/services/media/types';
 import { describe, expect, it } from 'vitest';
 
-import { dedupeMediaItems, flattenItemGridPages, groupMediaItems } from './itemGridData';
+import {
+  createItemGridSections,
+  dedupeMediaItems,
+  flattenItemGridPages,
+  groupMediaItems,
+} from './itemGridData';
 
 const item = (id: string, type: MediaItem['type']): MediaItem => ({
   id,
@@ -52,5 +57,29 @@ describe('item grid data helpers', () => {
     const items = [item('s', 'Series')];
 
     expect(groupMediaItems(items, true)).toEqual([{ key: 'all', title: '', items }]);
+  });
+
+  it('keeps mixed favorites in vertical rows with independent poster and episode columns', () => {
+    const series = Array.from({ length: 5 }, (_, i) => item(`s${i}`, 'Series'));
+    const movie = item('m', 'Movie');
+    const episodes = [item('e1', 'Episode'), item('e2', 'Episode')];
+    const sections = createItemGridSections(groupMediaItems([...series, movie, ...episodes]), 2, 1);
+
+    expect(sections.map((section) => section.data)).toEqual([
+      [series.slice(0, 2), series.slice(2, 4), series.slice(4)],
+      [[movie]],
+      episodes.map((episode) => [episode]),
+    ]);
+  });
+
+  it('reflows collection rows without losing items when the column count changes', () => {
+    const items = Array.from({ length: 7 }, (_, i) => item(`s${i}`, 'Series'));
+    const groups = groupMediaItems(items);
+    expect(createItemGridSections(groups, 3, 2)[0].data).toEqual([
+      items.slice(0, 3),
+      items.slice(3, 6),
+      items.slice(6),
+    ]);
+    expect(createItemGridSections(groups, 2, 2)[0].data.flat()).toEqual(items);
   });
 });

@@ -1,14 +1,22 @@
 import { AvatarImage } from '@/components/AvatarImage';
 import { useAppTheme } from '@/lib/theme';
 import { Text as NativeText } from '@expo/ui';
+import { Icon as ComposeIcon } from '@expo/ui/jetpack-compose';
 import { Image as SwiftImage } from '@expo/ui/swift-ui';
 import { frame } from '@expo/ui/swift-ui/modifiers';
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import type { SFSymbol } from 'sf-symbols-typescript';
+
+import { ANDROID_SETTINGS_ICONS, type SettingsSymbolName } from './nativeSettingsIcons';
 
 type ValueTone = 'accent' | 'muted' | 'danger';
 
-export function SettingsSymbol({ name, tone = 'accent' }: { name: SFSymbol; tone?: ValueTone }) {
+export function SettingsSymbol({
+  name,
+  tone = 'accent',
+}: {
+  name: SettingsSymbolName;
+  tone?: ValueTone;
+}) {
   const theme = useAppTheme();
   const color =
     tone === 'danger'
@@ -26,6 +34,10 @@ export function SettingsSymbol({ name, tone = 'accent' }: { name: SFSymbol; tone
         modifiers={[frame({ width: 28, height: 28 })]}
       />
     );
+  }
+
+  if (Platform.OS === 'android') {
+    return <ComposeIcon source={ANDROID_SETTINGS_ICONS[name]} size={19} tint={color} />;
   }
 
   return (

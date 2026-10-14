@@ -25,6 +25,7 @@ export default function FavoritesScreen() {
       title="我的收藏"
       query={query}
       type="series"
+      layout="grid"
       filters={filters}
       onChangeFilters={setFilters}
       emptyState={{ title: '暂无收藏', icon: 'favorites' }}

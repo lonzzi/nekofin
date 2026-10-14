@@ -31,7 +31,7 @@ export default function SettingsScreen() {
           />
           <NativeSettingsItem
             title={<SettingsTitle>弹幕</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="效果预览、速度与内容过滤" />}
+            subtitle={<SettingsSubtitle primary="显示效果、速度与内容过滤" />}
             disclosure
             onPress={() => router.push('/danmaku')}
           />

@@ -4,6 +4,8 @@ import { useMemo } from 'react';
 import { Easing, StyleSheet, View } from 'react-native';
 import { easeGradient } from 'react-native-easing-gradient';
 
+import { CAROUSEL_FADE_MS } from './carouselMotion';
+
 function getGradientColors(colors: string[]) {
   return colors as unknown as readonly [string, string, ...string[]];
 }
@@ -32,7 +34,7 @@ export function HomeAtmosphereBackdrop({
   const placeholder = useMemo(() => (blurhash ? { blurhash } : undefined), [blurhash]);
   const imageLoadingProps = optimizeImageLoading
     ? ({ enforceEarlyResizing: true, priority: 'low' } as const)
-    : ({ transition: 260 } as const);
+    : {};
 
   const atmosphereGradient = useMemo(
     () =>
@@ -67,7 +69,7 @@ export function HomeAtmosphereBackdrop({
           contentFit="cover"
           contentPosition="center"
           blurRadius={60}
-          recyclingKey={imageUrl}
+          transition={{ duration: CAROUSEL_FADE_MS, timing: 'ease-in-out' }}
           {...imageLoadingProps}
         />
       )}

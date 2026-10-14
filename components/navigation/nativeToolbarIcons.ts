@@ -11,6 +11,7 @@ export type NativeToolbarIOSIcon =
   | 'heart'
   | 'heart.fill'
   | 'magnifyingglass'
+  | 'person'
   | 'plus';
 
 const ANDROID_TOOLBAR_ICONS = {
@@ -20,6 +21,7 @@ const ANDROID_TOOLBAR_ICONS = {
   film: require('../../assets/drawables/film.png'),
   heart: require('../../assets/drawables/heart.png'),
   heartOutline: require('../../assets/drawables/heart_outline.png'),
+  person: require('../../assets/drawables/person.png'),
   save: require('../../assets/drawables/save.png'),
   search: require('../../assets/drawables/search.png'),
 } as const satisfies Record<AndroidToolbarDrawable, ImageSourcePropType>;
@@ -40,9 +42,10 @@ export function getServerMenuIcon(type: MediaServerType): ImageSourcePropType {
   if (process.env.EXPO_OS === 'ios') {
     return { uri: type === 'jellyfin' ? 'jellyfin-icon--color-on-light' : 'emby' };
   }
+  // Android menu actions always tint their icon; keep the play triangle transparent.
   return type === 'jellyfin'
     ? require('../../assets/icons/jellyfin-icon--color-on-light.png')
-    : require('../../assets/drawables/emby.xml');
+    : require('../../assets/drawables/emby_template.xml');
 }
 
 export function getNativeToolbarIcon(

@@ -16,6 +16,7 @@ type ItemImageProps = {
   fallback?: ReactNode;
   onError?: ImageProps['onError'];
   onLoad?: ImageProps['onLoad'];
+  onDisplay?: ImageProps['onDisplay'];
   priority?: ImageProps['priority'];
   recyclingKey?: ImageProps['recyclingKey'];
   transition?: ImageProps['transition'];
@@ -36,6 +37,7 @@ function ItemImageContent({
   fallback,
   onError,
   onLoad,
+  onDisplay,
   priority,
   recyclingKey,
   transition,
@@ -76,7 +78,10 @@ function ItemImageContent({
             onError?.(event);
           }}
           onLoad={onLoad}
-          onDisplay={() => setStatus('loaded')}
+          onDisplay={() => {
+            setStatus('loaded');
+            onDisplay?.();
+          }}
         />
       ) : null}
     </View>

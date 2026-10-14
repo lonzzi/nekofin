@@ -1,4 +1,10 @@
 import {
+  HeaderLabel,
+  HeaderMenu,
+  HeaderMenuAction,
+  HeaderToolbar,
+} from '@/components/navigation/HeaderToolbar';
+import {
   getNativeToolbarIcon,
   getServerMenuIcon,
 } from '@/components/navigation/nativeToolbarIcons';
@@ -16,7 +22,6 @@ import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/theme';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import type { MediaServerInfo, MediaServerType } from '@/services/media/types';
-import { Stack } from 'expo-router';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 function ServersScreen() {
@@ -42,28 +47,25 @@ function ServersScreen() {
     <>
       <OuterScreenOptions title="服务器" />
       <OuterTitle>服务器</OuterTitle>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu
-          accessibilityLabel="添加媒体账号"
-          icon={getNativeToolbarIcon('add', 'plus')}
-        >
-          <Stack.Toolbar.Label>添加服务器</Stack.Toolbar.Label>
-          <Stack.Toolbar.MenuAction
+      <HeaderToolbar placement="right">
+        <HeaderMenu accessibilityLabel="添加媒体账号" icon={getNativeToolbarIcon('add', 'plus')}>
+          <HeaderLabel>添加服务器</HeaderLabel>
+          <HeaderMenuAction
             onPress={() => add('jellyfin')}
             icon={getServerMenuIcon('jellyfin')}
             iconRenderingMode="original"
           >
             Jellyfin
-          </Stack.Toolbar.MenuAction>
-          <Stack.Toolbar.MenuAction
+          </HeaderMenuAction>
+          <HeaderMenuAction
             onPress={() => add('emby')}
             icon={getServerMenuIcon('emby')}
             iconRenderingMode="original"
           >
             Emby
-          </Stack.Toolbar.MenuAction>
-        </Stack.Toolbar.Menu>
-      </Stack.Toolbar>
+          </HeaderMenuAction>
+        </HeaderMenu>
+      </HeaderToolbar>
       <PageScrollView
         style={{ backgroundColor: theme.colors.background }}
         contentContainerStyle={styles.page}

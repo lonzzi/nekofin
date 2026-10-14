@@ -5,7 +5,7 @@ import ParallaxScrollView, {
 } from '@/components/ParallaxScrollView';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, type ComponentProps, type PropsWithChildren, type ReactElement } from 'react';
-import { Easing, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { Easing, Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { easeGradient } from 'react-native-easing-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -95,7 +95,9 @@ export function HomeAtmosphereScrollView({
       </View>
 
       <ParallaxScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom }}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + (Platform.OS === 'android' ? 80 : 0),
+        }}
         showsVerticalScrollIndicator={false}
         style={styles.scroller}
         headerHeight={headerHeight}

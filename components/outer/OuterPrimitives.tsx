@@ -1,7 +1,7 @@
 import { useAppTheme } from '@/lib/theme';
 import { Stack } from 'expo-router';
 import type { PropsWithChildren } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export function OuterScreenOptions({
   title,
@@ -23,10 +23,7 @@ export function OuterScreenOptions({
           headerTitleStyle: { color: t.colors.text },
           headerLargeTitleStyle: { color: t.colors.text },
           headerTintColor: t.colors.tint,
-          headerStyle:
-            Platform.OS === 'ios'
-              ? { backgroundColor: 'transparent' }
-              : { backgroundColor: t.colors.background },
+          headerStyle: { backgroundColor: 'transparent' },
           headerLargeStyle: undefined,
           contentStyle: {
             backgroundColor: grouped ? t.colors.backgroundGrouped : t.colors.background,

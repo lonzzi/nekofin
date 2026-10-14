@@ -1,4 +1,10 @@
 import { HomeAtmosphereScrollView } from '@/components/home/HomeAtmosphereScrollView';
+import {
+  HeaderButton,
+  HeaderMenu,
+  HeaderMenuAction,
+  HeaderToolbar,
+} from '@/components/navigation/HeaderToolbar';
 import { DETAIL_TOOLBAR_STATES } from '@/components/navigation/nativeHeaderModel';
 import {
   DETAIL_MORE_MENU_ICONS,
@@ -13,7 +19,6 @@ import { mediaQueryKeys } from '@/services/media/queryKeys';
 import { itemDetailQueryOptions } from '@/services/media/queryOptions';
 import { useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Stack } from 'expo-router';
 import { openBrowserAsync } from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -181,9 +186,9 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     }
   }, [externalInfo, theme.colors.tint]);
   const toolbar = (
-    <Stack.Toolbar placement="right">
+    <HeaderToolbar placement="right">
       {currentItemId ? (
-        <Stack.Toolbar.Button
+        <HeaderButton
           accessibilityLabel={favoritePresentation.label}
           disabled={isFavoritePending}
           icon={getNativeToolbarIcon(
@@ -191,38 +196,34 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
             favoritePresentation.iosIcon,
           )}
           onPress={() => void handleToggleFavorite()}
-          selected={isFavorite}
-          tintColor={textColor}
+          tintColor={Platform.OS === 'ios' && isFavorite ? theme.colors.danger : textColor}
         >
           {favoritePresentation.label}
-        </Stack.Toolbar.Button>
+        </HeaderButton>
       ) : null}
       {externalInfo ? (
-        <Stack.Toolbar.Menu
+        <HeaderMenu
           accessibilityLabel="更多影片操作"
           icon={DETAIL_MORE_MENU_ICONS.more}
           tintColor={textColor}
         >
-          <Stack.Toolbar.Menu inline>
+          <HeaderMenu inline>
             {externalInfo.links.map((link) => (
-              <Stack.Toolbar.MenuAction
+              <HeaderMenuAction
                 key={link.provider}
                 icon={DETAIL_MORE_MENU_ICONS.external}
                 onPress={() => void handleOpenExternalLink(link.url)}
               >
                 {link.label}
-              </Stack.Toolbar.MenuAction>
+              </HeaderMenuAction>
             ))}
-          </Stack.Toolbar.Menu>
-          <Stack.Toolbar.MenuAction
-            icon={DETAIL_MORE_MENU_ICONS.share}
-            onPress={() => void handleShare()}
-          >
+          </HeaderMenu>
+          <HeaderMenuAction icon={DETAIL_MORE_MENU_ICONS.share} onPress={() => void handleShare()}>
             分享影片信息
-          </Stack.Toolbar.MenuAction>
-        </Stack.Toolbar.Menu>
+          </HeaderMenuAction>
+        </HeaderMenu>
       ) : null}
-    </Stack.Toolbar>
+    </HeaderToolbar>
   );
 
   const atmosphereContentStyle = {

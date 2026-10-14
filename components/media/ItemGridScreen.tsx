@@ -1,5 +1,4 @@
 import { EpisodeCard, SeriesCard } from '@/components/media/Card';
-import { useEmptyListLayout } from '@/hooks/useEmptyListLayout';
 import { useGridLayout } from '@/hooks/useGridLayout';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { MediaFilters } from '@/hooks/useMediaFilters';
@@ -19,6 +18,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  SectionList,
   StyleSheet,
   Text,
   View,
@@ -26,10 +26,16 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import PageScrollView from '../PageScrollView';
+import { emptyListContentStyle, EmptyListViewport } from '../ui/EmptyListViewport';
 import { EmptyState, type EmptyStateProps } from '../ui/EmptyState';
 import { FilterButton, FilterRow } from '../ui/FilterControls';
 import { SkeletonItemGrid } from '../ui/Skeleton';
-import { dedupeMediaItems, flattenItemGridPages, groupMediaItems } from './itemGridData';
+import {
+  createItemGridSections,
+  dedupeMediaItems,
+  flattenItemGridPages,
+  groupMediaItems,
+} from './itemGridData';
 import { getSourcedMediaKey, type GetMediaItemSource } from './mediaSource';
 
 export type ItemGridScreenProps = {
@@ -40,6 +46,7 @@ export type ItemGridScreenProps = {
   >;
   data?: MediaItem[];
   type?: 'series' | 'episode';
+  layout?: 'auto' | 'grid';
   filters?: MediaFilters;
   onChangeFilters?: (next: MediaFilters) => void;
   disableGrouping?: boolean;
@@ -53,6 +60,7 @@ export function ItemGridScreen({
   query,
   data: dataProp,
   type,
+  layout = 'auto',
   filters,
   onChangeFilters,
   disableGrouping = false,
@@ -62,9 +70,8 @@ export function ItemGridScreen({
 }: ItemGridScreenProps) {
   const insets = useSafeAreaInsets();
   const theme = useAppTheme();
-  const { onLayout, emptyContentStyle } = useEmptyListLayout();
   const backgroundColor = theme.colors.background;
-  const { numColumns, itemWidth, gap } = useGridLayout(type);
+  const { numColumns, itemWidth, gap } = useGridLayout(type, layout === 'grid' ? 160 : undefined);
   const episodeLayout = useGridLayout('episode');
 
   const { currentServer } = useMediaServers();
@@ -96,6 +103,11 @@ export function ItemGridScreen({
   const groupedItems = useMemo(() => {
     return groupMediaItems(items, disableGrouping);
   }, [items, disableGrouping]);
+
+  const gridSections = useMemo(
+    () => createItemGridSections(groupedItems, numColumns, episodeLayout.numColumns),
+    [groupedItems, numColumns, episodeLayout.numColumns],
+  );
 
   const { refreshing, onRefresh } = useRefresh(refetch || (async () => {}));
 
@@ -150,6 +162,9 @@ export function ItemGridScreen({
     [onChangeFilters, filters],
   );
 
+  const selectedItemType =
+    filters?.includeItemTypes?.length === 1 ? filters.includeItemTypes[0] : undefined;
+
   const renderFilterBar = useCallback(() => {
     if (!onChangeFilters) return null;
 
@@ -170,36 +185,36 @@ export function ItemGridScreen({
               label="类型"
               title="选择类型"
               options={[
-                { label: '全部', value: '' },
+                { label: '全部', value: '', active: !selectedItemType },
                 {
                   label: '电影',
                   value: 'Movie',
-                  active: !!filters?.includeItemTypes?.includes('Movie'),
+                  active: selectedItemType === 'Movie',
                 },
                 {
                   label: '剧集',
                   value: 'Series',
-                  active: !!filters?.includeItemTypes?.includes('Series'),
+                  active: selectedItemType === 'Series',
                 },
                 {
                   label: '单集',
                   value: 'Episode',
-                  active: !!filters?.includeItemTypes?.includes('Episode'),
+                  active: selectedItemType === 'Episode',
                 },
                 {
                   label: '文件夹',
                   value: 'Folder',
-                  active: !!filters?.includeItemTypes?.includes('Folder'),
+                  active: selectedItemType === 'Folder',
                 },
                 {
                   label: '合集',
                   value: 'BoxSet',
-                  active: !!filters?.includeItemTypes?.includes('BoxSet'),
+                  active: selectedItemType === 'BoxSet',
                 },
                 {
                   label: '播放列表',
                   value: 'Playlist',
-                  active: !!filters?.includeItemTypes?.includes('Playlist'),
+                  active: selectedItemType === 'Playlist',
                 },
               ]}
               onSelect={(v) =>
@@ -233,7 +248,7 @@ export function ItemGridScreen({
               onSelect={(v) => patchFilters({ tags: v ? [v] : undefined })}
             />
             <FilterButton
-              label="排序依据"
+              label="排序"
               title="选择排序依据"
               options={[
                 {
@@ -275,7 +290,7 @@ export function ItemGridScreen({
               onSelect={(v) => patchFilters({ sortBy: v ? [v as MediaSortBy] : filters?.sortBy })}
             />
             <FilterButton
-              label="排序顺序"
+              label="顺序"
               title="选择排序顺序"
               options={[
                 {
@@ -301,6 +316,7 @@ export function ItemGridScreen({
     onChangeFilters,
     availableFilters,
     filters,
+    selectedItemType,
     patchFilters,
     theme.spacing.page,
     theme.spacing.sm,
@@ -393,6 +409,63 @@ export function ItemGridScreen({
     );
   }
 
+  if (layout === 'grid' && items.length > 0) {
+    return (
+      <>
+        <Stack.Title large>{title}</Stack.Title>
+        <SectionList
+          sections={gridSections}
+          keyExtractor={(row) => keyExtractor(row[0], 0)}
+          renderItem={({ item: row, section }) => (
+            <View style={{ flexDirection: 'row', gap, marginBottom: theme.spacing.lg }}>
+              {row.map((item, index) => (
+                <View key={keyExtractor(item, index)}>
+                  {renderMediaCard(
+                    item,
+                    section.key === 'Episode' ? episodeLayout.itemWidth : itemWidth,
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+          renderSectionHeader={({ section }) =>
+            groupedItems.length > 1 ? (
+              <Text
+                style={[
+                  theme.typography.bodyEmphasized,
+                  {
+                    color: theme.colors.text,
+                    marginTop: theme.spacing.sm,
+                    marginBottom: theme.spacing.md,
+                  },
+                ]}
+              >
+                {section.title}
+              </Text>
+            ) : null
+          }
+          stickySectionHeadersEnabled={false}
+          showsVerticalScrollIndicator={false}
+          contentInsetAdjustmentBehavior="automatic"
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.4}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingHorizontal: theme.spacing.page,
+              paddingTop: theme.spacing.sm,
+              paddingBottom: Platform.OS === 'android' ? 100 + insets.bottom : theme.spacing.xl,
+            },
+          ]}
+          ListHeaderComponent={renderFilterBar()}
+          ListFooterComponent={listFooter}
+          style={{ backgroundColor }}
+        />
+      </>
+    );
+  }
+
   if (groupedItems.length === 1) {
     return (
       <>
@@ -414,7 +487,7 @@ export function ItemGridScreen({
             {
               paddingBottom: Platform.OS === 'android' ? 100 : 0,
               paddingHorizontal: theme.spacing.page,
-              paddingVertical: theme.spacing.xl,
+              paddingTop: theme.spacing.sm,
               rowGap: theme.spacing.lg,
             },
           ]}
@@ -440,25 +513,25 @@ export function ItemGridScreen({
         style={{ backgroundColor }}
         contentContainerStyle={[
           styles.scrollContent,
-          groupedItems.length === 0 && emptyContentStyle,
+          groupedItems.length === 0 && emptyListContentStyle,
           {
             paddingHorizontal: theme.spacing.page,
-            paddingVertical: theme.spacing.xl,
+            paddingTop: theme.spacing.sm,
+            paddingBottom: theme.spacing.xl,
           },
         ]}
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="automatic"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        onLayout={onLayout}
       >
         {renderFilterBar()}
 
         {groupedItems.length > 0 ? (
           groupedItems.map((group) => renderGroupSection(group, true))
         ) : (
-          <View style={styles.emptyContainer}>
+          <EmptyListViewport bottomSpacing={theme.spacing.xl + 16}>
             <EmptyState {...emptyState} />
-          </View>
+          </EmptyListViewport>
         )}
 
         {listFooter}
@@ -475,15 +548,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   filterBar: {
-    paddingBottom: 10,
+    paddingBottom: 12,
     overflow: 'visible',
   },
   filterScroll: {
     overflow: 'visible',
   },
   filterScrollContent: {
-    paddingTop: 4,
-    paddingBottom: 12,
+    paddingVertical: 0,
   },
   errorContainer: {
     flex: 1,

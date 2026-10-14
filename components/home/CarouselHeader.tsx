@@ -13,16 +13,24 @@ import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
+  Easing,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
+
+import {
+  CAROUSEL_FADE_MS,
+  getCarouselPresentation,
+  getMountedCarouselIndexes,
+} from './carouselMotion';
 
 interface CarouselHeaderProps {
   items: MediaItem[];
@@ -81,7 +89,7 @@ function CarouselImageLayer({ imageInfo, onImageReady }: CarouselImageLayerProps
         placeholderBlurhash={imageInfo.blurhash}
         recyclingKey={imageUrl}
         onError={() => onImageReady?.(imageUrl)}
-        onLoad={() => onImageReady?.(imageUrl)}
+        onDisplay={() => onImageReady?.(imageUrl)}
       />
     );
   }
@@ -99,40 +107,123 @@ function CarouselImageLayer({ imageInfo, onImageReady }: CarouselImageLayerProps
   );
 }
 
-type CarouselFrameProps = {
-  imageInfo?: CarouselImageInfo;
-  onImageReady?: (imageUrl: string) => void;
+type CarouselMotionProps = {
+  index: number;
+  count: number;
+  width: number;
+  activeIndex: SharedValue<number>;
+  autoTarget: SharedValue<number>;
+  autoProgress: SharedValue<number>;
+  drag: SharedValue<number>;
+  dragging: SharedValue<boolean>;
 };
 
-function CarouselFrame({ imageInfo, onImageReady }: CarouselFrameProps) {
+function useCarouselSlideStyles({
+  index,
+  count,
+  width,
+  activeIndex,
+  autoTarget,
+  autoProgress,
+  drag,
+  dragging,
+}: CarouselMotionProps) {
+  const frame = useAnimatedStyle(() => {
+    const state = getCarouselPresentation(
+      index,
+      activeIndex.value,
+      count,
+      autoTarget.value,
+      autoProgress.value,
+      drag.value,
+      dragging.value,
+      width,
+    );
+    return {
+      opacity: state.opacity,
+      zIndex: state.order,
+      transform: [{ translateX: state.offset }],
+    };
+  });
+  const image = useAnimatedStyle(() => {
+    const state = getCarouselPresentation(
+      index,
+      activeIndex.value,
+      count,
+      autoTarget.value,
+      autoProgress.value,
+      drag.value,
+      dragging.value,
+      width,
+    );
+    return { transform: [{ translateX: -state.offset }] };
+  });
+  const text = useAnimatedStyle(() => {
+    const state = getCarouselPresentation(
+      index,
+      activeIndex.value,
+      count,
+      autoTarget.value,
+      autoProgress.value,
+      drag.value,
+      dragging.value,
+      width,
+    );
+    return { opacity: state.textOpacity, transform: [{ translateX: state.textOffset }] };
+  });
+  return { frame, image, text };
+}
+
+function CarouselSlide({
+  imageInfo,
+  onImageReady,
+  onImageUnmount,
+  ...motion
+}: CarouselMotionProps & {
+  imageInfo?: CarouselImageInfo;
+  onImageReady: (url: string) => void;
+  onImageUnmount: (url: string) => void;
+}) {
+  const animated = useCarouselSlideStyles(motion);
+  const imageUrl = imageInfo?.imageUrl;
+  useEffect(
+    () => () => {
+      if (imageUrl) onImageUnmount(imageUrl);
+    },
+    [imageUrl, onImageUnmount],
+  );
   return (
-    <View style={styles.frame}>
-      <CarouselImageLayer imageInfo={imageInfo} onImageReady={onImageReady} />
-    </View>
+    <Animated.View pointerEvents="none" style={[styles.revealClip, animated.frame]}>
+      <Animated.View style={[styles.revealImage, animated.image]}>
+        <CarouselImageLayer imageInfo={imageInfo} onImageReady={onImageReady} />
+      </Animated.View>
+    </Animated.View>
   );
 }
 
-function CarouselImagePreloader({
+function CarouselTextSlide({
+  item,
+  items,
   imageInfo,
-  onImageReady,
-}: {
+  showLogo,
+  ...motion
+}: CarouselMotionProps & {
+  item: MediaItem;
+  items: MediaItem[];
   imageInfo?: CarouselImageInfo;
-  onImageReady: (imageUrl: string) => void;
+  showLogo: boolean;
 }) {
-  const imageUrl = imageInfo?.imageUrl;
-
-  if (!imageUrl) return null;
-
+  const animated = useCarouselSlideStyles(motion);
   return (
-    <Image
-      source={{ uri: imageUrl }}
-      style={styles.preloadImage}
-      cachePolicy="memory-disk"
-      priority="high"
-      recyclingKey={`preload-${imageUrl}`}
-      onError={() => onImageReady(imageUrl)}
-      onLoad={() => onImageReady(imageUrl)}
-    />
+    <Animated.View pointerEvents="none" style={[styles.overlayFrame, animated.text]}>
+      <CarouselOverlay
+        activeIndex={motion.index}
+        item={item}
+        items={items}
+        imageInfo={imageInfo}
+        showLogo={showLogo}
+      />
+    </Animated.View>
   );
 }
 
@@ -265,8 +356,6 @@ export function useCarouselHeaderLayers({
 }: CarouselHeaderProps) {
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [autoTargetIndex, setAutoTargetIndex] = useState<number | null>(null);
-  const [isGestureOverlayVisible, setIsGestureOverlayVisible] = useState(false);
-  const [pendingGestureSettleIndex, setPendingGestureSettleIndex] = useState<number | null>(null);
   const [pendingAutoAdvance, setPendingAutoAdvance] = useState<{
     fromIndex: number;
     targetIndex: number;
@@ -282,6 +371,7 @@ export function useCarouselHeaderLayers({
   const { width: viewportWidth } = useWindowDimensions();
   const dragX = useSharedValue(0);
   const autoProgress = useSharedValue(0);
+  const autoTargetValue = useSharedValue(-1);
   const activeIndexValue = useSharedValue(0);
   const tapStartIndexValue = useSharedValue(0);
   const isGestureAnimating = useSharedValue(false);
@@ -399,18 +489,28 @@ export function useCarouselHeaderLayers({
     setReadyImageUrls(nextReadyUrls);
   }, []);
 
+  const markCarouselImageUnmounted = useCallback((imageUrl: string) => {
+    if (!readyImageUrlsRef.current.has(imageUrl)) return;
+    const next = new Set(readyImageUrlsRef.current);
+    next.delete(imageUrl);
+    readyImageUrlsRef.current = next;
+    setReadyImageUrls(next);
+  }, []);
+
   const completeReveal = useCallback(
     (direction: RevealDirection) => {
       if (!items.length) return;
       const nextIndex = getRelativeIndex(currentIndexRef.current, direction, items.length);
       currentIndexRef.current = nextIndex;
       activeIndexValue.value = nextIndex;
-      setPendingGestureSettleIndex(nextIndex);
       setCarouselIndex(nextIndex);
       setAutoTargetIndex(null);
+      autoTargetValue.value = -1;
       autoProgress.value = 0;
+      dragX.value = 0;
+      isGestureAnimating.value = false;
     },
-    [activeIndexValue, autoProgress, items.length],
+    [activeIndexValue, autoProgress, autoTargetValue, dragX, isGestureAnimating, items.length],
   );
 
   const completeAutoAdvance = useCallback(
@@ -419,23 +519,17 @@ export function useCarouselHeaderLayers({
       activeIndexValue.value = nextIndex;
       setCarouselIndex(nextIndex);
       setAutoTargetIndex(null);
-      setIsGestureOverlayVisible(false);
+      autoTargetValue.value = -1;
+      autoProgress.value = 0;
       dragX.value = 0;
     },
-    [activeIndexValue, dragX],
+    [activeIndexValue, autoProgress, autoTargetValue, dragX],
   );
 
   const clearAutoTarget = useCallback(() => {
     setAutoTargetIndex(null);
-  }, []);
-
-  const showGestureOverlay = useCallback(() => {
-    setIsGestureOverlayVisible(true);
-  }, []);
-
-  const hideGestureOverlay = useCallback(() => {
-    setIsGestureOverlayVisible(false);
-  }, []);
+    autoTargetValue.value = -1;
+  }, [autoTargetValue]);
 
   const startAutoAdvance = useCallback(() => {
     if (!isFocused || !canReveal || !items.length) return;
@@ -451,7 +545,6 @@ export function useCarouselHeaderLayers({
 
     setPendingAutoAdvance(null);
     setAutoTargetIndex(nextIndex);
-    setIsGestureOverlayVisible(false);
   }, [canReveal, carouselImageInfos, isFocused, items.length]);
 
   useEffect(() => {
@@ -469,7 +562,6 @@ export function useCarouselHeaderLayers({
 
     setAutoTargetIndex(pendingAutoAdvance.targetIndex);
     setPendingAutoAdvance(null);
-    setIsGestureOverlayVisible(false);
   }, [
     autoProgress,
     autoTargetIndex,
@@ -487,16 +579,21 @@ export function useCarouselHeaderLayers({
     cancelAnimation(dragX);
     autoProgress.value = 0;
     dragX.value = 0;
-    autoProgress.value = withTiming(1, { duration: CAROUSEL_AUTO_FADE_MS }, (finished) => {
-      if (finished) {
-        scheduleOnRN(completeAutoAdvance, autoTargetIndex);
-      }
-    });
+    autoTargetValue.value = autoTargetIndex;
+    autoProgress.value = withTiming(
+      1,
+      { duration: CAROUSEL_FADE_MS, easing: Easing.inOut(Easing.cubic) },
+      (finished) => {
+        if (finished) {
+          scheduleOnRN(completeAutoAdvance, autoTargetIndex);
+        }
+      },
+    );
 
     return () => {
       cancelAnimation(autoProgress);
     };
-  }, [autoProgress, autoTargetIndex, completeAutoAdvance, dragX]);
+  }, [autoProgress, autoTargetIndex, autoTargetValue, completeAutoAdvance, dragX]);
 
   useEffect(() => {
     if (isFocused) return;
@@ -504,13 +601,12 @@ export function useCarouselHeaderLayers({
     cancelAnimation(autoProgress);
     cancelAnimation(dragX);
     autoProgress.value = 0;
+    autoTargetValue.value = -1;
     dragX.value = 0;
     isGestureAnimating.value = false;
     setAutoTargetIndex(null);
     setPendingAutoAdvance(null);
-    setIsGestureOverlayVisible(false);
-    setPendingGestureSettleIndex(null);
-  }, [autoProgress, dragX, isFocused, isGestureAnimating]);
+  }, [autoProgress, autoTargetValue, dragX, isFocused, isGestureAnimating]);
 
   const panGesture = useMemo(
     () =>
@@ -520,7 +616,6 @@ export function useCarouselHeaderLayers({
         .failOffsetY([-18, 18])
         .onStart(() => {
           isGestureAnimating.value = true;
-          scheduleOnRN(showGestureOverlay);
           cancelAnimation(autoProgress);
           autoProgress.value = 0;
           scheduleOnRN(clearAutoTarget);
@@ -565,7 +660,6 @@ export function useCarouselHeaderLayers({
           dragX.value = withTiming(0, { duration: CAROUSEL_CANCEL_SETTLE_MS }, (finished) => {
             if (finished) {
               isGestureAnimating.value = false;
-              scheduleOnRN(hideGestureOverlay);
             }
           });
         })
@@ -574,7 +668,6 @@ export function useCarouselHeaderLayers({
             dragX.value = withTiming(0, { duration: CAROUSEL_CANCEL_SETTLE_MS }, (finished) => {
               if (finished) {
                 isGestureAnimating.value = false;
-                scheduleOnRN(hideGestureOverlay);
               }
             });
           }
@@ -586,9 +679,7 @@ export function useCarouselHeaderLayers({
       clearAutoTarget,
       completeReveal,
       dragX,
-      hideGestureOverlay,
       isGestureAnimating,
-      showGestureOverlay,
     ],
   );
 
@@ -621,141 +712,47 @@ export function useCarouselHeaderLayers({
     [canReveal, panGesture, tapGesture],
   );
 
-  const nextRevealStyle = useAnimatedStyle(() => {
-    if (!isGestureAnimating.value) {
-      return { opacity: 0 };
-    }
-
-    const revealOffset = Math.max(0, Math.min(cardWidth, cardWidth + Math.min(0, dragX.value)));
-
-    return {
-      opacity: dragX.value < 0 ? 1 : 0,
-      transform: [{ translateX: revealOffset }],
-    };
-  }, [cardWidth]);
-
-  const nextRevealImageStyle = useAnimatedStyle(() => {
-    const revealOffset = Math.max(0, Math.min(cardWidth, cardWidth + Math.min(0, dragX.value)));
-
-    return {
-      transform: [{ translateX: -revealOffset }],
-    };
-  }, [cardWidth]);
-
-  const previousRevealStyle = useAnimatedStyle(() => {
-    if (!isGestureAnimating.value) {
-      return { opacity: 0 };
-    }
-
-    const revealOffset = Math.min(0, Math.max(-cardWidth, -cardWidth + Math.max(0, dragX.value)));
-
-    return {
-      opacity: dragX.value > 0 ? 1 : 0,
-      transform: [{ translateX: revealOffset }],
-    };
-  }, [cardWidth]);
-
-  const previousRevealImageStyle = useAnimatedStyle(() => {
-    const revealOffset = Math.min(0, Math.max(-cardWidth, -cardWidth + Math.max(0, dragX.value)));
-
-    return {
-      transform: [{ translateX: -revealOffset }],
-    };
-  }, [cardWidth]);
-
-  const autoFadeStyle = useAnimatedStyle(() => {
-    return {
-      opacity: autoProgress.value,
-    };
-  });
-
-  const autoOverlayStyle = useAnimatedStyle(() => {
-    return {
-      opacity: autoProgress.value,
-    };
-  });
-
-  const currentOverlayStyle = useAnimatedStyle(() => {
-    const overlayOffset = isGestureAnimating.value ? dragX.value : 0;
-    const dragProgress = isGestureAnimating.value
-      ? Math.min(Math.abs(dragX.value) / cardWidth, 1)
-      : 0;
-
-    return {
-      opacity: (1 - dragProgress) * (1 - autoProgress.value),
-      transform: [{ translateX: overlayOffset }],
-    };
-  }, [cardWidth]);
-
-  const nextOverlayStyle = useAnimatedStyle(() => {
-    if (!isGestureAnimating.value) {
-      return { opacity: 0 };
-    }
-
-    const progress = dragX.value < 0 ? Math.min(Math.abs(dragX.value) / cardWidth, 1) : 0;
-
-    return {
-      opacity: progress,
-      transform: [{ translateX: cardWidth + dragX.value }],
-    };
-  }, [cardWidth]);
-
-  const previousOverlayStyle = useAnimatedStyle(() => {
-    if (!isGestureAnimating.value) {
-      return { opacity: 0 };
-    }
-
-    const progress = dragX.value > 0 ? Math.min(Math.abs(dragX.value) / cardWidth, 1) : 0;
-
-    return {
-      opacity: progress,
-      transform: [{ translateX: -cardWidth + dragX.value }],
-    };
-  }, [cardWidth]);
-
   useEffect(() => {
     currentIndexRef.current = 0;
     prefetchedImageUrlsRef.current = new Set();
-    readyImageUrlsRef.current = new Set();
+    // Reordered lists can retain keyed, already-displayed slides. Their readiness
+    // belongs to the mounted image, and is cleared by that slide's cleanup.
     activeIndexValue.value = 0;
     autoProgress.value = 0;
+    autoTargetValue.value = -1;
     dragX.value = 0;
     isGestureAnimating.value = false;
     setAutoTargetIndex(null);
     setPendingAutoAdvance(null);
-    setReadyImageUrls(new Set());
-    setIsGestureOverlayVisible(false);
-    setPendingGestureSettleIndex(null);
     setCarouselIndex(0);
-  }, [activeIndexValue, autoProgress, dragX, isGestureAnimating, itemIdentity]);
+  }, [activeIndexValue, autoProgress, autoTargetValue, dragX, isGestureAnimating, itemIdentity]);
 
   useEffect(() => {
     activeIndexValue.value = carouselIndex;
   }, [activeIndexValue, carouselIndex]);
 
-  useLayoutEffect(() => {
-    if (autoTargetIndex != null) return;
-
-    autoProgress.value = 0;
-  }, [autoProgress, autoTargetIndex, carouselIndex]);
-
-  useLayoutEffect(() => {
-    if (pendingGestureSettleIndex == null || carouselIndex !== pendingGestureSettleIndex) return;
-
-    setPendingGestureSettleIndex(null);
-    setIsGestureOverlayVisible(false);
-    dragX.value = 0;
-    isGestureAnimating.value = false;
-  }, [carouselIndex, dragX, isGestureAnimating, pendingGestureSettleIndex]);
-
   useEffect(() => {
     if (!isFocused || !canReveal) return;
     const timer = setInterval(() => {
-      if (autoTargetIndex != null || Math.abs(dragX.value) > 1 || autoProgress.value > 0) return;
+      if (
+        isGestureAnimating.value ||
+        autoTargetIndex != null ||
+        Math.abs(dragX.value) > 1 ||
+        autoProgress.value > 0
+      )
+        return;
       startAutoAdvance();
     }, CAROUSEL_AUTO_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [autoProgress, autoTargetIndex, canReveal, dragX, isFocused, startAutoAdvance]);
+  }, [
+    autoProgress,
+    autoTargetIndex,
+    canReveal,
+    dragX,
+    isFocused,
+    isGestureAnimating,
+    startAutoAdvance,
+  ]);
 
   useEffect(() => {
     if (!isFocused) return;
@@ -783,24 +780,20 @@ export function useCarouselHeaderLayers({
   }, [carouselImageInfos, isFocused]);
 
   const currentItem = items[carouselIndex];
-  const currentImageInfo = carouselImageInfos[carouselIndex];
-  const nextIndex = getRelativeIndex(carouselIndex, 1, items.length);
-  const previousIndex = getRelativeIndex(carouselIndex, -1, items.length);
-  const autoTargetItem = autoTargetIndex != null ? items[autoTargetIndex] : undefined;
-  const autoTargetImageInfo =
-    autoTargetIndex != null ? carouselImageInfos[autoTargetIndex] : undefined;
-  const preloadIndexes = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          [nextIndex, previousIndex, pendingAutoAdvance?.targetIndex].filter(
-            (index): index is number =>
-              typeof index === 'number' && index >= 0 && index < carouselImageInfos.length,
-          ),
-        ),
-      ),
-    [carouselImageInfos.length, nextIndex, pendingAutoAdvance?.targetIndex, previousIndex],
-  );
+  const mountedIndexes = getMountedCarouselIndexes(carouselIndex, items.length);
+  const motion = {
+    count: items.length,
+    width: cardWidth,
+    activeIndex: activeIndexValue,
+    autoTarget: autoTargetValue,
+    autoProgress,
+    drag: dragX,
+    dragging: isGestureAnimating,
+  };
+  const slideKey = (index: number) =>
+    getItemSource
+      ? getSourcedMediaKey(items[index], getItemSource(items[index]))
+      : getCarouselItemKey(items[index], index);
   const showSkeleton = isLoading && !hasImages;
 
   const headerImage = (
@@ -824,59 +817,16 @@ export function useCarouselHeaderLayers({
             }}
             style={styles.gestureSurface}
           >
-            <View style={StyleSheet.absoluteFill}>
-              <CarouselFrame imageInfo={currentImageInfo} onImageReady={markCarouselImageReady} />
-            </View>
-
-            {autoTargetIndex != null && (
-              <Animated.View pointerEvents="none" style={[styles.autoFadeFrame, autoFadeStyle]}>
-                <CarouselFrame
-                  imageInfo={autoTargetImageInfo}
-                  onImageReady={markCarouselImageReady}
-                />
-              </Animated.View>
-            )}
-
-            {canReveal && isGestureOverlayVisible && (
-              <>
-                <Animated.View pointerEvents="none" style={[styles.revealClip, nextRevealStyle]}>
-                  <Animated.View style={[styles.revealImage, nextRevealImageStyle]}>
-                    <CarouselFrame
-                      imageInfo={carouselImageInfos[nextIndex]}
-                      onImageReady={markCarouselImageReady}
-                    />
-                  </Animated.View>
-                </Animated.View>
-
-                <Animated.View
-                  pointerEvents="none"
-                  style={[styles.revealClip, previousRevealStyle]}
-                >
-                  <Animated.View style={[styles.revealImage, previousRevealImageStyle]}>
-                    <CarouselFrame
-                      imageInfo={carouselImageInfos[previousIndex]}
-                      onImageReady={markCarouselImageReady}
-                    />
-                  </Animated.View>
-                </Animated.View>
-              </>
-            )}
-
-            {canReveal && (
-              <View pointerEvents="none" style={styles.preloadLayer}>
-                {preloadIndexes.map((index) => (
-                  <CarouselImagePreloader
-                    key={
-                      getItemSource
-                        ? getSourcedMediaKey(items[index], getItemSource(items[index]))
-                        : getCarouselItemKey(items[index], index)
-                    }
-                    imageInfo={carouselImageInfos[index]}
-                    onImageReady={markCarouselImageReady}
-                  />
-                ))}
-              </View>
-            )}
+            {mountedIndexes.map((index) => (
+              <CarouselSlide
+                key={slideKey(index)}
+                {...motion}
+                index={index}
+                imageInfo={carouselImageInfos[index]}
+                onImageReady={markCarouselImageReady}
+                onImageUnmount={markCarouselImageUnmounted}
+              />
+            ))}
 
             <CarouselGradientScrim />
           </View>
@@ -888,58 +838,22 @@ export function useCarouselHeaderLayers({
   const headerOverlay =
     !showSkeleton && hasImages ? (
       <View pointerEvents="none" style={[styles.container, { height }]}>
-        {!!currentItem && (
-          <Animated.View pointerEvents="none" style={[styles.overlayFrame, currentOverlayStyle]}>
-            <CarouselOverlay
-              activeIndex={carouselIndex}
-              imageInfo={currentImageInfo}
-              item={currentItem}
-              items={items}
-              showLogo={showLogo}
-            />
-          </Animated.View>
-        )}
-
-        {autoTargetIndex != null && !!autoTargetItem && (
-          <Animated.View pointerEvents="none" style={[styles.overlayFrame, autoOverlayStyle]}>
-            <CarouselOverlay
-              activeIndex={autoTargetIndex}
-              imageInfo={autoTargetImageInfo}
-              item={autoTargetItem}
-              items={items}
-              showLogo={showLogo}
-            />
-          </Animated.View>
-        )}
-
-        {canReveal && isGestureOverlayVisible && !!items[nextIndex] && (
-          <Animated.View pointerEvents="none" style={[styles.overlayFrame, nextOverlayStyle]}>
-            <CarouselOverlay
-              activeIndex={nextIndex}
-              imageInfo={carouselImageInfos[nextIndex]}
-              item={items[nextIndex]}
-              items={items}
-              showLogo={showLogo}
-            />
-          </Animated.View>
-        )}
-
-        {canReveal && isGestureOverlayVisible && !!items[previousIndex] && (
-          <Animated.View pointerEvents="none" style={[styles.overlayFrame, previousOverlayStyle]}>
-            <CarouselOverlay
-              activeIndex={previousIndex}
-              imageInfo={carouselImageInfos[previousIndex]}
-              item={items[previousIndex]}
-              items={items}
-              showLogo={showLogo}
-            />
-          </Animated.View>
-        )}
+        {mountedIndexes.map((index) => (
+          <CarouselTextSlide
+            key={slideKey(index)}
+            {...motion}
+            index={index}
+            item={items[index]}
+            items={items}
+            imageInfo={carouselImageInfos[index]}
+            showLogo={showLogo}
+          />
+        ))}
       </View>
     ) : null;
 
   return {
-    backgroundImageInfo: currentImageInfo?.atmosphere,
+    backgroundImageInfo: carouselImageInfos[autoTargetIndex ?? carouselIndex]?.atmosphere,
     headerImage,
     headerOverlay,
   };
@@ -961,7 +875,6 @@ export function CarouselHeader(props: CarouselHeaderProps) {
 }
 
 const CAROUSEL_AUTO_INTERVAL_MS = 10 * 1000;
-const CAROUSEL_AUTO_FADE_MS = 280;
 const CAROUSEL_GESTURE_SETTLE_MS = 240;
 const CAROUSEL_CANCEL_SETTLE_MS = 180;
 const CAROUSEL_OVERLAY_LEFT_INSET = 24;
@@ -979,10 +892,6 @@ const styles = StyleSheet.create({
   },
   gestureSurface: {
     flex: 1,
-  },
-  frame: {
-    width: '100%',
-    height: '100%',
   },
   carouselImage: {
     width: '100%',
@@ -1007,27 +916,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-  },
-  autoFadeFrame: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    zIndex: 2,
-  },
-  preloadLayer: {
-    position: 'absolute',
-    width: 1,
-    height: 1,
-    left: -2,
-    top: -2,
-    opacity: 0,
-    overflow: 'hidden',
-  },
-  preloadImage: {
-    width: 1,
-    height: 1,
   },
   overlayFrame: {
     position: 'absolute',

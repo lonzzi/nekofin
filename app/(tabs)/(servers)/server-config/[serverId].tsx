@@ -107,25 +107,23 @@ function ServerConfigScreen() {
           <NativeSettingsItem
             title={<SettingsTitle>{checking ? '正在检查连接…' : '测试连接'}</SettingsTitle>}
             subtitle={connection ? <SettingsSubtitle primary={connection} lines={3} /> : undefined}
-            onPress={
-              checking
-                ? undefined
-                : () => {
-                    setChecking(true);
-                    setConnection('');
-                    void Promise.all([
-                      serverAdapter!.getSystemInfo(),
-                      serverAdapter!.getUserInfo({ userId: server.userId }),
-                    ])
-                      .then(([system]) =>
-                        setConnection(
-                          `连接正常 · ${system.serverName || server.name}${system.version ? ` · ${system.version}` : ''}`,
-                        ),
-                      )
-                      .catch(() => setConnection('连接失败，请检查网络或重新登录。'))
-                      .finally(() => setChecking(false));
-                  }
-            }
+            // Keep the native clickable modifier mounted while the request is pending.
+            onPress={() => {
+              if (checking) return;
+              setChecking(true);
+              setConnection('');
+              void Promise.all([
+                serverAdapter!.getSystemInfo(),
+                serverAdapter!.getUserInfo({ userId: server.userId }),
+              ])
+                .then(([system]) =>
+                  setConnection(
+                    `连接正常 · ${system.serverName || server.name}${system.version ? ` · ${system.version}` : ''}`,
+                  ),
+                )
+                .catch(() => setConnection('连接失败，请检查网络或重新登录。'))
+                .finally(() => setChecking(false));
+            }}
           />
           <NativeSettingsItem
             title={<SettingsTitle>编辑连接或重新登录</SettingsTitle>}

@@ -1,3 +1,4 @@
+import { HeaderButton, HeaderToolbar } from '@/components/navigation/HeaderToolbar';
 import { getNativeToolbarIcon } from '@/components/navigation/nativeToolbarIcons';
 import { OuterScreenOptions } from '@/components/outer/OuterPrimitives';
 import PageScrollView from '@/components/PageScrollView';
@@ -5,7 +6,7 @@ import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { getServerConnections } from '@/lib/serverConnections';
 import { useAppTheme } from '@/lib/theme';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'react-native';
 
@@ -46,16 +47,16 @@ function ServerLineScreen() {
   return (
     <>
       <OuterScreenOptions title={line ? '编辑线路' : '添加线路'} grouped />
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
+      <HeaderToolbar placement="right">
+        <HeaderButton
           icon={getNativeToolbarIcon('save', 'checkmark')}
           accessibilityLabel={busy ? '正在验证线路' : '保存线路'}
           disabled={busy || !server || !address.trim()}
           onPress={() => void run(() => saveConnection(serverId, name, address, connectionId))}
         >
           保存
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
+        </HeaderButton>
+      </HeaderToolbar>
       <PageScrollView
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"

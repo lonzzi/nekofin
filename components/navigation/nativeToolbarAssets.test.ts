@@ -11,6 +11,7 @@ const ANDROID_TOOLBAR_ASSET_FILES = {
   film: 'film.png',
   heart: 'heart.png',
   heartOutline: 'heart_outline.png',
+  person: 'person.png',
   save: 'save.png',
   search: 'search.png',
 } as const satisfies Record<AndroidToolbarDrawable, string>;

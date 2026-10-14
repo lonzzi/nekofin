@@ -5,10 +5,10 @@ import {
   getSeriesCardRoute,
 } from '@/components/media/cardHelpers';
 import { OuterScreenOptions } from '@/components/outer/OuterPrimitives';
+import { emptyListContentStyle, EmptyListViewport } from '@/components/ui/EmptyListViewport';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FilterChoice, FilterRow } from '@/components/ui/FilterControls';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
-import { useEmptyListLayout } from '@/hooks/useEmptyListLayout';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/theme';
@@ -100,7 +100,6 @@ function AggregateSearchScreen() {
   const { servers, setCurrentServer } = useMediaServers();
   const t = useAppTheme();
   const router = useTracedRouter('aggregate-search');
-  const { onLayout, emptyContentStyle } = useEmptyListLayout();
   const [keyword, setKeyword] = useState('');
   const [debounced, setDebounced] = useState('');
   const [filter, setFilter] = useState('all');
@@ -134,6 +133,9 @@ function AggregateSearchScreen() {
         placeholder="搜索所有服务器"
         hideWhenScrolling={false}
         cancelButtonText="取消"
+        textColor={t.colors.text}
+        hintTextColor={t.colors.textSecondary}
+        headerIconColor={t.colors.text}
         onChangeText={(e) => setKeyword(e.nativeEvent.text)}
         onCancelButtonPress={() => setKeyword('')}
       />
@@ -143,11 +145,10 @@ function AggregateSearchScreen() {
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         style={{ backgroundColor: t.colors.background }}
-        onLayout={onLayout}
         contentContainerStyle={[
           styles.list,
           isEmpty && styles.emptyList,
-          isEmpty && emptyContentStyle,
+          isEmpty && emptyListContentStyle,
         ]}
         ListHeaderComponentStyle={isEmpty ? styles.emptyHeader : undefined}
         ListHeaderComponent={
@@ -191,7 +192,7 @@ function AggregateSearchScreen() {
               ) : null}
             </View>
             {isEmpty ? (
-              <View style={styles.empty}>
+              <EmptyListViewport bottomSpacing={22}>
                 {pending && hasKeyword ? (
                   <ActivityIndicator color={t.colors.tint} />
                 ) : (
@@ -213,7 +214,7 @@ function AggregateSearchScreen() {
                     }
                   />
                 )}
-              </View>
+              </EmptyListViewport>
             ) : null}
           </View>
         }
@@ -265,7 +266,8 @@ function AggregateSearchScreen() {
 export default withOuterTheme(AggregateSearchScreen);
 const styles = StyleSheet.create({
   list: {
-    padding: 22,
+    paddingHorizontal: 20,
+    paddingTop: 8,
     paddingBottom: 120,
     maxWidth: 840,
     width: '100%',
@@ -275,8 +277,7 @@ const styles = StyleSheet.create({
   count: { fontSize: 12, paddingBottom: 8 },
   emptyList: { paddingBottom: 22 },
   emptyHeader: { flex: 1 },
-  filters: { gap: 16 },
-  empty: { flex: 1, justifyContent: 'center' },
+  filters: { gap: 12 },
   result: {
     flexDirection: 'row',
     gap: 18,

@@ -8,6 +8,22 @@ export type ItemGridGroup = {
   items: MediaItem[];
 };
 
+export function createItemGridSections(
+  groups: ItemGridGroup[],
+  numColumns: number,
+  episodeColumns: number,
+) {
+  return groups.map((group) => {
+    const columns = group.key === 'Episode' ? episodeColumns : numColumns;
+    return {
+      ...group,
+      data: Array.from({ length: Math.ceil(group.items.length / columns) }, (_, row) =>
+        group.items.slice(row * columns, (row + 1) * columns),
+      ),
+    };
+  });
+}
+
 const groupOrder = [
   'CollectionFolder',
   'Series',

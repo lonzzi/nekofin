@@ -25,6 +25,7 @@ const MAPPING = {
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
   'video.fill': 'movie',
+  externaldrive: 'storage',
   'externaldrive.connected.to.line.below': 'dns',
   'person.crop.rectangle': 'person',
   'backward.end.fill': 'skip-previous',
@@ -33,7 +34,7 @@ const MAPPING = {
   'pause.fill': 'pause',
   'goforward.10': 'forward-10',
   'forward.end.fill': 'skip-next',
-} as IconMapping;
+} satisfies IconMapping;
 
 /**
  * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.
@@ -52,5 +53,5 @@ export function IconSymbol({
   style?: StyleProp<TextStyle>;
   weight?: SymbolWeight;
 }) {
-  return <MaterialIcons color={color} size={size} name={MAPPING[name] ?? 'help'} style={style} />;
+  return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
 }

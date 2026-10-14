@@ -1,3 +1,202 @@
+diff --git a/android/build.gradle b/android/build.gradle
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -204,4 +204,5 @@
+     implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+     implementation 'com.google.android.material:material:1.13.0'
+     implementation "androidx.core:core-ktx:1.17.0"
+-}
++    implementation 'com.github.Dimezis:BlurView:version-3.1.0'
++}
+diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/appearance/TabsAppearanceApplicator.kt b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/appearance/TabsAppearanceApplicator.kt
+--- a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/appearance/TabsAppearanceApplicator.kt
++++ b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/appearance/TabsAppearanceApplicator.kt
+@@ -3,6 +3,7 @@
+ import android.annotation.SuppressLint
+ import android.content.Context
+ import android.content.res.ColorStateList
++import android.graphics.Color
+ import android.graphics.drawable.StateListDrawable
+ import android.util.TypedValue
+ import android.view.MenuItem
+@@ -16,6 +17,7 @@
+ import com.google.android.material.bottomnavigation.BottomNavigationView
+ import com.google.android.material.navigation.NavigationBarView
+ import com.swmansion.rnscreens.gamma.tabs.screen.TabsScreen
++import com.swmansion.rnscreens.gamma.tabs.container.CustomBottomNavigationView
+ import com.swmansion.rnscreens.utils.resolveColorAttr
+
+ @SuppressLint("PrivateResource") // We want to use variables from material design for default values
+@@ -39,6 +41,11 @@
+         bottomNavigationView.setBackgroundColor(
+             tabBarAppearance?.tabBarBackgroundColor
+                 ?: resolveColorAttr(context, R.attr.colorSurfaceContainer),
++        )
++        // Opt in only for explicitly transparent tab bars; opaque bars keep Material defaults.
++        (bottomNavigationView as? CustomBottomNavigationView)?.container?.updateNavigationBackdrop(
++            tabBarAppearance?.tabBarBackgroundColor?.let { Color.alpha(it) == 0 } == true,
++            resolveColorAttr(context, R.attr.colorSurface),
+         )
+
+         // Font color
+diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/CustomBottomNavigationView.kt b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/CustomBottomNavigationView.kt
+--- a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/CustomBottomNavigationView.kt
++++ b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/CustomBottomNavigationView.kt
+@@ -2,6 +2,19 @@
+
+ import android.annotation.SuppressLint
+ import android.content.Context
++import android.graphics.Canvas
++import android.graphics.Color
++import android.graphics.LinearGradient
++import android.graphics.Paint
++import android.graphics.PorterDuff
++import android.graphics.PorterDuffXfermode
++import android.graphics.Shader
++import android.graphics.drawable.ColorDrawable
++import android.os.Build
++import android.view.View
++import androidx.core.graphics.ColorUtils
++import eightbitlab.com.blurview.BlurTarget
++import eightbitlab.com.blurview.BlurView
+ import com.google.android.material.bottomnavigation.BottomNavigationView
+
+ @SuppressLint("ViewConstructor") // Should not be restored & should only be constructed by us.
+@@ -35,3 +48,69 @@
+         this.actionOrigin = null
+     }
+ }
++
++/** The native tab items stay sharp; only the content behind the bar is blurred. */
++internal class TabsBackdropView(
++    context: Context,
++    source: BlurTarget,
++) : BlurView(context) {
++    private val clearDrawable = ColorDrawable(Color.WHITE)
++    private val fadePaint = Paint().apply {
++        xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
++    }
++    private val tintPaint = Paint()
++    private var tintColor = Color.WHITE
++
++    init {
++        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
++        isClickable = false
++        isFocusable = false
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
++            setupWith(source)
++                .setFrameClearDrawable(clearDrawable)
++                .setBlurRadius(20f)
++        }
++    }
++
++    fun setSurfaceColor(color: Int) {
++        tintColor = color
++        clearDrawable.color = color
++        updateGradients()
++        invalidate()
++    }
++
++    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
++        super.onSizeChanged(w, h, oldw, oldh)
++        updateGradients()
++    }
++
++    private fun updateGradients() {
++        if (height <= 0) return
++        val fadeHeight = (28f * resources.displayMetrics.density).coerceAtMost(height.toFloat())
++        fadePaint.shader = LinearGradient(
++            0f, 0f, 0f, fadeHeight,
++            Color.TRANSPARENT, Color.WHITE, Shader.TileMode.CLAMP,
++        )
++        tintPaint.shader = LinearGradient(
++            0f, 0f, 0f, height.toFloat(),
++            intArrayOf(
++                ColorUtils.setAlphaComponent(tintColor, 0),
++                ColorUtils.setAlphaComponent(tintColor, 105),
++                ColorUtils.setAlphaComponent(tintColor, 215),
++            ),
++            floatArrayOf(0f, 0.45f, 1f),
++            Shader.TileMode.CLAMP,
++        )
++    }
++
++    override fun draw(canvas: Canvas) {
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
++            val layer = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
++            super.draw(canvas)
++            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), fadePaint)
++            canvas.restoreToCount(layer)
++        }
++        // Older devices retain the gradient, without enabling a software blur capture loop.
++        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), tintPaint)
++    }
++}
+diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/TabsContainer.kt b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/TabsContainer.kt
+--- a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/TabsContainer.kt
++++ b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/TabsContainer.kt
+@@ -14,6 +14,7 @@
+ import androidx.core.graphics.Insets
+ import androidx.core.view.WindowInsetsCompat
+ import androidx.core.view.children
++import androidx.core.view.isVisible
+ import androidx.core.view.size
+ import androidx.core.widget.NestedScrollView
+ import androidx.fragment.app.FragmentManager
+@@ -39,6 +40,7 @@
+ import com.swmansion.rnscreens.safearea.SafeAreaProvider
+ import com.swmansion.rnscreens.safearea.SafeAreaView
+ import com.swmansion.rnscreens.utils.RNSLog
++import eightbitlab.com.blurview.BlurTarget
+ import kotlin.properties.Delegates
+
+ /**
+@@ -145,8 +147,8 @@
+     internal var colorScheme: ColorScheme by colorSchemeCoordinator::colorScheme
+     internal var tabBarRespectsIMEInsets: Boolean = false
+
+-    private val contentView: FrameLayout =
+-        FrameLayout(context).apply {
++    private val contentView: BlurTarget =
++        BlurTarget(context).apply {
+             layoutParams =
+                 LayoutParams(
+                     LayoutParams.MATCH_PARENT,
+@@ -155,6 +157,18 @@
+             id = ViewIdGenerator.generateViewId()
+         }
+
++    private val navigationBackdrop = TabsBackdropView(context, contentView).apply {
++        layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, Gravity.BOTTOM)
++        isVisible = false
++    }
++    private val defaultNavigationElevation = bottomNavigationView.elevation
++
++    internal fun updateNavigationBackdrop(enabled: Boolean, surfaceColor: Int) {
++        navigationBackdrop.isVisible = enabled && !tabBarHidden
++        navigationBackdrop.setSurfaceColor(surfaceColor)
++        bottomNavigationView.elevation = if (enabled) 0f else defaultNavigationElevation
++    }
++
+     private val appearanceCoordinator =
+         TabsAppearanceCoordinator(bottomNavigationView, tabsModel)
+
+@@ -174,7 +188,15 @@
+
+     init {
+         addView(contentView)
++        addView(navigationBackdrop)
+         addView(bottomNavigationView)
++
++        bottomNavigationView.addOnLayoutChangeListener { _, _, top, _, bottom, _, _, _, _ ->
++            val height = bottom - top
++            if (navigationBackdrop.layoutParams.height != height) {
++                navigationBackdrop.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, height, Gravity.BOTTOM)
++            }
++        }
+
+         bottomNavigationView.setOnItemSelectedListener(this::onMenuItemSelected)
+         invalidationFlags.invalidateAll()
 diff --git a/ios/helpers/image/RNSImageLoadingHelper.mm b/ios/helpers/image/RNSImageLoadingHelper.mm
 index 64beb499a6d661cb1bf02a1d88d6dd422081138d..6c541e7656117ba680c664320a4cf5f1ad9a0e35 100644
 --- a/ios/helpers/image/RNSImageLoadingHelper.mm

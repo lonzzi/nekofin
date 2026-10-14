@@ -1,4 +1,5 @@
 import { PLAYER_LAB_AVAILABLE } from '@/components/dev/player-lab/PlayerLabEntry';
+import { platformHeaderOptions } from '@/components/navigation/platformHeaderOptions';
 import { PerformanceOverlay } from '@/components/performance/PerformanceOverlay';
 import { DanmakuSettingsProvider } from '@/lib/contexts/DanmakuSettingsContext';
 import { MediaServerProvider } from '@/lib/contexts/MediaServerContext';
@@ -28,7 +29,7 @@ import { Stack, usePathname } from 'expo-router';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { StatusBar } from 'expo-status-bar';
-import { useLayoutEffect, useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { AppState, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useMMKVString } from 'react-native-mmkv';
@@ -107,11 +108,21 @@ function RootNavigation() {
     : isPlayerLabRoute
       ? ScreenOrientation.OrientationLock.LANDSCAPE
       : ScreenOrientation.OrientationLock.PORTRAIT_UP;
+  const wasPlayerRoute = useRef(isPlayerRoute);
+  const deferOrientationRestore = useRef(false);
+  const desiredOrientationLock = useRef(orientationLock);
 
   useLayoutEffect(() => {
     if (Platform.OS !== 'android') return;
+    desiredOrientationLock.current = orientationLock;
+    if (wasPlayerRoute.current && !isPlayerRoute) deferOrientationRestore.current = true;
+    if (isPlayerRoute) deferOrientationRestore.current = false;
+    wasPlayerRoute.current = isPlayerRoute;
     // iOS rotates with the native screen lifecycle. Android needs an explicit lock.
     const applyOrientation = async () => {
+      // Keep the video Surface and navigation animation in the same window size.
+      // The returning screen's transitionEnd restores portrait after the native pop.
+      if (deferOrientationRestore.current) return;
       await ScreenOrientation.lockAsync(orientationLock).catch((error) => {
         console.warn('Failed to apply the route orientation', error);
       });
@@ -123,7 +134,7 @@ function RootNavigation() {
     return () => {
       subscription.remove();
     };
-  }, [orientationLock]);
+  }, [isPlayerRoute, orientationLock]);
 
   const navigationTheme = useMemo(() => {
     const baseTheme = appTheme.isDark ? DarkTheme : DefaultTheme;
@@ -144,8 +155,24 @@ function RootNavigation() {
   return (
     <ThemeProvider value={navigationTheme}>
       <Stack
-        screenListeners={stackScreenListeners}
+        screenListeners={(props) => {
+          const listeners = stackScreenListeners(props);
+          return {
+            ...listeners,
+            transitionEnd: (event) => {
+              listeners.transitionEnd(event);
+              // The popped player's listeners may already be removed. The returning
+              // screen remains mounted and reports completion of the same transition.
+              if (event.data.closing || !deferOrientationRestore.current) return;
+              deferOrientationRestore.current = false;
+              void ScreenOrientation.lockAsync(desiredOrientationLock.current).catch((error) => {
+                console.warn('Failed to restore the route orientation', error);
+              });
+            },
+          };
+        }}
         screenOptions={{
+          ...platformHeaderOptions,
           headerTransparent: Platform.OS === 'ios',
           headerBackTitle: '',
           headerBackButtonDisplayMode: 'minimal',
