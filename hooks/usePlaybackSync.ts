@@ -2,6 +2,7 @@ import { MediaItem, MediaServerInfo } from '@/services/media/types';
 import { useCallback, useEffect, useRef } from 'react';
 import { SharedValue } from 'react-native-reanimated';
 
+import { sendPlaybackReport } from './playbackReporting';
 import { useMediaAdapter } from './useMediaAdapter';
 
 interface UsePlaybackSyncProps {
@@ -37,12 +38,14 @@ export const usePlaybackSync = ({
 
       const positionTicks = Math.round(positionMs);
       lastProgressReportRef.current = { position: positionMs, ts: now };
-      mediaAdapter.reportPlaybackProgress({
-        itemId: itemDetail.id!,
-        positionTicks,
-        isPaused,
-        PlaySessionId: playSessionId,
-      });
+      void sendPlaybackReport('progress', () =>
+        mediaAdapter.reportPlaybackProgress({
+          itemId: itemDetail.id!,
+          positionTicks,
+          isPaused,
+          PlaySessionId: playSessionId,
+        }),
+      );
     },
     [mediaAdapter, currentServer, itemDetail, playSessionId],
   );
@@ -53,11 +56,13 @@ export const usePlaybackSync = ({
 
       const positionTicks = Math.round(positionMs);
       lastProgressReportRef.current = { position: positionMs, ts: Date.now() };
-      mediaAdapter.reportPlaybackStart({
-        itemId: itemDetail.id!,
-        positionTicks,
-        PlaySessionId: playSessionId,
-      });
+      void sendPlaybackReport('start', () =>
+        mediaAdapter.reportPlaybackStart({
+          itemId: itemDetail.id!,
+          positionTicks,
+          PlaySessionId: playSessionId,
+        }),
+      );
     },
     [mediaAdapter, currentServer, itemDetail, playSessionId],
   );
@@ -68,11 +73,13 @@ export const usePlaybackSync = ({
 
       lastProgressReportRef.current = { position: positionMs, ts: Date.now() };
       const positionTicks = Math.round(positionMs);
-      mediaAdapter.reportPlaybackStop({
-        itemId: itemDetail.id!,
-        positionTicks,
-        PlaySessionId: playSessionId,
-      });
+      void sendPlaybackReport('stop', () =>
+        mediaAdapter.reportPlaybackStop({
+          itemId: itemDetail.id!,
+          positionTicks,
+          PlaySessionId: playSessionId,
+        }),
+      );
     },
     [mediaAdapter, currentServer, itemDetail, playSessionId],
   );

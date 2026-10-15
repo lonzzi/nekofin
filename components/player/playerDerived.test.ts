@@ -56,6 +56,57 @@ describe('player derived state', () => {
     ).toEqual([{ index: 3, name: 'Commentary', url: 'https://media.test/audio.mka' }]);
   });
 
+  it('keeps absolute delivery urls and authenticates only the media server', () => {
+    const tracks = deriveExternalSubtitles(
+      [
+        {
+          Type: 'Subtitle',
+          Index: 1,
+          DeliveryMethod: 'External',
+          DeliveryUrl: 'https://media.test/jellyfin/sub.srt?format=srt',
+        },
+        {
+          Type: 'Subtitle',
+          Index: 2,
+          DeliveryMethod: 'External',
+          DeliveryUrl: '/jellyfin/sub.ass?api_key=signed',
+        },
+        {
+          Type: 'Subtitle',
+          Index: 3,
+          DeliveryMethod: 'External',
+          DeliveryUrl: 'https://cdn.test/sub.vtt',
+        },
+        { Type: 'Subtitle', Index: 4, DeliveryMethod: 'External' },
+      ],
+      'https://media.test/jellyfin',
+      { accessToken: 'test-token' },
+    );
+    expect(tracks.map((track) => track.url)).toEqual([
+      'https://media.test/jellyfin/sub.srt?format=srt&api_key=test-token',
+      'https://media.test/jellyfin/sub.ass?api_key=signed',
+      'https://cdn.test/sub.vtt',
+    ]);
+  });
+
+  it('builds a subtitle endpoint for external files without a delivery method or url', () => {
+    expect(
+      deriveExternalSubtitles(
+        [
+          { Type: 'Subtitle', Index: 5, IsExternal: true, Codec: 'subrip' },
+          { Type: 'Subtitle', Index: 6, IsExternal: true, Codec: 'ass', DeliveryMethod: 'Encode' },
+        ],
+        'https://media.test/emby',
+        { itemId: 'movie-1', mediaSourceId: 'version-2', accessToken: 'test-token' },
+      ),
+    ).toMatchObject([
+      {
+        index: 5,
+        url: 'https://media.test/emby/Videos/movie-1/version-2/Subtitles/5/0/Stream.srt?api_key=test-token',
+      },
+    ]);
+  });
+
   it('formats episode titles with series and season metadata', () => {
     expect(
       formatPlayerTitle({

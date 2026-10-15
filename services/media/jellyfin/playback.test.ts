@@ -3,6 +3,40 @@ import { describe, expect, it } from 'vitest';
 import { mapJellyfinPlaybackInfo } from './playback';
 
 describe('Jellyfin playback helpers', () => {
+  it('keeps version names and external subtitle delivery metadata', () => {
+    const result = mapJellyfinPlaybackInfo({
+      MediaSources: [
+        {
+          Id: 'version-two',
+          Name: '240p',
+          MediaStreams: [
+            {
+              Type: 'Subtitle',
+              Index: 0,
+              Codec: 'ass',
+              IsExternal: true,
+              DisplayTitle: 'English ASS',
+              DeliveryMethod: 'External',
+              DeliveryUrl: '/sub.ass',
+            },
+          ],
+        },
+      ],
+    });
+    expect(result.mediaSources[0]).toMatchObject({
+      id: 'version-two',
+      name: '240p',
+      mediaStreams: [
+        {
+          index: 0,
+          isExternal: true,
+          displayTitle: 'English ASS',
+          deliveryMethod: 'External',
+          deliveryUrl: '/sub.ass',
+        },
+      ],
+    });
+  });
   it('maps playback media sources into the adapter contract', () => {
     expect(
       mapJellyfinPlaybackInfo({

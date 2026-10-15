@@ -141,6 +141,7 @@ export interface MediaPage<T> {
 
 export interface MediaSource {
   id: string;
+  name?: string;
   protocol: string;
   container: string;
   size?: number | null;
@@ -174,6 +175,10 @@ export interface MediaStream {
   sampleRate?: number | null;
   audioProfile?: string | null;
   title?: string | null;
+  displayTitle?: string;
+  isExternal?: boolean;
+  deliveryMethod?: string;
+  deliveryUrl?: string;
 }
 
 export interface MediaStreamInfo {

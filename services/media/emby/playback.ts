@@ -24,7 +24,7 @@ export function buildEmbyStreamUrl({
 }: {
   api: EmbyApi;
   itemId: string;
-  mediaSource?: { Id?: string; TranscodingUrl?: string };
+  mediaSource?: { Id?: string | null; TranscodingUrl?: string | null };
   userId: string;
   startTimeTicks?: number;
   maxStreamingBitrate?: number;

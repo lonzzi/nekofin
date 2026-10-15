@@ -5,6 +5,9 @@ export type StreamInfoKeyOptions = {
   maxBitrate: number;
   enableSubtitleBurnIn: boolean;
   selectedCodec: string;
+  mediaSourceId?: string;
+  audioStreamIndex?: number;
+  subtitleStreamIndex?: number;
 };
 
 function sortedValues<T extends string | number>(values: T[] | undefined) {
@@ -30,6 +33,11 @@ function normalizeStreamInfoOptions(options: StreamInfoKeyOptions) {
     maxBitrate: options.maxBitrate,
     enableSubtitleBurnIn: options.enableSubtitleBurnIn,
     selectedCodec: options.selectedCodec,
+    ...(options.mediaSourceId ? { mediaSourceId: options.mediaSourceId } : {}),
+    ...(options.audioStreamIndex != null ? { audioStreamIndex: options.audioStreamIndex } : {}),
+    ...(options.subtitleStreamIndex != null
+      ? { subtitleStreamIndex: options.subtitleStreamIndex }
+      : {}),
   };
 }
 

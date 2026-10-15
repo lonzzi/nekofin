@@ -9,4 +9,14 @@ describe('MPV transcoding negotiation', () => {
     expect(profile.MaxStreamingBitrate).toBe(1000000);
     expect(profile.DirectPlayProfiles.length).toBeGreaterThan(0);
   });
+
+  it('requests external text subtitles for MPV alongside transcoded video', () => {
+    const profile = generateDeviceProfile({ transcode: true });
+    expect(profile.SubtitleProfiles).toContainEqual({ Format: 'srt', Method: 'External' });
+    expect(profile.SubtitleProfiles).toContainEqual({ Format: 'ass', Method: 'External' });
+    expect(profile.SubtitleProfiles.some((entry) => entry.Method === 'Hls')).toBe(false);
+    expect(
+      generateDeviceProfile({ transcode: true, subtitleBurnIn: true }).SubtitleProfiles,
+    ).toContainEqual({ Format: 'ass', Method: 'Encode' });
+  });
 });

@@ -43,11 +43,27 @@ import {
   deriveEpisodeNavigation,
   deriveExternalAudio,
   deriveExternalSubtitles,
+  deriveTracks,
   formatPlayerTitle,
 } from './playerDerived';
+import { createPlayerLoadRecovery, playbackFailureMessage } from './playerLoadRecovery';
+import { isExternalTrackCommandError, loadExternalPlayerTrack } from './playerTrackLoading';
 import { usePlayerQueries } from './usePlayerQueries';
 
 type BufferInfo = { percent: number; rate: number };
+
+function toMpvTrackEntry(track: TrackInfo) {
+  const parts = [
+    track.title,
+    track.lang ? `[${track.lang}]` : '',
+    track.isExternal ? '(ext)' : '',
+  ].filter(Boolean);
+  return {
+    index: track.id,
+    name: parts.join(' ') || `Track ${track.id}`,
+    language: track.lang || undefined,
+  };
+}
 
 const LoadingIndicator = ({
   title,
@@ -92,6 +108,8 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
   const [initialTime, setInitialTime] = useState<number>(-1);
+  const [playbackAttempt, setPlaybackAttempt] = useState(0);
+  const [loadFailure, setLoadFailure] = useState<string | null>(null);
   const [rate, setRate] = useState(() => storage.getNumber('playback.defaultRate') ?? 1);
   const prevRateRef = useRef<number>(rate);
 
@@ -116,19 +134,45 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   }>({ audio: [], subtitle: [] });
   const [currentTrackIds, setCurrentTrackIds] = useState({ vid: 0, aid: 0, sid: 0 });
   const manualTrackChoice = useRef({ audio: false, subtitle: false });
+  const rememberedTrackChoice = useRef<{
+    audio?: { name: string; language?: string };
+    subtitle?: { name: string; language?: string } | 'off';
+  }>({});
+  const resumePausedRef = useRef(false);
+  const externalTrackLoads = useRef<{
+    player: ExpoMpvViewRef;
+    source: string;
+    requests: Map<string, Promise<number | undefined>>;
+    subtitleIds: Map<number, number>;
+    audioIds: Map<number, number>;
+  } | null>(null);
+  const [versionChoice, setVersionChoice] = useState<{ itemId: string; id: string } | null>(null);
+  const selectedMediaSourceId = versionChoice?.itemId === itemId ? versionChoice.id : undefined;
+  const [serverTrackChoice, setServerTrackChoice] = useState<{
+    itemId: string;
+    sourceId: string;
+    audio?: number;
+    subtitle?: number;
+  } | null>(null);
+  const activeServerTrackChoice =
+    serverTrackChoice?.itemId === itemId && serverTrackChoice.sourceId === selectedMediaSourceId
+      ? serverTrackChoice
+      : null;
   const [aspectRatio, setAspectRatio] = useState<string>('fit');
 
   // Playback settings only change on a settings round-trip (which remounts this
   // screen), so read them once instead of on every render of the player.
-  const { enableTranscoding, enableSubtitleBurnIn, maxBitrate, selectedCodec } = useMemo(
-    () => ({
-      enableTranscoding: storage.getBoolean('enableTranscoding') ?? false,
-      enableSubtitleBurnIn: storage.getBoolean('enableSubtitleBurnIn') ?? false,
-      maxBitrate: storage.getNumber('maxBitrate') ?? 20000000,
-      selectedCodec: storage.getString('selectedCodec') ?? 'h264',
-    }),
-    [],
-  );
+  const { enableTranscoding, enableSubtitleBurnIn, maxBitrate, selectedCodec, subtitlesEnabled } =
+    useMemo(
+      () => ({
+        enableTranscoding: storage.getBoolean('enableTranscoding') ?? false,
+        enableSubtitleBurnIn: storage.getBoolean('enableSubtitleBurnIn') ?? false,
+        maxBitrate: storage.getNumber('maxBitrate') ?? 20000000,
+        selectedCodec: storage.getString('selectedCodec') ?? 'h264',
+        subtitlesEnabled: storage.getBoolean('playback.subtitlesEnabled') !== false,
+      }),
+      [],
+    );
 
   const player = useRef<ExpoMpvViewRef>(null);
   const isMountedRef = useRef(true);
@@ -159,8 +203,19 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
       maxBitrate,
       enableSubtitleBurnIn,
       selectedCodec,
+      mediaSourceId: selectedMediaSourceId,
+      audioStreamIndex: activeServerTrackChoice?.audio,
+      subtitleStreamIndex: activeServerTrackChoice?.subtitle ?? (subtitlesEnabled ? undefined : -1),
     }),
-    [enableTranscoding, maxBitrate, enableSubtitleBurnIn, selectedCodec],
+    [
+      enableTranscoding,
+      maxBitrate,
+      enableSubtitleBurnIn,
+      selectedCodec,
+      selectedMediaSourceId,
+      activeServerTrackChoice,
+      subtitlesEnabled,
+    ],
   );
 
   const streamDeviceProfile = useMemo(
@@ -178,21 +233,55 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
 
   const streamDeviceId = useMemo(() => getDeviceId(), []);
 
-  const { itemDetail, autoCommentsData, streamInfo, episodes } = usePlayerQueries({
-    itemId,
-    mediaAdapter,
-    currentServer,
-    useManualComments,
-    streamInfoKeyOptions,
-    streamDeviceProfile,
-    streamDeviceId,
-  });
+  const loadRecovery = useMemo(() => createPlayerLoadRecovery(), []);
+  const loadSelectionKey = JSON.stringify([currentServer?.id, itemId, streamInfoKeyOptions]);
+
+  useEffect(() => setLoadFailure(null), [loadSelectionKey]);
+
+  const { itemDetail, autoCommentsData, streamInfo, streamInfoError, episodes, mediaSources } =
+    usePlayerQueries({
+      itemId,
+      mediaAdapter,
+      currentServer,
+      useManualComments,
+      streamInfoKeyOptions,
+      streamDeviceProfile,
+      streamDeviceId,
+      playbackAttempt,
+    });
 
   const playbackSourceUrl = streamInfo?.url ?? null;
+  const usesServerTracks = !!streamInfo?.mediaSource?.TranscodingUrl;
+  const menuTracks = usesServerTracks
+    ? deriveTracks(streamInfo?.mediaSource?.MediaStreams ?? [])
+    : mpvTracks;
+
+  const changeServerTrack = useCallback(
+    (type: 'audio' | 'subtitle', index: number) => {
+      const sourceId = streamInfo?.mediaSource?.Id;
+      if (!sourceId) return;
+      resumePausedRef.current = !isPlaying;
+      setVersionChoice({ itemId, id: sourceId });
+      setServerTrackChoice((previous) => ({
+        itemId,
+        sourceId,
+        audio:
+          previous?.itemId === itemId && previous.sourceId === sourceId
+            ? previous.audio
+            : (streamInfo?.mediaSource?.DefaultAudioStreamIndex ?? undefined),
+        subtitle:
+          previous?.itemId === itemId && previous.sourceId === sourceId
+            ? previous.subtitle
+            : (streamInfo?.mediaSource?.DefaultSubtitleStreamIndex ?? undefined),
+        [type]: index,
+      }));
+    },
+    [itemId, streamInfo?.mediaSource, isPlaying],
+  );
 
   const playbackContext = useMemo(
-    () => ({ itemId, sourceUrl: playbackSourceUrl }),
-    [itemId, playbackSourceUrl],
+    () => ({ itemId, sourceUrl: playbackSourceUrl, playbackAttempt }),
+    [itemId, playbackSourceUrl, playbackAttempt],
   );
 
   useLayoutEffect(() => {
@@ -252,6 +341,8 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     setManualDanmaku(undefined);
     setDanmakuSelectionOverride(null);
     setInitialTime(-1);
+    rememberedTrackChoice.current = {};
+    resumePausedRef.current = false;
     setIsLoaded(false);
     setIsBuffering(true);
     setIsStopped(false);
@@ -305,7 +396,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     setHdrState(null);
     setBufferInfo(null);
     isBufferingRef.current = false;
-  }, [clearPlaybackSeekWatchdog, currentTime, playbackSourceUrl]);
+  }, [clearPlaybackSeekWatchdog, currentTime, playbackSourceUrl, playbackAttempt]);
 
   const handleCommentsLoaded = (data: DanmakuCommentsData) => {
     setManualDanmaku(data);
@@ -329,34 +420,71 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
         }
 
         if (list) {
-          const toEntry = (t: TrackInfo) => {
-            const parts: string[] = [];
-            if (t.title) parts.push(t.title);
-            if (t.lang) parts.push(`[${t.lang}]`);
-            if (t.isExternal) parts.push('(ext)');
-            return {
-              index: t.id,
-              name: parts.length ? parts.join(' ') : `Track ${t.id}`,
-              language: t.lang || undefined,
-            };
-          };
           setMpvTracks({
-            audio: list.filter((t) => t.type === 'audio').map(toEntry),
-            subtitle: list.filter((t) => t.type === 'sub').map(toEntry),
+            audio: list.filter((t) => t.type === 'audio').map(toMpvTrackEntry),
+            subtitle: list.filter((t) => t.type === 'sub').map(toMpvTrackEntry),
           });
         }
         if (list && ids) {
-          const audio = preferredTrackId(
-            list.filter((t) => t.type === 'audio'),
-            storage.getString('playback.audioLanguage') ?? 'auto',
-          );
-          const subtitle =
-            storage.getBoolean('playback.subtitlesEnabled') === false
-              ? -1
+          const audioLanguage = storage.getString('playback.audioLanguage') ?? 'auto';
+          const subtitleLanguage = storage.getString('playback.subtitleLanguage') ?? 'auto';
+          const source = streamInfo?.mediaSource;
+          const rememberedId = (type: 'audio' | 'subtitle') => {
+            const choice = rememberedTrackChoice.current[type];
+            if (choice === 'off') return -1;
+            if (!choice) return undefined;
+            const nativeType = type === 'audio' ? 'audio' : 'sub';
+            return (
+              list.find(
+                (entry) => entry.type === nativeType && toMpvTrackEntry(entry).name === choice.name,
+              )?.id ??
+              (choice.language
+                ? preferredTrackId(
+                    list.filter((entry) => entry.type === nativeType),
+                    choice.language,
+                  )
+                : undefined)
+            );
+          };
+          const serverTrackId = (type: 'Audio' | 'Subtitle', index: number | null | undefined) => {
+            if (index == null) return undefined;
+            if (index === -1) return -1;
+            const externalIds =
+              type === 'Audio'
+                ? externalTrackLoads.current?.audioIds
+                : externalTrackLoads.current?.subtitleIds;
+            const externalId = externalIds?.get(index);
+            if (externalId != null) return externalId;
+            // A transcoded stream has its own stream order; only original-file
+            // playback can map embedded server indices by position within type.
+            if (source?.TranscodingUrl) return undefined;
+            const embedded =
+              source?.MediaStreams?.filter((entry) => entry.Type === type && !entry.IsExternal) ??
+              [];
+            const position = embedded.findIndex((entry) => entry.Index === index);
+            return list.filter(
+              (entry) => entry.type === (type === 'Audio' ? 'audio' : 'sub') && !entry.isExternal,
+            )[position]?.id;
+          };
+          const audio =
+            rememberedId('audio') ??
+            (source?.TranscodingUrl
+              ? undefined
               : preferredTrackId(
-                  list.filter((t) => t.type === 'sub'),
-                  storage.getString('playback.subtitleLanguage') ?? 'auto',
-                );
+                  list.filter((t) => t.type === 'audio'),
+                  audioLanguage,
+                )) ??
+            serverTrackId('Audio', source?.DefaultAudioStreamIndex);
+          const subtitle =
+            rememberedId('subtitle') ??
+            (storage.getBoolean('playback.subtitlesEnabled') === false
+              ? -1
+              : ((source?.TranscodingUrl
+                  ? undefined
+                  : preferredTrackId(
+                      list.filter((t) => t.type === 'sub'),
+                      subtitleLanguage,
+                    )) ?? serverTrackId('Subtitle', source?.DefaultSubtitleStreamIndex)));
           if (!manualTrackChoice.current.audio && audio != null && audio !== ids.aid) {
             await targetPlayer.setAudioTrack(audio);
             if (player.current !== targetPlayer || loadedSourceRef.current !== targetSource) return;
@@ -368,25 +496,29 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
             ids.sid = subtitle;
           }
         }
-        if (ids && player.current === targetPlayer && loadedSourceRef.current === targetSource)
-          setCurrentTrackIds(ids);
+        const confirmedIds = await targetPlayer.getCurrentTrackIds();
+        if (player.current === targetPlayer && loadedSourceRef.current === targetSource)
+          setCurrentTrackIds(confirmedIds);
       } catch (e) {
         console.warn('refreshMpvTracks error:', e);
       }
     },
-    [],
+    [streamInfo],
   );
 
   const externalSubtitles = useMemo(() => {
     return deriveExternalSubtitles(
       streamInfo?.mediaSource?.MediaStreams ?? [],
       currentApi?.basePath,
+      { itemId, mediaSourceId: streamInfo?.mediaSource?.Id, accessToken: currentApi?.accessToken },
     );
-  }, [streamInfo?.mediaSource?.MediaStreams, currentApi?.basePath]);
+  }, [itemId, streamInfo?.mediaSource, currentApi?.basePath, currentApi?.accessToken]);
 
   const externalAudios = useMemo(() => {
-    return deriveExternalAudio(streamInfo?.mediaSource?.MediaStreams ?? [], currentApi?.basePath);
-  }, [streamInfo?.mediaSource?.MediaStreams, currentApi?.basePath]);
+    return deriveExternalAudio(streamInfo?.mediaSource?.MediaStreams ?? [], currentApi?.basePath, {
+      accessToken: currentApi?.accessToken,
+    });
+  }, [streamInfo?.mediaSource?.MediaStreams, currentApi?.basePath, currentApi?.accessToken]);
 
   const { syncPlaybackProgress, syncPlaybackStart, syncPlaybackStop } = usePlaybackSync({
     currentServer,
@@ -395,15 +527,40 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     playSessionId: streamInfo?.sessionId ?? null,
   });
 
+  const retryPlayback = useCallback(() => {
+    if (!isMountedRef.current) return;
+    // Invalidate the old view immediately: mpv sends END_FILE after onError,
+    // and that late event must not stop or report the replacement playback.
+    activePlaybackContextRef.current = null;
+    resumePausedRef.current ||= playbackStateRef.current === 'paused';
+    setLoadFailure(null);
+    setPlaybackAttempt((attempt) => attempt + 1);
+  }, []);
+
+  useEffect(() => {
+    if (!loadFailure) return;
+    Alert.alert('播放失败', loadFailure, [
+      { text: '返回', style: 'cancel', onPress: () => router.back() },
+      { text: '重新加载', onPress: retryPlayback },
+    ]);
+  }, [loadFailure, retryPlayback, router]);
+
+  useEffect(() => {
+    if (streamInfoError) {
+      setLoadFailure('无法获取播放信息。请检查服务器连接后重新加载。');
+    }
+  }, [streamInfoError]);
+
   const showLoading = useMemo(() => {
     return (
-      isBuffering ||
-      !streamInfo?.url ||
-      !isLoaded ||
-      playbackState === 'loading' ||
-      playbackState === 'buffering'
+      !loadFailure &&
+      (isBuffering ||
+        !streamInfo?.url ||
+        !isLoaded ||
+        playbackState === 'loading' ||
+        playbackState === 'buffering')
     );
-  }, [isBuffering, streamInfo?.url, isLoaded, playbackState]);
+  }, [loadFailure, isBuffering, streamInfo?.url, isLoaded, playbackState]);
 
   const danmakuPlaybackState = useMemo<PlaybackState>(() => {
     if (isStopped) return 'ended';
@@ -445,102 +602,79 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     })();
   }, [isPlaying]);
 
-  // Auto-load Jellyfin external subtitles when player is ready, then refresh the
-  // mpv track list so they show up in the picker with their real mpv sid.
+  // Serialize external loads and cache their in-flight requests per native player.
+  // React effect restarts must not add the same subtitle twice or steal selection.
   useEffect(() => {
     const targetPlayer = player.current;
     const targetSource = streamInfo?.url ?? null;
-    if (
-      !isLoaded ||
-      !targetPlayer ||
-      !targetSource ||
-      loadedSourceRef.current !== targetSource ||
-      externalSubtitles.length === 0
-    ) {
+    if (!isLoaded || !targetPlayer || !targetSource || loadedSourceRef.current !== targetSource)
       return;
+
+    if (
+      externalTrackLoads.current?.player !== targetPlayer ||
+      externalTrackLoads.current.source !== targetSource
+    ) {
+      externalTrackLoads.current = {
+        player: targetPlayer,
+        source: targetSource,
+        requests: new Map(),
+        subtitleIds: new Map(),
+        audioIds: new Map(),
+      };
     }
-
+    const loads = externalTrackLoads.current;
+    const isActive = () =>
+      isMountedRef.current &&
+      player.current === targetPlayer &&
+      loadedSourceRef.current === targetSource;
     let cancelled = false;
-
-    const loadExternalSubtitles = async () => {
-      for (let i = 0; i < externalSubtitles.length; i++) {
-        if (cancelled) return;
-        const sub = externalSubtitles[i];
+    const loadTracks = async () => {
+      const pending = [
+        ...externalSubtitles.map((track) => ({
+          track,
+          type: 'sub' as const,
+          ids: loads.subtitleIds,
+        })),
+        ...externalAudios.map((track) => ({ track, type: 'audio' as const, ids: loads.audioIds })),
+      ];
+      let failed = false;
+      for (const { track, type, ids } of pending) {
+        if (cancelled || !isActive()) return;
+        const key = `${type}:${track.index}:${track.url}`;
+        let request = loads.requests.get(key);
+        if (!request) {
+          request = loadExternalPlayerTrack(targetPlayer, type, track, isActive);
+          loads.requests.set(key, request);
+        }
         try {
-          // Show the first external subtitle immediately ('select'); add the rest
-          // without stealing selection ('auto') so the user can pick them from
-          // the track menu (which is keyed by real mpv sid).
-          await targetPlayer.addSubtitle(
-            sub.url,
-            i === 0 &&
-              !manualTrackChoice.current.subtitle &&
-              storage.getBoolean('playback.subtitlesEnabled') !== false
-              ? 'select'
-              : 'auto',
-            sub.name,
-            sub.language,
-          );
-        } catch (error) {
-          console.error(`Failed to load external subtitle: ${sub.name}`, error);
+          const id = await request;
+          if (id != null) ids.set(track.index, id);
+        } catch {
+          failed = true;
         }
       }
-      if (!cancelled) {
+      if (!cancelled && isActive()) {
         await refreshMpvTracks(targetPlayer, targetSource);
+        if (failed)
+          Alert.alert(
+            '部分轨道加载失败',
+            '部分外挂字幕或音轨未能加载，请检查服务器连接后重新播放。',
+          );
       }
     };
-
-    void loadExternalSubtitles();
+    void loadTracks();
     return () => {
       cancelled = true;
     };
-  }, [externalSubtitles, isLoaded, refreshMpvTracks, streamInfo?.url]);
-
-  // Auto-load Jellyfin external audio tracks once the player is ready, then refresh
-  // the mpv track list so they appear in the audio picker with their real mpv aid.
-  useEffect(() => {
-    const targetPlayer = player.current;
-    const targetSource = streamInfo?.url ?? null;
-    if (
-      !isLoaded ||
-      !targetPlayer ||
-      !targetSource ||
-      loadedSourceRef.current !== targetSource ||
-      externalAudios.length === 0
-    ) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadExternalAudios = async () => {
-      for (let i = 0; i < externalAudios.length; i++) {
-        if (cancelled) return;
-        const audio = externalAudios[i];
-        try {
-          await targetPlayer.addAudio(
-            audio.url,
-            i === 0 && !manualTrackChoice.current.audio ? 'select' : 'auto',
-            audio.name,
-            audio.language,
-          );
-        } catch (error) {
-          console.error(`Failed to load external audio: ${audio.name}`, error);
-        }
-      }
-      if (!cancelled) {
-        await refreshMpvTracks(targetPlayer, targetSource);
-      }
-    };
-
-    void loadExternalAudios();
-    return () => {
-      cancelled = true;
-    };
-  }, [externalAudios, isLoaded, refreshMpvTracks, streamInfo?.url]);
+  }, [externalSubtitles, externalAudios, isLoaded, refreshMpvTracks, streamInfo?.url]);
 
   const handlePlayPause = useCallback(() => {
+    if (loadFailure) {
+      retryPlayback();
+      return;
+    }
     player.current?.togglePlay();
-  }, [player]);
+  }, [loadFailure, retryPlayback]);
 
   const handleRateChange = useCallback(
     (newRate: number | null, options?: { remember?: boolean }) => {
@@ -562,6 +696,11 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     (completion: PlaybackSeekCompletion) => {
       clearPlaybackSeekWatchdog();
       setIsNativeSeeking(false);
+      if (resumePausedRef.current) {
+        // HLS must decode the resumed frame before pausing the replacement view.
+        void player.current?.pause();
+        resumePausedRef.current = false;
+      }
       currentTime.set(completion.playbackTimeMs);
       danmakuLayer.current?.completeSeek(completion.playbackTimeMs, completion.cursorTimeMs);
       syncPlaybackProgress(completion.playbackTimeMs, false, { force: true });
@@ -666,31 +805,49 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
 
   // trackId here is mpv's real aid/sid (from mpvTracks[].index).
   const handleAudioTrackChange = useCallback(
-    (trackId: number) => {
+    async (trackId: number) => {
+      if (usesServerTracks) {
+        changeServerTrack('audio', trackId);
+        return;
+      }
       const targetPlayer = player.current;
       const targetSource = loadedSourceRef.current;
+      if (!targetPlayer || !targetSource) return;
       manualTrackChoice.current.audio = true;
-      targetPlayer?.setAudioTrack(trackId);
-      setCurrentTrackIds((prev) => ({ ...prev, aid: trackId }));
-      setTimeout(() => void refreshMpvTracks(targetPlayer, targetSource), 200);
+      rememberedTrackChoice.current.audio = mpvTracks.audio.find(
+        (track) => track.index === trackId,
+      );
+      try {
+        await targetPlayer.setAudioTrack(trackId);
+        await refreshMpvTracks(targetPlayer, targetSource);
+      } catch {
+        if (player.current === targetPlayer) Alert.alert('音轨切换失败', '请重新选择音轨。');
+      }
     },
-    [refreshMpvTracks],
+    [refreshMpvTracks, usesServerTracks, changeServerTrack, mpvTracks],
   );
 
   const handleSubtitleTrackChange = useCallback(
-    (trackId: number) => {
+    async (trackId: number) => {
+      if (usesServerTracks) {
+        changeServerTrack('subtitle', trackId);
+        return;
+      }
       const targetPlayer = player.current;
       const targetSource = loadedSourceRef.current;
+      if (!targetPlayer || !targetSource) return;
       manualTrackChoice.current.subtitle = true;
-      if (trackId === -1) {
-        void targetPlayer?.setPropertyString('sid', 'no');
-      } else {
-        void targetPlayer?.setSubtitleTrack(trackId);
+      rememberedTrackChoice.current.subtitle =
+        trackId === -1 ? 'off' : mpvTracks.subtitle.find((track) => track.index === trackId);
+      try {
+        if (trackId === -1) await targetPlayer.setPropertyString('sid', 'no');
+        else await targetPlayer.setSubtitleTrack(trackId);
+        await refreshMpvTracks(targetPlayer, targetSource);
+      } catch {
+        if (player.current === targetPlayer) Alert.alert('字幕切换失败', '请重新选择字幕。');
       }
-      setCurrentTrackIds((prev) => ({ ...prev, sid: trackId }));
-      setTimeout(() => void refreshMpvTracks(targetPlayer, targetSource), 200);
     },
-    [refreshMpvTracks],
+    [refreshMpvTracks, usesServerTracks, changeServerTrack, mpvTracks],
   );
 
   const handleAspectRatioChange = useCallback((mode: string) => {
@@ -737,9 +894,9 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
 
   return (
     <View style={styles.container}>
-      {playbackSourceUrl && initialTime >= 0 ? (
+      {playbackSourceUrl && initialTime >= 0 && !loadFailure ? (
         <ExpoMpvView
-          key={`${itemId}:${playbackSourceUrl}`}
+          key={`${itemId}:${playbackSourceUrl}:${playbackAttempt}`}
           ref={player}
           style={styles.video}
           source={playbackSourceUrl}
@@ -843,17 +1000,17 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
             }
             setIsLoaded(true);
             setIsBuffering(false);
-            setIsPlaying(true);
+            setIsPlaying(!resumePausedRef.current);
+            if (resumePausedRef.current && !playbackSeekGateRef.current.pendingSeek) {
+              void player.current?.pause();
+              resumePausedRef.current = false;
+            }
             setIsStopped(false);
             setMediaInfo({
               duration: nativeEvent.duration,
               currentTime: currentTime.value / 1000,
             });
             syncPlaybackStart(currentTime.value);
-            // Populate the track picker from mpv's real track list.
-            const targetPlayer = player.current;
-            const targetSource = playbackSourceUrl;
-            setTimeout(() => void refreshMpvTracks(targetPlayer, targetSource), 300);
           }}
           onBuffer={({ nativeEvent }) => {
             if (!isPlaybackContextActive(playbackContext)) return;
@@ -861,7 +1018,15 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
           }}
           onError={({ nativeEvent }) => {
             if (!isPlaybackContextActive(playbackContext)) return;
+            // mpv reports async sub-add/audio-add failures through the same event
+            // as video failures. The loader handles missing tracks separately.
+            if (isExternalTrackCommandError(nativeEvent.error)) return;
+            if (loadRecovery.claimAutomaticRetry(nativeEvent.error, loadSelectionKey)) {
+              retryPlayback();
+              return;
+            }
             failPendingNativeSeek();
+            activePlaybackContextRef.current = null;
             isPlayerReadyRef.current = false;
             loadedSourceRef.current = null;
             setIsBuffering(false);
@@ -869,7 +1034,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
             setIsStopped(true);
             syncPlaybackProgress(currentTime.value, true, { force: true });
             syncPlaybackStop(currentTime.value);
-            Alert.alert('Error', nativeEvent.error);
+            setLoadFailure(playbackFailureMessage(nativeEvent.error));
           }}
           onEnd={() => {
             if (!isPlaybackContextActive(playbackContext)) return;
@@ -881,7 +1046,12 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
         />
       ) : null}
 
-      {showLoading && <LoadingIndicator bufferInfo={bufferInfo} />}
+      {showLoading && (
+        <LoadingIndicator
+          bufferInfo={bufferInfo}
+          title={playbackAttempt > 0 && !isLoaded ? '正在重新加载视频…' : undefined}
+        />
+      )}
 
       {settings.enabled && comments.length > 0 && initialTime >= 0 ? (
         <DanmakuLayer
@@ -905,13 +1075,34 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
         onPlayPause={handlePlayPause}
         onRateChange={handleRateChange}
         rate={rate}
-        tracks={mpvTracks}
+        tracks={menuTracks}
         selectedTracks={{
-          audio: mpvTracks.audio.find((t) => t.index === currentTrackIds.aid),
-          subtitle: mpvTracks.subtitle.find((t) => t.index === currentTrackIds.sid),
+          audio: menuTracks.audio.find(
+            (t) =>
+              t.index ===
+              (usesServerTracks
+                ? (activeServerTrackChoice?.audio ??
+                  streamInfo?.mediaSource?.DefaultAudioStreamIndex)
+                : currentTrackIds.aid),
+          ),
+          subtitle: menuTracks.subtitle.find(
+            (t) =>
+              t.index ===
+              (usesServerTracks
+                ? (activeServerTrackChoice?.subtitle ??
+                  streamInfo?.mediaSource?.DefaultSubtitleStreamIndex)
+                : currentTrackIds.sid),
+          ),
         }}
         onAudioTrackChange={handleAudioTrackChange}
         onSubtitleTrackChange={handleSubtitleTrackChange}
+        mediaSources={mediaSources}
+        selectedMediaSourceId={streamInfo?.mediaSource?.Id ?? selectedMediaSourceId}
+        onMediaSourceChange={(id) => {
+          if (id === streamInfo?.mediaSource?.Id) return;
+          resumePausedRef.current = !isPlaying;
+          setVersionChoice({ itemId, id });
+        }}
         aspectRatio={aspectRatio}
         onAspectRatioChange={handleAspectRatioChange}
         hasPreviousEpisode={hasPreviousEpisode}

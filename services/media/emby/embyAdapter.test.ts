@@ -51,6 +51,49 @@ describe('EmbyAdapter instance client', () => {
     await expect(new EmbyAdapter().getSystemInfo()).rejects.toThrow('API instance not set');
   });
 
+  it('preserves the requested version, external subtitles and playback session', async () => {
+    const source = {
+      Id: 'version-two',
+      Name: '720p',
+      MediaStreams: [
+        {
+          Type: 'Subtitle',
+          Index: 4,
+          Codec: 'srt',
+          IsExternal: true,
+          DeliveryMethod: 'External',
+          DeliveryUrl: '/sub.srt',
+        },
+      ],
+    };
+    const fetchMock = vi.fn(
+      async (_input: unknown, _init?: RequestInit) =>
+        new Response(
+          JSON.stringify({
+            PlaySessionId: 'new-session',
+            MediaSources: [{ Id: 'version-one' }, source],
+          }),
+          { status: 200 },
+        ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const adapter = new EmbyAdapter();
+    adapter.setApi({ basePath: 'https://emby.test', accessToken: 'token-1' });
+    const result = await adapter.getStreamInfo({
+      item: { id: 'movie-1', name: 'Movie', type: 'Movie', raw: { Id: 'movie-1' } },
+      userId: 'user-1',
+      startTimeTicks: 0,
+      deviceProfile: {},
+      mediaSourceId: 'version-two',
+    });
+    expect(result?.mediaSource).toEqual(source);
+    expect(new URL(result!.url!).searchParams.get('mediaSourceId')).toBe('version-two');
+    expect(new URL(result!.url!).searchParams.get('playSessionId')).toBe('new-session');
+    expect(JSON.parse(fetchMock.mock.calls[0][1]!.body as string)).toMatchObject({
+      MediaSourceId: 'version-two',
+    });
+  });
+
   it('normalizes paged item responses into MediaPage', async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(

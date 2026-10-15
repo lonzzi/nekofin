@@ -7,6 +7,7 @@ import type { StreamInfoKeyOptions } from '@/services/media/queryKeys';
 import {
   episodesBySeasonQueryOptions,
   itemDetailQueryOptions,
+  mediaSourcesQueryOptions,
   streamInfoQueryOptions,
 } from '@/services/media/queryOptions';
 import type { MediaAdapter, MediaServerInfo } from '@/services/media/types';
@@ -20,6 +21,7 @@ export function usePlayerQueries({
   streamInfoKeyOptions,
   streamDeviceProfile,
   streamDeviceId,
+  playbackAttempt,
 }: {
   itemId: string;
   mediaAdapter: MediaAdapter;
@@ -28,6 +30,7 @@ export function usePlayerQueries({
   streamInfoKeyOptions: StreamInfoKeyOptions;
   streamDeviceProfile: unknown;
   streamDeviceId: string;
+  playbackAttempt: number;
 }) {
   const { sources } = useDanmakuSources();
   const { settings } = useDanmakuSettings();
@@ -60,7 +63,7 @@ export function usePlayerQueries({
     }),
   );
 
-  const { data: streamInfo } = useQuery(
+  const { data: streamInfo, error: streamInfoError } = useQuery(
     streamInfoQueryOptions({
       adapter: mediaAdapter,
       currentServer,
@@ -68,7 +71,12 @@ export function usePlayerQueries({
       keyOptions: streamInfoKeyOptions,
       deviceProfile: streamDeviceProfile,
       deviceId: streamDeviceId,
+      playbackAttempt,
     }),
+  );
+
+  const { data: playbackInfo } = useQuery(
+    mediaSourcesQueryOptions({ adapter: mediaAdapter, currentServer, itemId }),
   );
 
   const { data: episodes = [] } = useQuery(
@@ -84,6 +92,8 @@ export function usePlayerQueries({
     seriesInfo,
     autoCommentsData,
     streamInfo,
+    streamInfoError,
+    mediaSources: playbackInfo?.mediaSources ?? [],
     episodes,
   };
 }

@@ -500,7 +500,6 @@ export function mediaSourcesQueryOptions({
   return queryOptions({
     enabled: !!itemId,
     queryKey: mediaQueryKeys.mediaSources(currentServer?.id, itemId, currentServer?.userId),
-    placeholderData: (previousData) => previousData,
     queryFn: async (): Promise<MediaPlaybackInfo | null> => {
       if (!itemId) return null;
       return await adapter.getItemMediaSources({
@@ -517,6 +516,7 @@ export function streamInfoQueryOptions({
   keyOptions,
   deviceProfile,
   deviceId,
+  playbackAttempt = 0,
 }: {
   adapter: MediaAdapter;
   currentServer: MediaServerInfo | null;
@@ -524,15 +524,17 @@ export function streamInfoQueryOptions({
   keyOptions: StreamInfoKeyOptions;
   deviceProfile: unknown;
   deviceId: string;
+  playbackAttempt?: number;
 }) {
+  const queryKey = mediaQueryKeys.streamInfo(
+    currentServer?.id,
+    item?.id,
+    currentServer?.userId,
+    keyOptions,
+  );
   return queryOptions({
     enabled: !!currentServer?.userId && !!item,
-    queryKey: mediaQueryKeys.streamInfo(
-      currentServer?.id,
-      item?.id,
-      currentServer?.userId,
-      keyOptions,
-    ),
+    queryKey: playbackAttempt > 0 ? [...queryKey, 'load-attempt', playbackAttempt] : queryKey,
     queryFn: async () => {
       if (!currentServer?.userId || !item) return null;
       return await adapter.getStreamInfo({
@@ -541,6 +543,9 @@ export function streamInfoQueryOptions({
         deviceProfile,
         startTimeTicks: item.userData?.playbackPositionTicks || 0,
         deviceId,
+        mediaSourceId: keyOptions.mediaSourceId,
+        audioStreamIndex: keyOptions.audioStreamIndex,
+        subtitleStreamIndex: keyOptions.subtitleStreamIndex,
         maxStreamingBitrate: keyOptions.enableTranscoding ? keyOptions.maxBitrate : undefined,
         alwaysBurnInSubtitleWhenTranscoding:
           keyOptions.enableTranscoding && keyOptions.enableSubtitleBurnIn,
@@ -548,5 +553,10 @@ export function streamInfoQueryOptions({
     },
     staleTime: 0,
     gcTime: 0,
+    // PlaybackInfo allocates a session. Focus/reconnect must not replace a
+    // currently playing source; explicit recovery requests a fresh session.
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    placeholderData: undefined,
   });
 }

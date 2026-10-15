@@ -1,6 +1,6 @@
 import { DandanComment } from '@/services/dandanplay';
 import type { DanmakuCommentsData, DanmakuTrack } from '@/services/danmaku';
-import { MediaItem } from '@/services/media/types';
+import { MediaItem, MediaSource } from '@/services/media/types';
 import type { HdrStateChangeEvent } from 'expo-mpv';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, View } from 'react-native';
@@ -42,6 +42,9 @@ type ControlsProps = {
   selectedTracks?: MediaTrack;
   onAudioTrackChange?: (trackIndex: number) => void;
   onSubtitleTrackChange?: (trackIndex: number) => void;
+  mediaSources?: MediaSource[];
+  selectedMediaSourceId?: string | null;
+  onMediaSourceChange?: (id: string) => void;
   aspectRatio?: string;
   onAspectRatioChange?: (mode: string) => void;
   hasPreviousEpisode?: boolean;
@@ -79,6 +82,9 @@ export function Controls({
   selectedTracks,
   onAudioTrackChange,
   onSubtitleTrackChange,
+  mediaSources,
+  selectedMediaSourceId,
+  onMediaSourceChange,
   aspectRatio,
   onAspectRatioChange,
   hasPreviousEpisode,
@@ -240,6 +246,9 @@ export function Controls({
     selectedTracks,
     onAudioTrackChange,
     onSubtitleTrackChange,
+    mediaSources,
+    selectedMediaSourceId,
+    onMediaSourceChange,
     aspectRatio,
     onAspectRatioChange,
     hasPreviousEpisode,

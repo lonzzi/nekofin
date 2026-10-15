@@ -8,6 +8,35 @@ import {
 } from './playerMenuModel';
 
 describe('player native menu model', () => {
+  it('offers video versions with the actual media source id', () => {
+    const actions = deriveTrackMenuActions(
+      undefined,
+      undefined,
+      [
+        { id: 'source:one', name: '1080p', container: 'mkv', protocol: 'File', mediaStreams: [] },
+        {
+          id: 'source-two',
+          name: 'Director cut',
+          container: 'mp4',
+          protocol: 'File',
+          mediaStreams: [],
+        },
+      ],
+      'source-two',
+    );
+    expect(actions[0]).toMatchObject({
+      title: '视频版本',
+      subactions: [
+        { id: 'source:source:one', title: '1080p', state: 'off' },
+        { id: 'source:source-two', title: 'Director cut', state: 'on' },
+      ],
+    });
+    expect(parsePlayerMenuAction('source:source:one')).toEqual({
+      kind: 'mediaSource',
+      id: 'source:one',
+    });
+    expect(parsePlayerMenuAction('source:')).toBeNull();
+  });
   it('models danmaku as a toggle plus advanced actions', () => {
     const actions = deriveDanmakuMenuActions({ commentCount: 128, enabled: true });
 

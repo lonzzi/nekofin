@@ -1,3 +1,5 @@
+import type { MediaSourceInfo } from '@jellyfin/sdk/lib/generated-client/models';
+
 export type EmbyApi = {
   basePath: string;
   accessToken: string | null;
@@ -48,15 +50,7 @@ export type EmbyPlaybackInfoMediaStream = {
   Title?: string;
 };
 
-export type EmbyPlaybackInfoMediaSource = {
-  Id?: string;
-  Protocol?: string;
-  Container?: string;
-  Size?: number;
-  Bitrate?: number;
-  MediaStreams?: EmbyPlaybackInfoMediaStream[];
-  TranscodingUrl?: string;
-};
+export type EmbyPlaybackInfoMediaSource = MediaSourceInfo;
 
 export type EmbyPlaybackInfoResponse = {
   PlaySessionId?: string;

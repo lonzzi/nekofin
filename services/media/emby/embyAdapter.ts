@@ -330,8 +330,8 @@ export class EmbyAdapter extends MediaAdapter {
     const res = await this.getClient().post<EmbyPlaybackInfoResponse>(
       `/Items/${itemId}/PlaybackInfo`,
       {
-        IsPlayback: true,
-        AutoOpenLiveStream: true,
+        IsPlayback: false,
+        AutoOpenLiveStream: false,
       },
     );
     return mapEmbyPlaybackInfo(res.data);
@@ -536,11 +536,11 @@ export class EmbyAdapter extends MediaAdapter {
       AudioStreamIndex: audioStreamIndex,
       MediaSourceId: mediaSourceId,
     });
-    const playback = res.data as {
-      PlaySessionId?: string;
-      MediaSources?: { Id?: string; TranscodingUrl?: string }[];
-    };
-    const mediaSource = playback.MediaSources?.[0];
+    const playback = res.data as EmbyPlaybackInfoResponse;
+    const mediaSource =
+      (mediaSourceId
+        ? playback.MediaSources?.find((source) => source.Id === mediaSourceId)
+        : undefined) ?? playback.MediaSources?.[0];
     const sessionId = playback.PlaySessionId || null;
 
     const url = buildEmbyStreamUrl({
@@ -550,13 +550,13 @@ export class EmbyAdapter extends MediaAdapter {
       userId,
       startTimeTicks,
       maxStreamingBitrate,
-      playSessionId,
+      playSessionId: sessionId || playSessionId,
       audioStreamIndex,
       subtitleStreamIndex,
       deviceId,
     });
 
-    return { url, sessionId, mediaSource: undefined };
+    return { url, sessionId, mediaSource };
   }
 
   async addFavoriteItem({ userId, itemId }: UpdateFavoriteItemParams): Promise<void> {

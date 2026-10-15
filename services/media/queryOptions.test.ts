@@ -316,6 +316,9 @@ describe('media query options', () => {
       maxBitrate: 8000000,
       enableSubtitleBurnIn: false,
       selectedCodec: 'h264',
+      mediaSourceId: 'version-2',
+      audioStreamIndex: 2,
+      subtitleStreamIndex: -1,
     };
     const options = streamInfoQueryOptions({
       adapter,
@@ -340,14 +343,54 @@ describe('media query options', () => {
       url: 'https://stream.test',
       sessionId: 'session-1',
     });
+    expect(options.refetchOnWindowFocus).toBe(false);
+    expect(options.refetchOnReconnect).toBe(false);
+    expect(options.placeholderData).toBeUndefined();
     expect(adapter.getStreamInfo).toHaveBeenCalledWith(
       expect.objectContaining({
         item,
+        mediaSourceId: 'version-2',
+        audioStreamIndex: 2,
+        subtitleStreamIndex: -1,
         userId: 'user-1',
         startTimeTicks: 123,
         deviceId: 'device-1',
         maxStreamingBitrate: 8000000,
       }),
+    );
+  });
+
+  it('isolates a new playback attempt without changing the selected version or tracks', async () => {
+    const adapter = createAdapter();
+    const args = {
+      adapter,
+      currentServer: server,
+      item: { id: 'item-1', name: 'Item One', type: 'Movie' as const, raw: {} },
+      keyOptions: {
+        enableTranscoding: true,
+        maxBitrate: 1000000,
+        enableSubtitleBurnIn: false,
+        selectedCodec: 'h264',
+        mediaSourceId: 'version-2',
+        audioStreamIndex: 2,
+        subtitleStreamIndex: -1,
+      },
+      deviceProfile: {},
+      deviceId: 'device-1',
+    };
+    const initial = streamInfoQueryOptions(args);
+    const retry = streamInfoQueryOptions({ ...args, playbackAttempt: 1 });
+    expect(retry.queryKey).toEqual([...initial.queryKey, 'load-attempt', 1]);
+    await retry.queryFn!({} as never);
+    expect(adapter.getStreamInfo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaSourceId: 'version-2',
+        audioStreamIndex: 2,
+        subtitleStreamIndex: -1,
+      }),
+    );
+    expect(adapter.getStreamInfo).not.toHaveBeenCalledWith(
+      expect.objectContaining({ playbackAttempt: 1 }),
     );
   });
 });

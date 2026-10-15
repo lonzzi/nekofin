@@ -120,6 +120,9 @@ export function PlayerActionBar() {
     selectedTracks,
     showControls,
     tracks,
+    mediaSources,
+    selectedMediaSourceId,
+    onMediaSourceChange,
   } = usePlayer();
   const { settings, setSettings } = useDanmakuSettings();
   const actions = useMemo(
@@ -140,8 +143,8 @@ export function PlayerActionBar() {
     [danmakuComments.length, settings.enabled],
   );
   const trackMenuActions = useMemo(
-    () => deriveTrackMenuActions(tracks, selectedTracks),
-    [selectedTracks, tracks],
+    () => deriveTrackMenuActions(tracks, selectedTracks, mediaSources, selectedMediaSourceId),
+    [selectedTracks, tracks, mediaSources, selectedMediaSourceId],
   );
   const playbackMenuActions = useMemo(
     () => derivePlaybackMenuActions(rate, aspectRatio),
@@ -172,9 +175,11 @@ export function PlayerActionBar() {
         onAudioTrackChange?.(selection.trackIndex);
       } else if (selection?.kind === 'subtitleTrack') {
         onSubtitleTrackChange?.(selection.trackIndex);
+      } else if (selection?.kind === 'mediaSource') {
+        onMediaSourceChange?.(selection.id);
       }
     },
-    [onAudioTrackChange, onSubtitleTrackChange],
+    [onAudioTrackChange, onSubtitleTrackChange, onMediaSourceChange],
   );
   const handlePlaybackAction = useCallback(
     ({ nativeEvent }: NativeActionEvent) => {

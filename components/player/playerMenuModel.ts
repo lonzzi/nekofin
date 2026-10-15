@@ -1,3 +1,4 @@
+import type { MediaSource } from '@/services/media/types';
 import type { MenuAction } from '@react-native-menu/menu';
 
 import type { MediaTrack, MediaTracks, TrackInfo } from './PlayerContext';
@@ -10,6 +11,7 @@ export const PLAYER_MENU_ACTION_IDS = {
 
 const AUDIO_PREFIX = 'track:audio:';
 const SUBTITLE_PREFIX = 'track:subtitle:';
+const VERSION_PREFIX = 'source:';
 const RATE_PREFIX = 'playback:rate:';
 const ASPECT_PREFIX = 'playback:aspect:';
 
@@ -28,6 +30,7 @@ export type PlayerMenuSelection =
   | { kind: 'danmakuSearch' }
   | { kind: 'audioTrack'; trackIndex: number }
   | { kind: 'subtitleTrack'; trackIndex: number }
+  | { kind: 'mediaSource'; id: string }
   | { kind: 'rate'; rate: number }
   | { aspectRatio: string; kind: 'aspectRatio' };
 
@@ -90,6 +93,8 @@ export function deriveDanmakuMenuActions({
 export function deriveTrackMenuActions(
   tracks?: MediaTracks,
   selectedTracks?: MediaTrack,
+  mediaSources: MediaSource[] = [],
+  selectedMediaSourceId?: string | null,
 ): MenuAction[] {
   const audioTracks = normalizeTracks(tracks?.audio, '音轨');
   const subtitleTracks = normalizeTracks(tracks?.subtitle, '字幕');
@@ -120,7 +125,24 @@ export function deriveTrackMenuActions(
     ...subtitleTracks.map((track) => trackAction(SUBTITLE_PREFIX, track, selectedSubtitle)),
   ];
 
+  const versionActions: MenuAction[] =
+    mediaSources.length > 1
+      ? [
+          {
+            title: '视频版本',
+            subactions: mediaSources
+              .filter((source) => source.id)
+              .map((source, index) => ({
+                id: `${VERSION_PREFIX}${source.id}`,
+                title: source.name || `${source.container.toUpperCase()} · 版本 ${index + 1}`,
+                state: selectedState(source.id === selectedMediaSourceId),
+              })),
+          },
+        ]
+      : [];
+
   return [
+    ...versionActions,
     {
       subactions: subtitleActions,
       title: `字幕 · ${selectedSubtitleTitle}`,
@@ -171,6 +193,10 @@ export function parsePlayerMenuAction(actionId: string): PlayerMenuSelection | n
   }
   if (actionId.startsWith(SUBTITLE_PREFIX)) {
     return parseTrackSelection('subtitleTrack', actionId.slice(SUBTITLE_PREFIX.length));
+  }
+  if (actionId.startsWith(VERSION_PREFIX)) {
+    const id = actionId.slice(VERSION_PREFIX.length);
+    return id ? { kind: 'mediaSource', id } : null;
   }
   if (actionId.startsWith(RATE_PREFIX)) {
     const rate = Number(actionId.slice(RATE_PREFIX.length));

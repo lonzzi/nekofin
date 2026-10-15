@@ -77,4 +77,18 @@ describe('mediaQueryKeys', () => {
       options,
     ]);
   });
+
+  it('renegotiates when the version, audio or disabled subtitles change', () => {
+    const base = {
+      enableTranscoding: true,
+      maxBitrate: 1000000,
+      enableSubtitleBurnIn: false,
+      selectedCodec: 'h264',
+    };
+    const key = (selection: Partial<import('./queryKeys').StreamInfoKeyOptions>) =>
+      mediaQueryKeys.streamInfo('server', 'item', 'user', { ...base, ...selection });
+    expect(key({ mediaSourceId: 'a' })).not.toEqual(key({ mediaSourceId: 'b' }));
+    expect(key({ audioStreamIndex: 0 })).not.toEqual(key({ audioStreamIndex: 1 }));
+    expect(key({ subtitleStreamIndex: -1 })).not.toEqual(key({}));
+  });
 });

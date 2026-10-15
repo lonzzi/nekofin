@@ -42,8 +42,8 @@ export async function getItemMediaSources(api: Api, itemId: string) {
     {
       method: 'POST',
       data: {
-        isPlayback: true,
-        autoOpenLiveStream: true,
+        isPlayback: false,
+        autoOpenLiveStream: false,
       },
     },
   );

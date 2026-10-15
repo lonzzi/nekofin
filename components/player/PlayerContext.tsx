@@ -1,6 +1,6 @@
 import { DandanComment } from '@/services/dandanplay';
 import type { DanmakuCommentsData, DanmakuTrack } from '@/services/danmaku';
-import { MediaItem } from '@/services/media/types';
+import { MediaItem, MediaSource } from '@/services/media/types';
 import type { HdrStateChangeEvent } from 'expo-mpv';
 import { createContext, useContext } from 'react';
 import { SharedValue } from 'react-native-reanimated';
@@ -60,6 +60,9 @@ export type PlayerContextValue = {
   selectedTracks?: MediaTrack;
   onAudioTrackChange?: (trackIndex: number) => void;
   onSubtitleTrackChange?: (trackIndex: number) => void;
+  mediaSources?: MediaSource[];
+  selectedMediaSourceId?: string | null;
+  onMediaSourceChange?: (id: string) => void;
   aspectRatio?: string;
   onAspectRatioChange?: (mode: string) => void;
   hasPreviousEpisode?: boolean;

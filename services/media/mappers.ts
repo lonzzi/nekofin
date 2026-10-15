@@ -113,10 +113,15 @@ export type RawMediaStream = {
   ChannelLayout?: string | null;
   SampleRate?: number | null;
   Title?: string | null;
+  DisplayTitle?: string | null;
+  IsExternal?: boolean | null;
+  DeliveryMethod?: string | null;
+  DeliveryUrl?: string | null;
 };
 
 export type RawMediaSource = {
   Id?: string | null;
+  Name?: string | null;
   Protocol?: string | null;
   Container?: string | null;
   Size?: number | null;
@@ -151,12 +156,17 @@ export function mapMediaStream(stream: RawMediaStream): MediaSource['mediaStream
     channelLayout: stream.ChannelLayout ?? undefined,
     sampleRate: stream.SampleRate ?? undefined,
     title: stream.Title ?? undefined,
+    displayTitle: stream.DisplayTitle ?? undefined,
+    isExternal: stream.IsExternal ?? undefined,
+    deliveryMethod: stream.DeliveryMethod ?? undefined,
+    deliveryUrl: stream.DeliveryUrl ?? undefined,
   };
 }
 
 export function mapMediaSource(source: RawMediaSource): MediaSource {
   return {
     id: source.Id || '',
+    name: source.Name ?? undefined,
     protocol: source.Protocol || '',
     container: source.Container || '',
     size: source.Size ?? undefined,
