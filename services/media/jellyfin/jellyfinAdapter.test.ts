@@ -5,6 +5,45 @@ import { mapRawItemToMediaItem } from '../mappers';
 import { JellyfinAdapter } from './jellyfinAdapter';
 import { parseJellyfinItemArrayResponse, parseJellyfinItemsPage } from './mappers';
 
+const { reportStart, reportProgress, reportStop } = vi.hoisted(() => ({
+  reportStart: vi.fn(),
+  reportProgress: vi.fn(),
+  reportStop: vi.fn(),
+}));
+vi.mock('@jellyfin/sdk/lib/utils/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@jellyfin/sdk/lib/utils/api')>()),
+  getPlaystateApi: () => ({
+    reportPlaybackStart: reportStart,
+    reportPlaybackProgress: reportProgress,
+    reportPlaybackStopped: reportStop,
+  }),
+}));
+
+describe('Jellyfin version playback reports', () => {
+  it.each([
+    ['reportPlaybackStart', reportStart, 'playbackStartInfo'],
+    ['reportPlaybackProgress', reportProgress, 'playbackProgressInfo'],
+    ['reportPlaybackStop', reportStop, 'playbackStopInfo'],
+  ] as const)('includes the selected version in %s', async (method, report, field) => {
+    const adapter = new JellyfinAdapter();
+    adapter.setApi({ basePath: 'https://jellyfin.test' } as never);
+    await adapter[method]({
+      itemId: 'item-1',
+      mediaSourceId: 'version-2',
+      positionTicks: 1200,
+      PlaySessionId: 'session-1',
+    });
+    expect(report).toHaveBeenLastCalledWith({
+      [field]: expect.objectContaining({
+        ItemId: 'item-1',
+        MediaSourceId: 'version-2',
+        PositionTicks: 12000000,
+        PlaySessionId: 'session-1',
+      }),
+    });
+  });
+});
+
 vi.mock('@/lib/utils/image', () => ({
   getImageInfo: vi.fn((_item, _opts, api) => ({
     url: api?.basePath,

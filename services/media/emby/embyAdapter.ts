@@ -579,12 +579,14 @@ export class EmbyAdapter extends MediaAdapter {
 
   async reportPlaybackProgress({
     itemId,
+    mediaSourceId,
     positionTicks,
     isPaused,
     PlaySessionId,
   }: ReportPlaybackProgressParams): Promise<void> {
     await this.getClient().post(`/Sessions/Playing/Progress`, {
       ItemId: itemId,
+      ...(mediaSourceId ? { MediaSourceId: mediaSourceId } : {}),
       PositionTicks: Math.floor(positionTicks * 10000),
       IsPaused: isPaused ?? false,
       CanSeek: true,
@@ -595,11 +597,13 @@ export class EmbyAdapter extends MediaAdapter {
 
   async reportPlaybackStart({
     itemId,
+    mediaSourceId,
     positionTicks,
     PlaySessionId,
   }: ReportPlaybackStartParams): Promise<void> {
     await this.getClient().post(`/Sessions/Playing`, {
       ItemId: itemId,
+      ...(mediaSourceId ? { MediaSourceId: mediaSourceId } : {}),
       PositionTicks: Math.floor((positionTicks ?? 0) * 10000),
       CanSeek: true,
       PlaybackStartTimeTicks: Date.now() * 10000,
@@ -609,11 +613,13 @@ export class EmbyAdapter extends MediaAdapter {
 
   async reportPlaybackStop({
     itemId,
+    mediaSourceId,
     positionTicks,
     PlaySessionId,
   }: ReportPlaybackStopParams): Promise<void> {
     await this.getClient().post(`/Sessions/Playing/Stopped`, {
       ItemId: itemId,
+      ...(mediaSourceId ? { MediaSourceId: mediaSourceId } : {}),
       PositionTicks: Math.floor(positionTicks * 10000),
       PlaySessionId,
     });

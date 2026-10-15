@@ -126,6 +126,8 @@ export type RawMediaSource = {
   Container?: string | null;
   Size?: number | null;
   Bitrate?: number | null;
+  DefaultAudioStreamIndex?: number | null;
+  DefaultSubtitleStreamIndex?: number | null;
   MediaStreams?: RawMediaStream[] | null;
 };
 
@@ -171,6 +173,8 @@ export function mapMediaSource(source: RawMediaSource): MediaSource {
     container: source.Container || '',
     size: source.Size ?? undefined,
     bitrate: source.Bitrate ?? undefined,
+    defaultAudioStreamIndex: source.DefaultAudioStreamIndex ?? undefined,
+    defaultSubtitleStreamIndex: source.DefaultSubtitleStreamIndex ?? undefined,
     mediaStreams: source.MediaStreams?.map(mapMediaStream) ?? [],
   };
 }

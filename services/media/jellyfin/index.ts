@@ -76,10 +76,12 @@ export async function reportPlaybackProgress(
   positionTicks: number,
   isPaused: boolean = false,
   PlaySessionId: string,
+  mediaSourceId?: string,
 ) {
   await getPlaystateApi(api).reportPlaybackProgress({
     playbackProgressInfo: {
       ItemId: itemId,
+      ...(mediaSourceId ? { MediaSourceId: mediaSourceId } : {}),
       PositionTicks: Math.floor(positionTicks * 10000),
       IsPaused: isPaused,
       CanSeek: true,
@@ -94,10 +96,12 @@ export async function reportPlaybackStart(
   itemId: string,
   positionTicks: number = 0,
   PlaySessionId: string,
+  mediaSourceId?: string,
 ) {
   await getPlaystateApi(api).reportPlaybackStart({
     playbackStartInfo: {
       ItemId: itemId,
+      ...(mediaSourceId ? { MediaSourceId: mediaSourceId } : {}),
       PositionTicks: Math.floor(positionTicks * 10000),
       CanSeek: true,
       PlaybackStartTimeTicks: Date.now() * 10000,
@@ -111,10 +115,12 @@ export async function reportPlaybackStop(
   itemId: string,
   positionTicks: number,
   PlaySessionId: string,
+  mediaSourceId?: string,
 ) {
   await getPlaystateApi(api).reportPlaybackStopped({
     playbackStopInfo: {
       ItemId: itemId,
+      ...(mediaSourceId ? { MediaSourceId: mediaSourceId } : {}),
       PositionTicks: Math.floor(positionTicks * 10000),
       PlaySessionId,
     },

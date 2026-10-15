@@ -452,22 +452,40 @@ export class JellyfinAdapter extends MediaAdapter {
 
   async reportPlaybackProgress({
     itemId,
+    mediaSourceId,
     positionTicks,
     isPaused,
     PlaySessionId,
   }: ReportPlaybackProgressParams) {
     const api = this.requireApi();
-    await reportPlaybackProgress(api, itemId, positionTicks, isPaused ?? false, PlaySessionId);
+    await reportPlaybackProgress(
+      api,
+      itemId,
+      positionTicks,
+      isPaused ?? false,
+      PlaySessionId,
+      mediaSourceId,
+    );
   }
 
-  async reportPlaybackStart({ itemId, positionTicks, PlaySessionId }: ReportPlaybackStartParams) {
+  async reportPlaybackStart({
+    itemId,
+    positionTicks,
+    PlaySessionId,
+    mediaSourceId,
+  }: ReportPlaybackStartParams) {
     const api = this.requireApi();
-    await reportPlaybackStart(api, itemId, positionTicks ?? 0, PlaySessionId);
+    await reportPlaybackStart(api, itemId, positionTicks ?? 0, PlaySessionId, mediaSourceId);
   }
 
-  async reportPlaybackStop({ itemId, positionTicks, PlaySessionId }: ReportPlaybackStopParams) {
+  async reportPlaybackStop({
+    itemId,
+    positionTicks,
+    PlaySessionId,
+    mediaSourceId,
+  }: ReportPlaybackStopParams) {
     const api = this.requireApi();
-    await reportPlaybackStop(api, itemId, positionTicks, PlaySessionId);
+    await reportPlaybackStop(api, itemId, positionTicks, PlaySessionId, mediaSourceId);
   }
 }
 

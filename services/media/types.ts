@@ -146,6 +146,8 @@ export interface MediaSource {
   container: string;
   size?: number | null;
   bitrate?: number | null;
+  defaultAudioStreamIndex?: number;
+  defaultSubtitleStreamIndex?: number;
   mediaStreams: MediaStream[];
 }
 
@@ -329,17 +331,20 @@ export interface MarkItemPlayedParams {
 }
 export interface ReportPlaybackProgressParams {
   itemId: string;
+  mediaSourceId?: string;
   positionTicks: number;
   isPaused?: boolean;
   PlaySessionId: string;
 }
 export interface ReportPlaybackStartParams {
   itemId: string;
+  mediaSourceId?: string;
   positionTicks?: number;
   PlaySessionId: string;
 }
 export interface ReportPlaybackStopParams {
   itemId: string;
+  mediaSourceId?: string;
   positionTicks: number;
   PlaySessionId: string;
 }

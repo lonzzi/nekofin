@@ -1,6 +1,10 @@
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { layout, radius, spacing, typography, useAppTheme } from '@/lib/theme';
 import { formatChineseDurationFromTicks, formatRating } from '@/lib/utils';
+import {
+  playbackSelectionParams,
+  type PlaybackSelection,
+} from '@/services/media/playbackSelection';
 import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
@@ -36,7 +40,13 @@ function compactList(values?: (string | null | undefined)[] | null, limit = 4) {
   return clean.length > limit ? `${visible} 等 ${clean.length} 项` : visible;
 }
 
-export const PlayButton = ({ item }: { item: MediaItem }) => {
+export const PlayButton = ({
+  item,
+  selection,
+}: {
+  item: MediaItem;
+  selection?: PlaybackSelection;
+}) => {
   const router = useTracedRouter('detail-play');
   const theme = useAppTheme();
   const accentColor = theme.colors.tint;
@@ -100,7 +110,10 @@ export const PlayButton = ({ item }: { item: MediaItem }) => {
         accessibilityRole="button"
         accessibilityLabel={buttonLabel}
         onPress={() => {
-          router.push({ pathname: '/player', params: { itemId: item.id! } });
+          router.push({
+            pathname: '/player',
+            params: { itemId: item.id!, ...playbackSelectionParams(selection) },
+          });
         }}
         style={detailViewStyles.playButtonPressable}
       >

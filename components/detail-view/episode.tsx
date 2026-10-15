@@ -15,8 +15,9 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { EpisodeCard } from '../media/Card';
 import { ThemedText } from '../ThemedText';
-import { detailViewStyles, ItemOverview, PlayButton } from './common';
+import { detailViewStyles, ItemOverview } from './common';
 import { PeopleSection, SimilarItemsSection } from './DetailMediaSections';
+import { DetailPlaybackControls } from './DetailPlaybackControls';
 import { useDetailView } from './DetailViewContext';
 import { EpisodeMediaInfoList } from './EpisodeMediaInfoList';
 import {
@@ -189,7 +190,7 @@ export const EpisodeModeContent = ({
         </ThemedText>
       </View>
 
-      {!!selectedEpisode?.id && <PlayButton item={selectedEpisode} />}
+      {!!selectedEpisode?.id && <DetailPlaybackControls item={selectedEpisode} />}
 
       <ItemOverview item={selectedEpisode} reserveCollapsedSpace />
 

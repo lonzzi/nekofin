@@ -10,6 +10,7 @@ interface UsePlaybackSyncProps {
   itemDetail: MediaItem | null;
   currentTime: SharedValue<number>;
   playSessionId: string | null;
+  mediaSourceId?: string;
 }
 
 export const usePlaybackSync = ({
@@ -17,6 +18,7 @@ export const usePlaybackSync = ({
   itemDetail,
   currentTime,
   playSessionId,
+  mediaSourceId,
 }: UsePlaybackSyncProps) => {
   const mediaAdapter = useMediaAdapter();
   const lastProgressReportRef = useRef<{ position: number; ts: number } | null>(null);
@@ -41,13 +43,14 @@ export const usePlaybackSync = ({
       void sendPlaybackReport('progress', () =>
         mediaAdapter.reportPlaybackProgress({
           itemId: itemDetail.id!,
+          mediaSourceId,
           positionTicks,
           isPaused,
           PlaySessionId: playSessionId,
         }),
       );
     },
-    [mediaAdapter, currentServer, itemDetail, playSessionId],
+    [mediaAdapter, currentServer, itemDetail, playSessionId, mediaSourceId],
   );
 
   const syncPlaybackStart = useCallback(
@@ -59,12 +62,13 @@ export const usePlaybackSync = ({
       void sendPlaybackReport('start', () =>
         mediaAdapter.reportPlaybackStart({
           itemId: itemDetail.id!,
+          mediaSourceId,
           positionTicks,
           PlaySessionId: playSessionId,
         }),
       );
     },
-    [mediaAdapter, currentServer, itemDetail, playSessionId],
+    [mediaAdapter, currentServer, itemDetail, playSessionId, mediaSourceId],
   );
 
   const syncPlaybackStop = useCallback(
@@ -76,12 +80,13 @@ export const usePlaybackSync = ({
       void sendPlaybackReport('stop', () =>
         mediaAdapter.reportPlaybackStop({
           itemId: itemDetail.id!,
+          mediaSourceId,
           positionTicks,
           PlaySessionId: playSessionId,
         }),
       );
     },
-    [mediaAdapter, currentServer, itemDetail, playSessionId],
+    [mediaAdapter, currentServer, itemDetail, playSessionId, mediaSourceId],
   );
 
   useEffect(() => {

@@ -1,7 +1,8 @@
 import { MediaItem, MediaPerson } from '@/services/media/types';
 
-import { ItemInfoList, ItemMeta, ItemOverview, PlayButton } from './common';
+import { ItemInfoList, ItemMeta, ItemOverview } from './common';
 import { PeopleSection, SimilarItemsSection } from './DetailMediaSections';
+import { DetailPlaybackControls } from './DetailPlaybackControls';
 
 export const MovieModeContent = ({
   people,
@@ -15,7 +16,7 @@ export const MovieModeContent = ({
   return (
     <>
       <ItemMeta item={item} />
-      {!!item.id && <PlayButton item={item} />}
+      {!!item.id && <DetailPlaybackControls item={item} />}
       <ItemOverview item={item} />
       <ItemInfoList item={item} />
 

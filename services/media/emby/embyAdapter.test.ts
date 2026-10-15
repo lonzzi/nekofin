@@ -51,6 +51,32 @@ describe('EmbyAdapter instance client', () => {
     await expect(new EmbyAdapter().getSystemInfo()).rejects.toThrow('API instance not set');
   });
 
+  it.each([
+    ['reportPlaybackStart', '/Sessions/Playing'],
+    ['reportPlaybackProgress', '/Sessions/Playing/Progress'],
+    ['reportPlaybackStop', '/Sessions/Playing/Stopped'],
+  ] as const)('includes the actual version in %s', async (method, path) => {
+    const fetchMock = vi.fn(
+      async (_input: unknown, _init?: RequestInit) => new Response(null, { status: 204 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const adapter = new EmbyAdapter();
+    adapter.setApi({ basePath: 'https://emby.test', accessToken: 'token-1' });
+    await adapter[method]({
+      itemId: 'item-8',
+      mediaSourceId: 'mediasource_9',
+      positionTicks: 1200,
+      PlaySessionId: 'session-1',
+    });
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(`https://emby.test${path}`);
+    expect(JSON.parse(fetchMock.mock.calls[0]![1]!.body as string)).toMatchObject({
+      ItemId: 'item-8',
+      MediaSourceId: 'mediasource_9',
+      PositionTicks: 12000000,
+      PlaySessionId: 'session-1',
+    });
+  });
+
   it('preserves the requested version, external subtitles and playback session', async () => {
     const source = {
       Id: 'version-two',

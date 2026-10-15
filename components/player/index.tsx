@@ -2,6 +2,7 @@
 
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
+import { readPlaybackPreferences } from '@/hooks/usePlaybackPreferences';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { useDanmakuSources } from '@/lib/contexts/DanmakuSourcesContext';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
@@ -11,6 +12,7 @@ import { storage } from '@/lib/storage';
 import { formatBitrate, getDeviceId, ticksToMilliseconds, ticksToSeconds } from '@/lib/utils';
 import { resolveDanmakuSelection, type DanmakuCommentsData } from '@/services/danmaku';
 import { danmakuSourcesKey } from '@/services/danmakuSources';
+import type { PlaybackSelection } from '@/services/media/playbackSelection';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import {
   ExpoMpvView,
@@ -91,7 +93,13 @@ const LoadingIndicator = ({
   );
 };
 
-export const VideoPlayer = ({ itemId }: { itemId: string }) => {
+export const VideoPlayer = ({
+  itemId,
+  initialSelection,
+}: {
+  itemId: string;
+  initialSelection?: PlaybackSelection;
+}) => {
   const { currentServer, currentApi } = useMediaServers();
   const router = useTracedRouter('player');
   const mediaAdapter = useMediaAdapter();
@@ -147,32 +155,40 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     audioIds: Map<number, number>;
   } | null>(null);
   const [versionChoice, setVersionChoice] = useState<{ itemId: string; id: string } | null>(null);
-  const selectedMediaSourceId = versionChoice?.itemId === itemId ? versionChoice.id : undefined;
+  const selectedMediaSourceId =
+    versionChoice?.itemId === itemId ? versionChoice.id : initialSelection?.mediaSourceId;
   const [serverTrackChoice, setServerTrackChoice] = useState<{
     itemId: string;
     sourceId: string;
     audio?: number;
     subtitle?: number;
   } | null>(null);
-  const activeServerTrackChoice =
-    serverTrackChoice?.itemId === itemId && serverTrackChoice.sourceId === selectedMediaSourceId
-      ? serverTrackChoice
-      : null;
+  const activeServerTrackChoice = useMemo(
+    () =>
+      serverTrackChoice?.itemId === itemId && serverTrackChoice.sourceId === selectedMediaSourceId
+        ? serverTrackChoice
+        : selectedMediaSourceId === initialSelection?.mediaSourceId
+          ? {
+              audio: initialSelection?.audioStreamIndex,
+              subtitle: initialSelection?.subtitleStreamIndex,
+            }
+          : null,
+    [serverTrackChoice, itemId, selectedMediaSourceId, initialSelection],
+  );
   const [aspectRatio, setAspectRatio] = useState<string>('fit');
+  const [preferences] = useState(readPlaybackPreferences);
 
   // Playback settings only change on a settings round-trip (which remounts this
   // screen), so read them once instead of on every render of the player.
-  const { enableTranscoding, enableSubtitleBurnIn, maxBitrate, selectedCodec, subtitlesEnabled } =
-    useMemo(
-      () => ({
-        enableTranscoding: storage.getBoolean('enableTranscoding') ?? false,
-        enableSubtitleBurnIn: storage.getBoolean('enableSubtitleBurnIn') ?? false,
-        maxBitrate: storage.getNumber('maxBitrate') ?? 20000000,
-        selectedCodec: storage.getString('selectedCodec') ?? 'h264',
-        subtitlesEnabled: storage.getBoolean('playback.subtitlesEnabled') !== false,
-      }),
-      [],
-    );
+  const { enableTranscoding, enableSubtitleBurnIn, maxBitrate, selectedCodec } = useMemo(
+    () => ({
+      enableTranscoding: storage.getBoolean('enableTranscoding') ?? false,
+      enableSubtitleBurnIn: storage.getBoolean('enableSubtitleBurnIn') ?? false,
+      maxBitrate: storage.getNumber('maxBitrate') ?? 20000000,
+      selectedCodec: storage.getString('selectedCodec') ?? 'h264',
+    }),
+    [],
+  );
 
   const player = useRef<ExpoMpvViewRef>(null);
   const isMountedRef = useRef(true);
@@ -205,7 +221,8 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
       selectedCodec,
       mediaSourceId: selectedMediaSourceId,
       audioStreamIndex: activeServerTrackChoice?.audio,
-      subtitleStreamIndex: activeServerTrackChoice?.subtitle ?? (subtitlesEnabled ? undefined : -1),
+      subtitleStreamIndex:
+        activeServerTrackChoice?.subtitle ?? (preferences.subtitlesEnabled ? undefined : -1),
     }),
     [
       enableTranscoding,
@@ -214,7 +231,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
       selectedCodec,
       selectedMediaSourceId,
       activeServerTrackChoice,
-      subtitlesEnabled,
+      preferences.subtitlesEnabled,
     ],
   );
 
@@ -238,17 +255,25 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
 
   useEffect(() => setLoadFailure(null), [loadSelectionKey]);
 
-  const { itemDetail, autoCommentsData, streamInfo, streamInfoError, episodes, mediaSources } =
-    usePlayerQueries({
-      itemId,
-      mediaAdapter,
-      currentServer,
-      useManualComments,
-      streamInfoKeyOptions,
-      streamDeviceProfile,
-      streamDeviceId,
-      playbackAttempt,
-    });
+  const {
+    itemDetail,
+    autoCommentsData,
+    streamInfo,
+    streamInfoError,
+    playbackSelection,
+    episodes,
+    mediaSources,
+  } = usePlayerQueries({
+    itemId,
+    mediaAdapter,
+    currentServer,
+    useManualComments,
+    streamInfoKeyOptions,
+    streamDeviceProfile,
+    streamDeviceId,
+    playbackAttempt,
+    preferences,
+  });
 
   const playbackSourceUrl = streamInfo?.url ?? null;
   const usesServerTracks = !!streamInfo?.mediaSource?.TranscodingUrl;
@@ -426,8 +451,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
           });
         }
         if (list && ids) {
-          const audioLanguage = storage.getString('playback.audioLanguage') ?? 'auto';
-          const subtitleLanguage = storage.getString('playback.subtitleLanguage') ?? 'auto';
+          const { audioLanguage, subtitleLanguage, subtitlesEnabled } = preferences;
           const source = streamInfo?.mediaSource;
           const rememberedId = (type: 'audio' | 'subtitle') => {
             const choice = rememberedTrackChoice.current[type];
@@ -468,6 +492,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
           };
           const audio =
             rememberedId('audio') ??
+            serverTrackId('Audio', playbackSelection.audioStreamIndex) ??
             (source?.TranscodingUrl
               ? undefined
               : preferredTrackId(
@@ -477,7 +502,8 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
             serverTrackId('Audio', source?.DefaultAudioStreamIndex);
           const subtitle =
             rememberedId('subtitle') ??
-            (storage.getBoolean('playback.subtitlesEnabled') === false
+            serverTrackId('Subtitle', playbackSelection.subtitleStreamIndex) ??
+            (!subtitlesEnabled
               ? -1
               : ((source?.TranscodingUrl
                   ? undefined
@@ -503,7 +529,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
         console.warn('refreshMpvTracks error:', e);
       }
     },
-    [streamInfo],
+    [streamInfo, playbackSelection, preferences],
   );
 
   const externalSubtitles = useMemo(() => {
@@ -525,6 +551,7 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     itemDetail: itemDetail ?? null,
     currentTime,
     playSessionId: streamInfo?.sessionId ?? null,
+    mediaSourceId: streamInfo?.mediaSource?.Id ?? undefined,
   });
 
   const retryPlayback = useCallback(() => {

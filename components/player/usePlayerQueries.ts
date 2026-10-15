@@ -3,6 +3,11 @@ import { useDanmakuSources } from '@/lib/contexts/DanmakuSourcesContext';
 import { dandanplayCommentsQueryOptions } from '@/services/dandanplayQueryOptions';
 import { getDanmakuByItem } from '@/services/danmaku';
 import { danmakuSourcesKey } from '@/services/danmakuSources';
+import {
+  needsPlaybackPreferenceTracks,
+  resolvePreferredPlaybackTracks,
+  type PlaybackPreferences,
+} from '@/services/media/playbackSelection';
 import type { StreamInfoKeyOptions } from '@/services/media/queryKeys';
 import {
   episodesBySeasonQueryOptions,
@@ -12,6 +17,7 @@ import {
 } from '@/services/media/queryOptions';
 import type { MediaAdapter, MediaServerInfo } from '@/services/media/types';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
 export function usePlayerQueries({
   itemId,
@@ -22,6 +28,7 @@ export function usePlayerQueries({
   streamDeviceProfile,
   streamDeviceId,
   playbackAttempt,
+  preferences,
 }: {
   itemId: string;
   mediaAdapter: MediaAdapter;
@@ -31,6 +38,7 @@ export function usePlayerQueries({
   streamDeviceProfile: unknown;
   streamDeviceId: string;
   playbackAttempt: number;
+  preferences: PlaybackPreferences;
 }) {
   const { sources } = useDanmakuSources();
   const { settings } = useDanmakuSettings();
@@ -63,21 +71,34 @@ export function usePlayerQueries({
     }),
   );
 
-  const { data: streamInfo, error: streamInfoError } = useQuery(
-    streamInfoQueryOptions({
-      adapter: mediaAdapter,
-      currentServer,
-      item: itemDetail,
-      keyOptions: streamInfoKeyOptions,
-      deviceProfile: streamDeviceProfile,
-      deviceId: streamDeviceId,
-      playbackAttempt,
-    }),
-  );
-
-  const { data: playbackInfo } = useQuery(
+  const { data: playbackInfo, isPending: tracksPending } = useQuery(
     mediaSourcesQueryOptions({ adapter: mediaAdapter, currentServer, itemId }),
   );
+  const playbackSelection = useMemo(
+    () =>
+      resolvePreferredPlaybackTracks(
+        playbackInfo?.mediaSources ?? [],
+        streamInfoKeyOptions,
+        preferences,
+      ),
+    [playbackInfo, streamInfoKeyOptions, preferences],
+  );
+  const streamOptions = streamInfoQueryOptions({
+    adapter: mediaAdapter,
+    currentServer,
+    item: itemDetail,
+    keyOptions: { ...streamInfoKeyOptions, ...playbackSelection },
+    deviceProfile: streamDeviceProfile,
+    deviceId: streamDeviceId,
+    playbackAttempt,
+  });
+  const { data: streamInfo, error: streamInfoError } = useQuery({
+    ...streamOptions,
+    // Avoid starting HLS with the server's default audio before preferences resolve.
+    enabled:
+      streamOptions.enabled &&
+      (!needsPlaybackPreferenceTracks(streamInfoKeyOptions, preferences) || !tracksPending),
+  });
 
   const { data: episodes = [] } = useQuery(
     episodesBySeasonQueryOptions({
@@ -93,6 +114,7 @@ export function usePlayerQueries({
     autoCommentsData,
     streamInfo,
     streamInfoError,
+    playbackSelection,
     mediaSources: playbackInfo?.mediaSources ?? [],
     episodes,
   };
