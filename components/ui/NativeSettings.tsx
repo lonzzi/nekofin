@@ -1,7 +1,6 @@
 import { useAppTheme } from '@/lib/theme';
 import { useIsOuterTheme } from '@/lib/theme/OuterTheme';
 import {
-  Button,
   FieldGroup,
   ListItem,
   Text as NativeText,
@@ -18,7 +17,6 @@ import {
   Text as SwiftText,
 } from '@expo/ui/swift-ui';
 import {
-  controlSize,
   disabled as disabledModifier,
   frame,
   listSectionSpacing,
@@ -97,12 +95,23 @@ export function NativeSettingsForm({
 
 export function NativeSettingsSection({
   title,
+  footer,
   children,
 }: {
   title?: string;
+  footer?: string;
   children: ReactNode;
 }) {
-  return <FieldGroup.Section title={title}>{children}</FieldGroup.Section>;
+  return (
+    <FieldGroup.Section title={title}>
+      {children}
+      {footer ? (
+        <FieldGroup.SectionFooter>
+          <SwiftText>{footer}</SwiftText>
+        </FieldGroup.SectionFooter>
+      ) : null}
+    </FieldGroup.Section>
+  );
 }
 
 function NativeDisclosureIndicator() {
@@ -295,35 +304,6 @@ export function NativeSettingsSlider({
     >
       {title}
     </ListItem>
-  );
-}
-
-export function NativeSettingsButton({
-  label,
-  onPress,
-  variant = 'filled',
-  disabled,
-  fullWidth = true,
-}: {
-  label: string;
-  onPress: () => void;
-  variant?: 'filled' | 'outlined' | 'text';
-  disabled?: boolean;
-  fullWidth?: boolean;
-}) {
-  const modifiers =
-    Platform.OS === 'ios' && fullWidth
-      ? [frame({ maxWidth: Infinity }), controlSize('large')]
-      : undefined;
-
-  return (
-    <Button
-      label={label}
-      onPress={onPress}
-      variant={variant}
-      disabled={disabled}
-      modifiers={modifiers}
-    />
   );
 }
 

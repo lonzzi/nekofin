@@ -3,12 +3,14 @@
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
+import { useDanmakuSources } from '@/lib/contexts/DanmakuSourcesContext';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { preferredTrackId } from '@/lib/playbackPreferences';
 import { generateDeviceProfile } from '@/lib/profiles/native';
 import { storage } from '@/lib/storage';
 import { formatBitrate, getDeviceId, ticksToMilliseconds, ticksToSeconds } from '@/lib/utils';
-import { DandanComment } from '@/services/dandanplay';
+import { resolveDanmakuSelection, type DanmakuCommentsData } from '@/services/danmaku';
+import { danmakuSourcesKey } from '@/services/danmakuSources';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import {
   ExpoMpvView,
@@ -78,6 +80,8 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
   const router = useTracedRouter('player');
   const mediaAdapter = useMediaAdapter();
   const { settings } = useDanmakuSettings();
+  const { sourceSettings, sources } = useDanmakuSources();
+  const sourceKey = danmakuSourcesKey(sources);
 
   const [mediaInfo, setMediaInfo] = useState<{
     duration: number;
@@ -126,10 +130,6 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     [],
   );
 
-  const [danmakuEpisodeInfo, setDanmakuEpisodeInfo] = useState<
-    { animeTitle: string; episodeTitle: string } | undefined
-  >(undefined);
-
   const player = useRef<ExpoMpvViewRef>(null);
   const isMountedRef = useRef(true);
   const activePlaybackContextRef = useRef<object | null>(null);
@@ -149,8 +149,9 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     playbackSeekWatchdogRef.current = null;
   }, []);
 
-  const [manualComments, setManualComments] = useState<DandanComment[]>([]);
-  const [useManualComments, setUseManualComments] = useState(false);
+  const [manualDanmaku, setManualDanmaku] = useState<DanmakuCommentsData>();
+  const [danmakuSelectionOverride, setDanmakuSelectionOverride] = useState<string | null>(null);
+  const useManualComments = manualDanmaku !== undefined;
 
   const streamInfoKeyOptions = useMemo(
     () => ({
@@ -211,11 +212,24 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     [],
   );
 
+  const danmakuData = manualDanmaku ?? autoCommentsData;
+  const requestedSelection = danmakuSelectionOverride ?? sourceSettings.mode;
+  const danmakuSelection =
+    requestedSelection === 'auto' ||
+    requestedSelection === 'merge' ||
+    danmakuData?.tracks?.some((track) => track.id === requestedSelection)
+      ? requestedSelection
+      : 'auto';
+  const resolvedDanmaku = useMemo(
+    () => resolveDanmakuSelection(danmakuData, danmakuSelection),
+    [danmakuData, danmakuSelection],
+  );
+  const comments = resolvedDanmaku.comments;
+  const danmakuEpisodeInfo = resolvedDanmaku.episodeInfo;
   useEffect(() => {
-    setDanmakuEpisodeInfo(autoCommentsData?.episodeInfo);
-  }, [autoCommentsData?.episodeInfo]);
-
-  const comments = useManualComments ? manualComments : (autoCommentsData?.comments ?? []);
+    setManualDanmaku(undefined);
+    setDanmakuSelectionOverride(null);
+  }, [sourceKey]);
 
   useEffect(() => {
     bufferedProgress.set(0);
@@ -235,9 +249,8 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     );
     setIsNativeSeeking(false);
     danmakuLayer.current?.cleanup();
-    setManualComments([]);
-    setUseManualComments(false);
-    setDanmakuEpisodeInfo(undefined);
+    setManualDanmaku(undefined);
+    setDanmakuSelectionOverride(null);
     setInitialTime(-1);
     setIsLoaded(false);
     setIsBuffering(true);
@@ -294,13 +307,9 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
     isBufferingRef.current = false;
   }, [clearPlaybackSeekWatchdog, currentTime, playbackSourceUrl]);
 
-  const handleCommentsLoaded = (
-    newComments: DandanComment[],
-    episodeInfo?: { animeTitle: string; episodeTitle: string },
-  ) => {
-    setManualComments(newComments);
-    setUseManualComments(true);
-    setDanmakuEpisodeInfo(episodeInfo);
+  const handleCommentsLoaded = (data: DanmakuCommentsData) => {
+    setManualDanmaku(data);
+    setDanmakuSelectionOverride((data.tracks?.length ?? 0) > 1 ? 'merge' : 'auto');
   };
 
   // Pull the real track list from mpv. Track `index` here is mpv's own sid/aid.
@@ -915,6 +924,10 @@ export const VideoPlayer = ({ itemId }: { itemId: string }) => {
         onCommentsLoaded={handleCommentsLoaded}
         danmakuEpisodeInfo={danmakuEpisodeInfo}
         danmakuComments={comments}
+        danmakuTracks={resolvedDanmaku.tracks}
+        danmakuSelection={danmakuSelection}
+        onDanmakuSelectionChange={setDanmakuSelectionOverride}
+        danmakuFailedSources={resolvedDanmaku.failedSources}
         episodes={episodes}
         currentItem={itemDetail}
         onEpisodeSelect={handleEpisodeSelect}

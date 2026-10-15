@@ -13,10 +13,14 @@ import {
   SettingsTitle,
 } from '@/components/ui/SettingsVisual';
 import { defaultSettings, useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
+import { useDanmakuSources } from '@/lib/contexts/DanmakuSourcesContext';
+import { useRouter } from 'expo-router';
 import { Alert } from 'react-native';
 
 export default function DanmakuSettingsScreen() {
   const { settings, setSettings } = useDanmakuSettings();
+  const { sources } = useDanmakuSources();
+  const router = useRouter();
 
   const updateSetting = <K extends keyof typeof settings>(key: K, value: (typeof settings)[K]) => {
     setSettings((current) => ({ ...current, [key]: value }));
@@ -53,6 +57,22 @@ export default function DanmakuSettingsScreen() {
     <>
       <OuterTitle>弹幕设置</OuterTitle>
       <NativeSettingsForm testID="danmaku-settings-form">
+        <NativeSettingsSection title="弹幕 API">
+          <NativeSettingsItem
+            title={<SettingsTitle>管理弹幕 API</SettingsTitle>}
+            subtitle={
+              <SettingsSubtitle
+                primary={
+                  '已启用 ' +
+                  sources.filter((source) => source.enabled).length +
+                  ' 个 API · 支持多源搜索与合并'
+                }
+              />
+            }
+            disclosure
+            onPress={() => router.push('/(tabs)/(settings)/danmaku-sources')}
+          />
+        </NativeSettingsSection>
         <NativeSettingsSection title="显示">
           <NativeSettingsSwitch
             title={<SettingsTitle>显示弹幕</SettingsTitle>}

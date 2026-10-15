@@ -43,7 +43,14 @@ const modeFilters = [
 ];
 
 export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
-  const { danmakuComments, danmakuEpisodeInfo } = usePlayer();
+  const {
+    danmakuComments,
+    danmakuEpisodeInfo,
+    danmakuTracks,
+    danmakuSelection,
+    onDanmakuSelectionChange,
+    danmakuFailedSources,
+  } = usePlayer();
   const { settings, setSettings } = useDanmakuSettings();
 
   const updateSetting = useCallback(
@@ -85,6 +92,33 @@ export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
           disclosure
           onPress={onSearch}
         />
+        {danmakuTracks?.length ? (
+          <NativeSettingsPicker
+            title={<SettingsTitle>显示来源</SettingsTitle>}
+            value={danmakuSelection ?? 'auto'}
+            options={[
+              { title: '自动选择', value: 'auto' },
+              { title: '合并全部匹配源', value: 'merge' },
+              ...danmakuTracks.map((track) => ({
+                title:
+                  track.sourceName +
+                  ' · ' +
+                  track.animeTitle +
+                  ' · ' +
+                  track.comments.length +
+                  ' 条',
+                value: track.id,
+              })),
+            ]}
+            onValueChange={onDanmakuSelectionChange}
+          />
+        ) : null}
+        {danmakuFailedSources?.length ? (
+          <NativeSettingsItem
+            title={<SettingsTitle>部分来源暂不可用</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={danmakuFailedSources.join('、')} lines={2} />}
+          />
+        ) : null}
       </NativeSettingsSection>
 
       <NativeSettingsSection title="显示效果">

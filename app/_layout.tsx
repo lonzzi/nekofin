@@ -2,6 +2,7 @@ import { PLAYER_LAB_AVAILABLE } from '@/components/dev/player-lab/PlayerLabEntry
 import { platformHeaderOptions } from '@/components/navigation/platformHeaderOptions';
 import { PerformanceOverlay } from '@/components/performance/PerformanceOverlay';
 import { DanmakuSettingsProvider } from '@/lib/contexts/DanmakuSettingsContext';
+import { DanmakuSourcesProvider } from '@/lib/contexts/DanmakuSourcesContext';
 import { MediaServerProvider } from '@/lib/contexts/MediaServerContext';
 import { ThemePreferenceProvider } from '@/lib/contexts/ThemePreferenceContext';
 import {
@@ -83,12 +84,14 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <ThemePreferenceProvider>
           <MediaServerProvider>
-            <DanmakuSettingsProvider>
-              <PerformanceMonitorProvider>
-                <RootNavigation />
-                <PerformanceOverlay />
-              </PerformanceMonitorProvider>
-            </DanmakuSettingsProvider>
+            <DanmakuSourcesProvider>
+              <DanmakuSettingsProvider>
+                <PerformanceMonitorProvider>
+                  <RootNavigation />
+                  <PerformanceOverlay />
+                </PerformanceMonitorProvider>
+              </DanmakuSettingsProvider>
+            </DanmakuSourcesProvider>
           </MediaServerProvider>
         </ThemePreferenceProvider>
       </GestureHandlerRootView>

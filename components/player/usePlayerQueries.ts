@@ -1,5 +1,8 @@
-import { getCommentsByItem } from '@/services/dandanplay';
+import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
+import { useDanmakuSources } from '@/lib/contexts/DanmakuSourcesContext';
 import { dandanplayCommentsQueryOptions } from '@/services/dandanplayQueryOptions';
+import { getDanmakuByItem } from '@/services/danmaku';
+import { danmakuSourcesKey } from '@/services/danmakuSources';
 import type { StreamInfoKeyOptions } from '@/services/media/queryKeys';
 import {
   episodesBySeasonQueryOptions,
@@ -26,6 +29,8 @@ export function usePlayerQueries({
   streamDeviceProfile: unknown;
   streamDeviceId: string;
 }) {
+  const { sources } = useDanmakuSources();
+  const { settings } = useDanmakuSettings();
   const { data: itemDetail } = useQuery(
     itemDetailQueryOptions({
       adapter: mediaAdapter,
@@ -48,7 +53,10 @@ export function usePlayerQueries({
       item: itemDetail,
       originalTitle: seriesInfo?.originalTitle,
       useManualComments,
-      fetchComments: getCommentsByItem,
+      sourcesKey: danmakuSourcesKey(sources),
+      enabled: settings.enabled && sources.some((source) => source.enabled),
+      fetchComments: (item, originalTitle, signal) =>
+        getDanmakuByItem(item, originalTitle, sources, signal),
     }),
   );
 

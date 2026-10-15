@@ -2,6 +2,7 @@ import { Controls } from '@/components/player/Controls';
 import { DanmakuLayer, type DanmakuLayerRef } from '@/components/player/DanmakuLayer';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { getCommentsByEpisodeId, type DandanComment } from '@/services/dandanplay';
+import type { DanmakuCommentsData } from '@/services/danmaku';
 import type { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { PlaybackState } from 'expo-mpv';
@@ -286,7 +287,7 @@ export function PlayerLabScreen({ onClose }: PlayerLabScreenProps) {
   }, [comments]);
 
   const handleCommentsLoaded = useCallback(
-    (nextComments: DandanComment[], episodeInfo?: { animeTitle: string; episodeTitle: string }) => {
+    ({ comments: nextComments, episodeInfo }: DanmakuCommentsData) => {
       requestGenerationRef.current += 1;
       setComments(nextComments);
       setDanmakuEpisodeInfo(episodeInfo);

@@ -1,4 +1,5 @@
 import { DandanComment } from '@/services/dandanplay';
+import type { DanmakuCommentsData, DanmakuTrack } from '@/services/danmaku';
 import { MediaItem } from '@/services/media/types';
 import type { HdrStateChangeEvent } from 'expo-mpv';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
@@ -50,10 +51,11 @@ type ControlsProps = {
   mediaStats?: MediaStats | null;
   bufferedProgress?: SharedValue<number>;
   hdrState?: HdrStateChangeEvent | null;
-  onCommentsLoaded?: (
-    comments: DandanComment[],
-    episodeInfo?: { animeTitle: string; episodeTitle: string },
-  ) => void;
+  onCommentsLoaded?: (data: DanmakuCommentsData) => void;
+  danmakuTracks?: DanmakuTrack[];
+  danmakuSelection?: string;
+  onDanmakuSelectionChange?: (value: string) => void;
+  danmakuFailedSources?: string[];
   danmakuEpisodeInfo?: { animeTitle: string; episodeTitle: string } | undefined;
   danmakuComments: DandanComment[];
   episodes: MediaItem[];
@@ -89,6 +91,10 @@ export function Controls({
   onCommentsLoaded,
   danmakuEpisodeInfo,
   danmakuComments,
+  danmakuTracks,
+  danmakuSelection,
+  onDanmakuSelectionChange,
+  danmakuFailedSources,
   episodes,
   currentItem,
   onEpisodeSelect,
@@ -258,31 +264,22 @@ export function Controls({
     onCommentsLoaded,
     danmakuEpisodeInfo,
     danmakuComments,
+    danmakuTracks,
+    danmakuSelection,
+    onDanmakuSelectionChange,
+    danmakuFailedSources,
     episodes,
     currentItem,
     isMovie: currentItem?.type === 'Movie',
     onEpisodeSelect,
   };
 
-  const currentEpisodeIndex = currentItem
-    ? episodes.findIndex((episode) => episode.id === currentItem.id)
-    : -1;
   const panelTitle =
     activePanel?.key === 'episodes'
       ? '剧集'
       : activePanel?.key === 'danmakuSearch'
         ? '搜索弹幕'
         : '弹幕';
-  const panelSubtitle =
-    activePanel?.key === 'episodes'
-      ? currentEpisodeIndex >= 0
-        ? `${currentEpisodeIndex + 1} / ${episodes.length}`
-        : `${episodes.length} 集`
-      : activePanel?.key === 'danmakuSearch'
-        ? '手动匹配番剧与剧集'
-        : activePanel?.key === 'danmaku'
-          ? `${danmakuComments.length} 条弹幕`
-          : undefined;
 
   const handleEpisodeSelect = useCallback(
     (episodeId: string) => {
@@ -296,8 +293,8 @@ export function Controls({
     [pushPanel],
   );
   const handleCommentsLoaded = useCallback(
-    (comments: DandanComment[], episodeInfo: { animeTitle: string; episodeTitle: string }) => {
-      onCommentsLoaded?.(comments, episodeInfo);
+    (data: DanmakuCommentsData) => {
+      onCommentsLoaded?.(data);
     },
     [onCommentsLoaded],
   );
@@ -345,7 +342,6 @@ export function Controls({
       <PlayerPanelHost
         onBack={panelState.stack.length > 1 ? backPanel : undefined}
         onDismiss={closePanel}
-        subtitle={panelSubtitle}
         title={panelTitle}
         visible={isPanelOpen}
       >

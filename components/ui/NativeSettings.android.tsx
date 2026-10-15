@@ -1,5 +1,5 @@
 import { useAppTheme } from '@/lib/theme';
-import { Button, ListItem, Slider, Switch } from '@expo/ui';
+import { ListItem, Slider, Switch } from '@expo/ui';
 import {
   AlertDialog,
   Column,
@@ -60,6 +60,7 @@ export function NativeSettingsForm({
 
 export function NativeSettingsSection({
   title,
+  footer,
   children,
 }: ComponentProps<typeof SharedSettings.NativeSettingsSection>) {
   const colors = useMaterialColors();
@@ -75,6 +76,15 @@ export function NativeSettingsSection({
         </Text>
       ) : null}
       {children}
+      {footer ? (
+        <Text
+          color={colors.onSurfaceVariant}
+          style={{ typography: 'bodySmall' }}
+          modifiers={[padding(16, 8, 16, 0)]}
+        >
+          {footer}
+        </Text>
+      ) : null}
     </Column>
   );
 }
@@ -240,24 +250,6 @@ export function NativeSettingsSlider({
           />
         </Column>
       }
-    />
-  );
-}
-
-export function NativeSettingsButton({
-  label,
-  onPress,
-  variant = 'filled',
-  disabled,
-  fullWidth = true,
-}: ComponentProps<typeof SharedSettings.NativeSettingsButton>) {
-  return (
-    <Button
-      label={label}
-      onPress={onPress}
-      variant={variant}
-      disabled={disabled}
-      modifiers={fullWidth ? [fillMaxWidth()] : undefined}
     />
   );
 }

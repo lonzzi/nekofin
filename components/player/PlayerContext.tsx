@@ -1,4 +1,5 @@
 import { DandanComment } from '@/services/dandanplay';
+import type { DanmakuCommentsData, DanmakuTrack } from '@/services/danmaku';
 import { MediaItem } from '@/services/media/types';
 import type { HdrStateChangeEvent } from 'expo-mpv';
 import { createContext, useContext } from 'react';
@@ -83,10 +84,11 @@ export type PlayerContextValue = {
   isBrightnessGestureActive: SharedValue<boolean>;
   hideControlsWithDelay: () => void;
   clearControlsTimeout: () => void;
-  onCommentsLoaded?: (
-    comments: DandanComment[],
-    episodeInfo?: { animeTitle: string; episodeTitle: string },
-  ) => void;
+  onCommentsLoaded?: (data: DanmakuCommentsData) => void;
+  danmakuTracks?: DanmakuTrack[];
+  danmakuSelection?: string;
+  onDanmakuSelectionChange?: (value: string) => void;
+  danmakuFailedSources?: string[];
   danmakuEpisodeInfo?: { animeTitle: string; episodeTitle: string } | undefined;
   danmakuComments: DandanComment[];
 

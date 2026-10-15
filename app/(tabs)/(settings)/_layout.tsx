@@ -37,6 +37,8 @@ function HomeLayout() {
           headerTitle: '弹幕设置',
         }}
       />
+      <Stack.Screen name="danmaku-sources" options={{ title: '弹幕 API' }} />
+      <Stack.Screen name="danmaku-source/[id]" options={{ title: '弹幕 API' }} />
       <Stack.Screen
         name="performance"
         options={{

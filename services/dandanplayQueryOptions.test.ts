@@ -11,6 +11,21 @@ const item: MediaItem = {
 };
 
 describe('dandanplayCommentsQueryOptions', () => {
+  it('uses the configured API revision to isolate comment caches', () => {
+    const common = {
+      serverId: 'server',
+      item,
+      originalTitle: 'Title',
+      useManualComments: false,
+      fetchComments: vi.fn(),
+    };
+    expect(
+      dandanplayCommentsQueryOptions({ ...common, sourcesKey: 'a:revision1' }).queryKey,
+    ).not.toEqual(
+      dandanplayCommentsQueryOptions({ ...common, sourcesKey: 'a:revision2' }).queryKey,
+    );
+    expect(dandanplayCommentsQueryOptions({ ...common, enabled: false }).enabled).toBe(false);
+  });
   it('builds comments options and normalizes missing results', async () => {
     const fetchComments = vi.fn(async () => undefined);
     const options = dandanplayCommentsQueryOptions({
