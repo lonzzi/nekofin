@@ -18,6 +18,7 @@ export default function HomeLayout() {
           title: '',
           headerLargeTitle: false,
           headerTransparent: true,
+          headerStyle: { backgroundColor: 'transparent' },
           headerBlurEffect: 'none',
           headerShadowVisible: false,
         }}

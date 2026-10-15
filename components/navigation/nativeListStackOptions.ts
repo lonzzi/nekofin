@@ -15,8 +15,9 @@ export function getNativeListStackOptions(backgroundColor: string) {
     headerLargeTitleShadowVisible: false,
     headerBackButtonDisplayMode: 'minimal',
     headerBlurEffect: ios && !isLiquidGlassAvailable() ? 'prominent' : 'none',
-    // Hero routes opt into an overlay header and inherit this style on Android too.
-    headerStyle: { backgroundColor: 'transparent' },
+    // Android lays non-overlay headers outside the content background. A transparent
+    // toolbar exposes the outgoing screen until its native transition finishes.
+    headerStyle: { backgroundColor: ios ? 'transparent' : backgroundColor },
     scrollEdgeEffects: { top: 'automatic', bottom: 'automatic' },
     contentStyle: { backgroundColor },
   } as const;

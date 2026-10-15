@@ -17,18 +17,38 @@ import {
 import PageScrollView from '@/components/PageScrollView';
 import { HomeServerCard } from '@/components/servers/HomeServerCard';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
-import { useMediaServerSources } from '@/hooks/useMediaServerSources';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/theme';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import type { MediaServerInfo, MediaServerType } from '@/services/media/types';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useIsFocused } from 'expo-router/react-navigation';
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 function ServersScreen() {
   const theme = useAppTheme();
   const router = useTracedRouter('servers');
-  const { servers, setCurrentServer, isInitialized } = useMediaServers();
-  const sources = useMediaServerSources(servers);
+  const { servers, setCurrentServer, currentServer, removeServer, isInitialized } =
+    useMediaServers();
+  const isFocused = useIsFocused();
+  const { width } = useWindowDimensions();
+  const availableWidth = Math.max(Math.min(width, 840) - theme.spacing.page * 2, 0);
+  const columns = Math.max(
+    2,
+    Math.floor((availableWidth + theme.spacing.md) / (158 + theme.spacing.md)),
+  );
+  const cardWidth = (availableWidth - (columns - 1) * theme.spacing.md) / columns;
+  const androidCardStyle =
+    Platform.OS === 'android'
+      ? [styles.androidCard, { backgroundColor: theme.colors.surface }]
+      : undefined;
   const open = (server: MediaServerInfo) => {
     setCurrentServer(server);
     router.push('/(tabs)/(servers)/library');
@@ -43,9 +63,14 @@ function ServersScreen() {
       pathname: '/(tabs)/(servers)/add-server/[serverType]',
       params: { serverType },
     });
+  const remove = (server: MediaServerInfo) =>
+    Alert.alert('删除服务器', `从 Nekofin 移除 ${server.name} / ${server.username}？`, [
+      { text: '取消', style: 'cancel' },
+      { text: '删除', style: 'destructive', onPress: () => void removeServer(server.id) },
+    ]);
   return (
     <>
-      <OuterScreenOptions title="服务器" />
+      <OuterScreenOptions title="服务器" grouped />
       <OuterTitle>服务器</OuterTitle>
       <HeaderToolbar placement="right">
         <HeaderMenu accessibilityLabel="添加媒体账号" icon={getNativeToolbarIcon('add', 'plus')}>
@@ -67,7 +92,7 @@ function ServersScreen() {
         </HeaderMenu>
       </HeaderToolbar>
       <PageScrollView
-        style={{ backgroundColor: theme.colors.background }}
+        style={{ backgroundColor: theme.colors.backgroundGrouped }}
         contentContainerStyle={styles.page}
       >
         {servers.length ? (
@@ -75,19 +100,21 @@ function ServersScreen() {
             <View style={styles.servers}>
               <View style={styles.heading}>
                 <Text style={[styles.count, { color: theme.colors.textSecondary }]}>
-                  已连接 {servers.length} 个账号
+                  {servers.length} 个服务器账号
                 </Text>
               </View>
               <View style={styles.grid}>
-                {sources.map(({ server, adapter }) => (
-                  <HomeServerCard
-                    key={server.id}
-                    server={server}
-                    adapter={adapter}
-                    single={servers.length === 1}
-                    onOpen={() => open(server)}
-                    onSettings={() => settings(server)}
-                  />
+                {servers.map((server) => (
+                  <View key={server.id} style={[{ width: cardWidth }, androidCardStyle]}>
+                    <HomeServerCard
+                      server={server}
+                      isCurrent={currentServer?.id === server.id}
+                      isScreenFocused={isFocused}
+                      onOpen={() => open(server)}
+                      onSettings={() => settings(server)}
+                      onRemove={() => remove(server)}
+                    />
+                  </View>
                 ))}
               </View>
             </View>
@@ -121,6 +148,11 @@ const styles = StyleSheet.create({
   servers: { paddingHorizontal: 20, gap: 12 },
   heading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   count: { fontSize: 13 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  androidCard: {
+    borderRadius: 22,
+    elevation: 3,
+    shadowColor: '#000000',
+  },
   empty: { padding: 20, gap: 14 },
 });

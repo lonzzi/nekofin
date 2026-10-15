@@ -4,5 +4,6 @@ export const DETAIL_STACK_SCREEN_OPTIONS = {
   headerTitle: '',
   headerLargeTitle: false,
   headerTransparent: true,
+  headerStyle: { backgroundColor: 'transparent' },
   headerBlurEffect: 'none',
 } as const;
