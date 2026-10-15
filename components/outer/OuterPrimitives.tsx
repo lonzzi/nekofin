@@ -1,7 +1,7 @@
 import { useAppTheme } from '@/lib/theme';
 import { Stack } from 'expo-router';
 import type { PropsWithChildren } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export function OuterScreenOptions({
   title,
@@ -19,7 +19,7 @@ export function OuterScreenOptions({
         options={{
           title,
           headerTitle: title,
-          headerLargeTitle: large,
+          headerLargeTitle: large && !(Platform.OS === 'ios' && Platform.isPad),
           headerTitleStyle: { color: t.colors.text },
           headerLargeTitleStyle: { color: t.colors.text },
           headerTintColor: t.colors.tint,
@@ -124,7 +124,7 @@ export function OuterTitle({ children, large = true }: { children: string; large
   const theme = useAppTheme();
   return (
     <Stack.Title
-      large={large}
+      large={large && !(Platform.OS === 'ios' && Platform.isPad)}
       style={{ color: theme.colors.text }}
       largeStyle={{ color: theme.colors.text }}
     >

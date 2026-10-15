@@ -7,7 +7,14 @@ import type { HomeSectionWithStatus } from '@/hooks/useHomeSections';
 import { useAppTheme, useMediaHeroHeight } from '@/lib/theme';
 import type { MediaItem } from '@/services/media/types';
 import { useIsFocused } from 'expo-router/react-navigation';
-import { RefreshControl, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import {
+  Platform,
+  RefreshControl,
+  useWindowDimensions,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 
 export type MediaHomeSection = HomeSectionWithStatus & { onViewAll?: () => void };
 
@@ -30,11 +37,25 @@ export function MediaHomeContent({
   notice?: React.ReactNode;
 }) {
   const theme = useAppTheme();
-  const carouselHeight = useMediaHeroHeight();
+  const phoneCarouselHeight = useMediaHeroHeight();
+  const window = useWindowDimensions();
+  const tablet = Platform.OS === 'ios' && Platform.isPad;
+  const [viewport, setViewport] = useState({ width: window.width, height: window.height });
+  const measureViewport = useCallback(({ nativeEvent: { layout } }: LayoutChangeEvent) => {
+    setViewport((previous) =>
+      previous.width === layout.width && previous.height === layout.height
+        ? previous
+        : { width: layout.width, height: layout.height },
+    );
+  }, []);
+  const carouselHeight = tablet
+    ? Math.round(Math.min(400, Math.max(220, viewport.width * 0.45), viewport.height * 0.48))
+    : phoneCarouselHeight;
   const isFocused = useIsFocused();
   const { backgroundImageInfo, headerImage, headerOverlay } = useCarouselHeaderLayers({
     items: carouselItems,
     height: carouselHeight,
+    width: tablet ? viewport.width : undefined,
     isFocused,
     isLoading: isCarouselLoading,
     showLogo: true,
@@ -43,6 +64,7 @@ export function MediaHomeContent({
 
   return (
     <HomeAtmosphereScrollView
+      onLayout={tablet ? measureViewport : undefined}
       backgroundColor={theme.colors.background}
       contentStyle={{ gap: theme.spacing.xs, paddingBottom: theme.spacing.lg }}
       headerFadeMode="mask"

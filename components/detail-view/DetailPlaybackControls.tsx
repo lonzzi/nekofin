@@ -31,6 +31,10 @@ function ItemPlaybackControls({ item }: { item: MediaItem }) {
     width: controlsWidth,
     height: Math.max(Platform.OS === 'android' ? 64 : 44, 30 * fontScale),
   };
+  const pickerWidth =
+    Platform.OS === 'ios' && Platform.isPad && controlsWidth
+      ? Math.max(100, controlsWidth - 100)
+      : undefined;
   const adapter = useMediaAdapter();
   const { currentServer } = useMediaServers();
   const query = useQuery(mediaSourcesQueryOptions({ adapter, currentServer, itemId: item.id }));
@@ -62,6 +66,7 @@ function ItemPlaybackControls({ item }: { item: MediaItem }) {
                   <NativeText textStyle={labelStyle}>视频版本</NativeText>
                   <Spacer />
                   <Picker
+                    width={pickerWidth}
                     testID="detail-video-version"
                     selectedValue={source.id}
                     enabled={sources.length > 1}
@@ -80,6 +85,7 @@ function ItemPlaybackControls({ item }: { item: MediaItem }) {
                   <NativeText textStyle={labelStyle}>音轨</NativeText>
                   <Spacer />
                   <Picker
+                    width={pickerWidth}
                     testID="detail-audio-track"
                     selectedValue={selected.audioStreamIndex ?? -1}
                     enabled={audio.length > 1}
@@ -108,6 +114,7 @@ function ItemPlaybackControls({ item }: { item: MediaItem }) {
                   <NativeText textStyle={labelStyle}>字幕</NativeText>
                   <Spacer />
                   <Picker
+                    width={pickerWidth}
                     testID="detail-subtitle-track"
                     selectedValue={selected.subtitleStreamIndex ?? -1}
                     enabled={subtitles.length > 0}

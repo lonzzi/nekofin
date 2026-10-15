@@ -8,6 +8,7 @@ import { useMemo, type ComponentProps, type PropsWithChildren, type ReactElement
 import { Easing, Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { easeGradient } from 'react-native-easing-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollViewMarker } from 'react-native-screens/experimental';
 
 type HomeAtmosphereImageInfo = {
   blurhash?: string;
@@ -26,6 +27,7 @@ type HomeAtmosphereScrollViewProps = PropsWithChildren<{
   optimizeAtmosphereImageLoading?: boolean;
   refreshControl?: ComponentProps<typeof ParallaxScrollView>['refreshControl'];
   style?: ComponentProps<typeof ParallaxScrollView>['style'];
+  onLayout?: ComponentProps<typeof View>['onLayout'];
 }>;
 
 export function HomeAtmosphereScrollView({
@@ -41,6 +43,7 @@ export function HomeAtmosphereScrollView({
   optimizeAtmosphereImageLoading = false,
   refreshControl,
   style,
+  onLayout,
 }: HomeAtmosphereScrollViewProps) {
   const insets = useSafeAreaInsets();
   const headerOverscrollExtent = resolveParallaxHeaderOverscrollExtent(insets.top);
@@ -82,8 +85,31 @@ export function HomeAtmosphereScrollView({
       headerOverlay
     );
 
+  const scroller = (
+    <ParallaxScrollView
+      contentContainerStyle={{
+        paddingBottom: insets.bottom + (Platform.OS === 'android' ? 80 : 0),
+      }}
+      showsVerticalScrollIndicator={false}
+      style={styles.scroller}
+      headerHeight={headerHeight}
+      contentStyle={[styles.content, contentStyle]}
+      headerImage={headerImage}
+      headerMediaMaskElement={headerFadeMode === 'mask' ? <ParallaxHeaderFadeMask /> : null}
+      headerOverscrollExtent={headerOverscrollExtent}
+      headerOverlay={resolvedHeaderOverlay}
+      refreshControl={refreshControl}
+    >
+      {children}
+    </ParallaxScrollView>
+  );
+
   return (
-    <View collapsable={false} style={[styles.container, { backgroundColor }, style]}>
+    <View
+      collapsable={false}
+      onLayout={onLayout}
+      style={[styles.container, { backgroundColor }, style]}
+    >
       <View pointerEvents="none" style={styles.backdropLayer}>
         <HomeAtmosphereBackdrop
           backgroundColor={backgroundColor}
@@ -94,22 +120,16 @@ export function HomeAtmosphereScrollView({
         />
       </View>
 
-      <ParallaxScrollView
-        contentContainerStyle={{
-          paddingBottom: insets.bottom + (Platform.OS === 'android' ? 80 : 0),
-        }}
-        showsVerticalScrollIndicator={false}
-        style={styles.scroller}
-        headerHeight={headerHeight}
-        contentStyle={[styles.content, contentStyle]}
-        headerImage={headerImage}
-        headerMediaMaskElement={headerFadeMode === 'mask' ? <ParallaxHeaderFadeMask /> : null}
-        headerOverscrollExtent={headerOverscrollExtent}
-        headerOverlay={resolvedHeaderOverlay}
-        refreshControl={refreshControl}
-      >
-        {children}
-      </ParallaxScrollView>
+      {Platform.OS === 'ios' && Platform.isPad ? (
+        <ScrollViewMarker
+          style={styles.scroller}
+          scrollEdgeEffects={{ top: 'hidden', bottom: 'hidden' }}
+        >
+          {scroller}
+        </ScrollViewMarker>
+      ) : (
+        scroller
+      )}
     </View>
   );
 }

@@ -1,8 +1,9 @@
 import PageScrollView from '@/components/PageScrollView';
+import { NativeServerForm } from '@/components/servers/NativeServerForm';
 import { ServerTypeIcon } from '@/components/servers/ServerTypeIcon';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { buildConnectionAddress } from '@/lib/serverConnection';
-import { useAppTheme } from '@/lib/theme';
+import { layout, useAppTheme } from '@/lib/theme';
 import { getMediaAdapter } from '@/services/media';
 import type { MediaServerInfo, MediaServerType } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -14,7 +15,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { GlassCard } from './ui/GlassCard';
 
@@ -189,8 +190,28 @@ export const AddServerForm = forwardRef<AddServerFormHandle, Props>(
       onLoadingChange,
     ]);
     useImperativeHandle(ref, () => ({ submit }), [submit]);
+    if (Platform.OS === 'ios' && Platform.isPad) {
+      const setters = {
+        address: setAddress,
+        port: setPort,
+        path: setPath,
+        username: setUsername,
+        password: setPassword,
+        name: setName,
+        note: setNote,
+      };
+      return (
+        <NativeServerForm
+          values={{ address, port, path, username, password, name, note }}
+          onChange={(field, value) => setters[field](value)}
+          busy={busy}
+          error={error}
+        />
+      );
+    }
     return (
       <PageScrollView
+        maxContentWidth={layout.formMaxWidth}
         testID="add-media-account-form"
         keyboardShouldPersistTaps="handled"
         style={{ backgroundColor: theme.colors.backgroundGrouped }}

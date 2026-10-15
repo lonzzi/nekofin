@@ -18,6 +18,7 @@ import { ThemedText } from '../ThemedText';
 import { detailViewStyles, ItemOverview } from './common';
 import { PeopleSection, SimilarItemsSection } from './DetailMediaSections';
 import { DetailPlaybackControls } from './DetailPlaybackControls';
+import { DetailSummary } from './DetailSummary';
 import { useDetailView } from './DetailViewContext';
 import { EpisodeMediaInfoList } from './EpisodeMediaInfoList';
 import {
@@ -107,7 +108,11 @@ export const EpisodeModeContent = ({
     }),
   );
 
-  const { data: mediaSourcesData } = useQueryWithFocus(
+  const {
+    data: mediaSourcesData,
+    isPending: isMediaInfoPending,
+    isError: isMediaInfoError,
+  } = useQueryWithFocus(
     mediaSourcesQueryOptions({
       adapter: mediaAdapter,
       currentServer,
@@ -184,15 +189,18 @@ export const EpisodeModeContent = ({
 
   return (
     <>
-      <View style={{ gap: theme.spacing.sm }}>
-        <ThemedText style={[theme.typography.footnote, { color: subtitleColor }]}>
-          {getEpisodeHeaderText(selectedEpisode)}
-        </ThemedText>
-      </View>
-
-      {!!selectedEpisode?.id && <DetailPlaybackControls item={selectedEpisode} />}
-
-      <ItemOverview item={selectedEpisode} reserveCollapsedSpace />
+      <DetailSummary
+        item={selectedEpisode}
+        metadata={
+          <View style={{ gap: theme.spacing.sm }}>
+            <ThemedText style={[theme.typography.footnote, { color: subtitleColor }]}>
+              {getEpisodeHeaderText(selectedEpisode)}
+            </ThemedText>
+          </View>
+        }
+        controls={selectedEpisode?.id ? <DetailPlaybackControls item={selectedEpisode} /> : null}
+        overview={<ItemOverview item={selectedEpisode} reserveCollapsedSpace />}
+      />
 
       {seasons && seasons.length > 0 && (
         <View
@@ -247,10 +255,15 @@ export const EpisodeModeContent = ({
         </View>
       )}
 
-      <EpisodeMediaInfoList mediaSources={mediaSources} />
-
       <PeopleSection items={people} />
       <SimilarItemsSection items={similarItems} />
+
+      <EpisodeMediaInfoList
+        key={selectedEpisode.id}
+        mediaSources={mediaSources}
+        isPending={isMediaInfoPending}
+        isError={isMediaInfoError}
+      />
     </>
   );
 };

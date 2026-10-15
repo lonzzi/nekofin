@@ -35,6 +35,7 @@ import {
 interface CarouselHeaderProps {
   items: MediaItem[];
   height: number;
+  width?: number;
   isFocused: boolean;
   isLoading?: boolean;
   showLogo?: boolean;
@@ -349,6 +350,7 @@ function CarouselGradientScrim() {
 export function useCarouselHeaderLayers({
   items,
   height,
+  width,
   isFocused,
   isLoading = false,
   showLogo = false,
@@ -381,7 +383,7 @@ export function useCarouselHeaderLayers({
   // transition's last frame. `isFocused` only pauses/resumes side-effects
   // (timers, prefetch) below.
   const canReveal = items.length > 1;
-  const cardWidth = Math.max(viewportWidth, 1);
+  const cardWidth = Math.max(width ?? viewportWidth, 1);
 
   const itemIdentity = useMemo(
     () =>

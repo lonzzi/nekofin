@@ -1,4 +1,4 @@
-import { getNativeListStackOptions } from '@/components/navigation/nativeListStackOptions';
+import { useNativeListStackOptions } from '@/components/navigation/nativeListStackOptions';
 import { usePerformanceStackScreenListeners } from '@/lib/performance/PerformanceMonitorContext';
 import { useAppTheme } from '@/lib/theme';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
@@ -9,12 +9,13 @@ function HomeLayout() {
   const backgroundColor = theme.colors.backgroundGrouped;
   const stackScreenListeners = usePerformanceStackScreenListeners('settings');
 
+  const stackOptions = useNativeListStackOptions(backgroundColor);
   return (
     <Stack
       initialRouteName="index"
       screenListeners={stackScreenListeners}
       screenOptions={{
-        ...getNativeListStackOptions(backgroundColor),
+        ...stackOptions,
         headerTintColor: theme.colors.tint,
         headerTitleStyle: { color: theme.colors.text },
         headerLargeTitleStyle: { color: theme.colors.text },
