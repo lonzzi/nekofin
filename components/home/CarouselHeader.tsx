@@ -2,6 +2,7 @@ import { HOME_CAROUSEL_IMAGE_WIDTHS } from '@/components/home/homePerformanceCon
 import { ItemImage } from '@/components/ItemImage';
 import { getSourcedMediaKey, type GetMediaItemSource } from '@/components/media/mediaSource';
 import { ThemedText } from '@/components/ThemedText';
+import { GlassCard } from '@/components/ui/GlassCard';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { SkeletonMediaHero } from '@/components/ui/Skeleton';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
@@ -14,7 +15,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
@@ -104,7 +105,7 @@ function CarouselImageLayer({ imageInfo, onImageReady }: CarouselImageLayerProps
         { backgroundColor: mediaBackgroundColor },
       ]}
     >
-      <IconSymbol name="video.fill" size={48} color={theme.colors.inverseText} />
+      <IconSymbol name="video.fill" size={48} color="#FFFFFF" />
     </View>
   );
 }
@@ -237,6 +238,27 @@ type CarouselOverlayProps = {
   showLogo: boolean;
 };
 
+function CarouselBadge({ label, outlined = false }: { label: string; outlined?: boolean }) {
+  const theme = useAppTheme();
+  const isIOS = Platform.OS === 'ios';
+
+  return (
+    <GlassCard
+      colorScheme="dark"
+      fallbackBackgroundColor={outlined ? 'transparent' : 'rgba(255,255,255,0.2)'}
+      radius={isIOS ? 999 : 6}
+      style={[
+        styles.cardTag,
+        isIOS && styles.cardTagGlass,
+        !isIOS && outlined && styles.cardTagOutline,
+      ]}
+      useGlassEffect={isIOS}
+    >
+      <ThemedText style={[theme.typography.caption, styles.cardTagText]}>{label}</ThemedText>
+    </GlassCard>
+  );
+}
+
 function CarouselOverlay({ activeIndex, imageInfo, item, items, showLogo }: CarouselOverlayProps) {
   const theme = useAppTheme();
   const title = getCarouselItemTitle(item);
@@ -244,7 +266,7 @@ function CarouselOverlay({ activeIndex, imageInfo, item, items, showLogo }: Caro
   const typeLabel = item.type === 'Movie' ? '电影' : item.type === 'Series' ? '剧集' : null;
   const titleFallback = (
     <ThemedText
-      style={[theme.typography.title3, styles.cardTitle, { color: theme.colors.inverseText }]}
+      style={[theme.typography.title3, styles.cardTitle]}
       numberOfLines={1}
       ellipsizeMode="tail"
     >
@@ -277,19 +299,7 @@ function CarouselOverlay({ activeIndex, imageInfo, item, items, showLogo }: Caro
               {imageInfo.serverName}
             </ThemedText>
           )}
-          {typeLabel && (
-            <View style={styles.cardTag}>
-              <ThemedText
-                style={[
-                  theme.typography.caption,
-                  styles.cardTagText,
-                  { color: theme.colors.inverseText },
-                ]}
-              >
-                {typeLabel}
-              </ThemedText>
-            </View>
-          )}
+          {typeLabel && <CarouselBadge label={typeLabel} />}
           {!!item.productionYear && (
             <ThemedText style={[theme.typography.footnote, styles.cardMeta]}>
               {item.productionYear}
@@ -300,19 +310,7 @@ function CarouselOverlay({ activeIndex, imageInfo, item, items, showLogo }: Caro
               ★ {formatRating(item.communityRating)}
             </ThemedText>
           )}
-          {!!item.officialRating && (
-            <View style={[styles.cardTag, styles.cardTagOutline]}>
-              <ThemedText
-                style={[
-                  theme.typography.caption,
-                  styles.cardTagText,
-                  { color: theme.colors.inverseText },
-                ]}
-              >
-                {item.officialRating}
-              </ThemedText>
-            </View>
-          )}
+          {!!item.officialRating && <CarouselBadge label={item.officialRating} outlined />}
         </View>
       </View>
 
@@ -953,6 +951,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   cardTitle: {
+    // Poster overlays always need light text, independent of Material's onPrimary color.
+    color: '#FFFFFF',
     letterSpacing: 0,
     minWidth: 0,
     width: '100%',
@@ -979,15 +979,17 @@ const styles = StyleSheet.create({
   cardTag: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  cardTagGlass: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   cardTagOutline: {
-    backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.4)',
   },
   cardTagText: {
+    color: '#FFFFFF',
     ...TEXT_SHADOW,
   },
   dotsRow: {
