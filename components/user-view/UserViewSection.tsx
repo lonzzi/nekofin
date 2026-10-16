@@ -24,11 +24,13 @@ export const UserViewSection = React.memo(function UserViewSection({
   isLoading,
   title,
   getItemSource,
+  showServerSource = true,
 }: {
   userView: MediaItem[];
   isLoading?: boolean;
   title?: string;
   getItemSource?: GetMediaItemSource;
+  showServerSource?: boolean;
 }) {
   const theme = useAppTheme();
   const { width: viewportWidth } = useWindowDimensions();
@@ -50,9 +52,14 @@ export const UserViewSection = React.memo(function UserViewSection({
 
   const renderItem: ListRenderItem<MediaItem> = useCallback(
     ({ item }) => (
-      <UserViewCard item={item} title={item.name || '未知标题'} source={getItemSource?.(item)} />
+      <UserViewCard
+        item={item}
+        title={item.name || '未知标题'}
+        source={getItemSource?.(item)}
+        showServerSource={showServerSource}
+      />
     ),
-    [getItemSource],
+    [getItemSource, showServerSource],
   );
 
   const renderSkeletonItem = useCallback(() => <SkeletonUserViewCard />, []);

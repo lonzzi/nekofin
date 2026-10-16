@@ -16,10 +16,12 @@ export const UserViewCard = React.memo(function UserViewCard({
   item,
   title,
   source,
+  showServerSource = true,
 }: {
   item: MediaItem;
   title: string;
   source?: MediaItemSource;
+  showServerSource?: boolean;
 }) {
   const router = useTracedRouter('user-view-card');
   const theme = useAppTheme();
@@ -70,11 +72,11 @@ export const UserViewCard = React.memo(function UserViewCard({
           >
             {title}
           </Text>
-          {source && (
+          {showServerSource && source ? (
             <View style={{ alignItems: 'center' }}>
               <ServerSourceLabel name={source.server.name} />
             </View>
-          )}
+          ) : null}
         </View>
       </ShadowedGlassCard>
     </Pressable>

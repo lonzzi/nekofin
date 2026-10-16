@@ -94,6 +94,7 @@ export default function AggregateViewAllScreen() {
       }
       data={entries.map((entry) => entry.item)}
       getItemSource={(item) => sourceByItem.get(item)}
+      showServerSource={servers.length > 1}
       dataState={{
         isLoading: !!isLoading,
         isError:

@@ -66,6 +66,7 @@ export default function AggregateHomeScreen() {
         carouselItems={home.carouselItems}
         isCarouselLoading={home.isCarouselLoading}
         getItemSource={home.getItemSource}
+        showServerSource={visibleServers.length > 1}
         refreshing={refreshing}
         onRefresh={onRefresh}
         sections={home.sections.map((section) => ({
