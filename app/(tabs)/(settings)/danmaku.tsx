@@ -137,7 +137,7 @@ export default function DanmakuSettingsScreen() {
           />
           <NativeSettingsSwitch
             title={<SettingsTitle>防止重叠</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="尽量避免弹幕重叠，减少遮挡。" />}
+            subtitle={<SettingsSubtitle primary="避免同类型弹幕重叠，预测滚动追尾" />}
             value={settings.collisionPolicy === 'avoid'}
             disabled={!settings.enabled}
             onValueChange={(value) => updateSetting('collisionPolicy', value ? 'avoid' : 'allow')}

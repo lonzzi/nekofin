@@ -6,8 +6,12 @@ export type TimedDanmakuEntry<T> = {
 
 export type ScheduledDanmakuLifetime = {
   mediaDurationMs: number;
+  visibleMediaDurationMs?: number;
   scheduledMs: number;
 };
+
+const getExpirationTimeMs = (bullet: ScheduledDanmakuLifetime): number =>
+  bullet.scheduledMs + (bullet.visibleMediaDurationMs ?? bullet.mediaDurationMs);
 
 export const DANMAKU_FRAME_INTERVAL_MS = 16;
 // Scheduler heartbeat, not animation FPS or the native progress callback rate.
@@ -142,7 +146,7 @@ export function findNextDanmakuEventTimeMs<T extends ScheduledDanmakuLifetime>({
 }): number | null {
   let nextEventTimeMs = nextCommentTimeMs;
   for (const bullet of activeBullets) {
-    const expirationTimeMs = bullet.scheduledMs + bullet.mediaDurationMs;
+    const expirationTimeMs = getExpirationTimeMs(bullet);
     if (nextEventTimeMs == null || expirationTimeMs < nextEventTimeMs) {
       nextEventTimeMs = expirationTimeMs;
     }
@@ -155,12 +159,10 @@ export function removeExpiredDanmakuEntries<T extends ScheduledDanmakuLifetime>(
   currentTimeMs: number,
 ): T[] {
   const hasExpiredBullet = activeBullets.some(
-    (bullet) => bullet.scheduledMs + bullet.mediaDurationMs <= currentTimeMs,
+    (bullet) => getExpirationTimeMs(bullet) <= currentTimeMs,
   );
   if (!hasExpiredBullet) return activeBullets;
-  return activeBullets.filter(
-    (bullet) => bullet.scheduledMs + bullet.mediaDurationMs > currentTimeMs,
-  );
+  return activeBullets.filter((bullet) => getExpirationTimeMs(bullet) > currentTimeMs);
 }
 
 export function calculateDanmakuWakeDelayMs({

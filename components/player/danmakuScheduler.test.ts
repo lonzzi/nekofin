@@ -160,6 +160,17 @@ describe('danmakuScheduler', () => {
     expect(removeExpiredDanmakuEntries(activeBullets, 500)).toBe(activeBullets);
   });
 
+  it('expires visible scrolling lifetimes without shortening fixed comments', () => {
+    const scrolling = { scheduledMs: 1000, mediaDurationMs: 8000, visibleMediaDurationMs: 6000 };
+    const fixed = { scheduledMs: 5000, mediaDurationMs: 4000, visibleMediaDurationMs: 4000 };
+    const activeBullets = [scrolling, fixed];
+
+    expect(findNextDanmakuEventTimeMs({ activeBullets, nextCommentTimeMs: 8000 })).toBe(7000);
+    expect(removeExpiredDanmakuEntries(activeBullets, 6999)).toBe(activeBullets);
+    expect(removeExpiredDanmakuEntries(activeBullets, 7000)).toEqual([fixed]);
+    expect(removeExpiredDanmakuEntries(activeBullets, 9000)).toEqual([]);
+  });
+
   it('scales wake times by rate and caps long drift-check sleeps', () => {
     expect(
       calculateDanmakuWakeDelayMs({
@@ -229,6 +240,17 @@ describe('danmakuScheduler', () => {
 });
 
 describe('native progress clock corrections', () => {
+  it.each([1000, -4000])('shifts the visible expiration with a %dms correction', (delta) => {
+    const bullet = { scheduledMs: 1000, mediaDurationMs: 8000, visibleMediaDurationMs: 6000 };
+    const shifted = shiftDanmakuTimeline([bullet], delta);
+
+    expect(findNextDanmakuEventTimeMs({ activeBullets: shifted, nextCommentTimeMs: null })).toBe(
+      7000 + delta,
+    );
+    expect(removeExpiredDanmakuEntries(shifted, 6999 + delta)).toHaveLength(1);
+    expect(removeExpiredDanmakuEntries(shifted, 7000 + delta)).toHaveLength(0);
+  });
+
   it.each([250, 1000, -1000, 4000])(
     'keeps visible progress and lifetime across a %dms correction',
     (delta) => {
