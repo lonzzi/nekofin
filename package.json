@@ -10,6 +10,7 @@
     "ios:dev": "APP_VARIANT=development expo run:ios",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:ios:stroke-text": "bash modules/stroke-text/tests/run-ios-tests.sh",
     "test:smoke": "vitest run smoke",
     "test:watch": "vitest",
     "lint": "lint-staged",

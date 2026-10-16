@@ -18,6 +18,8 @@ export interface DanmakuRuntimeLayout {
   width: number;
 }
 
+export const DANMAKU_SCROLL_OVERSCAN_PX = 300;
+
 export const removeActiveDanmakuBullet = (
   bullets: ActiveBullet[],
   instanceId: number,
@@ -131,7 +133,7 @@ export const calculateScrollDurationMs = ({
   speed: number;
   playbackRate?: number;
 }): number => {
-  const totalDistance = width + textWidth + 300;
+  const totalDistance = width + textWidth + DANMAKU_SCROLL_OVERSCAN_PX;
   return Math.max(
     3000 / Math.max(0.25, playbackRate),
     Math.round((totalDistance / Math.max(1, speed)) * 1000),
@@ -152,7 +154,10 @@ export const calculateDanmakuScrollTrajectory = ({
   const safeTextWidth = Math.max(0, textWidth);
   const clampedProgress = Math.max(0, Math.min(1, progress));
   const startX = mode === DANDAN_COMMENT_MODE.Scroll ? width : -safeTextWidth;
-  const endX = mode === DANDAN_COMMENT_MODE.Scroll ? -safeTextWidth - 300 : width + 300;
+  const endX =
+    mode === DANDAN_COMMENT_MODE.Scroll
+      ? -safeTextWidth - DANMAKU_SCROLL_OVERSCAN_PX
+      : width + DANMAKU_SCROLL_OVERSCAN_PX;
   const left = startX + (endX - startX) * clampedProgress;
   return {
     endX,
@@ -262,6 +267,8 @@ export const createActiveDanmakuBullet = ({
       speed: effectiveSpeed,
       playbackRate: runtime.playbackRate,
     });
+    const mediaDurationMs = durationMs * Math.max(0.25, runtime.playbackRate);
+    const visibleDistance = runtime.width + textWidth;
 
     return {
       ...baseParams,
@@ -274,7 +281,9 @@ export const createActiveDanmakuBullet = ({
         bottomRows: runtime.layout.bottomRows,
       }),
       durationMs,
-      mediaDurationMs: durationMs * Math.max(0.25, runtime.playbackRate),
+      mediaDurationMs,
+      visibleMediaDurationMs:
+        (mediaDurationMs * visibleDistance) / (visibleDistance + DANMAKU_SCROLL_OVERSCAN_PX),
     };
   }
 
@@ -290,5 +299,6 @@ export const createActiveDanmakuBullet = ({
     }),
     durationMs: defaultDurationMs,
     mediaDurationMs: defaultDurationMs * Math.max(0.25, runtime.playbackRate),
+    visibleMediaDurationMs: defaultDurationMs * Math.max(0.25, runtime.playbackRate),
   };
 };

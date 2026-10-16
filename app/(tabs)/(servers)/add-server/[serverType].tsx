@@ -7,6 +7,7 @@ import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import type { MediaServerType } from '@/services/media/types';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 
 const serverTitleByType: Record<MediaServerType, string> = {
   jellyfin: 'Jellyfin',
@@ -34,7 +35,7 @@ export default function AddServerScreen() {
 
   return (
     <>
-      <Stack.Title large>{title}</Stack.Title>
+      <Stack.Title large={!(Platform.OS === 'ios' && Platform.isPad)}>{title}</Stack.Title>
       <HeaderToolbar placement="right">
         <HeaderButton
           accessibilityLabel={savePresentation.accessibilityLabel}

@@ -4,7 +4,7 @@ import { OuterScreenOptions } from '@/components/outer/OuterPrimitives';
 import PageScrollView from '@/components/PageScrollView';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { getServerConnections } from '@/lib/serverConnections';
-import { useAppTheme } from '@/lib/theme';
+import { layout, useAppTheme } from '@/lib/theme';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
@@ -58,6 +58,7 @@ function ServerLineScreen() {
         </HeaderButton>
       </HeaderToolbar>
       <PageScrollView
+        maxContentWidth={layout.formMaxWidth}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         contentContainerStyle={{ padding: 20, gap: 20 }}

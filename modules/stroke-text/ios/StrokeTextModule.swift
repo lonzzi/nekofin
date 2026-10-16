@@ -88,25 +88,12 @@ public class StrokeTextModule: Module {
 
       // Letter spacing
       Prop("letterSpacing") { (view: StrokeTextView, spacing: Double?) in
-        if let spacing = spacing {
-          let attributedString = NSMutableAttributedString(string: view.textView.text ?? "")
-          attributedString.addAttribute(.kern, value: CGFloat(spacing), range: NSRange(location: 0, length: attributedString.length))
-          view.textView.attributedText = attributedString
-        }
+        view.textView.letterSpacing = CGFloat(spacing ?? 0)
       }
 
       // Line height
       Prop("lineHeight") { (view: StrokeTextView, height: Double?) in
-        if let height = height {
-          let currentFont = view.textView.font ?? UIFont.systemFont(ofSize: 17)
-          let paragraphStyle = NSMutableParagraphStyle()
-          paragraphStyle.lineSpacing = CGFloat(height) - currentFont.lineHeight
-          paragraphStyle.lineHeightMultiple = CGFloat(height) / currentFont.lineHeight
-
-          let attributedString = NSMutableAttributedString(string: view.textView.text ?? "")
-          attributedString.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: attributedString.length))
-          view.textView.attributedText = attributedString
-        }
+        view.textView.lineHeight = height.map { CGFloat($0) }
       }
 
       // Text alignment
@@ -140,6 +127,10 @@ public class StrokeTextModule: Module {
       Prop("strokeWidth") { (view: StrokeTextView, width: Double?) in
         view.textView.strokeWidth = CGFloat(width ?? 0.0)
         view.textView.setNeedsDisplay()
+      }
+
+      OnViewDidUpdateProps { (view: StrokeTextView) in
+        view.textView.updateTextAttributes()
       }
     }
   }

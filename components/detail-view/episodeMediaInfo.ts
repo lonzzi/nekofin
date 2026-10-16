@@ -6,6 +6,26 @@ export interface MediaInfoRow {
   value: string;
 }
 
+export function getMediaInfoDisplayState({
+  mediaSources,
+  isPending,
+  isError,
+}: {
+  mediaSources: MediaSource[];
+  isPending: boolean;
+  isError: boolean;
+}) {
+  if (isPending) return 'loading';
+  if (
+    mediaSources.some((source) =>
+      source.mediaStreams.some((stream) => stream.type === 'Video' || stream.type === 'Audio'),
+    )
+  ) {
+    return 'ready';
+  }
+  return isError ? 'error' : 'empty';
+}
+
 export const calculateAspectRatio = (
   width?: number | null,
   height?: number | null,

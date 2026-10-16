@@ -62,8 +62,14 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   );
   const { data: bundle, isLoading, refetch } = query;
 
-  const { width: windowWidth } = useWindowDimensions();
-  const headerHeight = useMediaHeroHeight();
+  const window = useWindowDimensions();
+  const tablet = Platform.OS === 'ios' && Platform.isPad;
+  const [viewport, setViewport] = useState({ width: window.width, height: window.height });
+  const windowWidth = tablet ? viewport.width : window.width;
+  const phoneHeaderHeight = useMediaHeroHeight();
+  const headerHeight = tablet
+    ? Math.round(Math.max(260, Math.min(viewport.width * 0.5625, viewport.height * 0.52)))
+    : phoneHeaderHeight;
   const detailLogoWidth = Math.min(windowWidth * 0.72, 300);
 
   const mediaAdapter = useMediaAdapter();
@@ -179,7 +185,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     }
   }, [externalInfo, theme.colors.tint]);
   const toolbar = (
-    <HeaderToolbar placement="right">
+    <HeaderToolbar key={currentItemId ?? 'loading'} placement="right">
       {currentItemId ? (
         <HeaderButton
           accessibilityLabel={favoritePresentation.label}
@@ -221,7 +227,8 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
 
   const atmosphereContentStyle = {
     paddingBottom: theme.spacing.lg,
-    paddingTop: theme.spacing.lg,
+    paddingTop: tablet ? 0 : theme.spacing.lg,
+    marginTop: tablet ? -80 : 0,
   };
 
   const logoImageUrl = useMemo(() => {
@@ -231,9 +238,10 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
 
   if (isLoading || !item) {
     return (
-      <>
+      <View style={{ flex: 1 }}>
         {toolbar}
         <HomeAtmosphereScrollView
+          onLayout={({ nativeEvent }) => setViewport(nativeEvent.layout)}
           backgroundColor={backgroundColor}
           contentStyle={atmosphereContentStyle}
           headerHeight={headerHeight}
@@ -242,7 +250,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
         >
           <SkeletonDetailContent mode={mode} includeTopPadding={false} />
         </HomeAtmosphereScrollView>
-      </>
+      </View>
     );
   }
 
@@ -291,9 +299,10 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   };
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       {toolbar}
       <HomeAtmosphereScrollView
+        onLayout={({ nativeEvent }) => setViewport(nativeEvent.layout)}
         backgroundColor={backgroundColor}
         contentStyle={atmosphereContentStyle}
         headerHeight={headerHeight}
@@ -324,7 +333,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
           </View>
         }
         headerOverlay={
-          logoImageUrl ? (
+          !tablet && logoImageUrl ? (
             <ItemImage
               uri={logoImageUrl}
               style={[
@@ -353,14 +362,9 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
           ) : null
         }
       >
-        <View style={detailViewStyles.content}>
-          <Text style={{ fontSize: 24, fontWeight: 'bold', color: textColor }}>
-            {title || item.name}
-          </Text>
-          {renderModeContent()}
-        </View>
+        <View style={detailViewStyles.content}>{renderModeContent()}</View>
       </HomeAtmosphereScrollView>
-    </>
+    </View>
   );
 }
 

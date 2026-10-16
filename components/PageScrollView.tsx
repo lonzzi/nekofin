@@ -5,6 +5,7 @@ import { Platform, ScrollView, ScrollViewProps, StyleSheet } from 'react-native'
 type PageScrollViewProps = {
   children: React.ReactNode;
   bottomTabBarHeight?: number;
+  maxContentWidth?: number;
 } & ScrollViewProps;
 
 export default function PageScrollView({
@@ -12,6 +13,7 @@ export default function PageScrollView({
   style,
   contentContainerStyle,
   bottomTabBarHeight = 20,
+  maxContentWidth,
   ...rest
 }: PageScrollViewProps) {
   const tabBarInset = useFloatingTabBarInset();
@@ -47,7 +49,11 @@ export default function PageScrollView({
         ...scrollIndicatorInsets,
         bottom: (scrollIndicatorInsets?.bottom ?? 0) + bottomContentInset,
       }}
-      contentContainerStyle={[contentContainerStyle, { paddingBottom: bottomContentPadding }]}
+      contentContainerStyle={[
+        contentContainerStyle,
+        maxContentWidth ? { width: '100%', maxWidth: maxContentWidth, alignSelf: 'center' } : null,
+        { paddingBottom: bottomContentPadding },
+      ]}
       {...scrollViewProps}
     >
       {children}

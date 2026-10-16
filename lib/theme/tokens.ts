@@ -37,6 +37,12 @@ export const sizes = {
 } as const;
 
 export const layout = {
+  formMaxWidth: 720,
+  detailMaxWidth: 1120,
+  mediaInfoCard: {
+    width: 240,
+    minHeight: 380,
+  },
   mediaHero: {
     aspectRatio: 16 / 9,
     heightRatio: 0.75,

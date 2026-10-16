@@ -176,7 +176,7 @@ export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
         />
         <NativeSettingsSwitch
           title={<SettingsTitle>防止重叠</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary="预测追尾并避开固定弹幕" />}
+          subtitle={<SettingsSubtitle primary="避免同类型弹幕重叠，预测滚动追尾" />}
           value={settings.collisionPolicy === 'avoid'}
           disabled={!settings.enabled}
           onValueChange={(enabled) => updateSetting('collisionPolicy', enabled ? 'avoid' : 'allow')}

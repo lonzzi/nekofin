@@ -179,7 +179,7 @@ function RootNavigation() {
           headerTransparent: Platform.OS === 'ios',
           headerBackTitle: '',
           headerBackButtonDisplayMode: 'minimal',
-          orientation: Platform.OS === 'ios' ? 'portrait_up' : undefined,
+          orientation: Platform.OS === 'ios' ? (Platform.isPad ? 'all' : 'portrait_up') : undefined,
           statusBarHidden: Platform.OS === 'ios' ? false : undefined,
           statusBarStyle: Platform.OS === 'ios' ? (appTheme.isDark ? 'light' : 'dark') : undefined,
         }}

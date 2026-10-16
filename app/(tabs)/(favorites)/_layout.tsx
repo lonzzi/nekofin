@@ -1,5 +1,5 @@
 import { GroupedStackRoutes } from '@/components/GroupedStackRoutes';
-import { getNativeListStackOptions } from '@/components/navigation/nativeListStackOptions';
+import { useNativeListStackOptions } from '@/components/navigation/nativeListStackOptions';
 import { usePerformanceStackScreenListeners } from '@/lib/performance/PerformanceMonitorContext';
 import { useAppTheme } from '@/lib/theme';
 import { Stack } from 'expo-router';
@@ -9,11 +9,12 @@ export default function FavoritesLayout() {
   const backgroundColor = theme.colors.background;
   const stackScreenListeners = usePerformanceStackScreenListeners('favorites');
 
+  const stackOptions = useNativeListStackOptions(backgroundColor);
   return (
     <Stack
       screenListeners={stackScreenListeners}
       screenOptions={{
-        ...getNativeListStackOptions(backgroundColor),
+        ...stackOptions,
       }}
     >
       <Stack.Screen
