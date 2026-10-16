@@ -6,6 +6,8 @@ export type PlayerProgressSliderProps = {
   bufferedProgress?: SharedValue<number>;
   disabled?: boolean;
   onSlidingComplete: (value: number) => void;
+  onSlidingCancel: () => void;
   onSlidingStart: () => void;
+  onValueChange: (value: number) => void;
   progress: SharedValue<number>;
 };

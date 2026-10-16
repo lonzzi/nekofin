@@ -21,6 +21,10 @@ export function BottomControls() {
   const {
     bufferedProgress,
     currentTime,
+    seekPreviewTime,
+    seekPreviewStartTime,
+    isGestureSeekingActive,
+    clearControlsTimeout,
     duration,
     fadeAnim,
     hideControlsWithDelay,
@@ -30,7 +34,10 @@ export function BottomControls() {
     setIsDragging,
     showControls,
   } = usePlayer();
-  const currentTimeMs = useCurrentTime({ time: currentTime });
+  const displayedTime = useDerivedValue(() =>
+    isDragging || isGestureSeekingActive.value ? seekPreviewTime.value : currentTime.value,
+  );
+  const currentTimeMs = useCurrentTime({ time: displayedTime });
 
   const fadeAnimatedStyle = useAnimatedStyle(() => ({
     opacity: fadeAnim.value,
@@ -39,7 +46,7 @@ export function BottomControls() {
 
   useDerivedValue(() => {
     if (!isDragging && duration > 0) {
-      progressValue.set(currentTime.get() / duration);
+      progressValue.set(displayedTime.value / duration);
     }
   });
 
@@ -89,7 +96,20 @@ export function BottomControls() {
               bufferedProgress={bufferedProgress}
               disabled={isLoading || duration <= 0}
               onSlidingComplete={handleSliderSlidingComplete}
-              onSlidingStart={() => setIsDragging(true)}
+              onSlidingCancel={() => {
+                progressValue.value = duration > 0 ? currentTime.value / duration : 0;
+                setIsDragging(false);
+                hideControlsWithDelay();
+              }}
+              onSlidingStart={() => {
+                clearControlsTimeout();
+                seekPreviewStartTime.value = currentTime.value;
+                seekPreviewTime.value = currentTime.value;
+                setIsDragging(true);
+              }}
+              onValueChange={(value) => {
+                seekPreviewTime.value = value * duration;
+              }}
               progress={progressValue}
             />
           </Animated.View>
@@ -136,7 +156,6 @@ const styles = StyleSheet.create({
   },
   timeText: {
     color: 'rgba(255,255,255,0.82)',
-    fontFamily: 'Roboto',
     fontSize: 12,
     fontVariant: ['tabular-nums'],
     fontWeight: '600',

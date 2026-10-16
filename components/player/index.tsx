@@ -21,8 +21,17 @@ import {
   type HdrStateChangeEvent,
   type PlaybackState,
 } from 'expo-mpv';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { useMMKVBoolean } from 'react-native-mmkv';
 import { useSharedValue } from 'react-native-reanimated';
 
 import { usePlaybackSync } from '../../hooks/usePlaybackSync';
@@ -40,6 +49,7 @@ import {
   resolvePlaybackSeekCommand,
   type PlaybackSeekCompletion,
 } from './playbackSeekGate';
+import { createPlayerAutoNext, type PlaybackCompletion } from './playerAutoNext';
 import {
   deriveBufferedProgress,
   deriveDurationMs,
@@ -50,6 +60,7 @@ import {
   deriveTracks,
   formatPlayerTitle,
 } from './playerDerived';
+import { PlayerEntryVisibilityContext } from './PlayerEntryContext';
 import { createPlayerLoadRecovery, playbackFailureMessage } from './playerLoadRecovery';
 import { isExternalTrackCommandError, loadExternalPlayerTrack } from './playerTrackLoading';
 import { usePlayerQueries } from './usePlayerQueries';
@@ -90,6 +101,7 @@ export const VideoPlayer = ({
   initialSelection?: PlaybackSelection;
 }) => {
   const { currentServer, currentApi } = useMediaServers();
+  const entryControlsVisible = useContext(PlayerEntryVisibilityContext);
   const router = useTracedRouter('player');
   const mediaAdapter = useMediaAdapter();
   const { settings } = useDanmakuSettings();
@@ -167,6 +179,9 @@ export const VideoPlayer = ({
   );
   const [aspectRatio, setAspectRatio] = useState<string>('fit');
   const [preferences] = useState(readPlaybackPreferences);
+  const [autoPlayNext = true] = useMMKVBoolean('playback.autoPlayNext', storage);
+  const [playbackCompletion, setPlaybackCompletion] = useState<PlaybackCompletion | null>(null);
+  const [autoNext] = useState(createPlayerAutoNext);
 
   // Playback settings only change on a settings round-trip (which remounts this
   // screen), so read them once instead of on every render of the player.
@@ -187,6 +202,7 @@ export const VideoPlayer = ({
   const player = useRef<ExpoMpvViewRef>(null);
   const isMountedRef = useRef(true);
   const activePlaybackContextRef = useRef<object | null>(null);
+  const completedPlaybackContextRef = useRef<object | null>(null);
   const isPlayerReadyRef = useRef(false);
   const loadedSourceRef = useRef<string | null>(null);
   const hasInitialSeeked = useRef(false);
@@ -914,10 +930,11 @@ export const VideoPlayer = ({
 
   const goToEpisode = useCallback(
     (episodeId?: string) => {
-      if (!episodeId) return;
+      if (!episodeId || episodeId === itemId) return;
+      activePlaybackContextRef.current = null;
       router.replace({ pathname: '/player', params: { itemId: episodeId } });
     },
-    [router],
+    [itemId, router],
   );
 
   const handlePreviousEpisode = useCallback(
@@ -932,6 +949,46 @@ export const VideoPlayer = ({
 
   const handleEpisodeSelect = goToEpisode;
 
+  const completePlayback = useCallback(
+    (context: object) => {
+      if (
+        !isPlaybackContextActive(context) ||
+        !isPlayerReadyRef.current ||
+        completedPlaybackContextRef.current === context
+      )
+        return;
+      completedPlaybackContextRef.current = context;
+      setPlaybackCompletion({ context, reason: 'ended' });
+      setIsPlaying(false);
+      setIsStopped(true);
+      syncPlaybackProgress(currentTime.value, true, { force: true });
+      syncPlaybackStop(currentTime.value);
+    },
+    [isPlaybackContextActive, currentTime, syncPlaybackProgress, syncPlaybackStop],
+  );
+
+  useEffect(() => {
+    const nextId = autoNext.claim({
+      completion: playbackCompletion,
+      activeContext: activePlaybackContextRef.current,
+      enabled: autoPlayNext,
+      itemId,
+      itemType: itemDetail?.type,
+      nextEpisodeId: nextEpisode?.id,
+    });
+    if (nextId) {
+      goToEpisode(nextId);
+    }
+  }, [
+    autoNext,
+    autoPlayNext,
+    playbackCompletion,
+    itemId,
+    itemDetail?.type,
+    nextEpisode?.id,
+    goToEpisode,
+  ]);
+
   return (
     <View style={styles.container}>
       {playbackSourceUrl && initialTime >= 0 && !loadFailure ? (
@@ -945,10 +1002,15 @@ export const VideoPlayer = ({
             if (!isPlaybackContextActive(playbackContext)) return;
             playbackStateRef.current = nativeEvent.state;
             setPlaybackState(nativeEvent.state);
-            setIsPlaying(nativeEvent.isPlaying);
+            setIsPlaying(nativeEvent.state !== 'ended' && nativeEvent.isPlaying);
             if (nativeEvent.state === 'playing' || nativeEvent.state === 'paused') {
+              completedPlaybackContextRef.current = null;
+              setPlaybackCompletion(null);
               setIsStopped(false);
             }
+            // With keep-open enabled, mpv can signal eof-reached without an
+            // end-file event. Both native EOF signals share the same completion gate.
+            if (nativeEvent.state === 'ended') completePlayback(playbackContext);
             if (!nativeEvent.isPlaying && !playbackSeekGateRef.current.pendingSeek) {
               syncPlaybackProgress(currentTime.value, true, { force: true });
             }
@@ -1076,24 +1138,20 @@ export const VideoPlayer = ({
             syncPlaybackStop(currentTime.value);
             setLoadFailure(playbackFailureMessage(nativeEvent.error));
           }}
-          onEnd={() => {
-            if (!isPlaybackContextActive(playbackContext)) return;
-            setIsPlaying(false);
-            setIsStopped(true);
-            syncPlaybackProgress(currentTime.value, true, { force: true });
-            syncPlaybackStop(currentTime.value);
+          onEnd={({ nativeEvent }) => {
+            if (nativeEvent.reason === 'ended') completePlayback(playbackContext);
           }}
         />
       ) : null}
 
-      {showLoading && (
+      {(showLoading || !entryControlsVisible) && (
         <LoadingIndicator
           bufferInfo={bufferInfo}
           title={playbackAttempt > 0 && !isLoaded ? '正在重新加载视频…' : undefined}
         />
       )}
 
-      {settings.enabled && comments.length > 0 && initialTime >= 0 ? (
+      {entryControlsVisible && settings.enabled && comments.length > 0 && initialTime >= 0 ? (
         <DanmakuLayer
           ref={danmakuLayer}
           currentTime={currentTime}
@@ -1105,64 +1163,68 @@ export const VideoPlayer = ({
         />
       ) : null}
 
-      <Controls
-        isPlaying={isPlaying}
-        isLoading={showLoading}
-        duration={duration}
-        currentTime={currentTime}
-        onSeek={handleSeek}
-        title={formattedTitle}
-        onPlayPause={handlePlayPause}
-        onRateChange={handleRateChange}
-        rate={rate}
-        tracks={menuTracks}
-        selectedTracks={{
-          audio: menuTracks.audio.find(
-            (t) =>
-              t.index ===
-              (usesServerTracks
-                ? (activeServerTrackChoice?.audio ??
-                  streamInfo?.mediaSource?.DefaultAudioStreamIndex)
-                : currentTrackIds.aid),
-          ),
-          subtitle: menuTracks.subtitle.find(
-            (t) =>
-              t.index ===
-              (usesServerTracks
-                ? (activeServerTrackChoice?.subtitle ??
-                  streamInfo?.mediaSource?.DefaultSubtitleStreamIndex)
-                : currentTrackIds.sid),
-          ),
-        }}
-        onAudioTrackChange={handleAudioTrackChange}
-        onSubtitleTrackChange={handleSubtitleTrackChange}
-        mediaSources={mediaSources}
-        selectedMediaSourceId={streamInfo?.mediaSource?.Id ?? selectedMediaSourceId}
-        onMediaSourceChange={(id) => {
-          if (id === streamInfo?.mediaSource?.Id) return;
-          resumePausedRef.current = !isPlaying;
-          setVersionChoice({ itemId, id });
-        }}
-        aspectRatio={aspectRatio}
-        onAspectRatioChange={handleAspectRatioChange}
-        hasPreviousEpisode={hasPreviousEpisode}
-        hasNextEpisode={hasNextEpisode}
-        onPreviousEpisode={handlePreviousEpisode}
-        onNextEpisode={handleNextEpisode}
-        mediaStats={null}
-        bufferedProgress={bufferedProgress}
-        hdrState={hdrState}
-        onCommentsLoaded={handleCommentsLoaded}
-        danmakuEpisodeInfo={danmakuEpisodeInfo}
-        danmakuComments={comments}
-        danmakuTracks={resolvedDanmaku.tracks}
-        danmakuSelection={danmakuSelection}
-        onDanmakuSelectionChange={setDanmakuSelectionOverride}
-        danmakuFailedSources={resolvedDanmaku.failedSources}
-        episodes={episodes}
-        currentItem={itemDetail}
-        onEpisodeSelect={handleEpisodeSelect}
-      />
+      {entryControlsVisible && (
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+          <Controls
+            isPlaying={isPlaying}
+            isLoading={showLoading}
+            duration={duration}
+            currentTime={currentTime}
+            onSeek={handleSeek}
+            title={formattedTitle}
+            onPlayPause={handlePlayPause}
+            onRateChange={handleRateChange}
+            rate={rate}
+            tracks={menuTracks}
+            selectedTracks={{
+              audio: menuTracks.audio.find(
+                (t) =>
+                  t.index ===
+                  (usesServerTracks
+                    ? (activeServerTrackChoice?.audio ??
+                      streamInfo?.mediaSource?.DefaultAudioStreamIndex)
+                    : currentTrackIds.aid),
+              ),
+              subtitle: menuTracks.subtitle.find(
+                (t) =>
+                  t.index ===
+                  (usesServerTracks
+                    ? (activeServerTrackChoice?.subtitle ??
+                      streamInfo?.mediaSource?.DefaultSubtitleStreamIndex)
+                    : currentTrackIds.sid),
+              ),
+            }}
+            onAudioTrackChange={handleAudioTrackChange}
+            onSubtitleTrackChange={handleSubtitleTrackChange}
+            mediaSources={mediaSources}
+            selectedMediaSourceId={streamInfo?.mediaSource?.Id ?? selectedMediaSourceId}
+            onMediaSourceChange={(id) => {
+              if (id === streamInfo?.mediaSource?.Id) return;
+              resumePausedRef.current = !isPlaying;
+              setVersionChoice({ itemId, id });
+            }}
+            aspectRatio={aspectRatio}
+            onAspectRatioChange={handleAspectRatioChange}
+            hasPreviousEpisode={hasPreviousEpisode}
+            hasNextEpisode={hasNextEpisode}
+            onPreviousEpisode={handlePreviousEpisode}
+            onNextEpisode={handleNextEpisode}
+            mediaStats={null}
+            bufferedProgress={bufferedProgress}
+            hdrState={hdrState}
+            onCommentsLoaded={handleCommentsLoaded}
+            danmakuEpisodeInfo={danmakuEpisodeInfo}
+            danmakuComments={comments}
+            danmakuTracks={resolvedDanmaku.tracks}
+            danmakuSelection={danmakuSelection}
+            onDanmakuSelectionChange={setDanmakuSelectionOverride}
+            danmakuFailedSources={resolvedDanmaku.failedSources}
+            episodes={episodes}
+            currentItem={itemDetail}
+            onEpisodeSelect={handleEpisodeSelect}
+          />
+        </View>
+      )}
     </View>
   );
 };

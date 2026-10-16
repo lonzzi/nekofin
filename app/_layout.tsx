@@ -25,7 +25,6 @@ import { mediaQueryKeys } from '@/services/media/queryKeys';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { defaultShouldDehydrateQuery, QueryClient, type Query } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { useFonts } from 'expo-font';
 import { Stack, usePathname } from 'expo-router';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -60,15 +59,6 @@ const persister = createAsyncStoragePersister({
 });
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
-    Roboto: require('../assets/fonts/Roboto-Regular.ttf'),
-  });
-
-  if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
-  }
-
   return (
     <PersistQueryClientProvider
       client={queryClient}

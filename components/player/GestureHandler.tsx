@@ -1,46 +1,27 @@
-import { formatTimeWorklet } from '@/lib/utils';
-import { BlurView } from 'expo-blur';
 import * as Brightness from 'expo-brightness';
 import * as Haptics from 'expo-haptics';
 import { Fragment, useCallback, useEffect, useState } from 'react';
-import { StyleSheet, TextInput, useWindowDimensions } from 'react-native';
+import { StyleSheet, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  setNativeProps,
-  useAnimatedRef,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { useSharedValue } from 'react-native-reanimated';
 import { VolumeManager } from 'react-native-volume-manager';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import {
   calculateSeekGesture,
   calculateVerticalGestureValue,
-  formatSeekOffsetText,
   getVerticalGestureMode,
   isHorizontalPan,
   isVerticalPan,
+  type VerticalGestureMode,
 } from './gestureMath';
 import { usePlayer } from './PlayerContext';
 import { VerticalSlider } from './VerticalSlider';
 
-const throttleWorklet = (callback: () => void, delay: number) => {
-  'worklet';
+type PanMode = VerticalGestureMode | 'seek';
 
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  return () => {
-    if (timeoutId !== null) {
-      clearTimeout(timeoutId);
-    }
-
-    timeoutId = setTimeout(() => {
-      callback();
-      timeoutId = null;
-    }, delay);
-  };
+const selectionFeedback = () => {
+  void Haptics.selectionAsync();
 };
 
 export function GestureHandler() {
@@ -54,384 +35,223 @@ export function GestureHandler() {
     setShowControls,
     isLoading,
     isPanelOpen,
+    isDragging,
     isGestureSeekingActive,
     isVolumeGestureActive,
     isBrightnessGestureActive,
     hideControlsWithDelay,
     clearControlsTimeout,
+    seekPreviewTime,
+    seekPreviewStartTime,
   } = usePlayer();
-  const { width: screenWidth } = useWindowDimensions();
-  const [volume, setVolume] = useState(1.0);
-  const [brightness, setBrightness] = useState(1.0);
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [isInitialized, setIsInitialized] = useState(false);
-
-  const animatedTextInputRef = useAnimatedRef<TextInput>();
-  const animatedOffsetTextInputRef = useAnimatedRef<TextInput>();
-
-  const gestureSeekPreview = useSharedValue(0);
-  const gestureSeekOffset = useSharedValue(0);
-  const gestureVolumePreview = useSharedValue(0);
-  const gestureVolumeOffset = useSharedValue(0);
-  const gestureBrightnessPreview = useSharedValue(0);
-  const gestureBrightnessOffset = useSharedValue(0);
-  const volumeSliderValue = useSharedValue(1.0);
-  const brightnessSliderValue = useSharedValue(1.0);
-
-  const sliderMode = useSharedValue<'brightness' | 'volume' | null>(null);
-
-  const gestureSeekStartTime = useSharedValue(0);
-  const gestureVolumeStartValue = useSharedValue(0);
-  const gestureBrightnessStartValue = useSharedValue(0);
-
-  const minimumValue = useSharedValue(0);
-  const maximumValue = useSharedValue(1);
-
-  const totalTime = formatTimeWorklet(duration);
-
-  const seekPreviewAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(isGestureSeekingActive.value ? 1 : 0, { duration: 100 }),
-  }));
-
-  const volumePreviewAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(isVolumeGestureActive.value ? 1 : 0, { duration: 100 }),
-  }));
-
-  const brightnessPreviewAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(isBrightnessGestureActive.value ? 1 : 0, { duration: 100 }),
-  }));
+  const volumeValue = useSharedValue(1);
+  const brightnessValue = useSharedValue(1);
+  const panMode = useSharedValue<PanMode | null>(null);
+  const touchStartX = useSharedValue(0);
+  const touchStartY = useSharedValue(0);
+  const activationX = useSharedValue(0);
+  const activationY = useSharedValue(0);
+  const systemStartValue = useSharedValue(0);
+  const lastSystemUpdate = useSharedValue(0);
+  const boostActive = useSharedValue(false);
 
   useEffect(() => {
-    const initializeSystemValues = async () => {
-      const systemBrightness = await Brightness.getBrightnessAsync();
-      setBrightness(systemBrightness);
-      brightnessSliderValue.value = systemBrightness;
-
-      const { volume: systemVolume } = await VolumeManager.getVolume();
-      setVolume(systemVolume);
-      volumeSliderValue.value = systemVolume;
-
-      setIsInitialized(true);
+    let mounted = true;
+    void Promise.all([Brightness.getBrightnessAsync(), VolumeManager.getVolume()])
+      .then(([brightness, { volume }]) => {
+        if (!mounted) return;
+        brightnessValue.value = brightness;
+        volumeValue.value = volume;
+        setIsInitialized(true);
+      })
+      .catch(() => {});
+    const subscription = VolumeManager.addVolumeListener(({ volume }) => {
+      if (!isVolumeGestureActive.value) volumeValue.value = volume;
+    });
+    return () => {
+      mounted = false;
+      subscription.remove();
     };
+  }, [brightnessValue, volumeValue, isVolumeGestureActive]);
 
-    initializeSystemValues();
-  }, [brightnessSliderValue, volumeSliderValue]);
-
-  const handleSeek = useCallback(
-    (position: number) => {
-      if (isLoading || !duration) return;
-      const clampedTime = Math.max(0, Math.min(position, duration));
-      const newPosition = duration > 0 ? clampedTime / duration : 0;
-      onSeek(newPosition);
-    },
-    [duration, isLoading, onSeek],
-  );
-
-  const handleVolumeChange = useCallback(async (newVolume: number) => {
-    setVolume(newVolume);
-    await VolumeManager.setVolume(newVolume);
+  const writeSystemValue = useCallback((mode: VerticalGestureMode, value: number) => {
+    const operation =
+      mode === 'brightness' ? Brightness.setBrightnessAsync(value) : VolumeManager.setVolume(value);
+    void operation.catch(() => {});
   }, []);
 
-  const throttledBrightnessChange = useCallback(async (newBrightness: number) => {
-    setBrightness(newBrightness);
-    await Brightness.setBrightnessAsync(newBrightness);
-  }, []);
-
-  const handleBrightnessChange = useCallback(
-    (newBrightness: number) => {
-      const throttledCallback = throttleWorklet(() => {
-        scheduleOnRN(throttledBrightnessChange, newBrightness);
-      }, 50);
-
-      throttledCallback();
-    },
-    [throttledBrightnessChange],
-  );
-
-  const handleGestureSeekStart = useCallback(() => {
-    isGestureSeekingActive.value = true;
+  const startSeek = useCallback(() => {
+    clearControlsTimeout();
     setShowControls(true);
-  }, [isGestureSeekingActive, setShowControls]);
-
-  const handleGestureSeekEnd = useCallback(
-    (finalTime: number) => {
-      handleSeek(finalTime);
-      isGestureSeekingActive.value = false;
+    selectionFeedback();
+  }, [clearControlsTimeout, setShowControls]);
+  const finishSeek = useCallback(
+    (time: number, commit: boolean) => {
+      if (commit && duration > 0) onSeek(time / duration);
       hideControlsWithDelay();
     },
-    [handleSeek, isGestureSeekingActive, hideControlsWithDelay],
+    [duration, onSeek, hideControlsWithDelay],
   );
 
-  const handleVolumeGestureStart = useCallback(() => {
-    isVolumeGestureActive.value = true;
-  }, [isVolumeGestureActive]);
-
-  const handleVolumeGestureEnd = useCallback(
-    (finalVolume: number) => {
-      handleVolumeChange(finalVolume);
-      isVolumeGestureActive.value = false;
-    },
-    [handleVolumeChange, isVolumeGestureActive],
-  );
-
-  const handleBrightnessGestureStart = useCallback(() => {
-    isBrightnessGestureActive.value = true;
-  }, [isBrightnessGestureActive]);
-
-  const handleBrightnessGestureEnd = useCallback(
-    (finalBrightness: number) => {
-      throttledBrightnessChange(finalBrightness);
-      isBrightnessGestureActive.value = false;
-    },
-    [throttledBrightnessChange, isBrightnessGestureActive],
-  );
-
-  const handleSingleTap = () => {
-    if (isPanelOpen) {
-      return;
-    }
-
-    clearControlsTimeout();
-    setShowControls(!showControls);
-  };
-
-  const handleDoubleTap = () => {
-    onPlayPause();
-  };
-
+  // Decide once, after a deliberate movement. Vertical drift after activation
+  // must never cancel seeking or change it into a brightness/volume gesture.
   const panGesture = Gesture.Pan()
-    .enabled(!isPanelOpen && !isLoading)
-    .minDistance(10)
-    .activeOffsetX([-15, 15])
-    .failOffsetY([-8, 8])
+    .enabled(!isPanelOpen && !isLoading && !isDragging)
+    .manualActivation(true)
     .maxPointers(1)
+    .onTouchesDown((event, manager) => {
+      if (event.numberOfTouches !== 1) {
+        manager.fail();
+        return;
+      }
+      const touch = event.allTouches[0];
+      if (!touch) return;
+      touchStartX.value = touch.x;
+      touchStartY.value = touch.y;
+      panMode.value = null;
+    })
+    .onTouchesMove((event, manager) => {
+      if (panMode.value) return;
+      const touch = event.allTouches[0];
+      if (!touch || event.numberOfTouches !== 1) {
+        manager.fail();
+        return;
+      }
+      const x = touch.x - touchStartX.value;
+      const y = touch.y - touchStartY.value;
+      if (isHorizontalPan(x, y) && duration > 0) {
+        panMode.value = 'seek';
+      } else if (isVerticalPan(x, y) && isInitialized) {
+        panMode.value = getVerticalGestureMode(touchStartX.value, screenWidth);
+      } else {
+        return;
+      }
+      activationX.value = x;
+      activationY.value = y;
+      manager.activate();
+    })
+    .onTouchesUp((_event, manager) => {
+      if (!panMode.value) manager.fail();
+    })
     .onStart(() => {
-      scheduleOnRN(handleGestureSeekStart);
-      gestureSeekStartTime.value = currentTime.value;
-      gestureSeekOffset.value = 0;
-      gestureSeekPreview.value = currentTime.value;
-    })
-    .onUpdate((event) => {
-      'worklet';
-      if (!duration) return;
-
-      const deltaX = event.translationX;
-      const deltaY = event.translationY;
-
-      if (!isHorizontalPan(deltaX, deltaY)) {
-        return;
-      }
-
-      if (isVolumeGestureActive.value || isBrightnessGestureActive.value) {
-        return;
-      }
-
-      if (!isGestureSeekingActive.value) {
-        scheduleOnRN(handleGestureSeekStart);
-      }
-
-      const { offset: timeChange, time: newTime } = calculateSeekGesture({
-        translationX: deltaX,
-        screenWidth,
-        duration,
-        startTime: gestureSeekStartTime.value,
-      });
-      gestureSeekOffset.value = timeChange;
-
-      const time = newTime;
-      gestureSeekPreview.value = time;
-
-      setNativeProps(animatedTextInputRef, {
-        text: `${formatTimeWorklet(newTime)} / ${totalTime}`,
-      });
-
-      setNativeProps(animatedOffsetTextInputRef, {
-        text: formatSeekOffsetText(timeChange),
-      });
-    })
-    .onEnd(() => {
-      if (!duration) return;
-
-      const finalTime = gestureSeekPreview.value;
-      scheduleOnRN(handleGestureSeekEnd, finalTime);
-    });
-
-  const verticalSliderGesture = Gesture.Pan()
-    .enabled(!isPanelOpen)
-    .minDistance(8)
-    .activeOffsetY([-10, 10])
-    .failOffsetX([-8, 8])
-    .maxPointers(1)
-    .onStart((event) => {
-      const nextSliderMode = getVerticalGestureMode(event.x, screenWidth);
-
-      if (nextSliderMode === 'brightness') {
-        if (!isInitialized) {
-          return;
-        }
-        sliderMode.value = 'brightness';
-        gestureBrightnessStartValue.value = brightness;
-        gestureBrightnessOffset.value = 0;
-        gestureBrightnessPreview.value = brightness;
-      } else if (nextSliderMode === 'volume') {
-        sliderMode.value = 'volume';
-        gestureVolumeStartValue.value = volume;
-        gestureVolumeOffset.value = 0;
-        gestureVolumePreview.value = volume;
+      if (panMode.value === 'seek') {
+        seekPreviewStartTime.value = currentTime.value;
+        seekPreviewTime.value = currentTime.value;
+        isGestureSeekingActive.value = true;
+        scheduleOnRN(startSeek);
+      } else {
+        const brightness = panMode.value === 'brightness';
+        systemStartValue.value = brightness ? brightnessValue.value : volumeValue.value;
+        isBrightnessGestureActive.value = brightness;
+        isVolumeGestureActive.value = !brightness;
+        lastSystemUpdate.value = 0;
+        scheduleOnRN(clearControlsTimeout);
+        scheduleOnRN(selectionFeedback);
       }
     })
     .onUpdate((event) => {
-      'worklet';
-
-      const isLeftSide = sliderMode.value === 'brightness';
-      const isRightSide = sliderMode.value === 'volume';
-
-      const deltaY = event.translationY;
-      const deltaX = event.translationX;
-
-      if (!isVerticalPan(deltaX, deltaY)) {
-        return;
-      }
-
-      if (isLeftSide) {
-        if (!isInitialized) {
-          return;
-        }
-
-        if (!isBrightnessGestureActive.value) {
-          scheduleOnRN(handleBrightnessGestureStart);
-        }
-
-        const { offset: brightnessChange, value: newBrightness } = calculateVerticalGestureValue({
-          translationY: deltaY,
+      if (panMode.value === 'seek') {
+        seekPreviewTime.value = calculateSeekGesture({
+          translationX: event.translationX - activationX.value,
           screenWidth,
-          startValue: gestureBrightnessStartValue.value,
+          duration,
+          startTime: seekPreviewStartTime.value,
+        }).time;
+      } else if (panMode.value) {
+        const { value } = calculateVerticalGestureValue({
+          translationY: event.translationY - activationY.value,
+          screenHeight,
+          startValue: systemStartValue.value,
         });
-        gestureBrightnessOffset.value = brightnessChange;
-
-        gestureBrightnessPreview.value = newBrightness;
-        brightnessSliderValue.value = newBrightness;
-
-        scheduleOnRN(handleBrightnessChange, newBrightness);
-      } else if (isRightSide) {
-        if (!isVolumeGestureActive.value) {
-          scheduleOnRN(handleVolumeGestureStart);
+        if (panMode.value === 'brightness') brightnessValue.value = value;
+        else volumeValue.value = value;
+        // RNGH executes this callback on touch updates on the UI thread.
+        // eslint-disable-next-line react-hooks/purity
+        const now = Date.now();
+        if (now - lastSystemUpdate.value >= 70) {
+          lastSystemUpdate.value = now;
+          scheduleOnRN(writeSystemValue, panMode.value, value);
         }
-
-        const { offset: volumeChange, value: newVolume } = calculateVerticalGestureValue({
-          translationY: deltaY,
-          screenWidth,
-          startValue: gestureVolumeStartValue.value,
-        });
-        gestureVolumeOffset.value = volumeChange;
-
-        gestureVolumePreview.value = newVolume;
-        volumeSliderValue.value = newVolume;
-
-        scheduleOnRN(handleVolumeChange, newVolume);
       }
     })
-    .onEnd(() => {
-      if (sliderMode.value === 'volume') {
-        const finalVolume = gestureVolumePreview.value;
-        scheduleOnRN(handleVolumeGestureEnd, finalVolume);
+    .onFinalize((_event, success) => {
+      if (isGestureSeekingActive.value) {
+        isGestureSeekingActive.value = false;
+        scheduleOnRN(finishSeek, seekPreviewTime.value, success);
+      } else if (
+        (panMode.value === 'brightness' || panMode.value === 'volume') &&
+        (isBrightnessGestureActive.value || isVolumeGestureActive.value)
+      ) {
+        scheduleOnRN(
+          writeSystemValue,
+          panMode.value,
+          panMode.value === 'brightness' ? brightnessValue.value : volumeValue.value,
+        );
+        scheduleOnRN(hideControlsWithDelay);
       }
-      if (sliderMode.value === 'brightness') {
-        const finalBrightness = gestureBrightnessPreview.value;
-        scheduleOnRN(handleBrightnessGestureEnd, finalBrightness);
-      }
-      sliderMode.value = null;
+      isBrightnessGestureActive.value = false;
+      isVolumeGestureActive.value = false;
+      isGestureSeekingActive.value = false;
+      panMode.value = null;
     });
 
   const doubleTapGesture = Gesture.Tap()
-    .enabled(!isPanelOpen)
+    .enabled(!isPanelOpen && !isDragging)
     .numberOfTaps(2)
     .maxDuration(250)
     .maxDelay(250)
     .onEnd((_event, success) => {
-      if (success) {
-        scheduleOnRN(handleDoubleTap);
-      }
+      if (success) scheduleOnRN(onPlayPause);
     });
-
+  const handleSingleTap = () => {
+    clearControlsTimeout();
+    setShowControls(!showControls);
+  };
   const tapGesture = Gesture.Tap()
-    .enabled(!isPanelOpen)
-    .numberOfTaps(1)
+    .enabled(!isPanelOpen && !isDragging)
     .maxDuration(280)
-    .maxDelay(200)
     .maxDeltaX(16)
     .maxDeltaY(16)
-    .requireExternalGestureToFail(doubleTapGesture)
     .onEnd((_event, success) => {
-      if (success) {
-        scheduleOnRN(handleSingleTap);
-      }
+      if (success) scheduleOnRN(handleSingleTap);
     });
-
   const longPressGesture = Gesture.LongPress()
-    .enabled(!isPanelOpen)
-    .minDuration(300)
-    .maxDistance(9999)
-    .shouldCancelWhenOutside(false)
+    .enabled(!isPanelOpen && !isLoading && !isDragging)
+    .minDuration(500)
+    .maxDistance(12)
     .onStart(() => {
-      if (
-        isGestureSeekingActive.value ||
-        isVolumeGestureActive.value ||
-        isBrightnessGestureActive.value
-      ) {
-        return;
-      }
-      if (onRateChange) {
-        scheduleOnRN(Haptics.impactAsync, Haptics.ImpactFeedbackStyle.Medium);
-        scheduleOnRN(onRateChange, 3, { remember: false });
-      }
+      if (!onRateChange) return;
+      boostActive.value = true;
+      scheduleOnRN(selectionFeedback);
+      scheduleOnRN(onRateChange, 3, { remember: false });
     })
-    .onEnd((_event, _success) => {
-      if (onRateChange) {
-        scheduleOnRN(Haptics.impactAsync, Haptics.ImpactFeedbackStyle.Medium);
+    .onFinalize(() => {
+      if (boostActive.value && onRateChange) {
+        boostActive.value = false;
         scheduleOnRN(onRateChange, null);
       }
     });
-
-  const tapGestures = Gesture.Exclusive(doubleTapGesture, tapGesture);
-  const panGestures = Gesture.Exclusive(panGesture, verticalSliderGesture);
-  const composed = Gesture.Race(longPressGesture, Gesture.Exclusive(panGestures, tapGestures));
+  const composed = Gesture.Race(
+    longPressGesture,
+    panGesture,
+    Gesture.Exclusive(doubleTapGesture, tapGesture),
+  );
 
   return (
     <Fragment>
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.seekPreviewContainer, seekPreviewAnimatedStyle]}
-      >
-        <BlurView tint="dark" intensity={100} style={styles.seekPreviewBlur}>
-          <TextInput
-            ref={animatedOffsetTextInputRef}
-            style={styles.seekPreviewOffsetText}
-            caretHidden
-            defaultValue=""
-            editable={false}
-          />
-          <TextInput
-            ref={animatedTextInputRef}
-            style={styles.seekPreviewText}
-            caretHidden
-            defaultValue=""
-            editable={false}
-          />
-        </BlurView>
-      </Animated.View>
-      <VerticalSlider
-        iconName="volume-high"
-        progress={volumeSliderValue}
-        minimumValue={minimumValue}
-        maximumValue={maximumValue}
-        style={[volumePreviewAnimatedStyle, styles.volumeSliderContainer]}
-      />
       <VerticalSlider
         iconName="sunny"
-        progress={brightnessSliderValue}
-        minimumValue={minimumValue}
-        maximumValue={maximumValue}
-        style={[brightnessPreviewAnimatedStyle, styles.brightnessSliderContainer]}
+        progress={brightnessValue}
+        active={isBrightnessGestureActive}
+        style={styles.brightnessSliderContainer}
+      />
+      <VerticalSlider
+        iconName="volume-high"
+        progress={volumeValue}
+        active={isVolumeGestureActive}
+        style={styles.volumeSliderContainer}
       />
       <GestureDetector gesture={composed}>
         <Animated.View style={styles.touchOverlay} />
@@ -441,46 +261,7 @@ export function GestureHandler() {
 }
 
 const styles = StyleSheet.create({
-  touchOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 5,
-  },
-  seekPreviewContainer: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: '-50%' }, { translateY: '-50%' }],
-    zIndex: 15,
-  },
-  seekPreviewBlur: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    minWidth: 120,
-    alignItems: 'center',
-  },
-  seekPreviewOffsetText: {
-    color: '#fff',
-    fontSize: 18,
-    paddingVertical: 0,
-    fontFamily: 'Roboto',
-    marginBottom: 4,
-  },
-  seekPreviewText: {
-    color: '#fff',
-    fontSize: 16,
-    paddingVertical: 0,
-    fontFamily: 'Roboto',
-  },
-  volumeSliderContainer: {
-    left: 60,
-  },
-  brightnessSliderContainer: {
-    right: 60,
-  },
+  touchOverlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 5 },
+  brightnessSliderContainer: { left: 60 },
+  volumeSliderContainer: { right: 60 },
 });

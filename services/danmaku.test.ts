@@ -118,6 +118,32 @@ describe('matching and merging', () => {
 });
 
 describe('compatible APIs', () => {
+  it('browses all Re0 seasons by title without an episode-number filter', async () => {
+    const versions = [
+      anime('Re：从零开始的异世界生活', 1),
+      anime('Re：从零开始的异世界生活 Memory Snow', 2),
+      anime('Re：从零开始的异世界生活 第二季', 3),
+      anime('Re：从零开始的异世界生活 第二季 后半', 4),
+      anime('Re：从零开始的异世界生活 第三季', 5),
+      anime('Re：从零开始的异世界生活 第四季', 6),
+    ];
+    const requests: URL[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        const parsed = new URL(url);
+        requests.push(parsed);
+        return json({ success: true, animes: parsed.searchParams.has('episode') ? [] : versions });
+      }),
+    );
+    const result = await searchDanmaku('Re：从零开始的异世界生活', [sources[0]]);
+    expect(result.animes.map((entry) => entry.anime.animeTitle)).toEqual(
+      versions.map((entry) => entry.animeTitle),
+    );
+    expect(requests).toHaveLength(1);
+    expect(requests[0].searchParams.has('episode')).toBe(false);
+  });
+
   it('supports fallback search and string bangumi IDs without dropping the token prefix', async () => {
     const urls: URL[] = [];
     vi.stubGlobal(
