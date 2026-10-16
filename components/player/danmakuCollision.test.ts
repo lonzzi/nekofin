@@ -183,7 +183,7 @@ describe('danmakuCollision', () => {
     ).toEqual({ reason: 'entry-separation', safe: false });
   });
 
-  it('never mixes opposite directions in the same active lane', () => {
+  it('allows different scrolling modes to cross, matching independent lane pools', () => {
     expect(
       evaluateScrollingDanmakuEntry({
         previous: {
@@ -199,7 +199,7 @@ describe('danmakuCollision', () => {
         safeSeparationPx: 0,
         viewportWidthPx,
       }),
-    ).toEqual({ reason: 'different-direction', safe: false });
+    ).toEqual({ reason: 'different-direction', safe: true });
   });
 
   it('keeps equal-time and future bullets blocking a lane until expiry', () => {

@@ -61,6 +61,7 @@ const unsafeResult = (reason: DanmakuCollisionReason): DanmakuCollisionResult =>
  * Collision time is calculated only until the visible viewport edge. Extra
  * animation distance used to keep views offscreen must not reserve a lane.
  * The left-to-right case mirrors the right-to-left calculation.
+ * Opposite directions own independent lane pools and may cross each other.
  */
 export function evaluateScrollingDanmakuEntry({
   previous,
@@ -73,7 +74,7 @@ export function evaluateScrollingDanmakuEntry({
   }
 
   if (previous.direction !== incoming.direction) {
-    return unsafeResult('different-direction');
+    return safeResult('different-direction');
   }
 
   if (

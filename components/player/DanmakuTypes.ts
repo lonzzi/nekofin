@@ -10,6 +10,8 @@ export type ActiveBullet = {
   top: number;
   durationMs: number;
   mediaDurationMs: number;
+  /** Media time until the text leaves the viewport, excluding animation overscan. */
+  visibleMediaDurationMs: number;
   mode: DandanCommentMode;
   startOffsetMs: number;
   scheduledMs: number;
