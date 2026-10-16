@@ -1,5 +1,5 @@
+import { NativeBottomSheet } from '@/components/ui/NativeBottomSheet.android';
 import { useAppTheme } from '@/lib/theme';
-import { BottomSheet } from '@expo/ui';
 import { Column, Icon, IconButton, Row, Text } from '@expo/ui/jetpack-compose';
 import { fillMaxSize, fillMaxWidth, padding, weight } from '@expo/ui/jetpack-compose/modifiers';
 
@@ -11,12 +11,10 @@ export function PlayerPanelHost(props: PlayerPanelHostProps) {
   const panel = usePlayerPanelPresentation(props);
 
   return (
-    <BottomSheet
+    <NativeBottomSheet
       isPresented={visible}
       onDismiss={onDismiss}
-      showDragIndicator
-      snapPoints={['full']}
-      contentPadding={0}
+      skipPartiallyExpanded
       containerColor={theme.colors.backgroundGrouped}
       testID={testID}
     >
@@ -50,6 +48,6 @@ export function PlayerPanelHost(props: PlayerPanelHostProps) {
         </Row>
         {panel.children}
       </Column>
-    </BottomSheet>
+    </NativeBottomSheet>
   );
 }

@@ -1,0 +1,44 @@
+{
+  "android_device": "Pixel 9 Pro, Android 16 / API 36, density 3",
+  "player_validation": "Temporary Player Lab route using actual player layout, Controls, PlayerPanelHost and DanmakuSearchPanel; no video decoder",
+  "system_bars_without_keyboard": {
+    "fixture-controls-window.txt": {
+      "statusBars": false,
+      "navigationBars": false
+    },
+    "fixture-search-window.txt": {
+      "statusBars": false,
+      "navigationBars": false
+    },
+    "fixture-panel-closed-window.txt": {
+      "statusBars": false,
+      "navigationBars": false
+    }
+  },
+  "player_back_button_bounds": {
+    "fixture-controls-settled.xml": "[180,30][312,162]",
+    "fixture-panel-closed.xml": "[180,30][312,162]",
+    "fixture-drag-dismissed.xml": "[180,30][312,162]"
+  },
+  "keyboard": {
+    "status_bar_visible": false,
+    "native_navigation_bar_visible_for_ime": true,
+    "player_root_bounds": "0,0-2856,1280",
+    "player_header_bounds": "180,30-2727,162"
+  },
+  "overview_header_bounds": {
+    "overview-native-android-half.xml": "[60,1572][324,1668]",
+    "overview-native-android-full.xml": "[60,300][324,396]"
+  },
+  "overview_done_button_absent": true,
+  "search_reopen_and_native_drag_dismiss": true,
+  "ios_validation": "Existing iPhone 18 Pro / iOS 27 development binary with this worktree bundle; SwiftUI sheet half-to-large drag and downward collapse/dismiss verified; no new iOS native build",
+  "limits": "No long-duration playback, device-level performance profiling or physical-device testing. Player Lab separately isolates panel and keyboard behavior from video decoding.",
+  "temporary_routes_removed": true,
+  "real_media_smoke": {
+    "started_from_home": true,
+    "video_frames_observed": true,
+    "status_bar_visible": false,
+    "navigation_bar_visible": false
+  }
+}
