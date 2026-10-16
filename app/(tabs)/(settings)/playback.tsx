@@ -8,6 +8,7 @@ import {
 import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { storage } from '@/lib/storage';
 import { useState } from 'react';
+import { useMMKVBoolean } from 'react-native-mmkv';
 
 const bitrateOptions = [
   { title: '1 Mbps', value: '1000000' },
@@ -31,6 +32,7 @@ const codecOptions = [
 ];
 
 export default function PlaybackSettings() {
+  const [autoPlayNext = true, setAutoPlayNext] = useMMKVBoolean('playback.autoPlayNext', storage);
   const [orientation, setOrientation] = useState(
     storage.getString('videoOrientation') ?? 'landscape',
   );
@@ -70,6 +72,12 @@ export default function PlaybackSettings() {
       <OuterTitle>播放与画质</OuterTitle>
       <NativeSettingsForm testID="playback-settings-form">
         <NativeSettingsSection title="播放默认值">
+          <NativeSettingsSwitch
+            title={<SettingsTitle>自动播放下一集</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary="本集播放结束后自动继续下一集。" lines={2} />}
+            value={autoPlayNext}
+            onValueChange={setAutoPlayNext}
+          />
           <NativeSettingsPicker
             title={<SettingsTitle>屏幕方向</SettingsTitle>}
             value={orientation}

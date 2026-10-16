@@ -1,4 +1,5 @@
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
+import dayjs from '@/lib/dayjs';
 import { formatBitrate } from '@/lib/utils';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Network from 'expo-network';
@@ -47,10 +48,7 @@ export function TopControls() {
 
   useEffect(() => {
     const update = () => {
-      const date = new Date();
-      const hours = `${date.getHours()}`.padStart(2, '0');
-      const minutes = `${date.getMinutes()}`.padStart(2, '0');
-      setNow(`${hours}:${minutes}`);
+      setNow(dayjs().format('HH:mm'));
     };
     update();
     const interval = setInterval(update, 30_000);

@@ -1,3 +1,5 @@
+import dayjs from '@/lib/dayjs';
+
 export const ticksToSeconds = (ticks: number) => {
   return ticks / 10000000;
 };
@@ -6,6 +8,7 @@ export const ticksToMilliseconds = (ticks: number) => {
   return ticks / 10000;
 };
 
+// This also runs in Reanimated's UI runtime; keep Day.js calls outside this function.
 export const formatTimeWorklet = (time: number) => {
   'worklet';
 
@@ -25,9 +28,10 @@ export const formatDurationFromTicks = (
 ) => {
   if (!ticks) return '';
   const totalSeconds = Math.floor(ticksToSeconds(ticks));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
+  const duration = dayjs.duration(totalSeconds, 'seconds');
+  const hours = Math.floor(duration.asHours());
+  const minutes = duration.minutes();
+  const seconds = duration.seconds();
 
   if (options?.showUnits) {
     const parts = [];
@@ -43,12 +47,9 @@ export const formatDurationFromTicks = (
     return parts.join('');
   }
 
-  if (hours > 0) {
-    return `${hours.toString().padStart(2, '0')}:${minutes
-      .toString()
-      .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  }
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  // Duration's HH token wraps at 24; media runtimes must retain total hours.
+  const prefix = hours > 0 ? `${hours.toString().padStart(2, '0')}:` : '';
+  return prefix + duration.format('mm:ss');
 };
 
 export const formatChineseDurationFromTicks = (
@@ -58,9 +59,10 @@ export const formatChineseDurationFromTicks = (
   if (!ticks) return '';
 
   const totalSeconds = Math.floor(ticksToSeconds(ticks));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
+  const duration = dayjs.duration(totalSeconds, 'seconds');
+  const hours = Math.floor(duration.asHours());
+  const minutes = duration.minutes();
+  const seconds = duration.seconds();
   const largest = options?.largest ?? 2;
   const includeSeconds = options?.includeSeconds ?? totalSeconds < 60;
 

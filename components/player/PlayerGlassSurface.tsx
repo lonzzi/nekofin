@@ -47,7 +47,7 @@ export function PlayerGlassSurface({
     () => ({
       style: visible ? effectStyle : 'none',
       animate: !reduceMotion,
-      animationDuration: visible ? 0.18 : 0.26,
+      animationDuration: visible ? 0.28 : 0.26,
     }),
     [effectStyle, reduceMotion, visible],
   );

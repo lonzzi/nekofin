@@ -6,7 +6,7 @@ public final class PlayerScrubberModule: Module {
     Name("PlayerScrubber")
 
     View(PlayerScrubberView.self) {
-      Events("onValueChange", "onSlidingStart", "onSlidingComplete")
+      Events("onValueChange", "onSlidingStart", "onSlidingComplete", "onSlidingCancel")
 
       Prop("value") { (view: PlayerScrubberView, value: Double) in
         view.setValue(Float(value))

@@ -1,4 +1,8 @@
+import { formatTimeWorklet } from '@/lib/utils/duration';
+
 export type VerticalGestureMode = 'brightness' | 'volume';
+
+export const PAN_ACTIVATION_DISTANCE = 28;
 
 export const clamp = (value: number, min: number, max: number) => {
   'worklet';
@@ -9,13 +13,19 @@ export const clamp = (value: number, min: number, max: number) => {
 export const isHorizontalPan = (translationX: number, translationY: number) => {
   'worklet';
 
-  return Math.abs(translationX) > Math.abs(translationY) * 1.2;
+  return (
+    Math.abs(translationX) >= PAN_ACTIVATION_DISTANCE &&
+    Math.abs(translationX) > Math.abs(translationY) * 1.5
+  );
 };
 
 export const isVerticalPan = (translationX: number, translationY: number) => {
   'worklet';
 
-  return Math.abs(translationY) > Math.abs(translationX) * 1.2;
+  return (
+    Math.abs(translationY) >= PAN_ACTIVATION_DISTANCE &&
+    Math.abs(translationY) > Math.abs(translationX) * 1.5
+  );
 };
 
 export const calculateSeekGesture = ({
@@ -31,20 +41,22 @@ export const calculateSeekGesture = ({
 }) => {
   'worklet';
 
-  const progressRatio = translationX / screenWidth;
-  const offset = progressRatio * 180000;
+  const progressRatio = translationX / Math.max(1, screenWidth);
+  const requestedTime = startTime + progressRatio * Math.min(90_000, duration);
+  const time = clamp(requestedTime, 0, duration);
 
   return {
-    offset,
-    time: clamp(startTime + offset, 0, duration),
+    offset: time - startTime,
+    time,
   };
 };
 
 export const formatSeekOffsetText = (offsetMs: number) => {
   'worklet';
 
-  const offsetSeconds = Math.round(offsetMs / 1000);
-  return offsetSeconds > 0 ? `+${offsetSeconds}s` : `${offsetSeconds}s`;
+  const absoluteMs = Math.abs(offsetMs);
+  const sign = absoluteMs < 1000 ? '' : offsetMs > 0 ? '+' : '-';
+  return `${sign}${formatTimeWorklet(absoluteMs)}`;
 };
 
 export const getVerticalGestureMode = (x: number, screenWidth: number): VerticalGestureMode => {
@@ -55,17 +67,16 @@ export const getVerticalGestureMode = (x: number, screenWidth: number): Vertical
 
 export const calculateVerticalGestureValue = ({
   translationY,
-  screenWidth,
+  screenHeight,
   startValue,
 }: {
   translationY: number;
-  screenWidth: number;
+  screenHeight: number;
   startValue: number;
 }) => {
   'worklet';
 
-  const progressRatio = -translationY / (screenWidth * 0.3);
-  const offset = progressRatio * 0.6;
+  const offset = -translationY / Math.max(480, screenHeight * 1.5);
 
   return {
     offset,

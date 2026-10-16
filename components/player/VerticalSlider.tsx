@@ -1,47 +1,71 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { BlurView } from 'expo-blur';
-import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
-import { Slider } from 'react-native-awesome-slider';
-import Animated, { AnimatedStyle, SharedValue } from 'react-native-reanimated';
+import { useState } from 'react';
+import { StyleProp, StyleSheet, TextInput, View, ViewStyle } from 'react-native';
+import Animated, {
+  setNativeProps,
+  SharedValue,
+  useAnimatedReaction,
+  useAnimatedRef,
+  useAnimatedStyle,
+  useDerivedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
+
+import { PlayerGlassSurface } from './PlayerGlassSurface';
 
 type VerticalSliderProps = {
   iconName: keyof typeof Ionicons.glyphMap;
   progress: SharedValue<number>;
-  minimumValue: SharedValue<number>;
-  maximumValue: SharedValue<number>;
-  style?: StyleProp<ViewStyle | AnimatedStyle<ViewStyle>>;
+  active: SharedValue<boolean>;
+  style?: StyleProp<ViewStyle>;
 };
 
-export function VerticalSlider({
-  iconName,
-  progress,
-  minimumValue,
-  maximumValue,
-  style,
-}: VerticalSliderProps) {
+export function VerticalSlider({ iconName, progress, active, style }: VerticalSliderProps) {
+  const textRef = useAnimatedRef<TextInput>();
+  const [visible, setVisible] = useState(false);
+  const fade = useDerivedValue<number>(() => withTiming(active.value ? 1 : 0, { duration: 140 }));
+  useAnimatedReaction(
+    () => active.value,
+    (value, previous) => {
+      if (value !== previous) scheduleOnRN(setVisible, value);
+    },
+  );
+  const fillStyle = useAnimatedStyle(() => ({
+    height: `${Math.max(0, Math.min(1, progress.value)) * 100}%`,
+  }));
+  useAnimatedReaction(
+    () => Math.round(progress.value * 100),
+    (percent) => {
+      setNativeProps(textRef, { text: `${percent}%` });
+    },
+  );
+
   return (
-    <Animated.View style={[styles.container, style]} pointerEvents="none">
-      <BlurView tint="dark" intensity={100} style={styles.blur}>
-        <Ionicons name={iconName} size={20} color="#fff" style={styles.sliderIcon} />
-        <Slider
-          style={styles.verticalSlider}
-          progress={progress}
-          minimumValue={minimumValue}
-          maximumValue={maximumValue}
-          theme={{
-            minimumTrackTintColor: '#fff',
-            maximumTrackTintColor: 'rgba(255, 255, 255, 0.3)',
-            disableMinTrackTintColor: '#fff',
-          }}
-          containerStyle={{
-            overflow: 'hidden',
-            borderRadius: 999,
-          }}
-          disableTapEvent={true}
-          disable={true}
-        />
-      </BlurView>
-    </Animated.View>
+    <PlayerGlassSurface
+      visible={visible}
+      fadeProgress={fade}
+      isInteractive={false}
+      effectStyle="regular"
+      radius={28}
+      pointerEvents="none"
+      style={[styles.container, style]}
+      contentStyle={styles.content}
+    >
+      <View style={styles.track}>
+        <Animated.View style={[styles.fill, fillStyle]} />
+      </View>
+      <Ionicons name={iconName} size={20} color="#fff" />
+      <TextInput
+        accessible={false}
+        editable={false}
+        caretHidden
+        ref={textRef}
+        style={styles.value}
+        defaultValue=""
+        underlineColorAndroid="transparent"
+      />
+    </PlayerGlassSurface>
   );
 }
 
@@ -51,22 +75,24 @@ const styles = StyleSheet.create({
     top: '50%',
     transform: [{ translateY: '-50%' }],
     zIndex: 15,
+    width: 64,
   },
-  blur: {
-    borderRadius: 12,
+  content: { alignItems: 'center', paddingVertical: 16, gap: 10 },
+  track: {
+    width: 8,
+    height: 90,
+    borderRadius: 4,
     overflow: 'hidden',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    alignItems: 'center',
-    width: 60,
-    height: 200,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'flex-end',
   },
-  sliderIcon: {
-    marginBottom: 8,
-  },
-  verticalSlider: {
-    width: 140,
-    height: 40,
-    transform: [{ rotate: '-90deg' }],
+  fill: { backgroundColor: '#fff', borderRadius: 4, width: '100%' },
+  value: {
+    width: 48,
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 11,
+    fontVariant: ['tabular-nums'],
+    padding: 0,
+    textAlign: 'center',
   },
 });

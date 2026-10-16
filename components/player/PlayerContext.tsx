@@ -81,6 +81,8 @@ export type PlayerContextValue = {
   isPanelOpen: boolean;
   openPanel: (route: PlayerPanelRoute) => void;
   isDragging: boolean;
+  seekPreviewTime: SharedValue<number>;
+  seekPreviewStartTime: SharedValue<number>;
   setIsDragging: (dragging: boolean) => void;
   isGestureSeekingActive: SharedValue<boolean>;
   isVolumeGestureActive: SharedValue<boolean>;

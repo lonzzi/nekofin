@@ -1,26 +1,41 @@
+import { PlayerEntryVisibilityContext } from '@/components/player/PlayerEntryContext';
+import { usePlayerEntryVisibility } from '@/hooks/usePlayerEntryVisibility';
 import { resolveVideoScreenOrientation } from '@/lib/playerOrientation';
 import { storage } from '@/lib/storage';
 import { NavigationBar } from 'expo-navigation-bar';
-import { Stack } from 'expo-router';
+import { Stack, type NativeStackNavigationProp } from 'expo-router';
 import {
   useNavigation,
   usePreventRemove,
   type NavigationAction,
+  type ParamListBase,
 } from 'expo-router/react-navigation';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import { useEffect, useState } from 'react';
-import { AppState, Platform, StyleSheet, useWindowDimensions } from 'react-native';
+import { useEffect, useLayoutEffect, useState } from 'react';
+import { AppState, Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useMMKVString } from 'react-native-mmkv';
 
 export default function Layout() {
   const [videoOrientation] = useMMKVString('videoOrientation', storage);
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
+  const [hasAppeared, setHasAppeared] = useState(Platform.OS !== 'ios');
+  const entry = usePlayerEntryVisibility(videoOrientation, hasAppeared);
   const { width, height } = useWindowDimensions();
   const [pendingExit, setPendingExit] = useState<NavigationAction | null>(null);
   const [portraitTransitionCompleted, setPortraitTransitionCompleted] = useState(false);
   // iPad multitasking can keep a landscape window despite a portrait orientation mask.
   const coordinatePortraitExit = Platform.OS === 'ios' && !Platform.isPad;
   const canFinishExit = !coordinatePortraitExit || (portraitTransitionCompleted && width <= height);
+
+  useLayoutEffect(
+    () =>
+      navigation.addListener('transitionEnd', ({ data }) => {
+        if (!data.closing) {
+          setHasAppeared(true);
+        }
+      }),
+    [navigation],
+  );
 
   // Defer every platform's first exit so the root route receives its exit animation.
   usePreventRemove(!pendingExit || !canFinishExit, ({ data }) => {
@@ -86,38 +101,46 @@ export default function Layout() {
           animation: pendingExit
             ? Platform.OS === 'android'
               ? 'slide_from_bottom'
-              : 'fade'
+              : 'default'
             : 'none',
-          animationDuration: 220,
+          animationDuration: Platform.OS === 'android' ? 220 : undefined,
           unstable_nativeProps: androidPlayerScreenProps,
         }}
       />
-      <Stack
-        // The native stack remains visible while its SurfaceView is detached on Android.
-        unstable_nativeProps={
-          Platform.OS === 'android'
-            ? { nativeContainerStyle: { backgroundColor: '#000' } }
-            : undefined
-        }
-        screenOptions={{
-          headerShown: false,
-          orientation:
-            Platform.OS === 'ios'
-              ? coordinatePortraitExit && pendingExit
-                ? 'portrait_up'
-                : resolveVideoScreenOrientation(videoOrientation)
-              : undefined,
-          statusBarHidden: Platform.OS === 'ios' ? true : undefined,
-          autoHideHomeIndicator: true,
-          contentStyle: { backgroundColor: '#000' },
-          unstable_nativeProps: androidPlayerScreenProps,
-        }}
-      >
-        <Stack.Screen name="index" options={{ title: '', animation: 'none' }} />
-      </Stack>
+      <View style={styles.container} onLayout={entry.onLayout}>
+        <PlayerEntryVisibilityContext value={entry.visible}>
+          <Stack
+            // The native stack remains visible while its SurfaceView is detached on Android.
+            unstable_nativeProps={
+              Platform.OS === 'android'
+                ? { nativeContainerStyle: { backgroundColor: '#000' } }
+                : undefined
+            }
+            screenOptions={{
+              headerShown: false,
+              orientation:
+                Platform.OS === 'ios'
+                  ? coordinatePortraitExit && pendingExit
+                    ? 'portrait_up'
+                    : resolveVideoScreenOrientation(videoOrientation)
+                  : undefined,
+              statusBarHidden: Platform.OS === 'ios' ? true : undefined,
+              autoHideHomeIndicator: true,
+              contentStyle: { backgroundColor: '#000' },
+              unstable_nativeProps: androidPlayerScreenProps,
+            }}
+          >
+            <Stack.Screen name="index" options={{ title: '', animation: 'none' }} />
+          </Stack>
+        </PlayerEntryVisibilityContext>
+      </View>
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#000' },
+});
 
 // Give the native screens the same background as the video, including during removal.
 const androidPlayerScreenProps =
