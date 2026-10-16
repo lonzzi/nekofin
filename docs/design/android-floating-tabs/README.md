@@ -83,7 +83,7 @@ Nekogram 核对版本：`10a8a639a37c262b8a03e504706002f153d76995`。
 上一轮的单个平移选中胶囊并不符合 Telegram 的完整交互。重新对照 `MainTabsLayout` 与 `GlassTabView` 后，改成：
 
 - 普通点击：新旧选中胶囊分别缩放、淡入淡出；图标与文字同步渐变；按压图标缩小并回弹，没有圆形波纹。
-- 长按约 375ms：胶囊从当前选中项弹性跟随手指，整条底栏连同玻璃背景放大至 1.019 倍。手指经过的标签显示预览选中态；松手后通过原生菜单操作提交路由，并弹性吸附到该项中心。
+- 长按约 375ms：胶囊从当前选中项弹性跟随手指，整条底栏连同玻璃背景放大至 1.019 倍。进入长按时先提交最初按下的标签，之后手指经过的标签只显示预览选中态；松手后通过原生菜单操作提交最终路由，并弹性吸附到该项中心。
 - 长按取消：回到已提交的标签。连续点击、移除视图、尺寸变化时清理动画；停止后不持续修改图标 tint，避免空闲重绘循环。
 - 该轮曾把 Android 根栈与所有标签内的原生导航栈设为 `slide_from_right`；后续按用户反馈恢复了普通页面的原生默认过渡，见下方记录。播放器的既有单独配置与 iOS 原生过渡保留。
 
@@ -122,3 +122,21 @@ Android 原生构建、依赖补丁应用及 `git diff --check` 通过。模拟�
 | 调整前                                  | 调整后                                 |
 | --------------------------------------- | -------------------------------------- |
 | ![调整前](validation/radius-before.png) | ![调整后](validation/radius-after.png) |
+
+## PR #14 手势边界修复
+
+保留 Telegram 的滑动长按交互，不因超过触摸移动阈值而取消。其 [MainTabsLayout](https://github.com/Nekogram/Nekogram/blob/10a8a639a37c262b8a03e504706002f153d76995/TMessagesProj/src/main/java/org/telegram/ui/MainTabsLayout.java#L453-L470) 明确关闭移动取消，[ClickHelper](https://github.com/Nekogram/Nekogram/blob/10a8a639a37c262b8a03e504706002f153d76995/TMessagesProj/src/main/java/me/vkryl/android/util/ClickHelper.java#L125-L141) 以最初按下的坐标触发长按。现记录 `ACTION_DOWN` 的横坐标，首次提交使用该位置，当前手指位置继续用于拖动预览，避免长按触发前滑过其他标签就提前切页。
+
+关闭系统动画时，长按开始立即将 `dragOffset` 归零，保证胶囊与预览标签一致。原先只在动画开启时把偏移弹回零，导致已进入搜索页时胶囊仍停在首页，继续拖动还会被裁掉。
+
+验证（Pixel 9 Pro，Android 16 / API 36，重新构建并覆盖安装开发版）：
+
+- 11 个手势状态通过原生选中状态、页面标题及截图核对，覆盖触发前移动、首次按下未选中标签、拖动预览、松手提交、取消，以及系统动画关闭；记录见 [review-gesture-checks.json](validation/review-gesture-checks.json)。测试后动画倍率恢复为 `1.0`。
+- 五个标签的普通点击、13 次连续快速切换，通过原生视图的选中标记及截图复核。服务器页持续动画会让 UIAutomator 的空闲等待失败，此项改用 Android 原生视图层级检查。
+- `bun install --frozen-lockfile`、补丁对原始依赖的应用检查、Android `:app:assembleDebug`、`bun run typecheck`、`bun run test`（71 个文件 / 447 项）及 `git diff --check` 通过。iOS 补丁保持逐字一致；未运行 iOS 构建和真机测试。
+
+关闭系统动画，长按搜索且尚未松手时的对比：
+
+| 修复前                                                           | 修复后                                                          |
+| ---------------------------------------------------------------- | --------------------------------------------------------------- |
+| ![胶囊停在首页](validation/review-animation-disabled-before.png) | ![胶囊位于搜索](validation/review-animation-disabled-after.png) |

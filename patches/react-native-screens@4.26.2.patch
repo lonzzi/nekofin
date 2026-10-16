@@ -106,7 +106,7 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
 
  @SuppressLint("ViewConstructor") // Should not be restored & should only be constructed by us.
  class CustomBottomNavigationView(
-@@ -10,11 +35,417 @@
+@@ -10,11 +35,421 @@
      val container: TabsContainer,
  ) : BottomNavigationView(context) {
      private var actionOrigin: TabsActionOrigin? = null
@@ -126,6 +126,7 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
 +    private var touching = false
 +    private var scrubbing = false
 +    private var customSelector = false
++    private var touchDownX = 0f
 +    private var touchX = 0f
 +    private var touchY = 0f
 +    private var pressedIcon: View? = null
@@ -222,10 +223,12 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
 +            if (animationsEnabled()) {
 +                offsetSpring.animateToFinalPosition(0f)
 +                scaleSpring.animateToFinalPosition(1.019f)
++            } else {
++                dragOffset = 0f
 +            }
-+            // Telegram commits the initially held tab, previews while dragging,
++            // Telegram commits the tab where the touch began, previews while dragging,
 +            // then commits the final tab on release through the native menu action.
-+            nearest(dragCenter)?.takeIf { it.id != selectedItemId }?.performClick()
++            nearest(touchDownX)?.takeIf { it.id != selectedItemId }?.performClick()
 +            updateDrag(touchX)
 +        }
 +    }
@@ -419,6 +422,7 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
 +                    customSelector = false
 +                }
 +                touching = true
++                touchDownX = event.x
 +                touchX = event.x
 +                touchY = event.y
 +                pressedIcon =
@@ -529,7 +533,7 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
          require(actionOrigin !== TabsActionOrigin.USER) {
              "[RNScreens] User-triggered actions should be processed via regular setSelectedItemId callback"
          }
-@@ -24,14 +455,80 @@
+@@ -24,14 +459,80 @@
      }
 
      override fun setSelectedItemId(itemId: Int) {
