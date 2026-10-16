@@ -1,3 +1,4 @@
+import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -12,10 +13,11 @@ import {
   homeUserViewsQueryOptions,
   itemDetailQueryOptions,
   mediaSourcesQueryOptions,
+  playbackItemDetailQueryOptions,
   streamInfoQueryOptions,
   viewAllQueryOptions,
 } from './queryOptions';
-import type { MediaAdapter, MediaServerInfo } from './types';
+import type { MediaAdapter, MediaItem, MediaServerInfo } from './types';
 
 const server: MediaServerInfo = {
   id: 'server-1',
@@ -30,6 +32,70 @@ const server: MediaServerInfo = {
 };
 
 const HOME_SECTION_STALE_TIME_MS = 60 * 1000;
+
+describe('fresh playback resume metadata', () => {
+  it('refreshes a fresh cached item before negotiating the next playback session', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { staleTime: Infinity, retry: false } },
+    });
+    const cached: MediaItem = {
+      id: 'movie',
+      name: 'Movie',
+      type: 'Movie',
+      raw: {},
+      userData: { playbackPositionTicks: 0 },
+    };
+    const fresh = { ...cached, userData: { playbackPositionTicks: 6200000000 } };
+    let resolveItem!: (item: MediaItem) => void;
+    const adapter = createAdapter({
+      getItemDetail: vi.fn(
+        () =>
+          new Promise<MediaItem>((resolve) => {
+            resolveItem = resolve;
+          }),
+      ),
+    });
+    const options = playbackItemDetailQueryOptions({
+      adapter,
+      currentServer: server,
+      itemId: cached.id,
+    });
+    client.setQueryData(options.queryKey, cached);
+    const observer = new QueryObserver(client, options);
+    let unsubscribe = () => {};
+    try {
+      const afterMount = new Promise<MediaItem>((resolve) => {
+        unsubscribe = observer.subscribe((result) => {
+          if (result.isFetchedAfterMount && result.data) resolve(result.data);
+        });
+      });
+      expect(observer.getCurrentResult().isFetchedAfterMount).toBe(false);
+      expect(adapter.getItemDetail).toHaveBeenCalledOnce();
+      resolveItem(fresh);
+      const item = await afterMount;
+      const playback = streamInfoQueryOptions({
+        adapter,
+        currentServer: server,
+        item,
+        keyOptions: {
+          enableTranscoding: false,
+          maxBitrate: 1000000,
+          enableSubtitleBurnIn: false,
+          selectedCodec: 'h264',
+        },
+        deviceProfile: {},
+        deviceId: 'device',
+      });
+      await playback.queryFn!({} as never);
+      expect(adapter.getStreamInfo).toHaveBeenCalledWith(
+        expect.objectContaining({ startTimeTicks: 6200000000 }),
+      );
+    } finally {
+      unsubscribe();
+      client.clear();
+    }
+  });
+});
 
 function createAdapter(overrides: Partial<MediaAdapter> = {}) {
   return {

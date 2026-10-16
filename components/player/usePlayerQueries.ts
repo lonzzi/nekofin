@@ -13,6 +13,7 @@ import {
   episodesBySeasonQueryOptions,
   itemDetailQueryOptions,
   mediaSourcesQueryOptions,
+  playbackItemDetailQueryOptions,
   streamInfoQueryOptions,
 } from '@/services/media/queryOptions';
 import type { MediaAdapter, MediaServerInfo } from '@/services/media/types';
@@ -42,8 +43,8 @@ export function usePlayerQueries({
 }) {
   const { sources } = useDanmakuSources();
   const { settings } = useDanmakuSettings();
-  const { data: itemDetail } = useQuery(
-    itemDetailQueryOptions({
+  const { data: itemDetail, isFetchedAfterMount: hasFreshPlaybackItem } = useQuery(
+    playbackItemDetailQueryOptions({
       adapter: mediaAdapter,
       currentServer,
       itemId,
@@ -97,6 +98,7 @@ export function usePlayerQueries({
     // Avoid starting HLS with the server's default audio before preferences resolve.
     enabled:
       streamOptions.enabled &&
+      hasFreshPlaybackItem &&
       (!needsPlaybackPreferenceTracks(streamInfoKeyOptions, preferences) || !tracksPending),
   });
 

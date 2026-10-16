@@ -1,21 +1,34 @@
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { usePlaybackPreferences } from '@/hooks/usePlaybackPreferences';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { useAppTheme } from '@/lib/theme';
+import { spacing, useAppTheme } from '@/lib/theme';
 import {
-  playbackTrackLabel,
   resolvePlaybackSelection,
   type PlaybackSelection,
 } from '@/services/media/playbackSelection';
 import { mediaSourcesQueryOptions } from '@/services/media/queryOptions';
 import type { MediaItem } from '@/services/media/types';
-import { Button, Column, Host, Text as NativeText, Row, Spacer } from '@expo/ui';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { MenuView, type MenuComponentRef } from '@react-native-menu/menu';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
-import { ActivityIndicator, Platform, useWindowDimensions, View } from 'react-native';
+import { isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
+import {
+  useRef,
+  useState,
+  type ComponentProps,
+  type ComponentType,
+  type RefAttributes,
+} from 'react';
+import { ActivityIndicator, Platform, StyleSheet, View, type ViewProps } from 'react-native';
 
+import { ShadowedGlassCard } from '../ui/GlassCard';
 import { PlayButton } from './common';
-import { PlaybackPicker as Picker } from './PlaybackPicker';
+import { createDetailPlaybackMenu } from './detailPlaybackMenu';
+
+// MenuView forwards View accessibility props; its published type omits them.
+const AccessibleMenuView = MenuView as ComponentType<
+  ComponentProps<typeof MenuView> & ViewProps & RefAttributes<MenuComponentRef>
+>;
 
 export function DetailPlaybackControls({ item }: { item: MediaItem }) {
   // Remount when changing episodes so an earlier episode's indices cannot leak.
@@ -24,17 +37,7 @@ export function DetailPlaybackControls({ item }: { item: MediaItem }) {
 
 function ItemPlaybackControls({ item }: { item: MediaItem }) {
   const theme = useAppTheme();
-  const { fontScale } = useWindowDimensions();
-  const [controlsWidth, setControlsWidth] = useState<number>();
-  // Native SwiftUI frames take point widths; percentage strings are RN-only.
-  const rowStyle = {
-    width: controlsWidth,
-    height: Math.max(Platform.OS === 'android' ? 64 : 44, 30 * fontScale),
-  };
-  const pickerWidth =
-    Platform.OS === 'ios' && Platform.isPad && controlsWidth
-      ? Math.max(100, controlsWidth - 100)
-      : undefined;
+  const useLiquidGlass = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
   const adapter = useMediaAdapter();
   const { currentServer } = useMediaServers();
   const query = useQuery(mediaSourcesQueryOptions({ adapter, currentServer, itemId: item.id }));
@@ -42,108 +45,119 @@ function ItemPlaybackControls({ item }: { item: MediaItem }) {
   const [choice, setChoice] = useState<PlaybackSelection>({});
   const preferences = usePlaybackPreferences();
   const selected = resolvePlaybackSelection(sources, choice, preferences);
-  const source = sources.find((entry) => entry.id === selected.mediaSourceId);
-  const audio = source?.mediaStreams.filter((stream) => stream.type === 'Audio') ?? [];
-  const subtitles = source?.mediaStreams.filter((stream) => stream.type === 'Subtitle') ?? [];
-  const labelStyle = { color: theme.colors.text, fontSize: 15 };
+  const menu = createDetailPlaybackMenu(
+    sources,
+    selected,
+    Platform.OS === 'android' ? 'android' : 'ios',
+  );
+  const menuRef = useRef<MenuComponentRef>(null);
+  const actions = [
+    ...menu.actions.map((action) => ({ ...action, imageColor: theme.colors.text })),
+    ...(query.isError
+      ? [{ id: 'retry', title: '重新读取播放选项' }]
+      : !menu.actions.length
+        ? [
+            {
+              title: query.isPending ? '正在读取播放选项…' : '暂无可用播放选项',
+              attributes: { disabled: true },
+            },
+          ]
+        : []),
+  ];
 
   return (
-    <View style={{ gap: theme.spacing.sm }}>
-      <PlayButton item={item} selection={selected} />
-      {query.isPending ? <ActivityIndicator accessibilityLabel="正在读取播放选项" /> : null}
-      {source || query.isError ? (
-        <Host
-          matchContents={{ vertical: true }}
-          colorScheme={theme.colorScheme}
-          seedColor={theme.colors.tint}
-          style={{ width: '100%' }}
-          onLayout={({ nativeEvent }) => setControlsWidth(nativeEvent.layout.width)}
+    <View style={styles.row}>
+      <PlayButton item={item} selection={selected} containerStyle={styles.playButton} />
+      <ShadowedGlassCard
+        radius={23}
+        containerStyle={styles.menuAnchor}
+        style={[styles.optionsSurface, useLiquidGlass && styles.optionsGlassSurface]}
+        fallbackBackgroundColor={theme.colors.surface}
+        tintColor={`${theme.colors.tint}18`}
+        isInteractive
+        useGlassEffect
+      >
+        <AccessibleMenuView
+          ref={menuRef}
+          testID="detail-playback-options"
+          accessibilityRole="button"
+          accessibilityLabel="播放选项"
+          accessibilityHint="选择可用的视频版本、音轨、字幕和画质"
+          accessibilityState={{ busy: query.isPending }}
+          accessibilityActions={
+            Platform.OS === 'android' ? [{ name: 'activate', label: '打开播放选项' }] : undefined
+          }
+          onAccessibilityAction={
+            Platform.OS === 'android'
+              ? ({ nativeEvent }) => {
+                  if (nativeEvent.actionName === 'activate') menuRef.current?.show();
+                }
+              : undefined
+          }
+          title="播放选项"
+          actions={actions}
+          style={styles.optionsMenu}
+          themeVariant={theme.colorScheme}
+          isAnchoredToRight
+          shouldOpenOnLongPress={false}
+          onPressAction={({ nativeEvent }) => {
+            if (nativeEvent.event === 'retry') {
+              void query.refetch();
+              return;
+            }
+            const selection = menu.selections.get(nativeEvent.event);
+            if (selection) setChoice(selection);
+          }}
         >
-          <Column spacing={8} style={{ width: controlsWidth }}>
-            {source ? (
-              <>
-                <Row alignment="center" spacing={8} style={rowStyle}>
-                  <NativeText textStyle={labelStyle}>视频版本</NativeText>
-                  <Spacer />
-                  <Picker
-                    width={pickerWidth}
-                    testID="detail-video-version"
-                    selectedValue={source.id}
-                    enabled={sources.length > 1}
-                    onValueChange={(mediaSourceId) => setChoice({ mediaSourceId })}
-                  >
-                    {sources.map((entry, index) => (
-                      <Picker.Item
-                        key={entry.id}
-                        value={entry.id}
-                        label={entry.name || `${entry.container.toUpperCase()} · 版本 ${index + 1}`}
-                      />
-                    ))}
-                  </Picker>
-                </Row>
-                <Row alignment="center" spacing={8} style={rowStyle}>
-                  <NativeText textStyle={labelStyle}>音轨</NativeText>
-                  <Spacer />
-                  <Picker
-                    width={pickerWidth}
-                    testID="detail-audio-track"
-                    selectedValue={selected.audioStreamIndex ?? -1}
-                    enabled={audio.length > 1}
-                    onValueChange={(audioStreamIndex) =>
-                      setChoice((previous) => ({
-                        ...previous,
-                        mediaSourceId: source.id,
-                        audioStreamIndex,
-                      }))
-                    }
-                  >
-                    {audio.length ? (
-                      audio.map((stream) => (
-                        <Picker.Item
-                          key={stream.index}
-                          value={stream.index}
-                          label={playbackTrackLabel(stream)}
-                        />
-                      ))
-                    ) : (
-                      <Picker.Item value={-1} label="无音轨" />
-                    )}
-                  </Picker>
-                </Row>
-                <Row alignment="center" spacing={8} style={rowStyle}>
-                  <NativeText textStyle={labelStyle}>字幕</NativeText>
-                  <Spacer />
-                  <Picker
-                    width={pickerWidth}
-                    testID="detail-subtitle-track"
-                    selectedValue={selected.subtitleStreamIndex ?? -1}
-                    enabled={subtitles.length > 0}
-                    onValueChange={(subtitleStreamIndex) =>
-                      setChoice((previous) => ({
-                        ...previous,
-                        mediaSourceId: source.id,
-                        subtitleStreamIndex,
-                      }))
-                    }
-                  >
-                    <Picker.Item value={-1} label="关闭" />
-                    {subtitles.map((stream) => (
-                      <Picker.Item
-                        key={stream.index}
-                        value={stream.index}
-                        label={playbackTrackLabel(stream)}
-                      />
-                    ))}
-                  </Picker>
-                </Row>
-              </>
-            ) : null}
-            {query.isError ? (
-              <Button onPress={() => void query.refetch()}>重新读取播放选项</Button>
-            ) : null}
-          </Column>
-        </Host>
-      ) : null}
+          <View accessible={false} style={styles.optionsButton}>
+            {query.isPending ? (
+              <ActivityIndicator size="small" color={theme.colors.tint} />
+            ) : (
+              <Ionicons name="options-outline" size={21} color={theme.colors.tint} />
+            )}
+          </View>
+        </AccessibleMenuView>
+      </ShadowedGlassCard>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  playButton: {
+    flex: 1,
+    width: 'auto',
+    marginTop: 0,
+  },
+  menuAnchor: {
+    width: 46,
+    height: 46,
+    borderRadius: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+  },
+  optionsSurface: {
+    width: 46,
+    height: 46,
+  },
+  optionsGlassSurface: {
+    // Keep UIKit's glass rim visible outside the circular surface bounds.
+    overflow: 'visible',
+  },
+  optionsMenu: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  optionsButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
