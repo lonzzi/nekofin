@@ -1,4 +1,4 @@
-import { useAppTheme } from '@/lib/theme';
+import { layout, useAppTheme } from '@/lib/theme';
 import { ListItem, Slider, Switch } from '@expo/ui';
 import {
   AlertDialog,
@@ -52,7 +52,11 @@ export function NativeSettingsForm({
   return hosted ? (
     form
   ) : (
-    <Host style={{ flex: 1 }} colorScheme={theme.colorScheme} useViewportSizeMeasurement>
+    <Host
+      style={{ flex: 1, width: '100%', maxWidth: layout.formMaxWidth, alignSelf: 'center' }}
+      colorScheme={theme.colorScheme}
+      useViewportSizeMeasurement
+    >
       {form}
     </Host>
   );

@@ -1,4 +1,4 @@
-import { useAppTheme } from '@/lib/theme';
+import { layout, useAppTheme } from '@/lib/theme';
 import { useIsOuterTheme } from '@/lib/theme/OuterTheme';
 import {
   FieldGroup,
@@ -72,6 +72,9 @@ export function NativeSettingsForm({
       <SwiftHost
         style={{
           flex: 1,
+          width: '100%',
+          maxWidth: layout.formMaxWidth,
+          alignSelf: 'center',
           backgroundColor: theme.colors.backgroundGrouped,
         }}
         colorScheme={theme.colorScheme}

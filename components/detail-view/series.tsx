@@ -1,10 +1,11 @@
 import { useAppTheme } from '@/lib/theme';
 import { MediaItem, MediaPerson } from '@/services/media/types';
-import { FlatList, Text, View } from 'react-native';
+import { FlatList, Platform, Text, View } from 'react-native';
 
 import { EpisodeCard, SeriesCard } from '../media/Card';
 import { detailViewStyles, ItemInfoList, ItemMeta, ItemOverview } from './common';
 import { PeopleSection, SimilarItemsSection } from './DetailMediaSections';
+import { DetailSummary } from './DetailSummary';
 
 export const SeriesModeContent = ({
   seasons,
@@ -21,11 +22,16 @@ export const SeriesModeContent = ({
 }) => {
   const theme = useAppTheme();
   const textColor = theme.colors.text;
+  const tablet = Platform.OS === 'ios' && Platform.isPad;
   return (
     <>
-      <ItemMeta item={item} />
-      <ItemOverview item={item} />
-      <ItemInfoList item={item} />
+      <DetailSummary
+        item={item}
+        metadata={<ItemMeta item={item} />}
+        overview={<ItemOverview item={item} />}
+      >
+        {!tablet ? <ItemInfoList item={item} /> : null}
+      </DetailSummary>
 
       {nextUpItems.length > 0 && (
         <View style={detailViewStyles.sectionBlock}>
@@ -60,6 +66,8 @@ export const SeriesModeContent = ({
           />
         </View>
       )}
+
+      {tablet ? <ItemInfoList item={item} /> : null}
 
       <PeopleSection items={people} />
       <SimilarItemsSection items={similarItems} />

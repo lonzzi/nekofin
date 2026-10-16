@@ -3,6 +3,7 @@ import { MediaItem, MediaPerson } from '@/services/media/types';
 import { ItemInfoList, ItemMeta, ItemOverview } from './common';
 import { PeopleSection, SimilarItemsSection } from './DetailMediaSections';
 import { DetailPlaybackControls } from './DetailPlaybackControls';
+import { DetailSummary } from './DetailSummary';
 
 export const MovieModeContent = ({
   people,
@@ -15,10 +16,14 @@ export const MovieModeContent = ({
 }) => {
   return (
     <>
-      <ItemMeta item={item} />
-      {!!item.id && <DetailPlaybackControls item={item} />}
-      <ItemOverview item={item} />
-      <ItemInfoList item={item} />
+      <DetailSummary
+        item={item}
+        metadata={<ItemMeta item={item} />}
+        controls={item.id ? <DetailPlaybackControls item={item} /> : null}
+        overview={<ItemOverview item={item} />}
+      >
+        <ItemInfoList item={item} />
+      </DetailSummary>
 
       <PeopleSection items={people} />
       <SimilarItemsSection items={similarItems} />

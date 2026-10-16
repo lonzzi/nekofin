@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateAspectRatio,
   getAudioInfoRows,
+  getMediaInfoDisplayState,
   getResolutionLabel,
   getVideoInfoRows,
 } from './episodeMediaInfo';
@@ -16,6 +17,41 @@ const baseSource = (mediaStreams: MediaSource['mediaStreams']): MediaSource => (
 });
 
 describe('episodeMediaInfo', () => {
+  it('reserves loading content until the selected episode request finishes', () => {
+    expect(getMediaInfoDisplayState({ mediaSources: [], isPending: true, isError: false })).toBe(
+      'loading',
+    );
+    expect(getMediaInfoDisplayState({ mediaSources: [], isPending: false, isError: false })).toBe(
+      'empty',
+    );
+  });
+
+  it('shows an empty state for sources without audio or video information', () => {
+    expect(
+      getMediaInfoDisplayState({
+        mediaSources: [baseSource([{ index: 0, type: 'Subtitle', codec: 'srt' }])],
+        isPending: false,
+        isError: false,
+      }),
+    ).toBe('empty');
+  });
+
+  it('keeps cached information visible if its background refresh fails', () => {
+    const mediaSources = [baseSource([{ index: 0, type: 'Video', codec: 'hevc' }])];
+    expect(getMediaInfoDisplayState({ mediaSources, isPending: false, isError: false })).toBe(
+      'ready',
+    );
+    expect(getMediaInfoDisplayState({ mediaSources, isPending: false, isError: true })).toBe(
+      'ready',
+    );
+  });
+
+  it('distinguishes a failed request from a successful empty response', () => {
+    expect(getMediaInfoDisplayState({ mediaSources: [], isPending: false, isError: true })).toBe(
+      'error',
+    );
+  });
+
   it('calculates common and reduced aspect ratios', () => {
     expect(calculateAspectRatio(1920, 1080)).toBe('16:9');
     expect(calculateAspectRatio(1440, 1080)).toBe('4:3');

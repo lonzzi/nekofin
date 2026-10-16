@@ -9,7 +9,7 @@ import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextLayoutEvent, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, TextLayoutEvent, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { ThemedText } from '../ThemedText';
@@ -318,7 +318,11 @@ export const ItemInfoList = ({ item }: { item: MediaItem }) => {
   if (infoRows.length === 0) return null;
 
   return (
-    <GlassCard radius={radius.lg} style={detailViewStyles.infoBlock} surface="material">
+    <GlassCard
+      radius={radius.lg}
+      style={[detailViewStyles.infoBlock, Platform.OS === 'ios' && detailViewStyles.fixedInfoBlock]}
+      surface="material"
+    >
       {infoRows.map((row) => (
         <View key={row.label} style={detailViewStyles.infoRow}>
           <Text style={[detailViewStyles.infoLabel, { color: subtitleColor }]}>{row.label}</Text>
@@ -391,6 +395,11 @@ export const detailViewStyles = StyleSheet.create({
     marginTop: spacing.xs,
     padding: spacing.md,
     rowGap: spacing.sm,
+  },
+  fixedInfoBlock: {
+    width: layout.mediaInfoCard.width,
+    maxWidth: '100%',
+    alignSelf: 'flex-start',
   },
   infoBlockRim: {
     borderColor: 'rgba(255,255,255,0.64)',
