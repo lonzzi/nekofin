@@ -31,8 +31,6 @@ import {
   getSelectedEpisodeOrFallback,
 } from './episodeSelection';
 
-const EPISODE_HERO_IMAGE_WIDTH = 1000;
-
 const episodeCardStyles = StyleSheet.create({
   selected: {
     opacity: 1,
@@ -89,7 +87,7 @@ export const EpisodeModeContent = ({
   const theme = useAppTheme();
   const textColor = theme.colors.text;
   const subtitleColor = theme.colors.textSecondary;
-  const { setTitle, setBackgroundImageUrl, setSelectedItem } = useDetailView();
+  const { setTitle, setSelectedItem } = useDetailView();
   const mediaAdapter = useMediaAdapter();
   const { currentServer } = useMediaServers();
 
@@ -179,13 +177,7 @@ export const EpisodeModeContent = ({
   useEffect(() => {
     setTitle(selectedEpisode.name);
     setSelectedItem(selectedEpisode);
-
-    const imageInfo = mediaAdapter.getImageInfo({
-      item: selectedEpisode,
-      opts: { width: EPISODE_HERO_IMAGE_WIDTH },
-    });
-    setBackgroundImageUrl(imageInfo.url);
-  }, [selectedEpisode, setTitle, setSelectedItem, mediaAdapter, setBackgroundImageUrl]);
+  }, [selectedEpisode, setTitle, setSelectedItem]);
 
   return (
     <>

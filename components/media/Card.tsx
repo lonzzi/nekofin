@@ -4,9 +4,11 @@ import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/theme';
 import { ImageUrlInfo } from '@/lib/utils/image';
+import { rememberDetailArtwork } from '@/services/media/detailArtwork';
 import { MediaItem, MediaServerInfo } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
+import { useQueryClient } from '@tanstack/react-query';
 import { BlurView } from 'expo-blur';
 import React, { useCallback, useMemo } from 'react';
 import {
@@ -123,6 +125,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   showServerSource?: boolean;
 }) {
   const router = useTracedRouter('episode-card');
+  const queryClient = useQueryClient();
   const { currentServer, setCurrentServer } = useMediaServers();
   const theme = useAppTheme();
 
@@ -145,10 +148,17 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   const openDetails = useCallback(() => {
     const route = getEpisodeCardRoute(item);
     if (route) {
+      rememberDetailArtwork({
+        client: queryClient,
+        server: actionServer ?? currentServer,
+        adapter: mediaAdapter,
+        item,
+        targetItemId: route.pathname === '/episode' ? route.params.episodeId : route.params.id,
+      });
       if (actionServer && actionServer.id !== currentServer?.id) setCurrentServer(actionServer);
       router.push(route);
     }
-  }, [actionServer, currentServer?.id, item, router, setCurrentServer]);
+  }, [actionServer, currentServer, item, mediaAdapter, queryClient, router, setCurrentServer]);
 
   const handlePlay = useCallback(
     (event?: GestureResponderEvent) => {
@@ -297,6 +307,7 @@ export const SeriesCard = React.memo(function SeriesCard({
 }) {
   const theme = useAppTheme();
   const router = useTracedRouter('series-card');
+  const queryClient = useQueryClient();
   const { currentServer, setCurrentServer } = useMediaServers();
 
   const currentAdapter = useMediaAdapter();
@@ -324,12 +335,28 @@ export const SeriesCard = React.memo(function SeriesCard({
 
     const route = getSeriesCardRoute(item);
     if (route) {
+      rememberDetailArtwork({
+        client: queryClient,
+        server: actionServer ?? currentServer,
+        adapter: mediaAdapter,
+        item,
+        targetItemId: route.pathname === '/episode' ? route.params.episodeId : route.params.id,
+      });
       if (actionServer && actionServer.id !== currentServer?.id) setCurrentServer(actionServer);
       router.push(route);
     } else {
       console.warn('Unknown type:', item.type);
     }
-  }, [actionServer, currentServer?.id, item, onPress, router, setCurrentServer]);
+  }, [
+    actionServer,
+    currentServer,
+    item,
+    mediaAdapter,
+    onPress,
+    queryClient,
+    router,
+    setCurrentServer,
+  ]);
 
   const card = (
     <Pressable

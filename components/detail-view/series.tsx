@@ -1,6 +1,7 @@
+import { getMediaRailListConfig } from '@/components/media/railPerformanceConfig';
 import { useAppTheme } from '@/lib/theme';
 import { MediaItem, MediaPerson } from '@/services/media/types';
-import { FlatList, Platform, Text, View } from 'react-native';
+import { FlatList, Platform, Text, useWindowDimensions, View } from 'react-native';
 
 import { EpisodeCard, SeriesCard } from '../media/Card';
 import { detailViewStyles, ItemInfoList, ItemMeta, ItemOverview } from './common';
@@ -22,6 +23,16 @@ export const SeriesModeContent = ({
 }) => {
   const theme = useAppTheme();
   const textColor = theme.colors.text;
+  const { width } = useWindowDimensions();
+  const railBatching = (cardWidth: number) =>
+    Platform.OS === 'android'
+      ? getMediaRailListConfig({
+          cardWidth,
+          gap: theme.spacing.md,
+          horizontalPadding: theme.spacing.page + theme.spacing.sm,
+          viewportWidth: width,
+        })
+      : {};
   const tablet = Platform.OS === 'ios' && Platform.isPad;
   return (
     <>
@@ -37,6 +48,7 @@ export const SeriesModeContent = ({
         <View style={detailViewStyles.sectionBlock}>
           <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>接下来</Text>
           <FlatList
+            {...railBatching(theme.layout.mediaRail.episodeCardWidth - theme.spacing.xl)}
             horizontal
             removeClippedSubviews={false}
             data={nextUpItems}
@@ -55,6 +67,7 @@ export const SeriesModeContent = ({
         <View style={detailViewStyles.sectionBlock}>
           <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>季度</Text>
           <FlatList
+            {...railBatching(theme.layout.mediaRail.posterCardWidth)}
             horizontal
             removeClippedSubviews={false}
             data={seasons}

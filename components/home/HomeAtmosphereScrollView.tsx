@@ -1,7 +1,6 @@
 import { HomeAtmosphereBackdrop } from '@/components/home/HomeAtmosphereBackdrop';
 import { useFloatingTabBarInset } from '@/components/navigation/FloatingTabBarInset';
 import ParallaxScrollView, {
-  ParallaxHeaderFadeMask,
   resolveParallaxHeaderOverscrollExtent,
 } from '@/components/ParallaxScrollView';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,6 +25,7 @@ type HomeAtmosphereScrollViewProps = PropsWithChildren<{
   imageInfo?: HomeAtmosphereImageInfo;
   isDark: boolean;
   optimizeAtmosphereImageLoading?: boolean;
+  atmosphereImageTransitionDuration?: number;
   refreshControl?: ComponentProps<typeof ParallaxScrollView>['refreshControl'];
   style?: ComponentProps<typeof ParallaxScrollView>['style'];
   onLayout?: ComponentProps<typeof View>['onLayout'];
@@ -42,6 +42,7 @@ export function HomeAtmosphereScrollView({
   imageInfo,
   isDark,
   optimizeAtmosphereImageLoading = false,
+  atmosphereImageTransitionDuration,
   refreshControl,
   style,
   onLayout,
@@ -98,7 +99,7 @@ export function HomeAtmosphereScrollView({
       headerHeight={headerHeight}
       contentStyle={[styles.content, contentStyle]}
       headerImage={headerImage}
-      headerMediaMaskElement={headerFadeMode === 'mask' ? <ParallaxHeaderFadeMask /> : null}
+      fadeHeaderMedia={headerFadeMode === 'mask'}
       headerOverscrollExtent={headerOverscrollExtent}
       headerOverlay={resolvedHeaderOverlay}
       refreshControl={refreshControl}
@@ -120,6 +121,7 @@ export function HomeAtmosphereScrollView({
           imageUrl={imageInfo?.imageUrl}
           isDark={isDark}
           optimizeImageLoading={optimizeAtmosphereImageLoading}
+          imageTransitionDuration={atmosphereImageTransitionDuration}
         />
       </View>
 

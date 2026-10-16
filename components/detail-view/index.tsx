@@ -15,6 +15,7 @@ import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import useRefresh from '@/hooks/useRefresh';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme, useMediaHeroHeight } from '@/lib/theme';
+import { detailArtworkQueryOptions, getDetailArtwork } from '@/services/media/detailArtwork';
 import { mediaQueryKeys } from '@/services/media/queryKeys';
 import { itemDetailQueryOptions } from '@/services/media/queryOptions';
 import { useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
@@ -38,9 +39,6 @@ import { EpisodeModeContent } from './episode';
 import { MovieModeContent } from './movie';
 import { SeriesModeContent } from './series';
 
-const DETAIL_HERO_IMAGE_WIDTH = 1000;
-const DETAIL_ATMOSPHERE_IMAGE_WIDTH = 640;
-
 export type DetailViewProps = {
   itemId: string;
   mode: 'series' | 'movie' | 'episode';
@@ -54,7 +52,8 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const theme = useAppTheme();
   const backgroundColor = theme.colors.background;
   const textColor = theme.colors.text;
-  const { title, backgroundImageUrl, setItem, selectedItem } = useDetailView();
+  const { title, setItem, selectedItem } = useDetailView();
+  const { data: previewArtwork } = useQuery(detailArtworkQueryOptions(currentServer, itemId));
 
   const [toolbarOverrides, setToolbarOverrides] = useState<DetailToolbarOverrides>({});
   const [pendingFavoriteItemIds, setPendingFavoriteItemIds] = useState<ReadonlySet<string>>(
@@ -236,6 +235,37 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     return mediaAdapter.getImageInfo({ item, opts: { preferLogo: true, width: 400 } }).url;
   }, [item, mediaAdapter]);
 
+  const artworkItem = (mode === 'episode' ? selectedItem : null) ?? item;
+  const artwork = useMemo(
+    () => (artworkItem ? getDetailArtwork(mediaAdapter, artworkItem) : previewArtwork),
+    [artworkItem, mediaAdapter, previewArtwork],
+  );
+  const headerImageInfo = artwork?.header;
+  const atmosphereImageInfo = {
+    imageUrl: artwork?.atmosphere.url || headerImageInfo?.url,
+    blurhash: artwork?.atmosphere.blurhash ?? headerImageInfo?.blurhash,
+  };
+  const headerMedia = headerImageInfo ? (
+    <View style={[detailViewStyles.header, { backgroundColor: theme.colors.surfaceMuted }]}>
+      <ItemImage
+        uri={headerImageInfo.url}
+        style={detailViewStyles.headerMedia}
+        placeholderBlurhash={headerImageInfo.blurhash}
+        contentFit="cover"
+      />
+      {!!logoImageUrl && (
+        <LinearGradient
+          colors={[theme.colors.mediaScrimSoft, 'rgba(0,0,0,0.16)', theme.colors.mediaScrim]}
+          locations={[0, 0.52, 1]}
+          pointerEvents="none"
+          style={detailViewStyles.headerScrim}
+        />
+      )}
+    </View>
+  ) : (
+    <SkeletonDetailHeader />
+  );
+
   if (isLoading || !item) {
     return (
       <View style={{ flex: 1 }}>
@@ -245,7 +275,9 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
           backgroundColor={backgroundColor}
           contentStyle={atmosphereContentStyle}
           headerHeight={headerHeight}
-          headerImage={<SkeletonDetailHeader />}
+          headerImage={headerMedia}
+          imageInfo={atmosphereImageInfo}
+          atmosphereImageTransitionDuration={0}
           isDark={theme.isDark}
         >
           <SkeletonDetailContent mode={mode} includeTopPadding={false} />
@@ -253,17 +285,6 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
       </View>
     );
   }
-
-  const headerImageInfo = mediaAdapter.getImageInfo({
-    item,
-    opts: { preferBackdrop: true, width: DETAIL_HERO_IMAGE_WIDTH },
-  });
-  const atmosphereImageInfo = mediaAdapter.getImageInfo({
-    item,
-    opts: { preferBackdrop: true, width: DETAIL_ATMOSPHERE_IMAGE_WIDTH },
-  });
-  const headerImageUrl = backgroundImageUrl || headerImageInfo.url;
-  const atmosphereImageUrl = backgroundImageUrl || atmosphereImageInfo.url || headerImageUrl;
 
   const renderModeContent = () => {
     const modeComponents = {
@@ -309,29 +330,10 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
         refreshControl={
           <SafeAreaRefreshControl underStatusBar refreshing={refreshing} onRefresh={onRefresh} />
         }
-        imageInfo={{
-          blurhash: atmosphereImageInfo.blurhash ?? headerImageInfo.blurhash,
-          imageUrl: atmosphereImageUrl,
-        }}
+        imageInfo={atmosphereImageInfo}
+        atmosphereImageTransitionDuration={0}
         isDark={theme.isDark}
-        headerImage={
-          <View style={[detailViewStyles.header, { backgroundColor: theme.colors.surfaceMuted }]}>
-            <ItemImage
-              uri={headerImageUrl}
-              style={detailViewStyles.headerMedia}
-              placeholderBlurhash={headerImageInfo.blurhash}
-              contentFit="cover"
-            />
-            {!!logoImageUrl && (
-              <LinearGradient
-                colors={[theme.colors.mediaScrimSoft, 'rgba(0,0,0,0.16)', theme.colors.mediaScrim]}
-                locations={[0, 0.52, 1]}
-                pointerEvents="none"
-                style={detailViewStyles.headerScrim}
-              />
-            )}
-          </View>
-        }
+        headerImage={headerMedia}
         headerOverlay={
           !tablet && logoImageUrl ? (
             <ItemImage

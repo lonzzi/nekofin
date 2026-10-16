@@ -1,7 +1,15 @@
+import { getMediaRailListConfig } from '@/components/media/railPerformanceConfig';
 import { useAppTheme } from '@/lib/theme';
 import type { MediaItem, MediaPerson } from '@/services/media/types';
 import { memo } from 'react';
-import { FlatList, Text, View, type ListRenderItemInfo } from 'react-native';
+import {
+  FlatList,
+  Platform,
+  Text,
+  useWindowDimensions,
+  View,
+  type ListRenderItemInfo,
+} from 'react-native';
 
 import { SeriesCard } from '../media/Card';
 import { detailViewStyles } from './common';
@@ -25,12 +33,23 @@ function getMediaItemKey(item: MediaItem) {
 
 export const PeopleSection = memo(function PeopleSection({ items }: { items: MediaPerson[] }) {
   const theme = useAppTheme();
+  const { width } = useWindowDimensions();
+  const batching =
+    Platform.OS === 'android'
+      ? getMediaRailListConfig({
+          cardWidth: theme.layout.mediaRail.personCardWidth,
+          gap: theme.spacing.md,
+          horizontalPadding: theme.spacing.page + theme.spacing.sm,
+          viewportWidth: width,
+        })
+      : {};
   if (items.length === 0) return null;
 
   return (
     <View style={detailViewStyles.sectionBlock}>
       <Text style={[detailViewStyles.sectionTitle, { color: theme.colors.text }]}>演职人员</Text>
       <FlatList
+        {...batching}
         horizontal
         removeClippedSubviews={false}
         data={items}
@@ -50,12 +69,23 @@ export const SimilarItemsSection = memo(function SimilarItemsSection({
   items: MediaItem[];
 }) {
   const theme = useAppTheme();
+  const { width } = useWindowDimensions();
+  const batching =
+    Platform.OS === 'android'
+      ? getMediaRailListConfig({
+          cardWidth: theme.layout.mediaRail.posterCardWidth,
+          gap: theme.spacing.md,
+          horizontalPadding: theme.spacing.page + theme.spacing.sm,
+          viewportWidth: width,
+        })
+      : {};
   if (items.length === 0) return null;
 
   return (
     <View style={detailViewStyles.sectionBlock}>
       <Text style={[detailViewStyles.sectionTitle, { color: theme.colors.text }]}>更多类似的</Text>
       <FlatList
+        {...batching}
         horizontal
         removeClippedSubviews={false}
         data={items}

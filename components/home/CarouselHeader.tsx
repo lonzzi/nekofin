@@ -10,8 +10,10 @@ import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/theme';
 import { formatRating } from '@/lib/utils';
+import { rememberDetailArtwork } from '@/services/media/detailArtwork';
 import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -367,6 +369,7 @@ export function useCarouselHeaderLayers({
   const readyImageUrlsRef = useRef(new Set<string>());
   const [readyImageUrls, setReadyImageUrls] = useState<ReadonlySet<string>>(() => new Set());
   const router = useTracedRouter('carousel');
+  const queryClient = useQueryClient();
   const currentAdapter = useMediaAdapter();
   const { currentServer, setCurrentServer } = useMediaServers();
   const theme = useAppTheme();
@@ -445,6 +448,13 @@ export function useCarouselHeaderLayers({
     (item: MediaItem) => {
       if (!item?.id) return;
       const source = getItemSource?.(item);
+      rememberDetailArtwork({
+        client: queryClient,
+        server: source?.server ?? currentServer,
+        adapter: source?.adapter ?? currentAdapter,
+        item,
+        targetItemId: item.id,
+      });
       if (source && currentServer?.id !== source.server.id) setCurrentServer(source.server);
 
       switch (item.type) {
@@ -472,7 +482,7 @@ export function useCarouselHeaderLayers({
           }
       }
     },
-    [router, getItemSource, currentServer?.id, setCurrentServer],
+    [router, getItemSource, currentServer, currentAdapter, queryClient, setCurrentServer],
   );
 
   const handleCarouselItemPressAtIndex = useCallback(

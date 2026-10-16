@@ -79,7 +79,7 @@
     "react-native-nitro-modules": "^0.36.1",
     "react-native-pager-view": "8.0.2",
     "react-native-performance-toolkit": "^0.3.1",
-    "react-native-reanimated": "4.5.1",
+    "react-native-reanimated": "4.5.5",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
