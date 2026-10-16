@@ -2,12 +2,13 @@ import { useCarouselHeaderLayers } from '@/components/home/CarouselHeader';
 import { HomeAtmosphereScrollView } from '@/components/home/HomeAtmosphereScrollView';
 import type { GetMediaItemSource } from '@/components/media/mediaSource';
 import { Section } from '@/components/media/Section';
+import { SafeAreaRefreshControl } from '@/components/ui/SafeAreaRefreshControl';
 import { UserViewSection } from '@/components/user-view/UserViewSection';
 import type { HomeSectionWithStatus } from '@/hooks/useHomeSections';
 import { useAppTheme, useMediaHeroHeight } from '@/lib/theme';
 import type { MediaItem } from '@/services/media/types';
 import { useIsFocused } from 'expo-router/react-navigation';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
 
 export type MediaHomeSection = HomeSectionWithStatus & { onViewAll?: () => void };
 
@@ -54,7 +55,8 @@ export function MediaHomeContent({
       optimizeAtmosphereImageLoading
       refreshControl={
         onRefresh ? (
-          <RefreshControl
+          <SafeAreaRefreshControl
+            underStatusBar
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={theme.colors.tint}

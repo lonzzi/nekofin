@@ -1,3 +1,4 @@
+import { useFloatingTabBarInset } from '@/components/navigation/FloatingTabBarInset';
 import React from 'react';
 import { Platform, ScrollView, ScrollViewProps, StyleSheet } from 'react-native';
 
@@ -13,9 +14,11 @@ export default function PageScrollView({
   bottomTabBarHeight = 20,
   ...rest
 }: PageScrollViewProps) {
+  const tabBarInset = useFloatingTabBarInset();
   const flattenedContentStyle = StyleSheet.flatten(contentContainerStyle);
   const contentPaddingBottom = getNumericPaddingBottom(flattenedContentStyle);
-  const safePaddingBottom = bottomTabBarHeight + (Platform.OS === 'android' ? 100 : 0);
+  const safePaddingBottom =
+    bottomTabBarHeight + (Platform.OS === 'android' ? tabBarInset || 100 : 0);
   const bottomContentInset = Platform.OS === 'ios' ? bottomTabBarHeight : 0;
   const bottomContentPadding =
     Platform.OS === 'ios' ? contentPaddingBottom : contentPaddingBottom + safePaddingBottom;

@@ -21,17 +21,10 @@ import { useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query'
 import { LinearGradient } from 'expo-linear-gradient';
 import { openBrowserAsync } from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Platform,
-  RefreshControl,
-  Share,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { Alert, Platform, Share, Text, useWindowDimensions, View } from 'react-native';
 
 import { ItemImage } from '../ItemImage';
+import { SafeAreaRefreshControl } from '../ui/SafeAreaRefreshControl';
 import { SkeletonDetailContent, SkeletonDetailHeader } from '../ui/Skeleton';
 import { detailViewStyles } from './common';
 import { getDetailExternalInfo } from './detailExternalLinks';
@@ -304,7 +297,9 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
         backgroundColor={backgroundColor}
         contentStyle={atmosphereContentStyle}
         headerHeight={headerHeight}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <SafeAreaRefreshControl underStatusBar refreshing={refreshing} onRefresh={onRefresh} />
+        }
         imageInfo={{
           blurhash: atmosphereImageInfo.blurhash ?? headerImageInfo.blurhash,
           imageUrl: atmosphereImageUrl,
