@@ -193,7 +193,8 @@ function RootNavigation() {
             orientation:
               Platform.OS === 'ios' ? resolveVideoScreenOrientation(videoOrientation) : undefined,
             gestureEnabled: false,
-            statusBarHidden: Platform.OS === 'ios' ? true : undefined,
+            statusBarHidden: true,
+            navigationBarHidden: Platform.OS === 'android' ? true : undefined,
             autoHideHomeIndicator: true,
             contentStyle: { backgroundColor: '#000' },
           }}
