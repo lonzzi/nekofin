@@ -107,6 +107,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   showBorder = false,
   actionServer: actionServerProp,
   source,
+  showServerSource = true,
 }: {
   item: MediaItem;
   style?: StyleProp<ViewStyle>;
@@ -119,6 +120,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   showBorder?: boolean;
   actionServer?: MediaServerInfo;
   source?: MediaItemSource;
+  showServerSource?: boolean;
 }) {
   const router = useTracedRouter('episode-card');
   const { currentServer, setCurrentServer } = useMediaServers();
@@ -240,7 +242,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
               >
                 {getSubtitle(item)}
               </Text>
-              {source && <ServerSourceLabel name={source.server.name} />}
+              {showServerSource && source ? <ServerSourceLabel name={source.server.name} /> : null}
             </View>
           )}
         </ShadowedGlassCard>
@@ -280,6 +282,7 @@ export const SeriesCard = React.memo(function SeriesCard({
   onPress,
   actionServer: actionServerProp,
   source,
+  showServerSource = true,
 }: {
   item: MediaItem;
   style?: StyleProp<ViewStyle>;
@@ -290,6 +293,7 @@ export const SeriesCard = React.memo(function SeriesCard({
   onPress?: () => void;
   actionServer?: MediaServerInfo;
   source?: MediaItemSource;
+  showServerSource?: boolean;
 }) {
   const theme = useAppTheme();
   const router = useTracedRouter('series-card');
@@ -367,7 +371,7 @@ export const SeriesCard = React.memo(function SeriesCard({
               {getSubtitle(item)}
             </Text>
           )}
-          {source && <ServerSourceLabel name={source.server.name} />}
+          {showServerSource && source ? <ServerSourceLabel name={source.server.name} /> : null}
         </View>
       </ShadowedGlassCard>
     </Pressable>

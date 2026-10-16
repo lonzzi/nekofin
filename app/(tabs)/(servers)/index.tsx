@@ -35,8 +35,7 @@ import {
 function ServersScreen() {
   const theme = useAppTheme();
   const router = useTracedRouter('servers');
-  const { servers, setCurrentServer, currentServer, removeServer, isInitialized } =
-    useMediaServers();
+  const { servers, setHomeServer, currentServer, removeServer, isInitialized } = useMediaServers();
   const isFocused = useIsFocused();
   const { width } = useWindowDimensions();
   const availableWidth = Math.max(Math.min(width, 840) - theme.spacing.page * 2, 0);
@@ -50,8 +49,8 @@ function ServersScreen() {
       ? [styles.androidCard, { backgroundColor: theme.colors.surface }]
       : undefined;
   const open = (server: MediaServerInfo) => {
-    setCurrentServer(server);
-    router.push('/(tabs)/(servers)/library');
+    setHomeServer(server);
+    router.navigate('/(tabs)/(home)');
   };
   const settings = (server: MediaServerInfo) =>
     router.push({

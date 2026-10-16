@@ -51,6 +51,7 @@ export type ItemGridScreenProps = {
   onChangeFilters?: (next: MediaFilters) => void;
   disableGrouping?: boolean;
   getItemSource?: GetMediaItemSource;
+  showServerSource?: boolean;
   dataState?: { isLoading: boolean; isError: boolean; refetch: () => Promise<unknown> };
   emptyState?: EmptyStateProps;
 };
@@ -65,6 +66,7 @@ export function ItemGridScreen({
   onChangeFilters,
   disableGrouping = false,
   getItemSource,
+  showServerSource = true,
   dataState,
   emptyState = { title: '暂无内容' },
 }: ItemGridScreenProps) {
@@ -123,11 +125,25 @@ export function ItemGridScreen({
     (item: MediaItem, width: number) => {
       const itemStyle = { width };
       if (item.type !== 'Episode' && useThreeCols) {
-        return <SeriesCard item={item} source={getItemSource?.(item)} style={itemStyle} />;
+        return (
+          <SeriesCard
+            item={item}
+            source={getItemSource?.(item)}
+            showServerSource={showServerSource}
+            style={itemStyle}
+          />
+        );
       }
-      return <EpisodeCard item={item} source={getItemSource?.(item)} style={itemStyle} />;
+      return (
+        <EpisodeCard
+          item={item}
+          source={getItemSource?.(item)}
+          showServerSource={showServerSource}
+          style={itemStyle}
+        />
+      );
     },
-    [useThreeCols, getItemSource],
+    [useThreeCols, getItemSource, showServerSource],
   );
 
   const renderItem = useCallback(

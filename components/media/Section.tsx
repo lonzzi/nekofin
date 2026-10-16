@@ -25,6 +25,7 @@ export const Section = React.memo(function Section({
   isLoading,
   type = 'episode',
   getItemSource,
+  showServerSource = true,
 }: {
   title: string;
   onViewAll?: () => void;
@@ -32,6 +33,7 @@ export const Section = React.memo(function Section({
   isLoading: boolean;
   type?: 'episode' | 'series';
   getItemSource?: GetMediaItemSource;
+  showServerSource?: boolean;
 }) {
   const theme = useAppTheme();
   const { width: viewportWidth } = useWindowDimensions();
@@ -55,16 +57,19 @@ export const Section = React.memo(function Section({
       <EpisodeCard
         item={item}
         source={getItemSource?.(item)}
+        showServerSource={showServerSource}
         style={episodeCardStyle}
         showPlayButton
       />
     ),
-    [getItemSource],
+    [getItemSource, showServerSource],
   );
 
   const renderSeriesItem: ListRenderItem<MediaItem> = useCallback(
-    ({ item }) => <SeriesCard item={item} source={getItemSource?.(item)} />,
-    [getItemSource],
+    ({ item }) => (
+      <SeriesCard item={item} source={getItemSource?.(item)} showServerSource={showServerSource} />
+    ),
+    [getItemSource, showServerSource],
   );
 
   const renderSkeletonItem = useCallback(() => <SkeletonCard type={type} />, [type]);
