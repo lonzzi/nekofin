@@ -1,4 +1,5 @@
 import { EpisodeCard, SeriesCard } from '@/components/media/Card';
+import { useFloatingTabBarInset } from '@/components/navigation/FloatingTabBarInset';
 import { useGridLayout } from '@/hooks/useGridLayout';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { MediaFilters } from '@/hooks/useMediaFilters';
@@ -16,7 +17,6 @@ import {
   FlatList,
   Platform,
   Pressable,
-  RefreshControl,
   ScrollView,
   SectionList,
   StyleSheet,
@@ -29,6 +29,7 @@ import PageScrollView from '../PageScrollView';
 import { emptyListContentStyle, EmptyListViewport } from '../ui/EmptyListViewport';
 import { EmptyState, type EmptyStateProps } from '../ui/EmptyState';
 import { FilterButton, FilterRow } from '../ui/FilterControls';
+import { SafeAreaRefreshControl } from '../ui/SafeAreaRefreshControl';
 import { SkeletonItemGrid } from '../ui/Skeleton';
 import {
   createItemGridSections,
@@ -69,6 +70,7 @@ export function ItemGridScreen({
   emptyState = { title: '暂无内容' },
 }: ItemGridScreenProps) {
   const insets = useSafeAreaInsets();
+  const tabBarInset = useFloatingTabBarInset();
   const theme = useAppTheme();
   const backgroundColor = theme.colors.background;
   const { numColumns, itemWidth, gap } = useGridLayout(type, layout === 'grid' ? 160 : undefined);
@@ -447,7 +449,7 @@ export function ItemGridScreen({
           stickySectionHeadersEnabled={false}
           showsVerticalScrollIndicator={false}
           contentInsetAdjustmentBehavior="automatic"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          refreshControl={<SafeAreaRefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.4}
           contentContainerStyle={[
@@ -455,7 +457,8 @@ export function ItemGridScreen({
             {
               paddingHorizontal: theme.spacing.page,
               paddingTop: theme.spacing.sm,
-              paddingBottom: Platform.OS === 'android' ? 100 + insets.bottom : theme.spacing.xl,
+              paddingBottom:
+                Platform.OS === 'android' ? tabBarInset || 100 + insets.bottom : theme.spacing.xl,
             },
           ]}
           ListHeaderComponent={renderFilterBar()}
@@ -479,13 +482,13 @@ export function ItemGridScreen({
           columnWrapperStyle={numColumns > 1 ? { columnGap: gap } : undefined}
           showsVerticalScrollIndicator={false}
           contentInsetAdjustmentBehavior="automatic"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          refreshControl={<SafeAreaRefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.4}
           contentContainerStyle={[
             styles.scrollContent,
             {
-              paddingBottom: Platform.OS === 'android' ? 100 : 0,
+              paddingBottom: Platform.OS === 'android' ? tabBarInset || 100 : 0,
               paddingHorizontal: theme.spacing.page,
               paddingTop: theme.spacing.sm,
               rowGap: theme.spacing.lg,
@@ -517,12 +520,12 @@ export function ItemGridScreen({
           {
             paddingHorizontal: theme.spacing.page,
             paddingTop: theme.spacing.sm,
-            paddingBottom: theme.spacing.xl,
+            paddingBottom: tabBarInset || theme.spacing.xl,
           },
         ]}
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="automatic"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<SafeAreaRefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {renderFilterBar()}
 

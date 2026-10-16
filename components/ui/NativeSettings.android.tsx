@@ -1,3 +1,4 @@
+import { useFloatingTabBarInset } from '@/components/navigation/FloatingTabBarInset';
 import { layout, useAppTheme } from '@/lib/theme';
 import { ListItem, Slider, Switch } from '@expo/ui';
 import {
@@ -35,11 +36,13 @@ export function NativeSettingsForm({
   children,
   testID,
   hosted = false,
+  surface = 'page',
 }: ComponentProps<typeof SharedSettings.NativeSettingsForm>) {
   const theme = useAppTheme();
+  const tabBarInset = useFloatingTabBarInset();
   const form = (
     <LazyColumn
-      contentPadding={{ top: 8, bottom: 24 }}
+      contentPadding={{ top: 8, bottom: surface === 'sheet' ? 24 : Math.max(24, tabBarInset) }}
       modifiers={[
         fillMaxSize(),
         background(theme.colors.backgroundGrouped),

@@ -1,0 +1,178 @@
+{
+  "safe_area_top_px": 156,
+  "home": [
+    {
+      "circles": [
+        {
+          "class": "androidx.swiperefreshlayout.widget.CircleImageView",
+          "visible": true,
+          "local_frame": [580, 266, 700, 386],
+          "window_frame": [580, 266, 700, 386]
+        }
+      ],
+      "refresh_roots": [
+        {
+          "class": "com.facebook.react.views.swiperefresh.ReactSwipeRefreshLayout",
+          "visible": true,
+          "local_frame": [0, 0, 1280, 2856],
+          "window_frame": [0, 0, 1280, 2856]
+        }
+      ]
+    },
+    {
+      "circles": [
+        {
+          "class": "androidx.swiperefreshlayout.widget.CircleImageView",
+          "visible": true,
+          "local_frame": [580, 228, 700, 348],
+          "window_frame": [580, 228, 700, 348]
+        }
+      ],
+      "refresh_roots": [
+        {
+          "class": "com.facebook.react.views.swiperefresh.ReactSwipeRefreshLayout",
+          "visible": true,
+          "local_frame": [0, 0, 1280, 2856],
+          "window_frame": [0, 0, 1280, 2856]
+        }
+      ]
+    },
+    {
+      "circles": [
+        {
+          "class": "androidx.swiperefreshlayout.widget.CircleImageView",
+          "visible": true,
+          "local_frame": [580, 228, 700, 348],
+          "window_frame": [580, 228, 700, 348]
+        }
+      ],
+      "refresh_roots": [
+        {
+          "class": "com.facebook.react.views.swiperefresh.ReactSwipeRefreshLayout",
+          "visible": true,
+          "local_frame": [0, 0, 1280, 2856],
+          "window_frame": [0, 0, 1280, 2856]
+        }
+      ]
+    }
+  ],
+  "detail": [
+    {
+      "circles": [
+        {
+          "class": "androidx.swiperefreshlayout.widget.CircleImageView",
+          "visible": true,
+          "local_frame": [580, 266, 700, 386],
+          "window_frame": [580, 266, 700, 386]
+        }
+      ],
+      "refresh_roots": [
+        {
+          "class": "com.facebook.react.views.swiperefresh.ReactSwipeRefreshLayout",
+          "visible": true,
+          "local_frame": [0, 0, 1280, 2856],
+          "window_frame": [0, 0, 1280, 2856]
+        }
+      ]
+    },
+    {
+      "circles": [
+        {
+          "class": "androidx.swiperefreshlayout.widget.CircleImageView",
+          "visible": true,
+          "local_frame": [580, 228, 700, 348],
+          "window_frame": [580, 228, 700, 348]
+        }
+      ],
+      "refresh_roots": [
+        {
+          "class": "com.facebook.react.views.swiperefresh.ReactSwipeRefreshLayout",
+          "visible": true,
+          "local_frame": [0, 0, 1280, 2856],
+          "window_frame": [0, 0, 1280, 2856]
+        }
+      ]
+    },
+    {
+      "circles": [
+        {
+          "class": "androidx.swiperefreshlayout.widget.CircleImageView",
+          "visible": false,
+          "local_frame": [580, 36, 700, 156],
+          "window_frame": [580, 36, 700, 156]
+        }
+      ],
+      "refresh_roots": [
+        {
+          "class": "com.facebook.react.views.swiperefresh.ReactSwipeRefreshLayout",
+          "visible": true,
+          "local_frame": [0, 0, 1280, 2856],
+          "window_frame": [0, 0, 1280, 2856]
+        }
+      ]
+    }
+  ],
+  "favorites": [
+    {
+      "circles": [
+        {
+          "class": "androidx.swiperefreshlayout.widget.CircleImageView",
+          "visible": true,
+          "local_frame": [580, 110, 700, 230],
+          "window_frame": [580, 434, 700, 554]
+        }
+      ],
+      "refresh_roots": [
+        {
+          "class": "com.facebook.react.views.swiperefresh.ReactSwipeRefreshLayout",
+          "visible": true,
+          "local_frame": [0, 0, 1280, 2532],
+          "window_frame": [0, 324, 1280, 2856]
+        }
+      ]
+    },
+    {
+      "circles": [
+        {
+          "class": "androidx.swiperefreshlayout.widget.CircleImageView",
+          "visible": true,
+          "local_frame": [580, 72, 700, 192],
+          "window_frame": [580, 396, 700, 516]
+        }
+      ],
+      "refresh_roots": [
+        {
+          "class": "com.facebook.react.views.swiperefresh.ReactSwipeRefreshLayout",
+          "visible": true,
+          "local_frame": [0, 0, 1280, 2532],
+          "window_frame": [0, 324, 1280, 2856]
+        }
+      ]
+    },
+    {
+      "circles": [
+        {
+          "class": "androidx.swiperefreshlayout.widget.CircleImageView",
+          "visible": false,
+          "local_frame": [580, -120, 700, 0],
+          "window_frame": [580, 204, 700, 324]
+        }
+      ],
+      "refresh_roots": [
+        {
+          "class": "com.facebook.react.views.swiperefresh.ReactSwipeRefreshLayout",
+          "visible": true,
+          "local_frame": [0, 0, 1280, 2532],
+          "window_frame": [0, 324, 1280, 2856]
+        }
+      ]
+    }
+  ],
+  "verified_settled_positions": {
+    "home_top_px": 228,
+    "detail_top_px": 228,
+    "favorites_top_px": 396,
+    "favorites_local_top_unchanged_px": 72,
+    "safe_area_bottom_px": 156
+  }
+}
