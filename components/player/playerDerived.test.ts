@@ -7,11 +7,79 @@ import {
   deriveEpisodeNavigation,
   deriveExternalAudio,
   deriveExternalSubtitles,
+  deriveMpvTracks,
   deriveTracks,
   formatPlayerTitle,
 } from './playerDerived';
 
 describe('player derived state', () => {
+  it('names direct-play tracks from the server while retaining mpv ids, including duplicate languages', () => {
+    expect(
+      deriveMpvTracks(
+        [
+          { type: 'audio', id: 1, title: 'File title', lang: 'jpn' },
+          { type: 'audio', id: 2, title: 'Another file title', lang: 'jpn' },
+          { type: 'sub', id: 1, title: 'File subtitle', lang: 'chi' },
+        ],
+        [
+          { Type: 'Video', Index: 0, DisplayTitle: '1080p' },
+          { Type: 'Audio', Index: 2, DisplayTitle: '日语 - AAC - 2.0', Language: 'jpn' },
+          { Type: 'Audio', Index: 4, DisplayTitle: '日语 - 评论音轨', Language: 'jpn' },
+          { Type: 'Subtitle', Index: 8, DisplayTitle: '简体中文 - ASS', Language: 'chi' },
+        ],
+      ),
+    ).toEqual({
+      audio: [
+        { index: 1, name: '日语 - AAC - 2.0', language: 'jpn' },
+        { index: 2, name: '日语 - 评论音轨', language: 'jpn' },
+      ],
+      subtitle: [{ index: 1, name: '简体中文 - ASS', language: 'chi' }],
+    });
+  });
+
+  it('maps external track names by their loaded ids rather than load order', () => {
+    const result = deriveMpvTracks(
+      [
+        { type: 'sub', id: 7, isExternal: true },
+        { type: 'sub', id: 3, isExternal: true },
+        { type: 'audio', id: 5, isExternal: true },
+      ],
+      [
+        { Type: 'Subtitle', Index: 8, DisplayTitle: '简体中文', IsExternal: true },
+        { Type: 'Subtitle', Index: 9, DisplayTitle: '繁體中文', IsExternal: true },
+        { Type: 'Audio', Index: 4, DisplayTitle: '评论音轨', DeliveryMethod: 'External' },
+      ],
+      {
+        subtitleIds: new Map([
+          [8, 3],
+          [9, 7],
+        ]),
+        audioIds: new Map([[4, 5]]),
+      },
+    );
+    expect(result.subtitle.map(({ index, name }) => ({ index, name }))).toEqual([
+      { index: 7, name: '繁體中文' },
+      { index: 3, name: '简体中文' },
+    ]);
+    expect(result.audio[0]).toMatchObject({ index: 5, name: '评论音轨' });
+  });
+
+  it('falls back to file metadata and does not assign original stream names to transcoded tracks', () => {
+    const native = [{ type: 'audio', id: 1, title: 'File title', lang: 'eng' }];
+    const streams = [{ Type: 'Audio', Index: 3, DisplayTitle: '  ' }];
+    expect(deriveMpvTracks(native, streams).audio[0].name).toBe('File title [eng]');
+    expect(
+      deriveMpvTracks(native, [{ ...streams[0], DisplayTitle: 'Other audio' }], {
+        isTranscoding: true,
+      }).audio[0].name,
+    ).toBe('File title [eng]');
+    expect(deriveMpvTracks([{ type: 'sub', id: 2 }]).subtitle[0].name).toBe('字幕 2');
+    expect(
+      deriveTracks([{ Type: 'Audio', Index: 0, DisplayTitle: ' ', Title: 'Commentary' }]).audio[0]
+        .name,
+    ).toBe('Commentary');
+  });
+
   it('derives audio and subtitle tracks from media streams', () => {
     expect(
       deriveTracks([

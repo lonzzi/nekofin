@@ -5,6 +5,8 @@ import {
   needsPlaybackPreferenceTracks,
   parsePlaybackSelection,
   playbackSelectionParams,
+  playbackSourceLabel,
+  playbackTrackLabel,
   resolvePlaybackSelection,
   resolvePreferredPlaybackTracks,
 } from './playbackSelection';
@@ -23,6 +25,45 @@ const source = mapMediaSource({
   ],
 });
 const auto = { audioLanguage: 'auto', subtitleLanguage: 'auto', subtitlesEnabled: true };
+
+describe('server playback labels', () => {
+  it('prefers DisplayTitle verbatim without appending duplicate language or external labels', () => {
+    expect(
+      playbackTrackLabel({
+        ...source.mediaStreams[3],
+        title: 'Embedded title',
+        displayTitle: '  简体中文 - ASS - 外挂  ',
+      }),
+    ).toBe('简体中文 - ASS - 外挂');
+  });
+
+  it('falls back through embedded title, language and track index when the server name is missing', () => {
+    const stream = { ...source.mediaStreams[0], codec: 'aac', displayTitle: '  ' };
+    expect(playbackTrackLabel({ ...stream, title: '评论音轨' })).toBe('评论音轨 · 英语');
+    expect(playbackTrackLabel(stream)).toBe('英语 · AAC');
+    expect(playbackTrackLabel({ ...stream, language: null })).toBe('音轨 0 · AAC');
+    expect(playbackTrackLabel({ ...source.mediaStreams[3], displayTitle: '' })).toBe('中文 · 外挂');
+  });
+
+  it('uses video DisplayTitle before a generated version name', () => {
+    const video = {
+      ...source,
+      name: ' ',
+      mediaStreams: [
+        {
+          type: 'Video' as const,
+          index: 0,
+          codec: 'hevc',
+          displayTitle: '4K HEVC HDR',
+        },
+      ],
+    };
+    expect(playbackSourceLabel(video, 0)).toBe('4K HEVC HDR');
+    expect(playbackSourceLabel({ ...video, name: '服务器版本名' }, 0)).toBe('服务器版本名');
+    expect(playbackSourceLabel({ ...source, container: 'mkv' }, 1)).toBe('MKV · 版本 2');
+    expect(playbackSourceLabel({ ...source, container: '' }, 0)).toBe('版本 1');
+  });
+});
 
 describe('playback language preferences without detail-page parameters', () => {
   const preferences = { ...auto, audioLanguage: 'ja', subtitleLanguage: 'zh' };

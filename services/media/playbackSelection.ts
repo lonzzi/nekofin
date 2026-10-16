@@ -1,11 +1,13 @@
 import { preferredTrackId } from '@/lib/playbackPreferences';
 
+import { parsePlaybackQuality, type PlaybackQuality } from './playbackQuality';
 import type { MediaSource, MediaStream } from './types';
 
 export type PlaybackSelection = {
   mediaSourceId?: string;
   audioStreamIndex?: number;
   subtitleStreamIndex?: number;
+  quality?: PlaybackQuality;
 };
 
 export type PlaybackPreferences = {
@@ -68,12 +70,14 @@ export function parsePlaybackSelection(params: {
   mediaSourceId?: RouteValue;
   audioStreamIndex?: RouteValue;
   subtitleStreamIndex?: RouteValue;
+  quality?: RouteValue;
 }): PlaybackSelection {
   const parseIndex = (value: RouteValue, minimum: number) => {
     if (typeof value !== 'string' || !/^-?\d+$/.test(value)) return undefined;
     const index = Number(value);
     return Number.isSafeInteger(index) && index >= minimum ? index : undefined;
   };
+  const quality = parsePlaybackQuality(params.quality);
   return {
     mediaSourceId:
       typeof params.mediaSourceId === 'string' && params.mediaSourceId
@@ -81,6 +85,7 @@ export function parsePlaybackSelection(params: {
         : undefined,
     audioStreamIndex: parseIndex(params.audioStreamIndex, 0),
     subtitleStreamIndex: parseIndex(params.subtitleStreamIndex, -1),
+    ...(quality ? { quality } : {}),
   };
 }
 
@@ -91,6 +96,7 @@ export function playbackSelectionParams(selection?: PlaybackSelection): Record<s
     params.audioStreamIndex = String(selection.audioStreamIndex);
   if (selection?.subtitleStreamIndex != null)
     params.subtitleStreamIndex = String(selection.subtitleStreamIndex);
+  if (selection?.quality) params.quality = selection.quality;
   return params;
 }
 
@@ -114,6 +120,7 @@ export function resolvePlaybackSelection(
     );
   return {
     mediaSourceId: source.id,
+    ...(choice.quality ? { quality: choice.quality } : {}),
     audioStreamIndex:
       valid(audio, scoped.audioStreamIndex) ??
       preferred(audio, preferences.audioLanguage) ??
@@ -136,6 +143,9 @@ export function resolvePlaybackSelection(
 }
 
 export function playbackTrackLabel(stream: MediaStream) {
+  const serverTitle = stream.displayTitle?.trim();
+  if (serverTitle) return serverTitle;
+
   const languages: Record<string, string> = {
     zh: '中文',
     zho: '中文',
@@ -148,13 +158,23 @@ export function playbackTrackLabel(stream: MediaStream) {
     ko: '韩语',
     kor: '韩语',
   };
-  const language = stream.language
-    ? (languages[stream.language.toLowerCase()] ?? stream.language)
+  const languageCode = stream.language?.trim();
+  const language = languageCode
+    ? (languages[languageCode.toLowerCase()] ?? languageCode)
     : undefined;
-  const label = stream.title
-    ? `${stream.title}${language ? ` · ${language}` : ''}`
+  const title = stream.title?.trim();
+  const label = title
+    ? `${title}${language ? ` · ${language}` : ''}`
     : language
       ? `${language}${stream.codec ? ` · ${stream.codec.toUpperCase()}` : ''}`
-      : stream.displayTitle || `轨道 ${stream.index}`;
+      : `${stream.type === 'Audio' ? '音轨' : '字幕'} ${stream.index}${stream.codec ? ` · ${stream.codec.toUpperCase()}` : ''}`;
   return `${label}${stream.isExternal ? ' · 外挂' : ''}`;
+}
+
+export function playbackSourceLabel(source: MediaSource, index: number) {
+  return (
+    source.name?.trim() ||
+    source.mediaStreams.find((stream) => stream.type === 'Video')?.displayTitle?.trim() ||
+    `${source.container ? `${source.container.toUpperCase()} · ` : ''}版本 ${index + 1}`
+  );
 }
