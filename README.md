@@ -72,8 +72,10 @@ React Native · Expo · Expo Router · MPV · TypeScript
 
 ## 下载
 
-- **Nightly**：[GitHub Nightly Releases](https://github.com/lonzzi/nekofin/releases/tag/nightly)
-- **Stable**：即将推出
+- **Stable**：[最新正式版](https://github.com/lonzzi/nekofin/releases/latest)
+- **Pre-release**：[版本列表](https://github.com/lonzzi/nekofin/releases)中标记为 Pre-release 的版本
+
+版本 tag 触发构建并自动发布 APK、未签名 IPA 和校验文件，详见[发布流程](docs/releasing.md)。
 
 ## 致谢
 

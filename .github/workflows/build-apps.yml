@@ -1,9 +1,6 @@
 name: Build Apps
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       platform:
@@ -34,6 +31,11 @@ on:
           - development
   workflow_call:
     inputs:
+      ref:
+        description: 'Exact commit to build'
+        required: false
+        default: ''
+        type: string
       platform:
         required: false
         default: 'both'
@@ -51,11 +53,14 @@ on:
         default: ''
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   build-android:
     name: Build Android
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'push' || inputs.platform == 'android' || inputs.platform == 'both' }}
+    if: ${{ inputs.platform == 'android' || inputs.platform == 'both' }}
     env:
       EXPO_PUBLIC_DANDANPLAY_API_URL: ${{ secrets.EXPO_PUBLIC_DANDANPLAY_API_URL }}
       ANDROID_NDK_VERSION: 27.1.12297006
@@ -63,6 +68,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Free Android runner disk space
         run: |
@@ -134,7 +141,7 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Run smoke tests
         run: bun run test:smoke
@@ -154,25 +161,32 @@ jobs:
             ${{ runner.os }}-eas-android-
 
       - name: Build Android
-        run: eas build --local --platform android --profile ${{ inputs.android_profile || 'production' }} --non-interactive
+        env:
+          BUILD_PROFILE: ${{ inputs.android_profile || 'production' }}
+        run: eas build --local --platform android --profile "$BUILD_PROFILE" --output build-android.apk --non-interactive
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-release-${{ github.ref_name }}${{ inputs.build_suffix }}
-          path: build-*.apk
+          name: android-${{ inputs.android_profile || 'production' }}${{ inputs.build_suffix }}
+          path: build-android.apk
+          if-no-files-found: error
 
   build-ios:
     name: Build iOS
     runs-on: macos-26
-    if: ${{ github.event_name == 'push' || inputs.platform == 'ios' || inputs.platform == 'both' }}
+    if: ${{ inputs.platform == 'ios' || inputs.platform == 'both' }}
     env:
       EXPO_PUBLIC_DANDANPLAY_API_URL: ${{ secrets.EXPO_PUBLIC_DANDANPLAY_API_URL }}
-      APP_VARIANT: ${{ (github.event_name == 'workflow_dispatch' && inputs.ios_build_type == 'development') && 'development' || 'production' }}
+      APP_VARIANT: ${{ inputs.ios_build_type == 'development' && 'development' || 'production' }}
+      BUILD_CONFIGURATION: ${{ inputs.ios_build_type == 'development' && 'Debug' || 'Release' }}
+      IPA_NAME: nekofin-ios${{ inputs.ios_build_type == 'development' && '-dev' || '' }}${{ inputs.build_suffix }}.ipa
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -200,7 +214,7 @@ jobs:
             ${{ runner.os }}-bun-
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Run smoke tests
         run: bun run test:smoke
@@ -215,7 +229,7 @@ jobs:
         run: |
           xcodebuild -workspace ios/nekofin.xcworkspace \
             -scheme nekofin \
-            -configuration ${{ (github.event_name == 'workflow_dispatch' && inputs.ios_build_type == 'development') && 'Debug' || 'Release' }} \
+            -configuration "$BUILD_CONFIGURATION" \
             -destination 'generic/platform=iOS' \
             -archivePath build/nekofin.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
@@ -226,10 +240,11 @@ jobs:
         run: |
           mkdir Payload
           cp -r build/nekofin.xcarchive/Products/Applications/nekofin.app Payload
-          zip -r nekofin-iOS_${{ github.ref_name }}${{ (github.event_name == 'workflow_dispatch' && inputs.ios_build_type == 'development') && '-dev' || '' }}${{ inputs.build_suffix }}.ipa Payload
+          zip -r "$IPA_NAME" Payload
 
       - name: Upload App Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-${{ (github.event_name == 'workflow_dispatch' && inputs.ios_build_type == 'development') && 'development' || 'release' }}-${{ github.ref_name }}${{ inputs.build_suffix }}
-          path: nekofin-iOS_${{ github.ref_name }}${{ (github.event_name == 'workflow_dispatch' && inputs.ios_build_type == 'development') && '-dev' || '' }}${{ inputs.build_suffix }}.ipa
+          name: ios-${{ inputs.ios_build_type || 'release' }}${{ inputs.build_suffix }}
+          path: ${{ env.IPA_NAME }}
+          if-no-files-found: error
