@@ -9,7 +9,16 @@ import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, TextLayoutEvent, View } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextLayoutEvent,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { ThemedText } from '../ThemedText';
@@ -43,9 +52,11 @@ function compactList(values?: (string | null | undefined)[] | null, limit = 4) {
 export const PlayButton = ({
   item,
   selection,
+  containerStyle,
 }: {
   item: MediaItem;
   selection?: PlaybackSelection;
+  containerStyle?: StyleProp<ViewStyle>;
 }) => {
   const router = useTracedRouter('detail-play');
   const theme = useAppTheme();
@@ -83,7 +94,7 @@ export const PlayButton = ({
   return (
     <ShadowedGlassCard
       radius={radius.pill}
-      containerStyle={detailViewStyles.playButtonShadow}
+      containerStyle={[detailViewStyles.playButtonShadow, containerStyle]}
       style={[
         detailViewStyles.playButton,
         useLiquidGlass ? { backgroundColor: 'transparent' } : { backgroundColor: accentColor },

@@ -1,0 +1,9 @@
+{
+  "rapid_taps_final": ["设置"],
+  "cancel_drag_final": ["设置"],
+  "long_press_other_tab_then_drag": ["收藏"],
+  "animations_disabled_final": ["设置"],
+  "animator_duration_scale": "1.0",
+  "attached_tab_screens": 1,
+  "native_horizontal_page_animation": "Verified frame by frame in route-motion-v2.mp4, enter/back and both tab directions"
+}

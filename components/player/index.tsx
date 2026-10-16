@@ -12,6 +12,7 @@ import { storage } from '@/lib/storage';
 import { formatBitrate, getDeviceId, ticksToMilliseconds, ticksToSeconds } from '@/lib/utils';
 import { resolveDanmakuSelection, type DanmakuCommentsData } from '@/services/danmaku';
 import { danmakuSourcesKey } from '@/services/danmakuSources';
+import { applyPlaybackQuality } from '@/services/media/playbackQuality';
 import type { PlaybackSelection } from '@/services/media/playbackSelection';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import {
@@ -19,7 +20,6 @@ import {
   type ExpoMpvViewRef,
   type HdrStateChangeEvent,
   type PlaybackState,
-  type TrackInfo,
 } from 'expo-mpv';
 import {
   useCallback,
@@ -37,6 +37,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import { usePlaybackSync } from '../../hooks/usePlaybackSync';
 import { Controls } from './Controls';
 import { DanmakuLayer, DanmakuLayerRef } from './DanmakuLayer';
+import { createExternalSubtitleCache } from './externalSubtitleCache';
 import {
   acknowledgePlaybackSeek,
   createPlaybackSeekGateState,
@@ -55,6 +56,7 @@ import {
   deriveEpisodeNavigation,
   deriveExternalAudio,
   deriveExternalSubtitles,
+  deriveMpvTracks,
   deriveTracks,
   formatPlayerTitle,
 } from './playerDerived';
@@ -64,19 +66,6 @@ import { isExternalTrackCommandError, loadExternalPlayerTrack } from './playerTr
 import { usePlayerQueries } from './usePlayerQueries';
 
 type BufferInfo = { percent: number; rate: number };
-
-function toMpvTrackEntry(track: TrackInfo) {
-  const parts = [
-    track.title,
-    track.lang ? `[${track.lang}]` : '',
-    track.isExternal ? '(ext)' : '',
-  ].filter(Boolean);
-  return {
-    index: track.id,
-    name: parts.join(' ') || `Track ${track.id}`,
-    language: track.lang || undefined,
-  };
-}
 
 const LoadingIndicator = ({
   title,
@@ -165,6 +154,7 @@ export const VideoPlayer = ({
     requests: Map<string, Promise<number | undefined>>;
     subtitleIds: Map<number, number>;
     audioIds: Map<number, number>;
+    subtitleCache: ReturnType<typeof createExternalSubtitleCache>;
   } | null>(null);
   const [versionChoice, setVersionChoice] = useState<{ itemId: string; id: string } | null>(null);
   const selectedMediaSourceId =
@@ -195,7 +185,7 @@ export const VideoPlayer = ({
 
   // Playback settings only change on a settings round-trip (which remounts this
   // screen), so read them once instead of on every render of the player.
-  const { enableTranscoding, enableSubtitleBurnIn, maxBitrate, selectedCodec } = useMemo(
+  const playbackDefaults = useMemo(
     () => ({
       enableTranscoding: storage.getBoolean('enableTranscoding') ?? false,
       enableSubtitleBurnIn: storage.getBoolean('enableSubtitleBurnIn') ?? false,
@@ -203,6 +193,10 @@ export const VideoPlayer = ({
       selectedCodec: storage.getString('selectedCodec') ?? 'h264',
     }),
     [],
+  );
+  const { enableTranscoding, enableSubtitleBurnIn, maxBitrate, selectedCodec } = useMemo(
+    () => applyPlaybackQuality(initialSelection?.quality, playbackDefaults),
+    [initialSelection?.quality, playbackDefaults],
   );
 
   const player = useRef<ExpoMpvViewRef>(null);
@@ -460,27 +454,31 @@ export const VideoPlayer = ({
           return;
         }
 
-        if (list) {
-          setMpvTracks({
-            audio: list.filter((t) => t.type === 'audio').map(toMpvTrackEntry),
-            subtitle: list.filter((t) => t.type === 'sub').map(toMpvTrackEntry),
-          });
-        }
+        const source = streamInfo?.mediaSource;
+        const externalLoads = externalTrackLoads.current;
+        const activeExternalLoads =
+          externalLoads?.source === targetSource && externalLoads.player === targetPlayer
+            ? externalLoads
+            : null;
+        const namedTracks = list
+          ? deriveMpvTracks(list, source?.MediaStreams ?? [], {
+              isTranscoding: !!source?.TranscodingUrl,
+              audioIds: activeExternalLoads?.audioIds,
+              subtitleIds: activeExternalLoads?.subtitleIds,
+            })
+          : undefined;
+        if (namedTracks) setMpvTracks(namedTracks);
         if (list && ids) {
           const { audioLanguage, subtitleLanguage, subtitlesEnabled } = preferences;
-          const source = streamInfo?.mediaSource;
           const rememberedId = (type: 'audio' | 'subtitle') => {
             const choice = rememberedTrackChoice.current[type];
             if (choice === 'off') return -1;
             if (!choice) return undefined;
-            const nativeType = type === 'audio' ? 'audio' : 'sub';
             return (
-              list.find(
-                (entry) => entry.type === nativeType && toMpvTrackEntry(entry).name === choice.name,
-              )?.id ??
+              namedTracks?.[type].find((entry) => entry.name === choice.name)?.index ??
               (choice.language
                 ? preferredTrackId(
-                    list.filter((entry) => entry.type === nativeType),
+                    list.filter((entry) => entry.type === (type === 'audio' ? 'audio' : 'sub')),
                     choice.language,
                   )
                 : undefined)
@@ -645,6 +643,14 @@ export const VideoPlayer = ({
     })();
   }, [isPlaying]);
 
+  useEffect(
+    () => () => {
+      externalTrackLoads.current?.subtitleCache.dispose();
+      externalTrackLoads.current = null;
+    },
+    [playbackContext],
+  );
+
   // Serialize external loads and cache their in-flight requests per native player.
   // React effect restarts must not add the same subtitle twice or steal selection.
   useEffect(() => {
@@ -657,12 +663,14 @@ export const VideoPlayer = ({
       externalTrackLoads.current?.player !== targetPlayer ||
       externalTrackLoads.current.source !== targetSource
     ) {
+      externalTrackLoads.current?.subtitleCache.dispose();
       externalTrackLoads.current = {
         player: targetPlayer,
         source: targetSource,
         requests: new Map(),
         subtitleIds: new Map(),
         audioIds: new Map(),
+        subtitleCache: createExternalSubtitleCache(),
       };
     }
     const loads = externalTrackLoads.current;
@@ -686,7 +694,12 @@ export const VideoPlayer = ({
         const key = `${type}:${track.index}:${track.url}`;
         let request = loads.requests.get(key);
         if (!request) {
-          request = loadExternalPlayerTrack(targetPlayer, type, track, isActive);
+          request = (async () => {
+            const prepared =
+              type === 'sub' ? await loads.subtitleCache.prepare(track, isActive) : track;
+            if (!prepared || !isActive()) return;
+            return loadExternalPlayerTrack(targetPlayer, type, prepared, isActive);
+          })();
           loads.requests.set(key, request);
         }
         try {

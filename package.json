@@ -46,6 +46,7 @@
     "expo-crypto": "~57.0.4",
     "expo-dev-client": "~57.0.20",
     "expo-device": "~57.0.2",
+    "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
     "expo-glass-effect": "~57.0.4",
     "expo-haptics": "~57.0.3",
@@ -53,7 +54,7 @@
     "expo-keep-awake": "~57.0.2",
     "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.12",
-    "expo-mpv": "0.1.13",
+    "expo-mpv": "0.1.14",
     "expo-navigation-bar": "~57.0.3",
     "expo-network": "~57.0.2",
     "expo-router": "~57.0.26",
@@ -118,6 +119,13 @@
       "reactNativeDirectoryCheck": {
         "listUnknownPackages": false
       }
+    },
+    "autolinking": {
+      "android": {
+        "buildFromSource": [
+          "expo-ui"
+        ]
+      }
     }
   },
   "reanimated": {
@@ -129,6 +137,7 @@
     "react-native-ios-utilities@5.2.0": "patches/react-native-ios-utilities@5.2.0.patch",
     "expo-linear-gradient@57.0.2": "patches/expo-linear-gradient@57.0.2.patch",
     "react-native-ios-context-menu@3.2.1": "patches/react-native-ios-context-menu@3.2.1.patch",
-    "react-native-screens@4.26.2": "patches/react-native-screens@4.26.2.patch"
+    "react-native-screens@4.26.2": "patches/react-native-screens@4.26.2.patch",
+    "@expo/ui@57.0.23": "patches/@expo-ui@57.0.23.patch"
   }
 }

@@ -1,0 +1,82 @@
+diff --git a/android/src/main/java/expo/modules/ui/ModalBottomSheetView.kt b/android/src/main/java/expo/modules/ui/ModalBottomSheetView.kt
+--- a/android/src/main/java/expo/modules/ui/ModalBottomSheetView.kt
++++ b/android/src/main/java/expo/modules/ui/ModalBottomSheetView.kt
+@@ -17,9 +17,15 @@
+ import androidx.compose.runtime.Composable
+ import androidx.compose.runtime.DisposableEffect
+ import androidx.compose.runtime.LaunchedEffect
++import androidx.compose.runtime.remember
+ import androidx.compose.runtime.rememberCoroutineScope
+ import androidx.compose.ui.platform.LocalView
+ import androidx.compose.ui.window.DialogWindowProvider
++import androidx.core.view.ViewCompat
++import androidx.core.view.WindowCompat
++import androidx.core.view.WindowInsetsCompat
++import androidx.core.view.WindowInsetsControllerCompat
++import com.facebook.react.bridge.ReactContext
+ import expo.modules.kotlin.records.Field
+ import expo.modules.kotlin.records.Record
+ import expo.modules.kotlin.types.OptimizedRecord
+@@ -90,6 +96,39 @@
+   }
+ }
+
++/** Keep a Compose dialog in the activity's system-bar mode, like React Native's Modal. */
++@Composable
++private fun SynchronizeSystemBars(
++  reactContext: ReactContext?,
++  activityBars: Pair<Boolean, Boolean>?
++) {
++  val window = (LocalView.current.parent as? DialogWindowProvider)?.window ?: return
++  DisposableEffect(window, reactContext) {
++    reactContext?.onExtraWindowCreate(window)
++    // StatusBarModule can change decor fitting while copying the activity's appearance.
++    // Material's sheet already consumes its own insets; keep the dialog edge-to-edge.
++    WindowCompat.setDecorFitsSystemWindows(window, false)
++    activityBars?.let { (statusVisible, navigationVisible) ->
++      WindowCompat.getInsetsController(window, window.decorView).apply {
++        systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
++        if (statusVisible) {
++          show(WindowInsetsCompat.Type.statusBars())
++        } else {
++          hide(WindowInsetsCompat.Type.statusBars())
++        }
++        if (navigationVisible) {
++          show(WindowInsetsCompat.Type.navigationBars())
++        } else {
++          hide(WindowInsetsCompat.Type.navigationBars())
++        }
++      }
++    }
++    onDispose {
++      reactContext?.onExtraWindowDestroy(window)
++    }
++  }
++}
++
+ @Composable
+ fun FunctionalComposableScope.ModalBottomSheetContent(
+   props: ModalBottomSheetViewProps,
+@@ -98,6 +137,14 @@
+   partialExpand: AsyncFunctionHandle<Unit>,
+   onDismissRequest: () -> Unit
+ ) {
++  // Capture before the dialog is shown: its default bars can otherwise change the activity's insets.
++  val activityWindow = appContext.currentActivity?.window
++  val activityBars = remember(activityWindow) {
++    activityWindow?.decorView?.let { ViewCompat.getRootWindowInsets(it) }?.let {
++      it.isVisible(WindowInsetsCompat.Type.statusBars()) to
++        it.isVisible(WindowInsetsCompat.Type.navigationBars())
++    }
++  }
+   val sheetState = rememberModalBottomSheetState(props.skipPartiallyExpanded)
+   val scope = rememberCoroutineScope()
+
+@@ -161,6 +208,7 @@
+     ),
+     modifier = ModifierRegistry.applyModifiers(props.modifiers, appContext, composableScope, globalEventDispatcher)
+   ) {
++    SynchronizeSystemBars(appContext.reactContext as? ReactContext, activityBars)
+     ForwardKeyEventsToActivity(appContext.currentActivity)
+     Children(UIComposableScope(), filter = { !isSlotView(it) })
+   }

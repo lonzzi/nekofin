@@ -4,6 +4,7 @@ import {
   getImagePreferenceOptions,
   getSeriesCardRoute,
 } from '@/components/media/cardHelpers';
+import { useFloatingTabBarInset } from '@/components/navigation/FloatingTabBarInset';
 import { OuterScreenOptions } from '@/components/outer/OuterPrimitives';
 import { emptyListContentStyle, EmptyListViewport } from '@/components/ui/EmptyListViewport';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -97,6 +98,7 @@ function aggregateSearchQueryOptions({
 }
 
 function AggregateSearchScreen() {
+  const tabBarInset = useFloatingTabBarInset();
   const { servers, setCurrentServer } = useMediaServers();
   const t = useAppTheme();
   const router = useTracedRouter('aggregate-search');
@@ -149,6 +151,7 @@ function AggregateSearchScreen() {
           styles.list,
           isEmpty && styles.emptyList,
           isEmpty && emptyListContentStyle,
+          tabBarInset > 0 && { paddingBottom: tabBarInset },
         ]}
         ListHeaderComponentStyle={isEmpty ? styles.emptyHeader : undefined}
         ListHeaderComponent={

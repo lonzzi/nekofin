@@ -1,3 +1,4 @@
+import { playbackSourceLabel } from '@/services/media/playbackSelection';
 import type { MediaSource } from '@/services/media/types';
 import type { MenuAction } from '@react-native-menu/menu';
 
@@ -134,7 +135,7 @@ export function deriveTrackMenuActions(
               .filter((source) => source.id)
               .map((source, index) => ({
                 id: `${VERSION_PREFIX}${source.id}`,
-                title: source.name || `${source.container.toUpperCase()} · 版本 ${index + 1}`,
+                title: playbackSourceLabel(source, index),
                 state: selectedState(source.id === selectedMediaSourceId),
               })),
           },

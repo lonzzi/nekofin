@@ -2,7 +2,6 @@ import { PlayerEntryVisibilityContext } from '@/components/player/PlayerEntryCon
 import { usePlayerEntryVisibility } from '@/hooks/usePlayerEntryVisibility';
 import { resolveVideoScreenOrientation } from '@/lib/playerOrientation';
 import { storage } from '@/lib/storage';
-import { NavigationBar } from 'expo-navigation-bar';
 import { Stack, type NativeStackNavigationProp } from 'expo-router';
 import {
   useNavigation,
@@ -86,11 +85,6 @@ export default function Layout() {
     });
     return () => cancelAnimationFrame(frame);
   }, [canFinishExit, navigation, pendingExit]);
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    NavigationBar.setHidden(true);
-    return () => NavigationBar.setHidden(false);
-  }, []);
 
   return (
     <>
@@ -104,6 +98,8 @@ export default function Layout() {
               : 'default'
             : 'none',
           animationDuration: Platform.OS === 'android' ? 220 : undefined,
+          statusBarHidden: true,
+          navigationBarHidden: Platform.OS === 'android' ? true : undefined,
           unstable_nativeProps: androidPlayerScreenProps,
         }}
       />
@@ -124,7 +120,8 @@ export default function Layout() {
                     ? 'portrait_up'
                     : resolveVideoScreenOrientation(videoOrientation)
                   : undefined,
-              statusBarHidden: Platform.OS === 'ios' ? true : undefined,
+              statusBarHidden: true,
+              navigationBarHidden: Platform.OS === 'android' ? true : undefined,
               autoHideHomeIndicator: true,
               contentStyle: { backgroundColor: '#000' },
               unstable_nativeProps: androidPlayerScreenProps,

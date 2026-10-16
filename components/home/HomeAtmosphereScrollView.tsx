@@ -1,4 +1,5 @@
 import { HomeAtmosphereBackdrop } from '@/components/home/HomeAtmosphereBackdrop';
+import { useFloatingTabBarInset } from '@/components/navigation/FloatingTabBarInset';
 import ParallaxScrollView, {
   ParallaxHeaderFadeMask,
   resolveParallaxHeaderOverscrollExtent,
@@ -46,6 +47,7 @@ export function HomeAtmosphereScrollView({
   onLayout,
 }: HomeAtmosphereScrollViewProps) {
   const insets = useSafeAreaInsets();
+  const tabBarInset = useFloatingTabBarInset();
   const headerOverscrollExtent = resolveParallaxHeaderOverscrollExtent(insets.top);
   const headerFadeGradient = useMemo(() => {
     if (headerFadeMode !== 'overlay') return null;
@@ -88,7 +90,8 @@ export function HomeAtmosphereScrollView({
   const scroller = (
     <ParallaxScrollView
       contentContainerStyle={{
-        paddingBottom: insets.bottom + (Platform.OS === 'android' ? 80 : 0),
+        paddingBottom:
+          Platform.OS === 'android' ? tabBarInset || insets.bottom + 80 : insets.bottom,
       }}
       showsVerticalScrollIndicator={false}
       style={styles.scroller}

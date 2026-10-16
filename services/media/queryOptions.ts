@@ -488,6 +488,17 @@ export function episodesBySeasonQueryOptions({
   });
 }
 
+/** Refresh resume position before allocating a new playback session. */
+export function playbackItemDetailQueryOptions(
+  params: Parameters<typeof itemDetailQueryOptions>[0],
+) {
+  return {
+    ...itemDetailQueryOptions(params),
+    staleTime: 0,
+    refetchOnMount: 'always' as const,
+  };
+}
+
 export function mediaSourcesQueryOptions({
   adapter,
   currentServer,

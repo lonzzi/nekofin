@@ -5,12 +5,69 @@ type RawMediaStream = {
   Type?: string | null;
   Index?: number | null;
   DisplayTitle?: string | null;
+  Title?: string | null;
   Language?: string | null;
   DeliveryMethod?: string | null;
   DeliveryUrl?: string | null;
   IsExternal?: boolean | null;
   Codec?: string | null;
 };
+
+type NativeMediaTrack = {
+  id: number;
+  type: string;
+  title?: string;
+  lang?: string;
+  isExternal?: boolean;
+};
+
+/** Keep mpv aid/sid values while displaying the server's names when available. */
+export function deriveMpvTracks(
+  tracks: NativeMediaTrack[],
+  mediaStreams: RawMediaStream[] = [],
+  options: {
+    isTranscoding?: boolean;
+    audioIds?: ReadonlyMap<number, number>;
+    subtitleIds?: ReadonlyMap<number, number>;
+  } = {},
+) {
+  const derive = (type: 'Audio' | 'Subtitle') => {
+    const nativeType = type === 'Audio' ? 'audio' : 'sub';
+    const streams = mediaStreams.filter((stream) => stream.Type === type);
+    const embedded = streams.filter(
+      (stream) => !stream.IsExternal && stream.DeliveryMethod !== 'External',
+    );
+    const externalIds = type === 'Audio' ? options.audioIds : options.subtitleIds;
+    let embeddedIndex = 0;
+    return tracks
+      .filter((track) => track.type === nativeType)
+      .map((track) => {
+        const stream = track.isExternal
+          ? streams.find(
+              (entry) => entry.Index != null && externalIds?.get(entry.Index) === track.id,
+            )
+          : options.isTranscoding
+            ? undefined
+            : embedded[embeddedIndex++];
+        const fallback = [
+          track.title?.trim(),
+          track.lang ? `[${track.lang}]` : '',
+          track.isExternal ? '(ext)' : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
+        return {
+          index: track.id,
+          name:
+            stream?.DisplayTitle?.trim() ||
+            fallback ||
+            `${type === 'Audio' ? '音轨' : '字幕'} ${track.id}`,
+          language: stream?.Language?.trim() || track.lang || undefined,
+        };
+      });
+  };
+  return { audio: derive('Audio'), subtitle: derive('Subtitle') };
+}
 
 type ExternalTrackContext = {
   itemId?: string;
@@ -45,7 +102,8 @@ export function deriveTracks(mediaStreams: RawMediaStream[] = []) {
     .filter((s) => s.Type === 'Audio')
     .map((s) => ({
       index: s.Index ?? 0,
-      name: s.DisplayTitle ?? s.Language ?? `Audio ${s.Index ?? 0}`,
+      name:
+        s.DisplayTitle?.trim() || s.Title?.trim() || s.Language?.trim() || `音轨 ${s.Index ?? 0}`,
       language: s.Language ?? undefined,
     }));
 
@@ -53,7 +111,8 @@ export function deriveTracks(mediaStreams: RawMediaStream[] = []) {
     .filter((s) => s.Type === 'Subtitle')
     .map((s) => ({
       index: s.Index ?? 0,
-      name: s.DisplayTitle ?? s.Language ?? `Subtitle ${s.Index ?? 0}`,
+      name:
+        s.DisplayTitle?.trim() || s.Title?.trim() || s.Language?.trim() || `字幕 ${s.Index ?? 0}`,
       language: s.Language ?? undefined,
     }));
 

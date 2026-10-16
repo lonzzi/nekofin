@@ -75,7 +75,7 @@ type ControlsProps = {
 
 export function Controls({
   autoHideControls = true,
-  initiallyVisible = false,
+  initiallyVisible = true,
   isPlaying,
   isLoading,
   duration,

@@ -2,19 +2,14 @@ import { useCarouselHeaderLayers } from '@/components/home/CarouselHeader';
 import { HomeAtmosphereScrollView } from '@/components/home/HomeAtmosphereScrollView';
 import type { GetMediaItemSource } from '@/components/media/mediaSource';
 import { Section } from '@/components/media/Section';
+import { SafeAreaRefreshControl } from '@/components/ui/SafeAreaRefreshControl';
 import { UserViewSection } from '@/components/user-view/UserViewSection';
 import type { HomeSectionWithStatus } from '@/hooks/useHomeSections';
 import { useAppTheme, useMediaHeroHeight } from '@/lib/theme';
 import type { MediaItem } from '@/services/media/types';
 import { useIsFocused } from 'expo-router/react-navigation';
 import { useCallback, useState } from 'react';
-import {
-  Platform,
-  RefreshControl,
-  useWindowDimensions,
-  View,
-  type LayoutChangeEvent,
-} from 'react-native';
+import { Platform, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
 
 export type MediaHomeSection = HomeSectionWithStatus & { onViewAll?: () => void };
 
@@ -24,6 +19,7 @@ export function MediaHomeContent({
   isCarouselLoading,
   sections,
   getItemSource,
+  showServerSource = true,
   refreshing = false,
   onRefresh,
   notice,
@@ -32,6 +28,7 @@ export function MediaHomeContent({
   isCarouselLoading: boolean;
   sections: MediaHomeSection[];
   getItemSource?: GetMediaItemSource;
+  showServerSource?: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
   notice?: React.ReactNode;
@@ -60,6 +57,7 @@ export function MediaHomeContent({
     isLoading: isCarouselLoading,
     showLogo: true,
     getItemSource,
+    showServerSource,
   });
 
   return (
@@ -76,7 +74,8 @@ export function MediaHomeContent({
       optimizeAtmosphereImageLoading
       refreshControl={
         onRefresh ? (
-          <RefreshControl
+          <SafeAreaRefreshControl
+            underStatusBar
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={theme.colors.tint}
@@ -95,6 +94,7 @@ export function MediaHomeContent({
                 userView={section.items}
                 isLoading={section.isLoading}
                 getItemSource={getItemSource}
+                showServerSource={showServerSource}
               />
             );
           }
@@ -108,6 +108,7 @@ export function MediaHomeContent({
               isLoading={section.isLoading}
               type={section.type === 'latest' ? 'series' : 'episode'}
               getItemSource={getItemSource}
+              showServerSource={showServerSource}
             />
           );
         })}

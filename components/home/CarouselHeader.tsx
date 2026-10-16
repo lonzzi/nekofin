@@ -40,6 +40,7 @@ interface CarouselHeaderProps {
   isLoading?: boolean;
   showLogo?: boolean;
   getItemSource?: GetMediaItemSource;
+  showServerSource?: boolean;
 }
 
 type CarouselImageInfo = {
@@ -355,6 +356,7 @@ export function useCarouselHeaderLayers({
   isLoading = false,
   showLogo = false,
   getItemSource,
+  showServerSource = true,
 }: CarouselHeaderProps) {
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [autoTargetIndex, setAutoTargetIndex] = useState<number | null>(null);
@@ -433,13 +435,13 @@ export function useCarouselHeaderLayers({
           blurhash: atmosphereImageInfo.blurhash ?? imageInfo.blurhash,
           imageUrl: atmosphereImageInfo.url || imageInfo.url,
         },
-        serverName: source?.server.name,
+        serverName: showServerSource ? source?.server.name : undefined,
         imageUrl: imageInfo.url,
         blurhash: imageInfo.blurhash,
         logoImageUrl: logoImageInfo?.url,
       };
     });
-  }, [items, currentAdapter, getItemSource, showLogo]);
+  }, [items, currentAdapter, getItemSource, showLogo, showServerSource]);
 
   const handleCarouselItemPress = useCallback(
     (item: MediaItem) => {

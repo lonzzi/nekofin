@@ -1,0 +1,11 @@
+{
+  "rapidSelections": 13,
+  "selectedAfterward": ["设置"],
+  "attachedTabRootsAfterward": 1,
+  "slideDurationMs": 260,
+  "direction": "tab order, RTL aware",
+  "systemAnimationScale": "null",
+  "systemAnimationsDisabledNavigationPassed": true,
+  "systemAnimationScaleRestored": true,
+  "unselectedTabHeldPixelDifferences": 0
+}
