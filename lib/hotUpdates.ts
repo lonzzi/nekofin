@@ -9,3 +9,15 @@ export async function downloadHotUpdate(api: {
     ? ('pending' as const)
     : ('current' as const);
 }
+
+export async function applyHotUpdate(
+  api: Parameters<typeof downloadHotUpdate>[0] & { reload: () => Promise<void> },
+  options: { isUpdatePending: boolean; onApplying: () => void },
+) {
+  if (!options.isUpdatePending && (await downloadHotUpdate(api)) === 'current') {
+    return 'current' as const;
+  }
+  options.onApplying();
+  await api.reload();
+  return 'applied' as const;
+}

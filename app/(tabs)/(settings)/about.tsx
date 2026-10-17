@@ -69,26 +69,15 @@ export default function AboutScreen() {
             onPress={handleVersionPress}
           />
           <NativeSettingsItem
-            title={<SettingsTitle>检查更新</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary={updateSubtitle} />}
-            onPress={status === 'checking' ? undefined : () => void checkManually()}
-            testID="check-app-update"
-          />
-          <NativeSettingsItem
-            title={<SettingsTitle>检查热更新</SettingsTitle>}
+            title={<SettingsTitle>获取更新</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={hotUpdate.subtitle} />}
             onPress={
-              hotUpdate.available && !hotUpdate.busy ? () => void hotUpdate.check() : undefined
+              hotUpdate.available && !hotUpdate.busy
+                ? () => void hotUpdate.fetchAndApply()
+                : undefined
             }
             testID="check-hot-update"
           />
-          {hotUpdate.resourceVersion ? (
-            <NativeSettingsItem
-              title={<SettingsTitle>资源版本</SettingsTitle>}
-              subtitle={<SettingsSubtitle primary={hotUpdate.resourceVersion} />}
-              testID="hot-update-version"
-            />
-          ) : null}
           <NativeSettingsItem
             title={<SettingsTitle>开源协议</SettingsTitle>}
             subtitle={<SettingsSubtitle primary="MPL-2.0 License" />}
@@ -107,12 +96,27 @@ export default function AboutScreen() {
               />
             ) : null}
             {isUnlocked ? (
-              <NativeSettingsItem
-                title={<SettingsTitle>性能分析</SettingsTitle>}
-                subtitle={<SettingsSubtitle primary="FPS、内存、路由和请求状态" />}
-                disclosure
-                onPress={() => router.push('/performance')}
-              />
+              <>
+                <NativeSettingsItem
+                  title={<SettingsTitle>检查安装包更新</SettingsTitle>}
+                  subtitle={<SettingsSubtitle primary={updateSubtitle} />}
+                  onPress={status === 'checking' ? undefined : () => void checkManually()}
+                  testID="check-app-update"
+                />
+                {hotUpdate.resourceVersion ? (
+                  <NativeSettingsItem
+                    title={<SettingsTitle>资源版本</SettingsTitle>}
+                    subtitle={<SettingsSubtitle primary={hotUpdate.resourceVersion} />}
+                    testID="hot-update-version"
+                  />
+                ) : null}
+                <NativeSettingsItem
+                  title={<SettingsTitle>性能分析</SettingsTitle>}
+                  subtitle={<SettingsSubtitle primary="FPS、内存、路由和请求状态" />}
+                  disclosure
+                  onPress={() => router.push('/performance')}
+                />
+              </>
             ) : null}
           </NativeSettingsSection>
         ) : null}

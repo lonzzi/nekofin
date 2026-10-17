@@ -1,10 +1,10 @@
-import { downloadHotUpdate } from '@/lib/hotUpdates';
+import { applyHotUpdate } from '@/lib/hotUpdates';
 import * as Updates from 'expo-updates';
 import { useEffect, useRef, useState } from 'react';
 
 export function useHotUpdate() {
   const updates = Updates.useUpdates();
-  const [result, setResult] = useState<'idle' | 'checking' | 'pending' | 'current' | 'error'>(
+  const [result, setResult] = useState<'idle' | 'checking' | 'applying' | 'current' | 'error'>(
     'idle',
   );
   const mounted = useRef(true);
@@ -17,33 +17,44 @@ export function useHotUpdate() {
   }, []);
 
   const available = !__DEV__ && Updates.isEnabled;
-  const busy = result === 'checking' || updates.isChecking || updates.isDownloading;
-  const pending = result === 'pending' || updates.isUpdatePending;
+  const busy =
+    result === 'checking' || result === 'applying' || updates.isChecking || updates.isDownloading;
   const subtitle = !available
     ? __DEV__
       ? '开发模式下不可用'
-      : '此安装包暂不支持热更新'
-    : updates.isDownloading
-      ? '正在下载更新…'
-      : busy
-        ? '正在检查热更新…'
-        : pending
-          ? '更新已准备好，下次启动生效'
-          : result === 'current'
-            ? '当前资源已是最新版本'
-            : result === 'error'
-              ? '检查失败，请检查网络后重试'
-              : '后台下载更新，下次启动生效';
+      : '此安装包暂不支持在线更新'
+    : result === 'applying'
+      ? '正在应用更新…'
+      : updates.isDownloading
+        ? '正在下载更新…'
+        : busy
+          ? '正在检查更新…'
+          : result === 'error'
+            ? '更新失败，点按重试'
+            : updates.isUpdatePending
+              ? '更新已准备好，点按立即应用'
+              : result === 'current'
+                ? '当前已是最新版本'
+                : '下载并立即应用可用更新';
 
-  function check() {
+  function fetchAndApply() {
     if (!available || busy || inFlight.current) return inFlight.current ?? Promise.resolve();
     setResult('checking');
-    inFlight.current = downloadHotUpdate({
-      check: Updates.checkForUpdateAsync,
-      fetch: Updates.fetchUpdateAsync,
-    })
+    inFlight.current = applyHotUpdate(
+      {
+        check: Updates.checkForUpdateAsync,
+        fetch: Updates.fetchUpdateAsync,
+        reload: Updates.reloadAsync,
+      },
+      {
+        isUpdatePending: updates.isUpdatePending,
+        onApplying: () => {
+          if (mounted.current) setResult('applying');
+        },
+      },
+    )
       .then((status) => {
-        if (mounted.current) setResult(status);
+        if (mounted.current && status === 'current') setResult('current');
       })
       .catch(() => {
         if (mounted.current) setResult('error');
@@ -58,7 +69,7 @@ export function useHotUpdate() {
     available,
     busy,
     subtitle,
-    check,
+    fetchAndApply,
     resourceVersion: !Updates.isEnabled
       ? null
       : Updates.isEmbeddedLaunch
