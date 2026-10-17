@@ -5,6 +5,7 @@ import { mediaQueryKeys } from './queryKeys';
 import type { MediaAdapter, MediaItem, MediaServerInfo } from './types';
 
 export type DetailArtwork = {
+  title: string;
   header: ImageUrlInfo;
   atmosphere: ImageUrlInfo;
 };
@@ -18,14 +19,14 @@ export function getDetailArtwork(adapter: MediaAdapter, item: MediaItem): Detail
     item.type === 'Episode'
       ? header
       : adapter.getImageInfo({ item, opts: { preferBackdrop, width: 640 } });
-  return { header, atmosphere };
+  return { title: item.name, header, atmosphere };
 }
 
 export function detailArtworkQueryOptions(server: MediaServerInfo | null, itemId: string) {
   return queryOptions({
     queryKey: mediaQueryKeys.detailArtwork(server?.id, server?.userId, itemId),
-    // Navigation hands off artwork only; it must never mark a partial list item
-    // as a fetched detail bundle or prevent the real detail request.
+    // Presentation fields live separately from fetched detail bundles. A list
+    // item must never satisfy or skip the real detail request.
     queryFn: (): DetailArtwork | null => null,
     enabled: false,
     gcTime: 5 * 60 * 1000,

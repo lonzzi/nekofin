@@ -26,9 +26,9 @@ import { Alert, Platform, Share, Text, useWindowDimensions, View } from 'react-n
 
 import { ItemImage } from '../ItemImage';
 import { SafeAreaRefreshControl } from '../ui/SafeAreaRefreshControl';
-import { SkeletonDetailContent, SkeletonDetailHeader } from '../ui/Skeleton';
 import { detailViewStyles } from './common';
 import { getDetailExternalInfo } from './detailExternalLinks';
+import { DetailRequestState } from './DetailRequestState';
 import {
   resolveDetailToolbarState,
   withDetailToolbarOverride,
@@ -59,7 +59,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const [pendingFavoriteItemIds, setPendingFavoriteItemIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
-  const { data: bundle, isLoading, refetch } = query;
+  const { data: bundle, isLoading, isError, refetch } = query;
 
   const window = useWindowDimensions();
   const tablet = Platform.OS === 'ios' && Platform.isPad;
@@ -107,6 +107,16 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const currentServerId = currentServer?.id;
 
   const { refreshing, onRefresh } = useRefresh(refetch, [itemId]);
+  // Android wraps the scroll view in SwipeRefreshLayout. Keep that wrapper
+  // mounted while loading so resolving the query doesn't remount the artwork.
+  const refreshControl = (
+    <SafeAreaRefreshControl
+      underStatusBar
+      enabled={!isLoading && !!item}
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+    />
+  );
 
   const markCurrentServerMediaStale = useCallback(() => {
     if (!currentServerId) return;
@@ -245,12 +255,12 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     imageUrl: artwork?.atmosphere.url || headerImageInfo?.url,
     blurhash: artwork?.atmosphere.blurhash ?? headerImageInfo?.blurhash,
   };
-  const headerMedia = headerImageInfo ? (
+  const headerMedia = (
     <View style={[detailViewStyles.header, { backgroundColor: theme.colors.surfaceMuted }]}>
       <ItemImage
-        uri={headerImageInfo.url}
+        uri={headerImageInfo?.url}
         style={detailViewStyles.headerMedia}
-        placeholderBlurhash={headerImageInfo.blurhash}
+        placeholderBlurhash={headerImageInfo?.blurhash}
         contentFit="cover"
       />
       {!!logoImageUrl && (
@@ -262,31 +272,20 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
         />
       )}
     </View>
-  ) : (
-    <SkeletonDetailHeader />
   );
 
-  if (isLoading || !item) {
-    return (
-      <View style={{ flex: 1 }}>
-        {toolbar}
-        <HomeAtmosphereScrollView
-          onLayout={({ nativeEvent }) => setViewport(nativeEvent.layout)}
-          backgroundColor={backgroundColor}
-          contentStyle={atmosphereContentStyle}
-          headerHeight={headerHeight}
-          headerImage={headerMedia}
-          imageInfo={atmosphereImageInfo}
-          atmosphereImageTransitionDuration={0}
-          isDark={theme.isDark}
-        >
-          <SkeletonDetailContent mode={mode} includeTopPadding={false} />
-        </HomeAtmosphereScrollView>
-      </View>
-    );
-  }
-
   const renderModeContent = () => {
+    if (!item) {
+      return (
+        <DetailRequestState
+          title={previewArtwork?.title}
+          mode={mode}
+          isError={isError}
+          onRetry={() => void refetch()}
+        />
+      );
+    }
+
     const modeComponents = {
       series: (
         <SeriesModeContent
@@ -327,15 +326,13 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
         backgroundColor={backgroundColor}
         contentStyle={atmosphereContentStyle}
         headerHeight={headerHeight}
-        refreshControl={
-          <SafeAreaRefreshControl underStatusBar refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={Platform.OS === 'android' || item ? refreshControl : undefined}
         imageInfo={atmosphereImageInfo}
         atmosphereImageTransitionDuration={0}
         isDark={theme.isDark}
         headerImage={headerMedia}
         headerOverlay={
-          !tablet && logoImageUrl ? (
+          !tablet && item && logoImageUrl ? (
             <ItemImage
               uri={logoImageUrl}
               style={[

@@ -1,21 +1,52 @@
-import { layout, useAppTheme, useMediaHeroHeight } from '@/lib/theme';
-import { useEffect } from 'react';
+import { useAppTheme } from '@/lib/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect, useState } from 'react';
 import {
   Animated,
   DimensionValue,
+  Easing,
   ScrollView,
   StyleProp,
   StyleSheet,
-  useWindowDimensions,
+  Text,
+  TextStyle,
   View,
   ViewStyle,
 } from 'react-native';
 
-import { GlassCard, ShadowedGlassCard } from './GlassCard';
+import { ShadowedGlassCard } from './GlassCard';
 
 const sharedShimmerAnimation = new Animated.Value(0);
 let shimmerLoop: Animated.CompositeAnimation | null = null;
 let shimmerSubscriberCount = 0;
+
+const sharedSweepAnimation = new Animated.Value(0);
+let sweepLoop: Animated.CompositeAnimation | null = null;
+let sweepSubscriberCount = 0;
+
+function subscribeToSharedSweep() {
+  sweepSubscriberCount += 1;
+  if (!sweepLoop) {
+    sharedSweepAnimation.setValue(0);
+    sweepLoop = Animated.loop(
+      Animated.timing(sharedSweepAnimation, {
+        toValue: 1,
+        duration: 1800,
+        easing: Easing.linear,
+        useNativeDriver: true,
+        isInteraction: false,
+      }),
+    );
+    sweepLoop.start();
+  }
+  return () => {
+    sweepSubscriberCount = Math.max(0, sweepSubscriberCount - 1);
+    if (sweepSubscriberCount === 0) {
+      sweepLoop?.stop();
+      sweepLoop = null;
+    }
+  };
+}
 
 function startSharedShimmer() {
   if (shimmerLoop) return;
@@ -27,11 +58,13 @@ function startSharedShimmer() {
         toValue: 1,
         duration: 1000,
         useNativeDriver: true,
+        isInteraction: false,
       }),
       Animated.timing(sharedShimmerAnimation, {
         toValue: 0,
         duration: 1000,
         useNativeDriver: true,
+        isInteraction: false,
       }),
     ]),
   );
@@ -50,9 +83,65 @@ interface SkeletonProps {
   height?: DimensionValue;
   borderRadius?: number;
   style?: StyleProp<ViewStyle>;
+  tone?: 'default' | 'subtle';
 }
 
-export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style }: SkeletonProps) {
+export function Skeleton({ tone = 'default', ...props }: SkeletonProps) {
+  return tone === 'subtle' ? <SubtleSkeleton {...props} /> : <SurfaceSkeleton {...props} />;
+}
+
+// A translucent neutral fill lets the detail artwork show through. Only the
+// broad gradient moves; no layout or backdrop blur is recomputed per frame.
+function SubtleSkeleton({ width = '100%', height = 20, borderRadius = 4, style }: SkeletonProps) {
+  const theme = useAppTheme();
+  const [measuredWidth, setMeasuredWidth] = useState(0);
+  const fill = theme.isDark ? 'rgba(173,185,204,0.13)' : 'rgba(66,75,89,0.14)';
+  const clear = theme.isDark ? 'rgba(207,217,232,0)' : 'rgba(76,88,105,0)';
+  const wave = theme.isDark ? 'rgba(207,217,232,0.13)' : 'rgba(76,88,105,0.15)';
+  const waveWidth = measuredWidth * 0.8;
+
+  useEffect(subscribeToSharedSweep, []);
+
+  return (
+    <View
+      onLayout={({ nativeEvent }) => setMeasuredWidth(nativeEvent.layout.width)}
+      style={[
+        styles.container,
+        { width, height, borderRadius, backgroundColor: fill, borderCurve: 'continuous' },
+        style,
+      ]}
+    >
+      {measuredWidth > 0 ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.sweep,
+            {
+              width: waveWidth,
+              transform: [
+                {
+                  translateX: sharedSweepAnimation.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-waveWidth, measuredWidth],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <LinearGradient
+            colors={[clear, wave, clear]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
+      ) : null}
+    </View>
+  );
+}
+
+function SurfaceSkeleton({ width = '100%', height = 20, borderRadius = 4, style }: SkeletonProps) {
   const theme = useAppTheme();
   const backgroundColor = theme.colors.surfaceMuted;
   const shimmerColor = theme.colors.surfaceElevated;
@@ -92,6 +181,26 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 4, style 
           shimmerStyle,
         ]}
       />
+    </View>
+  );
+}
+
+// Let native text measure the line, including the user's font scale. Callers
+// supply the same typography as their content instead of a second line height.
+export function SkeletonText({
+  width = '100%',
+  textStyle,
+}: {
+  width?: DimensionValue;
+  textStyle?: StyleProp<TextStyle>;
+}) {
+  const theme = useAppTheme();
+  return (
+    <View style={{ width, alignSelf: 'flex-start' }}>
+      <Text style={[textStyle ?? theme.typography.body, { color: 'transparent' }]}> </Text>
+      <View style={[StyleSheet.absoluteFill, { paddingVertical: 3 }]}>
+        <Skeleton tone="subtle" height="100%" borderRadius={theme.radius.xs} />
+      </View>
     </View>
   );
 }
@@ -284,190 +393,6 @@ export function SkeletonItemGrid({
   );
 }
 
-export function SkeletonDetailHeader() {
-  const theme = useAppTheme();
-  const { width: windowWidth } = useWindowDimensions();
-  const headerHeight = useMediaHeroHeight();
-  const logoWidth = Math.min(windowWidth * 0.72, 300);
-
-  return (
-    <View
-      style={[
-        styles.detailHeader,
-        { height: headerHeight, backgroundColor: theme.colors.surfaceMuted },
-      ]}
-    >
-      <Skeleton width="100%" height="100%" borderRadius={0} />
-      <Skeleton
-        width={logoWidth}
-        height={72}
-        borderRadius={theme.radius.sm}
-        style={{
-          position: 'absolute',
-          left: (windowWidth - logoWidth) / 2,
-          bottom: theme.spacing.xxxl,
-        }}
-      />
-    </View>
-  );
-}
-
-export function SkeletonDetailContent({
-  mode = 'series',
-  includeTopPadding = true,
-}: {
-  mode?: 'series' | 'season' | 'movie' | 'episode';
-  includeTopPadding?: boolean;
-}) {
-  const theme = useAppTheme();
-
-  return (
-    <View
-      style={[
-        {
-          paddingHorizontal: theme.spacing.page,
-          paddingTop: includeTopPadding ? theme.spacing.lg : 0,
-          gap: theme.spacing.sm,
-        },
-      ]}
-    >
-      <Skeleton
-        width="80%"
-        height={theme.typography.title2.lineHeight}
-        borderRadius={theme.radius.xs}
-        style={styles.detailTitle}
-      />
-      <Skeleton
-        width="40%"
-        height={theme.typography.footnote.lineHeight}
-        borderRadius={theme.radius.pill}
-        style={styles.detailMeta}
-      />
-
-      <View style={styles.detailOverview}>
-        <Skeleton
-          width="100%"
-          height={theme.typography.footnote.lineHeight}
-          borderRadius={theme.radius.xs}
-        />
-        <Skeleton
-          width="100%"
-          height={theme.typography.footnote.lineHeight}
-          borderRadius={theme.radius.xs}
-        />
-        <Skeleton
-          width="100%"
-          height={theme.typography.footnote.lineHeight}
-          borderRadius={theme.radius.xs}
-        />
-        <Skeleton
-          width="60%"
-          height={theme.typography.footnote.lineHeight}
-          borderRadius={theme.radius.xs}
-        />
-      </View>
-
-      <SkeletonDetailInfoCard />
-
-      {(mode === 'movie' || mode === 'episode') && (
-        <ShadowedGlassCard
-          radius={theme.radius.pill}
-          containerStyle={styles.detailPlayButtonShadow}
-          style={styles.detailPlayButton}
-          surface="material"
-        >
-          <View style={styles.detailPlayButtonContent}>
-            <Skeleton width={26} height={26} borderRadius={theme.radius.pill} />
-            <Skeleton
-              width={112}
-              height={theme.typography.footnote.lineHeight}
-              borderRadius={theme.radius.xs}
-            />
-          </View>
-        </ShadowedGlassCard>
-      )}
-
-      {mode === 'season' && <SkeletonEpisodeList />}
-
-      {mode === 'episode' && (
-        <>
-          <SkeletonHorizontalEpisodes />
-          <SkeletonHorizontalSection />
-          <SkeletonHorizontalSection />
-          <SkeletonHorizontalSection />
-        </>
-      )}
-    </View>
-  );
-}
-
-function SkeletonDetailInfoCard() {
-  const theme = useAppTheme();
-
-  return (
-    <GlassCard radius={theme.radius.lg} style={styles.detailInfo} surface="material">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <View key={index} style={styles.detailInfoRow}>
-          <Skeleton
-            width={48}
-            height={theme.typography.footnote.lineHeight}
-            borderRadius={theme.radius.xs}
-          />
-          <Skeleton
-            width={index % 2 === 0 ? '70%' : '54%'}
-            height={theme.typography.footnote.lineHeight}
-            borderRadius={theme.radius.xs}
-            style={styles.detailInfoValue}
-          />
-        </View>
-      ))}
-    </GlassCard>
-  );
-}
-
-export function SkeletonHorizontalEpisodes() {
-  const theme = useAppTheme();
-  const cardWidth = layout.mediaRail.episodeCardWidth - theme.spacing.xl;
-  const cardHeight = cardWidth / theme.layout.mediaRail.backdropAspectRatio;
-  return (
-    <View style={styles.horizontalSection}>
-      <Skeleton
-        width={120}
-        height={theme.typography.title3.lineHeight}
-        borderRadius={theme.radius.xs}
-        style={styles.sectionTitle}
-      />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.horizontalScrollContent,
-          { gap: theme.spacing.sm, paddingHorizontal: theme.spacing.page },
-        ]}
-        style={{ marginHorizontal: -theme.spacing.page }}
-      >
-        {Array.from({ length: 6 }).map((_, index) => (
-          <View key={index} style={{ width: cardWidth }}>
-            <Skeleton width="100%" height={cardHeight} borderRadius={theme.radius.md} />
-            <Skeleton
-              width="85%"
-              height={theme.typography.footnote.lineHeight}
-              borderRadius={theme.radius.xs}
-              style={styles.gridTitleSkeleton}
-            />
-            <Skeleton
-              width="60%"
-              height={theme.typography.caption.lineHeight}
-              borderRadius={theme.radius.xs}
-              style={styles.gridSubtitleSkeleton}
-            />
-          </View>
-        ))}
-      </ScrollView>
-    </View>
-  );
-}
-
 export function SkeletonHorizontalSection() {
   const theme = useAppTheme();
 
@@ -503,43 +428,6 @@ export function SkeletonHorizontalSection() {
   );
 }
 
-export function SkeletonEpisodeList() {
-  const theme = useAppTheme();
-  const thumbWidth = 140;
-
-  return (
-    <View style={styles.episodeList}>
-      {Array.from({ length: 6 }).map((_, index) => (
-        <View key={index} style={styles.episodeItem}>
-          <Skeleton
-            width={thumbWidth}
-            height={thumbWidth / theme.layout.mediaRail.backdropAspectRatio}
-            borderRadius={theme.radius.md}
-          />
-          <View style={styles.episodeInfo}>
-            <Skeleton
-              width="85%"
-              height={theme.typography.footnote.lineHeight}
-              borderRadius={theme.radius.xs}
-            />
-            <Skeleton
-              width="40%"
-              height={theme.typography.caption.lineHeight}
-              borderRadius={theme.radius.xs}
-            />
-            <Skeleton
-              width="30%"
-              height={theme.typography.caption.lineHeight}
-              borderRadius={theme.radius.xs}
-            />
-          </View>
-          <Skeleton width={24} height={24} borderRadius={theme.radius.pill} />
-        </View>
-      ))}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     overflow: 'hidden',
@@ -551,6 +439,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  sweep: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
   },
   mediaHero: {
     flex: 1,
@@ -630,55 +524,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  detailHeader: {
-    width: '100%',
-  },
-  detailTitle: {
-    marginTop: 8,
-  },
-  detailMeta: {
-    marginTop: 4,
-  },
-  detailOverview: {
-    gap: 4,
-    marginTop: 8,
-  },
-  detailInfo: {
-    marginTop: 6,
-    padding: 12,
-    rowGap: 6,
-  },
-  detailInfoRim: {
-    borderColor: 'rgba(255,255,255,0.64)',
-  },
-  detailInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  detailInfoValue: {
-    flex: 1,
-  },
-  detailPlayButtonShadow: {
-    marginTop: 8,
-    width: '100%',
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 14,
-  },
-  detailPlayButton: {
-    width: '100%',
-  },
-  detailPlayButtonContent: {
-    minHeight: 46,
-    width: '100%',
-    paddingVertical: 9,
-    paddingLeft: 10,
-    paddingRight: 15,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
   horizontalSection: {
     marginTop: 16,
   },
@@ -689,18 +534,5 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 20,
     gap: 8,
-  },
-  episodeList: {
-    marginTop: 16,
-    rowGap: 16,
-  },
-  episodeItem: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-  },
-  episodeInfo: {
-    flex: 1,
-    gap: 4,
   },
 });

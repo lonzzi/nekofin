@@ -19,13 +19,14 @@ const adapter = {
 } as unknown as MediaAdapter;
 
 describe('detail artwork handoff', () => {
-  it('provides artwork synchronously while leaving real detail queries pending', () => {
+  it('provides artwork and title synchronously while leaving real detail queries pending', () => {
     const client = new QueryClient();
     rememberDetailArtwork({ client, server, adapter, item: episode, targetItemId: episode.id });
     const observer = new QueryObserver(client, detailArtworkQueryOptions(server, episode.id));
     const unsubscribe = observer.subscribe(() => {});
     try {
       expect(observer.getCurrentResult().data?.header.url).toBe('episode/still/1000');
+      expect(observer.getCurrentResult().data?.title).toBe('Episode');
       expect(observer.getCurrentResult().fetchStatus).toBe('idle');
       expect(
         client.getQueryData(mediaQueryKeys.detailBundle(server.id, 'episode', episode.id)),

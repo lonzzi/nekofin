@@ -10,7 +10,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -21,8 +20,8 @@ import {
 } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { ThemedText } from '../ThemedText';
 import { GlassCard, ShadowedGlassCard } from '../ui/GlassCard';
+import { InfoCard, InfoCardRows } from '../ui/InfoCard';
 import { OverviewSheet } from './OverviewSheet';
 
 const detailDateFormatter = new Intl.DateTimeFormat('zh-CN', {
@@ -32,8 +31,6 @@ const detailDateFormatter = new Intl.DateTimeFormat('zh-CN', {
 });
 
 const OVERVIEW_COLLAPSED_LINES = 5;
-const OVERVIEW_LINE_HEIGHT = 20;
-const OVERVIEW_RESERVED_HEIGHT = OVERVIEW_COLLAPSED_LINES * OVERVIEW_LINE_HEIGHT;
 
 function formatDetailDate(value?: string | null) {
   if (!value) return '';
@@ -177,10 +174,10 @@ export const ItemMeta = ({ item }: { item: MediaItem }) => {
 
 export const ItemOverview = ({
   item,
-  reserveCollapsedSpace = false,
+  showEmptyPlaceholder = false,
 }: {
   item: MediaItem;
-  reserveCollapsedSpace?: boolean;
+  showEmptyPlaceholder?: boolean;
 }) => {
   const theme = useAppTheme();
   const textColor = theme.colors.text;
@@ -190,7 +187,6 @@ export const ItemOverview = ({
 
   const overview = item?.overview?.trim() ?? '';
   const textLines = measuredOverview.text === overview ? measuredOverview.lines : 0;
-  const reservedTextStyle = reserveCollapsedSpace ? { minHeight: OVERVIEW_RESERVED_HEIGHT } : null;
 
   const handleShowMore = () => {
     setIsOverviewPresented(true);
@@ -204,25 +200,12 @@ export const ItemOverview = ({
   };
 
   if (!overview) {
-    if (!reserveCollapsedSpace) return null;
+    if (!showEmptyPlaceholder) return null;
 
     return (
       <View style={detailViewStyles.overviewContainer}>
-        <Text
-          style={[
-            detailViewStyles.overview,
-            reservedTextStyle,
-            { color: theme.colors.textTertiary },
-          ]}
-          numberOfLines={OVERVIEW_COLLAPSED_LINES}
-        >
+        <Text style={[detailViewStyles.overview, { color: theme.colors.textTertiary }]}>
           暂无简介
-        </Text>
-        <Text
-          accessible={false}
-          style={[detailViewStyles.overview, { color: accentColor, opacity: 0 }]}
-        >
-          查看更多
         </Text>
       </View>
     );
@@ -241,7 +224,7 @@ export const ItemOverview = ({
           {overview}
         </Text>
         <Text
-          style={[detailViewStyles.overview, reservedTextStyle, { color: textColor }]}
+          style={[detailViewStyles.overview, { color: textColor }]}
           numberOfLines={OVERVIEW_COLLAPSED_LINES}
         >
           {overview}
@@ -254,13 +237,6 @@ export const ItemOverview = ({
           >
             <Text style={[detailViewStyles.overview, { color: accentColor }]}>查看更多</Text>
           </Pressable>
-        ) : reserveCollapsedSpace ? (
-          <Text
-            accessible={false}
-            style={[detailViewStyles.overview, { color: accentColor, opacity: 0 }]}
-          >
-            查看更多
-          </Text>
         ) : null}
       </View>
 
@@ -274,9 +250,6 @@ export const ItemOverview = ({
 };
 
 export const ItemInfoList = ({ item }: { item: MediaItem }) => {
-  const theme = useAppTheme();
-  const subtitleColor = theme.colors.textSecondary;
-
   const infoRows = useMemo(() => {
     const primary = item?.genres && item.genres.length > 0 ? item.genres : undefined;
     const genreText = primary ? primary.join(', ') : '';
@@ -329,18 +302,9 @@ export const ItemInfoList = ({ item }: { item: MediaItem }) => {
   if (infoRows.length === 0) return null;
 
   return (
-    <GlassCard
-      radius={radius.lg}
-      style={[detailViewStyles.infoBlock, Platform.OS === 'ios' && detailViewStyles.fixedInfoBlock]}
-      surface="material"
-    >
-      {infoRows.map((row) => (
-        <View key={row.label} style={detailViewStyles.infoRow}>
-          <Text style={[detailViewStyles.infoLabel, { color: subtitleColor }]}>{row.label}</Text>
-          <ThemedText style={detailViewStyles.infoValue}>{row.value}</ThemedText>
-        </View>
-      ))}
-    </GlassCard>
+    <InfoCard style={detailViewStyles.infoBlock}>
+      <InfoCardRows rows={infoRows} />
+    </InfoCard>
   );
 };
 
@@ -404,31 +368,6 @@ export const detailViewStyles = StyleSheet.create({
   },
   infoBlock: {
     marginTop: spacing.xs,
-    padding: spacing.md,
-    rowGap: spacing.sm,
-  },
-  fixedInfoBlock: {
-    width: layout.mediaInfoCard.width,
-    maxWidth: '100%',
-    alignSelf: 'flex-start',
-  },
-  infoBlockRim: {
-    borderColor: 'rgba(255,255,255,0.64)',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-  },
-  infoLabel: {
-    ...typography.footnote,
-    width: 56,
-  },
-  infoValue: {
-    ...typography.footnote,
-    fontWeight: '600',
-    flex: 1,
-    textAlign: 'left',
   },
   playButtonShadow: {
     marginTop: spacing.xs,

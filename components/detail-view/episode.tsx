@@ -110,6 +110,7 @@ export const EpisodeModeContent = ({
     data: mediaSourcesData,
     isPending: isMediaInfoPending,
     isError: isMediaInfoError,
+    refetch: refetchMediaSources,
   } = useQueryWithFocus(
     mediaSourcesQueryOptions({
       adapter: mediaAdapter,
@@ -191,7 +192,7 @@ export const EpisodeModeContent = ({
           </View>
         }
         controls={selectedEpisode?.id ? <DetailPlaybackControls item={selectedEpisode} /> : null}
-        overview={<ItemOverview item={selectedEpisode} reserveCollapsedSpace />}
+        overview={<ItemOverview item={selectedEpisode} showEmptyPlaceholder />}
       />
 
       {seasons && seasons.length > 0 && (
@@ -255,6 +256,7 @@ export const EpisodeModeContent = ({
         mediaSources={mediaSources}
         isPending={isMediaInfoPending}
         isError={isMediaInfoError}
+        onRetry={() => void refetchMediaSources()}
       />
     </>
   );
