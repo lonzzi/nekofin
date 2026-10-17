@@ -11,6 +11,10 @@ Examples:
 
 Before committing behavior changes, run the relevant local regression commands and mention any command that could not be run.
 
+## Repository cleanliness
+
+Keep ad hoc inspection reports, diagnostic logs, validation screenshots, recordings, and sampling data outside the repository, such as in a task-specific directory under `/tmp`. Retain only maintained project documentation and intentional product or README assets in the repository.
+
 ## UI components
 
 Prefer each platform's native components and interactions throughout this project. Use iOS and Android system controls through the appropriate React Native or Expo APIs instead of recreating their appearance with custom views. In particular, use native alerts, menus, pickers, and sheets when they meet the requirement. Only use custom components when native capabilities cannot provide the required behavior or the user explicitly requests a custom design.
