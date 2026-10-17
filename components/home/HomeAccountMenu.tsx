@@ -1,11 +1,11 @@
 import { getNativeToolbarIcon } from '@/components/navigation/nativeToolbarIcons';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { getServerConnections } from '@/lib/serverConnections';
+import { getConnectionPolicy, getServerConnections } from '@/lib/serverConnections';
 import { useAppTheme } from '@/lib/theme';
 import { getCachedToolbarAvatar, getToolbarAvatar } from '@/modules/toolbar-avatar';
 import type { MediaServerInfo } from '@/services/media/types';
 import { Stack, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 
 import { AccountMenu, AccountMenuAction, AccountToolbar } from './AccountMenu';
@@ -21,10 +21,12 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
     setHomeServer,
     switchConnection,
     refreshServerInfo,
+    updateServer,
   } = useMediaServers();
   const theme = useAppTheme();
   const router = useRouter();
   const [switching, setSwitching] = useState(false);
+  const switchingRef = useRef(false);
   const [loadedAvatar, setLoadedAvatar] = useState<{ source: string; uri: string } | null>(null);
   const server =
     account ?? servers.find((server) => server.id === homeServerId) ?? currentServer ?? servers[0];
@@ -67,6 +69,7 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
     router.navigate('/(tabs)/(home)');
   };
   const connections = server ? getServerConnections(server) : [];
+  const policy = server ? getConnectionPolicy(server) : null;
   return (
     <>
       <Stack.Screen options={{ headerTintColor: theme.colors.text }} />
@@ -102,12 +105,33 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
           </AccountMenu>
           {server ? (
             <AccountMenu title="服务器线路">
+              <AccountMenuAction
+                isOn={policy?.enabled}
+                subtitle="Wi-Fi 下优先使用已验证的局域网地址"
+                onPress={() => {
+                  if (!policy?.localConnectionId) {
+                    router.push({
+                      pathname: '/(tabs)/(servers)/server-lines/[serverId]',
+                      params: { serverId: server.id },
+                    });
+                    return;
+                  }
+                  void updateServer(server.id, {
+                    connectionPolicy: { ...policy, enabled: !policy.enabled },
+                  });
+                }}
+              >
+                自动切换线路
+              </AccountMenuAction>
               <AccountMenu inline title={server.name}>
                 {connections.map((line) => (
                   <AccountMenuAction
                     key={line.id}
                     subtitle={line.address}
+                    isOn={line.address === server.address}
                     onPress={() => {
+                      if (switchingRef.current) return;
+                      switchingRef.current = true;
                       setSwitching(true);
                       void switchConnection(server.id, line.id)
                         .catch((error) =>
@@ -116,7 +140,10 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
                             error instanceof Error ? error.message : '请检查线路地址和网络',
                           ),
                         )
-                        .finally(() => setSwitching(false));
+                        .finally(() => {
+                          switchingRef.current = false;
+                          setSwitching(false);
+                        });
                     }}
                   >
                     {line.name}

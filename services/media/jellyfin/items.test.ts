@@ -4,9 +4,12 @@ import {
   getAvailableFilters,
   getEpisodesBySeason,
   getFavoriteItemsPaged,
+  getItemAncestors,
   getLatestItems,
   getLatestItemsByFolder,
+  getNextUpItems,
   getRandomItems,
+  getResumeItems,
   searchItems,
 } from './items';
 
@@ -14,6 +17,9 @@ const mocks = vi.hoisted(() => ({
   getItems: vi.fn(),
   getLatestMedia: vi.fn(),
   getQueryFiltersLegacy: vi.fn(),
+  getResumeItems: vi.fn(),
+  getNextUp: vi.fn(),
+  getAncestors: vi.fn(),
 }));
 
 vi.mock('@jellyfin/sdk/lib/utils/api', () => ({
@@ -22,17 +28,36 @@ vi.mock('@jellyfin/sdk/lib/utils/api', () => ({
   }),
   getItemsApi: () => ({
     getItems: mocks.getItems,
-    getResumeItems: vi.fn(),
+    getResumeItems: mocks.getResumeItems,
   }),
-  getLibraryApi: () => ({}),
+  getLibraryApi: () => ({ getAncestors: mocks.getAncestors }),
   getSearchApi: () => ({}),
-  getTvShowsApi: () => ({}),
+  getTvShowsApi: () => ({ getNextUp: mocks.getNextUp }),
   getUserLibraryApi: () => ({ getLatestMedia: mocks.getLatestMedia }),
   getUserViewsApi: () => ({}),
 }));
 
 describe('Jellyfin item requests', () => {
   const api = {} as never;
+
+  it('forwards raw paging cursors for both home watch endpoints', async () => {
+    mocks.getResumeItems.mockResolvedValue({ data: { Items: [] } });
+    mocks.getNextUp.mockResolvedValue({ data: { Items: [] } });
+    await getResumeItems(api, 'user-1', 40, 80);
+    await getNextUpItems(api, 'user-1', 40, 120);
+    expect(mocks.getResumeItems).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'user-1', startIndex: 80, limit: 40 }),
+    );
+    expect(mocks.getNextUp).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'user-1', startIndex: 120, limit: 40 }),
+    );
+  });
+
+  it('resolves library membership with the user-specific ancestor endpoint', async () => {
+    mocks.getAncestors.mockResolvedValue({ data: [{ Id: 'visible' }] });
+    expect(await getItemAncestors(api, 'user-1', 'series')).toEqual([{ Id: 'visible' }]);
+    expect(mocks.getAncestors).toHaveBeenCalledWith({ userId: 'user-1', itemId: 'series' });
+  });
 
   beforeEach(() => {
     mocks.getItems.mockReset();
@@ -81,6 +106,14 @@ describe('Jellyfin item requests', () => {
         enableImageTypes: ['Primary', 'Backdrop', 'Thumb', 'Logo'],
         enableImages: true,
       }),
+    );
+  });
+
+  it('scopes random carousel items recursively to the selected library', async () => {
+    mocks.getItems.mockResolvedValue({ data: { Items: [] } });
+    await getRandomItems(api, 'user-1', 6, 'visible-library');
+    expect(mocks.getItems).toHaveBeenCalledWith(
+      expect.objectContaining({ parentId: 'visible-library', recursive: true, sortBy: ['Random'] }),
     );
   });
 

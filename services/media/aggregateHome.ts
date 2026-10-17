@@ -1,7 +1,4 @@
-import { queryOptions } from '@tanstack/react-query';
-
-import { mediaQueryKeys } from './queryKeys';
-import type { MediaAdapter, MediaItem, MediaPage, MediaServerInfo } from './types';
+import type { MediaItem, MediaServerInfo } from './types';
 
 export const AGGREGATE_HOME_SECTIONS = ['resume', 'nextup', 'latest'] as const;
 export type AggregateHomeSection = (typeof AGGREGATE_HOME_SECTIONS)[number];
@@ -34,35 +31,6 @@ export function groupAggregateLatestFolders(
     }
   }
   return [...groups.values()];
-}
-
-export function aggregateHomeQueryOptions({
-  adapter,
-  server,
-  section,
-}: {
-  adapter: Pick<MediaAdapter, 'getResumeItems' | 'getNextUpItems' | 'getLatestItems'>;
-  server: MediaServerInfo;
-  section: AggregateHomeSection;
-}) {
-  return queryOptions({
-    queryKey: mediaQueryKeys.homeSection(server.id, `aggregate-${section}`),
-    enabled: !!server.userId,
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-    retry: 1,
-    queryFn: (): Promise<MediaPage<MediaItem>> => {
-      const params = { userId: server.userId, limit: 20 };
-      if (section === 'resume') return adapter.getResumeItems(params);
-      if (section === 'nextup') return adapter.getNextUpItems(params);
-      return adapter.getLatestItems({
-        ...params,
-        includeItemTypes: ['Movie', 'Series'],
-        sortBy: ['DateCreated'],
-        sortOrder: 'Descending',
-      });
-    },
-  });
 }
 
 /** Interleave accounts without collapsing matching item IDs from different servers. */

@@ -1,9 +1,16 @@
 import { ItemGridScreen } from '@/components/media/ItemGridScreen';
+import { useHiddenUserViews } from '@/hooks/useHiddenUserViews';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useMediaFilters } from '@/hooks/useMediaFilters';
+import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { viewAllItemLayoutType, viewAllQueryOptions } from '@/services/media/queryOptions';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { visibleHomeLibraryIds } from '@/services/media/homeVisibility';
+import {
+  homeUserViewsQueryOptions,
+  viewAllItemLayoutType,
+  viewAllQueryOptions,
+} from '@/services/media/queryOptions';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 
 export default function ServerViewAllScreen() {
@@ -15,6 +22,15 @@ export default function ServerViewAllScreen() {
   const { currentServer } = useMediaServers();
   const mediaAdapter = useMediaAdapter();
   const { filters, setFilters } = useMediaFilters();
+  const queryClient = useQueryClient();
+  const hidden = useHiddenUserViews(currentServer ? [currentServer.id] : []);
+  const libraries = useQueryWithFocus(
+    homeUserViewsQueryOptions({ adapter: mediaAdapter, currentServer }),
+  );
+  const libraryIds = visibleHomeLibraryIds(
+    libraries.data,
+    currentServer ? hidden[currentServer.id] : [],
+  );
 
   const getTitle = () => {
     switch (type) {
@@ -36,6 +52,8 @@ export default function ServerViewAllScreen() {
       type,
       folderId,
       filters,
+      libraryIds,
+      queryClient,
     }),
   );
 
@@ -43,6 +61,11 @@ export default function ServerViewAllScreen() {
     <ItemGridScreen
       title={getTitle()}
       query={query}
+      dataState={{
+        isLoading: libraries.isLoading || query.isLoading,
+        isError: libraries.isError || query.isError,
+        refetch: () => Promise.allSettled([libraries.refetch(), query.refetch()]),
+      }}
       type={viewAllItemLayoutType(type)}
       filters={filters}
       onChangeFilters={setFilters}

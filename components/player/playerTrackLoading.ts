@@ -7,6 +7,28 @@ export type ExternalPlayerTrack = {
   url: string;
 };
 
+/** Publish embedded tracks first, then each loaded external track without waiting for the rest. */
+export async function loadExternalTracksProgressively(
+  requests: (() => Promise<unknown>)[],
+  refresh: () => Promise<void>,
+  isActive: () => boolean,
+): Promise<{ failed: boolean } | undefined> {
+  if (!isActive()) return;
+  await refresh();
+  let failed = false;
+  for (const request of requests) {
+    if (!isActive()) return;
+    try {
+      await request();
+    } catch {
+      failed = true;
+    }
+    if (!isActive()) return;
+    await refresh();
+  }
+  return isActive() ? { failed } : undefined;
+}
+
 export function isExternalTrackCommandError(message: string) {
   return /^Command '(?:sub-add|audio-add|sub-remove|audio-remove|sub-reload)' failed:/.test(
     message,

@@ -1,11 +1,13 @@
 import { DandanComment } from '@/services/dandanplay';
 import type { DanmakuCommentsData, DanmakuTrack } from '@/services/danmaku';
+import type { PlaybackQuality } from '@/services/media/playbackQuality';
 import { MediaItem, MediaSource } from '@/services/media/types';
-import type { HdrStateChangeEvent } from 'expo-mpv';
+import type { HdrStateChangeEvent, MediaInfo } from 'expo-mpv';
 import { createContext, useContext } from 'react';
 import { SharedValue } from 'react-native-reanimated';
 
 import type { PlayerPanelRoute } from './panels/playerPanelRoute';
+import type { PlaybackSourceInfo } from './playbackInfo';
 
 export type TrackInfo = {
   name: string;
@@ -63,6 +65,10 @@ export type PlayerContextValue = {
   mediaSources?: MediaSource[];
   selectedMediaSourceId?: string | null;
   onMediaSourceChange?: (id: string) => void;
+  quality?: PlaybackQuality;
+  onQualityChange?: (quality: PlaybackQuality) => void;
+  playbackSourceInfo?: PlaybackSourceInfo;
+  readPlaybackMediaInfo?: () => Promise<MediaInfo | null>;
   aspectRatio?: string;
   onAspectRatioChange?: (mode: string) => void;
   hasPreviousEpisode?: boolean;

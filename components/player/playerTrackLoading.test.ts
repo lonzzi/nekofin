@@ -1,10 +1,75 @@
 import type { ExpoMpvViewRef, TrackInfo } from 'expo-mpv';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { isExternalTrackCommandError, loadExternalPlayerTrack } from './playerTrackLoading';
+import {
+  isExternalTrackCommandError,
+  loadExternalPlayerTrack,
+  loadExternalTracksProgressively,
+} from './playerTrackLoading';
 
 describe('external native track loading', () => {
   afterEach(() => vi.useRealTimers());
+
+  it('shows embedded tracks immediately and publishes a loaded track while later downloads wait', async () => {
+    let finishFirst!: () => void;
+    let finishSecond!: () => void;
+    const first = vi.fn(() => new Promise<void>((resolve) => (finishFirst = resolve)));
+    const second = vi.fn(() => new Promise<void>((resolve) => (finishSecond = resolve)));
+    const refresh = vi.fn(async () => {});
+    const loading = loadExternalTracksProgressively([first, second], refresh, () => true);
+    await vi.waitFor(() => expect(first).toHaveBeenCalledOnce());
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(second).not.toHaveBeenCalled();
+    finishFirst();
+    await vi.waitFor(() => expect(second).toHaveBeenCalledOnce());
+    expect(refresh).toHaveBeenCalledTimes(2);
+    finishSecond();
+    await expect(loading).resolves.toEqual({ failed: false });
+    expect(refresh).toHaveBeenCalledTimes(3);
+  });
+
+  it('keeps usable tracks visible and continues after an external download fails', async () => {
+    const refresh = vi.fn(async () => {});
+    const later = vi.fn(async () => {});
+    await expect(
+      loadExternalTracksProgressively(
+        [
+          async () => {
+            throw new Error('HTTP 503');
+          },
+          later,
+        ],
+        refresh,
+        () => true,
+      ),
+    ).resolves.toEqual({ failed: true });
+    expect(later).toHaveBeenCalledOnce();
+    expect(refresh).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not publish a stale load or start more downloads after leaving playback', async () => {
+    let active = true;
+    const later = vi.fn(async () => {});
+    const refresh = vi.fn(async () => {});
+    await expect(
+      loadExternalTracksProgressively(
+        [
+          async () => {
+            active = false;
+          },
+          later,
+        ],
+        refresh,
+        () => active,
+      ),
+    ).resolves.toBeUndefined();
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(later).not.toHaveBeenCalled();
+    await expect(
+      loadExternalTracksProgressively([later], refresh, () => false),
+    ).resolves.toBeUndefined();
+    expect(refresh).toHaveBeenCalledOnce();
+  });
 
   it('distinguishes optional track command failures from fatal video errors', () => {
     expect(isExternalTrackCommandError("Command 'sub-add' failed: error running command")).toBe(

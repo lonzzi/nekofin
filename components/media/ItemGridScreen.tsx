@@ -82,9 +82,9 @@ export function ItemGridScreen({
   const mediaAdapter = useMediaAdapter();
 
   const queryData = query ? query.data : undefined;
-  const isLoading = query?.isLoading ?? dataState?.isLoading ?? false;
-  const isError = query?.isError ?? dataState?.isError ?? false;
-  const refetch = query?.refetch ?? dataState?.refetch;
+  const isLoading = dataState?.isLoading ?? query?.isLoading ?? false;
+  const isError = dataState?.isError ?? query?.isError ?? false;
+  const refetch = dataState?.refetch ?? query?.refetch;
   const fetchNextPage = query ? query.fetchNextPage : undefined;
   const hasNextPage = query ? query.hasNextPage : false;
   const isFetchingNextPage = query ? query.isFetchingNextPage : false;

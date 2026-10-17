@@ -49,6 +49,23 @@ export const mediaQueryKeys = {
     [...mediaQueryKeys.server(serverId), 'home'] as const,
   homeSection: (serverId: string | null | undefined, section: string) =>
     [...mediaQueryKeys.home(serverId), section] as const,
+  homeRandom: (serverId: string | null | undefined, libraryIds: string[]) =>
+    [
+      ...mediaQueryKeys.homeSection(serverId, 'random'),
+      { libraryIds: [...new Set(libraryIds)].sort() },
+    ] as const,
+  homeVisibleSection: (
+    serverId: string | null | undefined,
+    section: string,
+    libraryIds: string[],
+    limit: number,
+  ) =>
+    [
+      ...mediaQueryKeys.homeSection(serverId, section),
+      { libraryIds: [...new Set(libraryIds)].sort(), limit },
+    ] as const,
+  homeItemAncestors: (serverId: string, itemId: string) =>
+    [...mediaQueryKeys.server(serverId), 'home-item-ancestors', itemId] as const,
   homeLatest: (serverId: string | null | undefined, folderId: string | null | undefined) =>
     [...mediaQueryKeys.home(serverId), 'latest', folderId ?? null] as const,
   availableFilters: (serverId: string | null | undefined) =>

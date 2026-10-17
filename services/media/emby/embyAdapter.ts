@@ -248,8 +248,8 @@ export class EmbyAdapter extends MediaAdapter {
     return { items };
   }
 
-  async getNextUpItems({ userId, limit }: GetNextUpItemsParams): Promise<MediaPage<MediaItem>> {
-    const res = await embyItems.getNextUpItems(this.getClient(), { userId, limit });
+  async getNextUpItems(params: GetNextUpItemsParams): Promise<MediaPage<MediaItem>> {
+    const res = await embyItems.getNextUpItems(this.getClient(), params);
     return await parseItemsWithCount(res);
   }
 
@@ -266,9 +266,16 @@ export class EmbyAdapter extends MediaAdapter {
     return await parseItemsWithCount(res);
   }
 
-  async getResumeItems({ userId, limit }: GetResumeItemsParams): Promise<MediaPage<MediaItem>> {
-    const res = await embyItems.getResumeItems(this.getClient(), { userId, limit });
+  async getResumeItems(params: GetResumeItemsParams): Promise<MediaPage<MediaItem>> {
+    const res = await embyItems.getResumeItems(this.getClient(), params);
     return await parseItemsWithCount(res);
+  }
+
+  async getItemAncestors({ userId, itemId }: GetItemDetailParams): Promise<MediaItem[]> {
+    const response = await this.getClient().get<BaseItemDto[]>(`/Items/${itemId}/Ancestors`, {
+      UserId: userId,
+    });
+    return (response.data ?? []).map(mapRawItemToMediaItem);
   }
 
   async getFavoriteItems({ userId, limit }: GetFavoriteItemsParams): Promise<MediaPage<MediaItem>> {
@@ -449,8 +456,8 @@ export class EmbyAdapter extends MediaAdapter {
     return Array.from(new Set(titles)).slice(0, limit ?? 20);
   }
 
-  async getRandomItems({ userId, limit }: GetRandomItemsParams): Promise<MediaItem[]> {
-    const res = await embyItems.getRandomItems(this.getClient(), { userId, limit });
+  async getRandomItems(params: GetRandomItemsParams): Promise<MediaItem[]> {
+    const res = await embyItems.getRandomItems(this.getClient(), params);
     return await parseItems(res);
   }
 

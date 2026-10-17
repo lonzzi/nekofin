@@ -1,4 +1,8 @@
-import type { MediaServerConnection, MediaServerInfo } from '@/services/media/types';
+import type {
+  MediaServerConnection,
+  MediaServerInfo,
+  MediaServerType,
+} from '@/services/media/types';
 
 import { buildConnectionAddress } from './serverConnection';
 
@@ -42,7 +46,7 @@ export function selectServerConnection(server: MediaServerInfo, connectionId: st
   };
 }
 
-export async function getPublicServerIdentity(address: string): Promise<string> {
+export async function getPublicServerInfo(address: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
@@ -53,7 +57,11 @@ export async function getPublicServerIdentity(address: string): Promise<string> 
     const info = await response.json();
     if (typeof info.Id !== 'string' || !info.Id)
       throw new Error('这个地址没有返回有效的媒体服务器信息');
-    return info.Id;
+    return {
+      id: info.Id as string,
+      name: typeof info.ServerName === 'string' ? info.ServerName : '',
+      version: typeof info.Version === 'string' ? info.Version : '',
+    };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError')
       throw new Error('线路连接超时，请检查地址和网络');
@@ -63,6 +71,62 @@ export async function getPublicServerIdentity(address: string): Promise<string> 
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export async function getPublicServerIdentity(address: string): Promise<string> {
+  return (await getPublicServerInfo(address)).id;
+}
+
+export async function connectToMediaServer(
+  input: string,
+  type: MediaServerType,
+  readInfo = getPublicServerInfo,
+) {
+  const address = buildConnectionAddress(input);
+  try {
+    return { ...(await readInfo(address)), address };
+  } catch (error) {
+    // Some Emby deployments only expose their API under /emby.
+    if (type !== 'emby' || /\/emby$/i.test(address)) throw error;
+    const prefixed = `${address}/emby`;
+    return { ...(await readInfo(prefixed)), address: prefixed };
+  }
+}
+
+export function getConnectionPolicy(server: MediaServerInfo) {
+  const connections = getServerConnections(server);
+  const policy = server.connectionPolicy;
+  const defaultConnectionId = connections.some((line) => line.id === policy?.defaultConnectionId)
+    ? policy!.defaultConnectionId
+    : connections[0].id;
+  const localConnectionId = connections.find(
+    (line) => line.id === policy?.localConnectionId && line.id !== defaultConnectionId,
+  )?.id;
+  return {
+    enabled: !!policy?.enabled && !!localConnectionId,
+    defaultConnectionId,
+    localConnectionId,
+  };
+}
+
+/** No account token is sent until a LAN endpoint has passed the identity check. */
+export async function resolveAutomaticConnection(
+  server: MediaServerInfo,
+  network: { connected: boolean; wifi: boolean },
+  verify: (server: MediaServerInfo, address: string) => Promise<unknown>,
+) {
+  const policy = getConnectionPolicy(server);
+  if (!policy.enabled || !network.connected) return null;
+  if (network.wifi && policy.localConnectionId) {
+    const local = selectServerConnection(server, policy.localConnectionId);
+    try {
+      await verify(server, local.address);
+      return policy.localConnectionId;
+    } catch {
+      // Another Wi-Fi network may use the same private IP, or the NAS may be offline.
+    }
+  }
+  return policy.defaultConnectionId;
 }
 
 /** Verify identity without credentials before using this account on another endpoint. */

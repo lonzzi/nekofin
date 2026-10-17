@@ -1,10 +1,11 @@
 import type { GetMediaItemSource, MediaItemSource } from '@/components/media/mediaSource';
+import { useHiddenUserViews } from '@/hooks/useHiddenUserViews';
 import { useRefetchOnScreenFocus } from '@/hooks/useRefetchOnScreenFocus';
-import { getHiddenUserViews } from '@/lib/utils/userViewConfig';
 import {
   groupAggregateLatestFolders,
   mergeAggregateHomeItems,
 } from '@/services/media/aggregateHome';
+import { visibleHomeLibraryIds } from '@/services/media/homeVisibility';
 import {
   homeLatestByFolderQueryOptions,
   homeNextUpQueryOptions,
@@ -13,49 +14,78 @@ import {
   homeUserViewsQueryOptions,
 } from '@/services/media/queryOptions';
 import type { MediaItem, MediaServerInfo } from '@/services/media/types';
-import { useQueries } from '@tanstack/react-query';
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
 
 import type { HomeSectionWithStatus } from './useHomeSections';
 import { useMediaServerSources } from './useMediaServerSources';
 
 export function useAggregateHome(servers: MediaServerInfo[]) {
   const sources = useMediaServerSources(servers);
-  const [hidden, setHidden] = useState<Record<string, string[]>>(() =>
-    Object.fromEntries(servers.map((server) => [server.id, getHiddenUserViews(server.id)])),
-  );
-  useFocusEffect(
-    useCallback(() => {
-      const next = Object.fromEntries(
-        servers.map((server) => [server.id, getHiddenUserViews(server.id)]),
-      );
-      setHidden((previous) =>
-        JSON.stringify(previous) === JSON.stringify(next) ? previous : next,
-      );
-    }, [servers]),
-  );
+  const hidden = useHiddenUserViews(servers.map((server) => server.id));
+  const queryClient = useQueryClient();
 
+  const libraryRequests = sources.map((source) => ({
+    ...source,
+    type: 'userview' as const,
+    options: {
+      ...homeUserViewsQueryOptions({ adapter: source.adapter, currentServer: source.server }),
+      retry: 1,
+    },
+  }));
+  const libraryQueries = useQueries({ queries: libraryRequests.map((request) => request.options) });
+  const libraryResults = libraryRequests.map((request, index) => ({
+    ...request,
+    query: libraryQueries[index],
+  }));
+  const librarySources = libraryResults.map(({ server, query }) => ({
+    server,
+    items: (query.data ?? []).filter((item) => item.id && !hidden[server.id]?.includes(item.id)),
+  }));
   const requests = sources.flatMap((source) =>
     [
       { type: 'resume' as const, options: homeResumeQueryOptions },
       { type: 'nextup' as const, options: homeNextUpQueryOptions },
-      { type: 'userview' as const, options: homeUserViewsQueryOptions },
-      { type: 'random' as const, options: homeRandomQueryOptions },
     ].map(({ type, options }) => ({
       ...source,
       type,
-      options: { ...options({ adapter: source.adapter, currentServer: source.server }), retry: 1 },
+      options: {
+        ...options({
+          adapter: source.adapter,
+          currentServer: source.server,
+          libraryIds: visibleHomeLibraryIds(
+            librarySources.find(({ server }) => server.id === source.server.id)?.items,
+          ),
+          queryClient,
+        }),
+        retry: 1,
+      },
     })),
   );
   const queries = useQueries({ queries: requests.map((request) => request.options) });
-  const results = requests.map((request, index) => ({ ...request, query: queries[index] }));
-  const librarySources = results
-    .filter((result) => result.type === 'userview')
-    .map(({ server, query }) => ({
-      server,
-      items: (query.data ?? []).filter((item) => item.id && !hidden[server.id]?.includes(item.id)),
-    }));
+  const sectionResults = [
+    ...libraryResults,
+    ...requests.map((request, index) => ({ ...request, query: queries[index] })),
+  ];
+  const randomRequests = sources.map((source) => ({
+    ...source,
+    type: 'random' as const,
+    options: {
+      ...homeRandomQueryOptions({
+        adapter: source.adapter,
+        currentServer: source.server,
+        libraryIds: visibleHomeLibraryIds(
+          librarySources.find(({ server }) => server.id === source.server.id)?.items,
+        ),
+      }),
+      retry: 1,
+    },
+  }));
+  const randomQueries = useQueries({ queries: randomRequests.map((request) => request.options) });
+  const randomResults = randomRequests.map((request, index) => ({
+    ...request,
+    query: randomQueries[index],
+  }));
+  const results = [...sectionResults, ...randomResults];
   const latestGroups = groupAggregateLatestFolders(librarySources, hidden);
   const latestRequests = latestGroups.flatMap((group) =>
     group.folders.map(({ server, folder }) => ({
@@ -71,7 +101,7 @@ export function useAggregateHome(servers: MediaServerInfo[]) {
       retry: 1,
     })),
   });
-  const allQueries = [...queries, ...latestQueries];
+  const allQueries = [...libraryQueries, ...queries, ...randomQueries, ...latestQueries];
   const refetch = () => Promise.allSettled(allQueries.map((query) => query.refetch()));
   // Preserve the account home's random carousel when returning from a detail page.
   const focusQueries = [
@@ -106,7 +136,15 @@ export function useAggregateHome(servers: MediaServerInfo[]) {
         matches.map(({ server, query }) => ({ server, items: query.data ?? [] })),
         'resume',
       ).map((entry) => entry.item),
-      isLoading: matches.length > 0 && matches.every(({ query }) => query.isLoading),
+      isLoading:
+        matches.length > 0 &&
+        matches.every(
+          ({ server, query }) =>
+            query.isLoading ||
+            libraryResults.some(
+              (result) => result.server.id === server.id && result.query.isLoading,
+            ),
+        ),
     };
   });
   sections.push({
@@ -136,7 +174,6 @@ export function useAggregateHome(servers: MediaServerInfo[]) {
       };
     }),
   );
-  const randomResults = results.filter((result) => result.type === 'random');
   return {
     sources,
     sections,
@@ -149,7 +186,17 @@ export function useAggregateHome(servers: MediaServerInfo[]) {
       6,
     ).map((entry) => entry.item),
     isCarouselLoading:
-      randomResults.length > 0 && randomResults.every(({ query }) => query.isLoading),
+      randomResults.length > 0 &&
+      randomResults.every(
+        ({ server, query }) =>
+          query.isLoading ||
+          sectionResults.some(
+            (result) =>
+              result.type === 'userview' &&
+              result.server.id === server.id &&
+              result.query.isLoading,
+          ),
+      ),
     failedServers: [
       ...new Set(
         [

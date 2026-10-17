@@ -53,10 +53,16 @@ export async function getLatestItemsByFolder(
   });
 }
 
-export async function getNextUpItems(api: Api, userId: string, limit: number = 100) {
+export async function getNextUpItems(
+  api: Api,
+  userId: string,
+  limit: number = 100,
+  startIndex?: number,
+) {
   return await getTvShowsApi(api).getNextUp({
     userId,
     limit,
+    startIndex,
     fields: ['PrimaryImageAspectRatio', 'DateCreated', 'MediaSourceCount'],
     imageTypeLimit: 1,
     enableImageTypes: ['Primary', 'Backdrop', 'Banner', 'Thumb'],
@@ -76,16 +82,26 @@ export async function getNextUpItemsByFolder(
   });
 }
 
-export async function getResumeItems(api: Api, userId: string, limit: number = 100) {
+export async function getResumeItems(
+  api: Api,
+  userId: string,
+  limit: number = 100,
+  startIndex?: number,
+) {
   return await getItemsApi(api).getResumeItems({
     userId,
     limit,
+    startIndex,
     fields: ['PrimaryImageAspectRatio'],
     imageTypeLimit: 1,
     enableImageTypes: ['Primary', 'Backdrop', 'Thumb'],
     mediaTypes: ['Video'],
     enableTotalRecordCount: false,
   });
+}
+
+export async function getItemAncestors(api: Api, userId: string, itemId: string) {
+  return (await getLibraryApi(api).getAncestors({ userId, itemId })).data ?? [];
 }
 
 export async function getFavoriteItems(api: Api, userId: string, limit: number = 200) {
@@ -295,9 +311,11 @@ export async function getRandomItems(
   api: Api,
   userId: string,
   limit: number = 20,
+  folderId?: string,
 ): Promise<BaseItemDto[]> {
   const res = await getItemsApi(api).getItems({
     userId,
+    parentId: folderId,
     limit,
     recursive: true,
     includeItemTypes: ['Movie', 'Series'],
