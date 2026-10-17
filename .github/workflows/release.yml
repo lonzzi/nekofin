@@ -26,6 +26,8 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
       prerelease: ${{ steps.version.outputs.prerelease }}
       sha: ${{ steps.version.outputs.sha }}
+      ios_runtime: ${{ steps.runtime.outputs.ios }}
+      android_runtime: ${{ steps.runtime.outputs.android }}
     steps:
       - name: Check out version tag
         uses: actions/checkout@v4
@@ -43,6 +45,26 @@ jobs:
           node .github/scripts/release-metadata.cjs "$RELEASE_TAG"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Resolve signed native runtime contracts
+        id: runtime
+        env:
+          APP_VARIANT: production
+          NEKOFIN_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+          NEKOFIN_OTA_URL: ${{ vars.NEKOFIN_OTA_URL }}
+          EXPO_PUBLIC_DANDANPLAY_API_URL: ${{ secrets.EXPO_PUBLIC_DANDANPLAY_API_URL }}
+        run: |
+          mkdir -p build
+          node scripts/ota/runtime.mjs "build/nekofin-${NEKOFIN_RELEASE_TAG}-runtimes.json"
+          node -e 'const fs=require("node:fs"); const m=JSON.parse(fs.readFileSync(`build/nekofin-${process.env.NEKOFIN_RELEASE_TAG}-runtimes.json`)); fs.appendFileSync(process.env.GITHUB_OUTPUT,`ios=${m.runtimes.ios}\nandroid=${m.runtimes.android}\n`);'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-runtimes-${{ steps.version.outputs.tag }}
+          path: build/*-runtimes.json
+
   build:
     name: Build release apps
     needs: prepare
@@ -53,6 +75,9 @@ jobs:
       android_profile: production
       ios_build_type: release
       build_suffix: -${{ needs.prepare.outputs.tag }}
+      release_tag: ${{ needs.prepare.outputs.tag }}
+      ios_runtime: ${{ needs.prepare.outputs.ios_runtime }}
+      android_runtime: ${{ needs.prepare.outputs.android_runtime }}
     secrets: inherit
 
   publish:
@@ -87,8 +112,16 @@ jobs:
           mkdir -p release
           cp artifacts/android/*.apk "release/nekofin-${RELEASE_TAG}-android-arm64.apk"
           cp artifacts/ios/*.ipa "release/nekofin-${RELEASE_TAG}-ios-unsigned.ipa"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-runtimes-${{ needs.prepare.outputs.tag }}
+          path: release
+
+      - name: Checksum installers and runtime contracts
+        run: |
           cd release
-          sha256sum ./*.apk ./*.ipa > SHA256SUMS
+          sha256sum ./*.apk ./*.ipa ./*-runtimes.json > SHA256SUMS
 
       - name: Publish complete release
         env:

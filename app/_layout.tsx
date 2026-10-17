@@ -1,6 +1,7 @@
 import { PLAYER_LAB_AVAILABLE } from '@/components/dev/player-lab/PlayerLabEntry';
 import { platformHeaderOptions } from '@/components/navigation/platformHeaderOptions';
 import { PerformanceOverlay } from '@/components/performance/PerformanceOverlay';
+import { AppUpdateProvider } from '@/lib/contexts/AppUpdateContext';
 import { DanmakuSettingsProvider } from '@/lib/contexts/DanmakuSettingsContext';
 import { DanmakuSourcesProvider } from '@/lib/contexts/DanmakuSourcesContext';
 import { MediaServerProvider } from '@/lib/contexts/MediaServerContext';
@@ -77,8 +78,10 @@ export default function RootLayout() {
             <DanmakuSourcesProvider>
               <DanmakuSettingsProvider>
                 <PerformanceMonitorProvider>
-                  <RootNavigation />
-                  <PerformanceOverlay />
+                  <AppUpdateProvider>
+                    <RootNavigation />
+                    <PerformanceOverlay />
+                  </AppUpdateProvider>
                 </PerformanceMonitorProvider>
               </DanmakuSettingsProvider>
             </DanmakuSourcesProvider>

@@ -15,6 +15,11 @@ assets=(
   "release/nekofin-${RELEASE_TAG}-ios-unsigned.ipa"
   'release/SHA256SUMS'
 )
+# Runtime contracts are produced by the Release workflow for OTA-capable builds.
+runtime_contract="release/nekofin-${RELEASE_TAG}-runtimes.json"
+if [[ -s "$runtime_contract" ]]; then
+  assets+=("$runtime_contract")
+fi
 for asset in "${assets[@]}"; do
   if [[ ! -s "$asset" ]]; then
     echo "Missing or empty release asset: $asset" >&2

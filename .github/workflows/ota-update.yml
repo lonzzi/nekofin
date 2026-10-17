@@ -1,0 +1,88 @@
+name: Publish OTA update
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ota-update.yml'
+      - 'scripts/ota/**'
+      - 'updates/**'
+      - 'lib/*Updates*'
+      - 'lib/otaConfig*'
+      - 'hooks/useHotUpdate.ts'
+      - 'app.config.ts'
+      - 'package.json'
+      - 'bun.lock'
+  workflow_dispatch:
+    inputs:
+      native_tag:
+        description: 'Installed APK/IPA release to target, e.g. v0.2.0-beta.1'
+        required: true
+        type: string
+      operation:
+        description: 'Publish compatible JS/resources or restore the embedded version'
+        required: true
+        default: update
+        type: choice
+        options: [update, rollback]
+      message:
+        description: 'Describe this resource update'
+        required: true
+        type: string
+
+# All changes to the shared catalog must be serialized, including rollbacks.
+concurrency:
+  group: ${{ github.event_name == 'workflow_dispatch' && 'ota-catalog' || format('ota-validate-{0}', github.ref) }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run test
+      - run: bun run typecheck
+      - run: bun run test:ota
+  publish:
+    if: github.event_name == 'workflow_dispatch'
+    needs: validate
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    env:
+      APP_VARIANT: production
+      NEKOFIN_RELEASE_TAG: ${{ inputs.native_tag }}
+      NEKOFIN_OTA_URL: ${{ vars.NEKOFIN_OTA_URL }}
+      EXPO_PUBLIC_DANDANPLAY_API_URL: ${{ secrets.EXPO_PUBLIC_DANDANPLAY_API_URL }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      OTA_MESSAGE: ${{ inputs.message }}
+      OTA_OPERATION: ${{ inputs.operation }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Download the installed release runtime contract
+        env:
+          NATIVE_TAG: ${{ inputs.native_tag }}
+        run: |
+          mkdir -p build
+          node .github/scripts/release-metadata.cjs "$NATIVE_TAG"
+          gh release download "$NATIVE_TAG" --repo lonzzi/nekofin --pattern "nekofin-${NATIVE_TAG}-runtimes.json" --output build/native-runtimes.json
+      - name: Write signing key
+        env:
+          OTA_SIGNING_PRIVATE_KEY: ${{ secrets.OTA_SIGNING_PRIVATE_KEY }}
+        run: |
+          node -e 'const fs=require("node:fs"); if(!process.env.OTA_SIGNING_PRIVATE_KEY) throw new Error("Missing OTA_SIGNING_PRIVATE_KEY"); fs.writeFileSync("build/ota-private-key.pem",process.env.OTA_SIGNING_PRIVATE_KEY,{mode:0o600});'
+      - name: Publish signed resources and promote catalog
+        run: node scripts/ota/publish.mjs build/native-runtimes.json build/ota-private-key.pem "$OTA_OPERATION" "ota-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f build/ota-private-key.pem

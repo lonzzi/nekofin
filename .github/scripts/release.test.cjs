@@ -77,6 +77,7 @@ function publish(
     state = 'missing',
     failUpload = false,
     missingAsset = false,
+    runtimeAsset = false,
   } = {},
 ) {
   const directory = mkdtempSync(path.join(tmpdir(), 'nekofin-release-'));
@@ -90,6 +91,10 @@ function publish(
     if (!missingAsset || !name.endsWith('.ipa')) {
       writeFileSync(path.join(directory, 'release', name), 'test asset');
     }
+  }
+
+  if (runtimeAsset) {
+    writeFileSync(path.join(directory, 'release', `nekofin-${tag}-runtimes.json`), '{"version":1}');
   }
 
   const log = path.join(directory, 'gh-calls.jsonl');
@@ -151,6 +156,12 @@ test('publishes a prerelease without replacing the latest stable release', (t) =
   assert.ok(result.calls[1].includes('--prerelease=true'));
   assert.ok(result.calls[3].includes('--prerelease=true'));
   assert.ok(result.calls[3].includes('--latest=false'));
+});
+
+test('includes runtime contracts in OTA-capable installer releases', (t) => {
+  const result = publish(t, { runtimeAsset: true });
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(result.calls[2].includes('release/nekofin-v0.2.0-runtimes.json'));
 });
 
 test('resumes an existing draft after a failed run', (t) => {

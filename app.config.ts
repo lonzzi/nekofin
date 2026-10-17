@@ -2,6 +2,9 @@ import 'tsx/cjs';
 
 import { ExpoConfig } from '@expo/config';
 
+import updatesConfig from './config/updates.json';
+import { resolveBuildReleaseTag } from './lib/appUpdates';
+import { getOtaChannel, validateOtaURL } from './lib/otaConfig';
 import packageJson from './package.json';
 
 const IS_DEV = process.env.APP_VARIANT === 'development';
@@ -32,10 +35,26 @@ const getAppName = () => {
 };
 
 export default ({ config: _config }: { config: ExpoConfig }): ExpoConfig => {
+  const releaseTag = resolveBuildReleaseTag(packageJson.version, process.env.NEKOFIN_RELEASE_TAG);
+  const variant = IS_DEV ? 'development' : IS_PREVIEW ? 'preview' : 'production';
+  const otaURL = validateOtaURL(process.env.NEKOFIN_OTA_URL ?? updatesConfig.url);
   return {
     name: getAppName(),
     slug: 'nekofin',
     version: packageJson.version,
+    runtimeVersion: { policy: 'fingerprint' },
+    updates: {
+      enabled: !IS_DEV && Boolean(otaURL),
+      ...(otaURL ? { url: otaURL } : {}),
+      checkAutomatically: 'ON_LOAD',
+      fallbackToCacheTimeout: 0,
+      enableBsdiffPatchSupport: false,
+      codeSigningCertificate: './updates/server/ota-certificate.crt',
+      codeSigningMetadata: { keyid: 'main', alg: 'rsa-v1_5-sha256' },
+      requestHeaders: {
+        'expo-channel-name': getOtaChannel(variant, releaseTag, packageJson.version),
+      },
+    },
     orientation: 'default',
     icon: './assets/images/icon.png',
     scheme: 'nekofin',
@@ -143,6 +162,8 @@ export default ({ config: _config }: { config: ExpoConfig }): ExpoConfig => {
       typedRoutes: true,
     },
     extra: {
+      appVariant: variant,
+      ...(releaseTag ? { releaseTag } : {}),
       router: {},
       eas: {
         projectId: 'b00bc9a1-4286-4cdc-ba7e-fb321575a32b',

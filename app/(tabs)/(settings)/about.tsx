@@ -7,9 +7,10 @@ import {
 } from '@/components/ui/NativeSettings';
 import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
+import { useHotUpdate } from '@/hooks/useHotUpdate';
+import { useAppUpdate } from '@/lib/contexts/AppUpdateContext';
 import { usePerformanceMonitorActions } from '@/lib/performance/PerformanceMonitorContext';
 import { usePerformanceDiagnosticsUnlock } from '@/lib/performance/usePerformanceDiagnosticsUnlock';
-import Constants from 'expo-constants';
 import { useCallback } from 'react';
 import { Linking } from 'react-native';
 
@@ -18,6 +19,18 @@ export default function AboutScreen() {
   const playerLab = usePlayerLab();
   const { isUnlocked, registerVersionTap } = usePerformanceDiagnosticsUnlock();
   const router = useTracedRouter('settings');
+  const { currentVersion, status, release, checkManually } = useAppUpdate();
+  const hotUpdate = useHotUpdate();
+  const updateSubtitle =
+    status === 'checking'
+      ? '正在检查新版本…'
+      : status === 'available' && release
+        ? `发现新版本 v${release.version}`
+        : status === 'current'
+          ? '当前没有可用的新版本'
+          : status === 'error'
+            ? '检查失败，点按重试'
+            : '查看是否有可用的新版本';
 
   const handleVersionPress = useCallback(() => {
     const didUnlock = registerVersionTap();
@@ -49,10 +62,33 @@ export default function AboutScreen() {
           <NativeSettingsItem
             title={<SettingsTitle>版本信息</SettingsTitle>}
             subtitle={
-              <SettingsSubtitle primary={`nekofin v${Constants.expoConfig?.version || '1.0.0'}`} />
+              <SettingsSubtitle
+                primary={currentVersion ? `nekofin v${currentVersion}` : '版本未知'}
+              />
             }
             onPress={handleVersionPress}
           />
+          <NativeSettingsItem
+            title={<SettingsTitle>检查更新</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={updateSubtitle} />}
+            onPress={status === 'checking' ? undefined : () => void checkManually()}
+            testID="check-app-update"
+          />
+          <NativeSettingsItem
+            title={<SettingsTitle>检查热更新</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={hotUpdate.subtitle} />}
+            onPress={
+              hotUpdate.available && !hotUpdate.busy ? () => void hotUpdate.check() : undefined
+            }
+            testID="check-hot-update"
+          />
+          {hotUpdate.resourceVersion ? (
+            <NativeSettingsItem
+              title={<SettingsTitle>资源版本</SettingsTitle>}
+              subtitle={<SettingsSubtitle primary={hotUpdate.resourceVersion} />}
+              testID="hot-update-version"
+            />
+          ) : null}
           <NativeSettingsItem
             title={<SettingsTitle>开源协议</SettingsTitle>}
             subtitle={<SettingsSubtitle primary="MPL-2.0 License" />}

@@ -52,6 +52,19 @@ on:
         required: false
         default: ''
         type: string
+      release_tag:
+        description: 'Full release tag embedded in both apps'
+        required: false
+        default: ''
+        type: string
+      ios_runtime:
+        required: false
+        default: ''
+        type: string
+      android_runtime:
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -63,6 +76,10 @@ jobs:
     if: ${{ inputs.platform == 'android' || inputs.platform == 'both' }}
     env:
       EXPO_PUBLIC_DANDANPLAY_API_URL: ${{ secrets.EXPO_PUBLIC_DANDANPLAY_API_URL }}
+      NEKOFIN_RELEASE_TAG: ${{ inputs.release_tag || '' }}
+      NEKOFIN_OTA_URL: ${{ vars.NEKOFIN_OTA_URL }}
+      EXPO_UPDATES_FINGERPRINT_OVERRIDE: ${{ inputs.android_runtime || '' }}
+      EXPO_UPDATES_WORKFLOW_OVERRIDE: managed
       ANDROID_NDK_VERSION: 27.1.12297006
 
     steps:
@@ -178,6 +195,10 @@ jobs:
     if: ${{ inputs.platform == 'ios' || inputs.platform == 'both' }}
     env:
       EXPO_PUBLIC_DANDANPLAY_API_URL: ${{ secrets.EXPO_PUBLIC_DANDANPLAY_API_URL }}
+      NEKOFIN_RELEASE_TAG: ${{ inputs.release_tag || '' }}
+      NEKOFIN_OTA_URL: ${{ vars.NEKOFIN_OTA_URL }}
+      EXPO_UPDATES_FINGERPRINT_OVERRIDE: ${{ inputs.ios_runtime || '' }}
+      EXPO_UPDATES_WORKFLOW_OVERRIDE: managed
       APP_VARIANT: ${{ inputs.ios_build_type == 'development' && 'development' || 'production' }}
       BUILD_CONFIGURATION: ${{ inputs.ios_build_type == 'development' && 'Debug' || 'Release' }}
       IPA_NAME: nekofin-ios${{ inputs.ios_build_type == 'development' && '-dev' || '' }}${{ inputs.build_suffix }}.ipa

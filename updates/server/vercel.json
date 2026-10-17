@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "functions": { "api/manifest.mjs": { "maxDuration": 20 } },
+  "headers": [
+    { "source": "/api/manifest", "headers": [{ "key": "Cache-Control", "value": "no-store" }] }
+  ]
+}
