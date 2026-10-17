@@ -2,6 +2,7 @@ import { AddServerForm } from '@/components/AddServerForm';
 import { OuterScreenOptions } from '@/components/outer/OuterPrimitives';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { isMediaServerType } from '@/lib/mediaServerTypes';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import { useLocalSearchParams } from 'expo-router';
 
@@ -12,7 +13,8 @@ function AddServerScreen() {
   }>();
   const { servers } = useMediaServers();
   const existingServer = servers.find((server) => server.id === serverId);
-  const serverType = existingServer?.type ?? (serverTypeParam === 'emby' ? 'emby' : 'jellyfin');
+  const serverType =
+    existingServer?.type ?? (isMediaServerType(serverTypeParam) ? serverTypeParam : 'jellyfin');
   const router = useTracedRouter('add-server');
   return (
     <>

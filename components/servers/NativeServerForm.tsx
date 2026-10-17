@@ -1,7 +1,8 @@
+import { MEDIA_SERVER_TYPES } from '@/lib/mediaServerTypes';
 import { layout, useAppTheme } from '@/lib/theme';
 import type { MediaServerType } from '@/services/media/types';
 import { useState } from 'react';
-import { ActivityIndicator, Button, StyleSheet, Text, View } from 'react-native';
+import { Button, StyleSheet, Text, View } from 'react-native';
 
 import { ServerFormButton } from './ServerFormButton';
 import { ServerFormField, ServerFormSection } from './ServerFormControls';
@@ -39,7 +40,7 @@ export function NativeServerForm({
 }: NativeServerFormProps) {
   const theme = useAppTheme();
   const [expanded, setExpanded] = useState(false);
-  const title = serverType === 'emby' ? 'Emby' : 'Jellyfin';
+  const title = MEDIA_SERVER_TYPES[serverType].label;
   return (
     <ServerFormScrollView
       testID="add-media-account-form"
@@ -53,11 +54,11 @@ export function NativeServerForm({
         <Text accessibilityRole="header" style={[styles.title, { color: theme.colors.text }]}>
           {connection ? `登录 ${connection.name || title}` : `连接到 ${title}`}
         </Text>
-        <Text selectable style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-          {connection
-            ? `${connection.address}${connection.version ? `\n版本 ${connection.version}` : ''}`
-            : '输入服务器地址，连接后登录你的账号。'}
-        </Text>
+        {connection ? (
+          <Text selectable style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+            {`${connection.address}${connection.version ? `\n版本 ${connection.version}` : ''}`}
+          </Text>
+        ) : null}
       </View>
       {connection ? (
         <ServerFormSection>
@@ -82,7 +83,7 @@ export function NativeServerForm({
           />
         </ServerFormSection>
       ) : (
-        <ServerFormSection footer="填写完整地址，可包含端口和路径，例如 https://media.example.com/jellyfin。">
+        <ServerFormSection>
           <ServerFormField
             label="服务器地址"
             placeholder="https://media.example.com:8096"
@@ -101,8 +102,8 @@ export function NativeServerForm({
           {error}
         </Text>
       ) : null}
-      {busy ? <ActivityIndicator color={theme.colors.tint} /> : null}
       <ServerFormButton
+        busy={busy}
         title={
           busy ? (connection ? '正在登录…' : '正在连接…') : connection ? '登录并保存' : '连接服务器'
         }
@@ -124,7 +125,7 @@ export function NativeServerForm({
             onPress={() => setExpanded((previous) => !previous)}
           />
           {expanded ? (
-            <ServerFormSection footer="留空时使用服务器名称。同一服务器的其他地址可在保存后添加为线路。">
+            <ServerFormSection>
               <ServerFormField
                 label="显示名称"
                 placeholder={connection.name || title}
@@ -151,7 +152,7 @@ export function NativeServerForm({
 
 const styles = StyleSheet.create({
   container: { padding: 24, paddingTop: 40, gap: 20 },
-  intro: { gap: 14, paddingBottom: 12 },
+  intro: { gap: 14 },
   title: { fontSize: 28, lineHeight: 36, fontWeight: '700' },
   subtitle: { fontSize: 15, lineHeight: 22 },
 });

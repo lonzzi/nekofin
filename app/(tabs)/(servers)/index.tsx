@@ -8,16 +8,13 @@ import {
   getNativeToolbarIcon,
   getServerMenuIcon,
 } from '@/components/navigation/nativeToolbarIcons';
-import {
-  ActionButton,
-  EditorialHeading,
-  OuterScreenOptions,
-  OuterTitle,
-} from '@/components/outer/OuterPrimitives';
+import { OuterScreenOptions, OuterTitle } from '@/components/outer/OuterPrimitives';
 import PageScrollView from '@/components/PageScrollView';
 import { HomeServerCard } from '@/components/servers/HomeServerCard';
+import { ServerTypePicker } from '@/components/servers/ServerTypePicker';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { MEDIA_SERVER_TYPE_OPTIONS } from '@/lib/mediaServerTypes';
 import { useAppTheme } from '@/lib/theme';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import type { MediaServerInfo, MediaServerType } from '@/services/media/types';
@@ -74,63 +71,54 @@ function ServersScreen() {
       <HeaderToolbar placement="right">
         <HeaderMenu accessibilityLabel="添加媒体账号" icon={getNativeToolbarIcon('add', 'plus')}>
           <HeaderLabel>添加服务器</HeaderLabel>
-          <HeaderMenuAction
-            onPress={() => add('jellyfin')}
-            icon={getServerMenuIcon('jellyfin')}
-            iconRenderingMode="original"
-          >
-            Jellyfin
-          </HeaderMenuAction>
-          <HeaderMenuAction
-            onPress={() => add('emby')}
-            icon={getServerMenuIcon('emby')}
-            iconRenderingMode="original"
-          >
-            Emby
-          </HeaderMenuAction>
+          {MEDIA_SERVER_TYPE_OPTIONS.map(({ type, label }) => (
+            <HeaderMenuAction
+              key={type}
+              onPress={() => add(type)}
+              icon={getServerMenuIcon(type)}
+              iconRenderingMode="original"
+            >
+              {label}
+            </HeaderMenuAction>
+          ))}
         </HeaderMenu>
       </HeaderToolbar>
-      <PageScrollView
-        style={{ backgroundColor: theme.colors.backgroundGrouped }}
-        contentContainerStyle={styles.page}
-      >
-        {servers.length ? (
-          <>
-            <View style={styles.servers}>
-              <View style={styles.heading}>
-                <Text style={[styles.count, { color: theme.colors.textSecondary }]}>
-                  {servers.length} 个服务器账号
-                </Text>
+      {isInitialized && !servers.length ? (
+        <ServerTypePicker onSelect={add} />
+      ) : (
+        <PageScrollView
+          style={{ backgroundColor: theme.colors.backgroundGrouped }}
+          contentContainerStyle={styles.page}
+        >
+          {servers.length ? (
+            <>
+              <View style={styles.servers}>
+                <View style={styles.heading}>
+                  <Text style={[styles.count, { color: theme.colors.textSecondary }]}>
+                    {servers.length} 个服务器账号
+                  </Text>
+                </View>
+                <View style={styles.grid}>
+                  {servers.map((server) => (
+                    <View key={server.id} style={[{ width: cardWidth }, androidCardStyle]}>
+                      <HomeServerCard
+                        server={server}
+                        isCurrent={currentServer?.id === server.id}
+                        isScreenFocused={isFocused}
+                        onOpen={() => open(server)}
+                        onSettings={() => settings(server)}
+                        onRemove={() => remove(server)}
+                      />
+                    </View>
+                  ))}
+                </View>
               </View>
-              <View style={styles.grid}>
-                {servers.map((server) => (
-                  <View key={server.id} style={[{ width: cardWidth }, androidCardStyle]}>
-                    <HomeServerCard
-                      server={server}
-                      isCurrent={currentServer?.id === server.id}
-                      isScreenFocused={isFocused}
-                      onOpen={() => open(server)}
-                      onSettings={() => settings(server)}
-                      onRemove={() => remove(server)}
-                    />
-                  </View>
-                ))}
-              </View>
-            </View>
-          </>
-        ) : isInitialized ? (
-          <View style={styles.empty}>
-            <EditorialHeading
-              title="尚未添加服务器"
-              description="连接服务器，在这里汇集你的电影与剧集。"
-            />
-            <ActionButton label="连接 Jellyfin" onPress={() => add('jellyfin')} />
-            <ActionButton label="连接 Emby" secondary onPress={() => add('emby')} />
-          </View>
-        ) : (
-          <ActivityIndicator color={theme.colors.tint} />
-        )}
-      </PageScrollView>
+            </>
+          ) : (
+            <ActivityIndicator color={theme.colors.tint} />
+          )}
+        </PageScrollView>
+      )}
     </>
   );
 }
@@ -153,5 +141,4 @@ const styles = StyleSheet.create({
     elevation: 3,
     shadowColor: '#000000',
   },
-  empty: { padding: 20, gap: 14 },
 });
