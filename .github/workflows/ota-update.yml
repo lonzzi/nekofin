@@ -74,7 +74,7 @@ jobs:
           NATIVE_TAG: ${{ inputs.native_tag }}
         run: |
           mkdir -p build
-          node .github/scripts/release-metadata.cjs "$NATIVE_TAG"
+          node scripts/ota/validate-tag.mjs "$NATIVE_TAG" "$OTA_OPERATION"
           gh release download "$NATIVE_TAG" --repo lonzzi/nekofin --pattern "nekofin-${NATIVE_TAG}-runtimes.json" --output build/native-runtimes.json
       - name: Write signing key
         env:
