@@ -84,6 +84,11 @@ export const mediaQueryKeys = {
     mode: string,
     itemId: string | null | undefined,
   ) => [...mediaQueryKeys.server(serverId), 'detail-bundle', mode, itemId ?? null] as const,
+  detailArtwork: (
+    serverId: string | null | undefined,
+    userId: string | null | undefined,
+    itemId: string,
+  ) => [...mediaQueryKeys.server(serverId), 'detail-artwork', userId ?? null, itemId] as const,
   itemDetail: (
     serverId: string | null | undefined,
     itemId: string | null | undefined,

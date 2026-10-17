@@ -1,3 +1,5 @@
+import { HeaderMediaFade } from '@/components/parallax/HeaderMediaFade';
+import { useParallaxMotion } from '@/components/parallax/useParallaxMotion';
 import { ThemedView } from '@/components/ThemedView';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import MaskedView from '@react-native-masked-view/masked-view';
@@ -14,26 +16,11 @@ import {
   ViewStyle,
 } from 'react-native';
 import { easeGradient } from 'react-native-easing-gradient';
-import Animated, {
-  Extrapolation,
-  interpolate,
-  useAnimatedRef,
-  useAnimatedStyle,
-  useScrollOffset,
-} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HEADER_HEIGHT = 450;
 const HEADER_OVERSCROLL_SAFE_AREA_OFFSET = 260;
 const HEADER_OVERSCROLL_MIN = 240;
-
-function getGradientColors(colors: string[]) {
-  return colors as unknown as readonly [string, string, ...string[]];
-}
-
-function getGradientLocations(locations: number[]) {
-  return locations as unknown as readonly [number, number, ...number[]];
-}
 
 export function resolveParallaxHeaderOverscrollExtent(topInset: number) {
   return Math.max(topInset + HEADER_OVERSCROLL_SAFE_AREA_OFFSET, HEADER_OVERSCROLL_MIN);
@@ -43,31 +30,6 @@ export function useParallaxHeaderOverscrollExtent() {
   const insets = useSafeAreaInsets();
 
   return resolveParallaxHeaderOverscrollExtent(insets.top);
-}
-
-export function ParallaxHeaderFadeMask() {
-  const fadeGradient = useMemo(
-    () =>
-      easeGradient({
-        colorStops: {
-          0: { color: 'rgba(0,0,0,1)' },
-          0.66: { color: 'rgba(0,0,0,1)' },
-          0.82: { color: 'rgba(0,0,0,0.96)' },
-          1: { color: 'rgba(0,0,0,0)' },
-        },
-        easing: Easing.bezier(0.33, 0.0, 0.67, 1),
-        extraColorStopsPerTransition: 36,
-      }),
-    [],
-  );
-
-  return (
-    <LinearGradient
-      colors={getGradientColors(fadeGradient.colors)}
-      locations={getGradientLocations(fadeGradient.locations)}
-      style={StyleSheet.absoluteFill}
-    />
-  );
 }
 
 type Props = PropsWithChildren<{
@@ -87,7 +49,7 @@ type Props = PropsWithChildren<{
   gradientStyle?: StyleProp<ViewStyle>;
   gradientColors?: readonly [string, string, ...string[]];
   gradientLocations?: readonly [number, number, ...number[]];
-  headerMediaMaskElement?: ReactElement | null;
+  fadeHeaderMedia?: boolean;
   headerOverscrollExtent?: number;
 }> &
   ScrollViewProps;
@@ -114,14 +76,20 @@ export default function ParallaxScrollView({
   gradientStyle,
   gradientColors,
   gradientLocations,
-  headerMediaMaskElement,
+  fadeHeaderMedia = false,
   headerOverscrollExtent = 0,
   style,
+  onScroll,
   ...props
 }: Props) {
   const colorScheme = useColorScheme() ?? 'light';
-  const scrollRef = useAnimatedRef<Animated.ScrollView>();
-  const scrollOffset = useScrollOffset(scrollRef);
+  const {
+    ScrollContainer,
+    HeaderMedia,
+    scrollRef,
+    headerAnimatedStyle,
+    onScroll: scrollHandler,
+  } = useParallaxMotion(headerHeight, onScroll);
 
   const gradientStartColor = colorScheme === 'light' ? 'rgba(252,255,255,0)' : 'rgba(0,0,0,0)';
   const gradientEndColor = colorScheme === 'light' ? 'rgba(252,255,255,1)' : 'rgba(0,0,0,1)';
@@ -145,29 +113,6 @@ export default function ParallaxScrollView({
     });
   }, [enableBlurEffect, gradientStartColor, gradientEndColor]);
 
-  const headerAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          translateY: interpolate(
-            scrollOffset.value,
-            [-headerHeight, 0, headerHeight],
-            [-headerHeight / 2, 0, headerHeight * 0.75],
-            Extrapolation.CLAMP,
-          ),
-        },
-        {
-          scale: interpolate(
-            scrollOffset.value,
-            [-headerHeight, 0, headerHeight],
-            [2, 1, 1],
-            Extrapolation.CLAMP,
-          ),
-        },
-      ],
-    };
-  });
-
   const content = (
     <ThemedView style={[styles.content, contentStyle]}>
       {!!contentBackground && (
@@ -180,7 +125,7 @@ export default function ParallaxScrollView({
   );
 
   const headerMedia = (
-    <Animated.View
+    <HeaderMedia
       style={[
         styles.headerMedia,
         { height: headerHeight, top: headerOverscrollExtent },
@@ -188,11 +133,11 @@ export default function ParallaxScrollView({
       ]}
     >
       {headerImage}
-    </Animated.View>
+    </HeaderMedia>
   );
 
   return (
-    <Animated.ScrollView
+    <ScrollContainer
       style={[styles.container, containerStyle, style]}
       contentContainerStyle={[styles.scrollContent, contentContainerStyle]}
       automaticallyAdjustContentInsets={automaticallyAdjustContentInsets}
@@ -200,6 +145,7 @@ export default function ParallaxScrollView({
       contentInsetAdjustmentBehavior={contentInsetAdjustmentBehavior}
       ref={scrollRef}
       scrollEventThrottle={16}
+      onScroll={scrollHandler}
       {...props}
     >
       <View style={styles.scrollBody}>
@@ -218,10 +164,8 @@ export default function ParallaxScrollView({
             },
           ]}
         >
-          {headerMediaMaskElement ? (
-            <MaskedView maskElement={headerMediaMaskElement} style={styles.headerMediaMask}>
-              {headerMedia}
-            </MaskedView>
+          {fadeHeaderMedia ? (
+            <HeaderMediaFade style={styles.headerMediaMask}>{headerMedia}</HeaderMediaFade>
           ) : (
             headerMedia
           )}
@@ -299,7 +243,7 @@ export default function ParallaxScrollView({
           content
         )}
       </View>
-    </Animated.ScrollView>
+    </ScrollContainer>
   );
 }
 

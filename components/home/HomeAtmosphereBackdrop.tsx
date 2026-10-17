@@ -20,6 +20,7 @@ type HomeAtmosphereBackdropProps = {
   imageUrl?: string;
   isDark: boolean;
   optimizeImageLoading?: boolean;
+  imageTransitionDuration?: number;
 };
 
 export function HomeAtmosphereBackdrop({
@@ -28,6 +29,7 @@ export function HomeAtmosphereBackdrop({
   imageUrl,
   isDark,
   optimizeImageLoading = false,
+  imageTransitionDuration = CAROUSEL_FADE_MS,
 }: HomeAtmosphereBackdropProps) {
   const imageOpacity = isDark ? 0.42 : 0.58;
   const source = useMemo(() => (imageUrl ? { uri: imageUrl } : undefined), [imageUrl]);
@@ -60,16 +62,17 @@ export function HomeAtmosphereBackdrop({
 
   return (
     <View style={[styles.backdrop, { backgroundColor }]}>
-      {!!imageUrl && (
+      {(!!imageUrl || !!blurhash) && (
         <Image
           source={source}
           style={[styles.baseImage, { opacity: imageOpacity }]}
           placeholder={placeholder}
           cachePolicy="memory-disk"
           contentFit="cover"
+          placeholderContentFit="cover"
           contentPosition="center"
           blurRadius={60}
-          transition={{ duration: CAROUSEL_FADE_MS, timing: 'ease-in-out' }}
+          transition={{ duration: imageTransitionDuration, timing: 'ease-in-out' }}
           {...imageLoadingProps}
         />
       )}

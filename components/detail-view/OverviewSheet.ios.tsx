@@ -7,7 +7,6 @@ import {
   foregroundStyle,
   frame,
   padding,
-  presentationBackground,
   presentationDetents,
   presentationDragIndicator,
 } from '@expo/ui/swift-ui/modifiers';
@@ -44,7 +43,6 @@ export function OverviewSheet({
             }),
             presentationDetents(['medium', 'large']),
             presentationDragIndicator('visible'),
-            presentationBackground(theme.colors.background),
           ]}
         >
           <Text

@@ -6,8 +6,6 @@ import { DetailViewProps } from '.';
 type DetailViewContextType = {
   title: string;
   setTitle: (title: string) => void;
-  backgroundImageUrl?: string | null;
-  setBackgroundImageUrl: (url?: string | null) => void;
   item?: MediaItem | null;
   setItem: (item: MediaItem | null) => void;
   selectedItem?: MediaItem | null;
@@ -25,7 +23,6 @@ export const DetailViewProvider = ({
   children: ReactNode;
 } & DetailViewProps) => {
   const [title, setTitle] = useState<string>('');
-  const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null | undefined>(null);
   const [item, setItem] = useState<MediaItem | null>(null);
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
 
@@ -34,8 +31,6 @@ export const DetailViewProvider = ({
       value={{
         title,
         setTitle,
-        backgroundImageUrl,
-        setBackgroundImageUrl,
         item,
         setItem,
         selectedItem,

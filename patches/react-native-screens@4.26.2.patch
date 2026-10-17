@@ -1,7 +1,27 @@
 diff --git a/android/build.gradle b/android/build.gradle
 --- a/android/build.gradle
 +++ b/android/build.gradle
-@@ -204,4 +204,6 @@
+@@ -106,7 +106,19 @@
+ def REACT_NATIVE_VERSION = reactProperties.getProperty("VERSION_NAME")
+ def REACT_NATIVE_MINOR_VERSION = REACT_NATIVE_VERSION.startsWith("0.0.0-") ? 1000 : REACT_NATIVE_VERSION.split("\\.")[1].toInteger()
+
++// Keep the package-private BlurView bridge in a separate generated source root.
++// A flat patch source avoids Bun's nested new-file patch directory bug.
++def blurViewCompatSources = layout.buildDirectory.dir("generated/blurview-compat")
++def generateBlurViewCompat = tasks.register("generateBlurViewCompat", Copy) {
++    from file("../CroppedBlurTarget.java")
++    into blurViewCompatSources.map { it.dir("eightbitlab/com/blurview") }
++}
++tasks.named("preBuild").configure {
++    dependsOn(generateBlurViewCompat)
++}
++
+ android {
++    sourceSets.main.java.srcDir(blurViewCompatSources)
+     compileSdkVersion safeExtGet('compileSdkVersion', rnsDefaultCompileSdkVersion)
+     namespace "com.swmansion.rnscreens"
+
+@@ -204,4 +216,6 @@
      implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
      implementation 'com.google.android.material:material:1.13.0'
      implementation "androidx.core:core-ktx:1.17.0"
@@ -100,7 +120,7 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
 +import androidx.dynamicanimation.animation.SpringAnimation
 +import androidx.dynamicanimation.animation.SpringForce
  import com.google.android.material.bottomnavigation.BottomNavigationView
-+import eightbitlab.com.blurview.BlurTarget
++import eightbitlab.com.blurview.CroppedBlurTarget
 +import eightbitlab.com.blurview.BlurView
 +import kotlin.math.abs
 
@@ -533,7 +553,7 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
          require(actionOrigin !== TabsActionOrigin.USER) {
              "[RNScreens] User-triggered actions should be processed via regular setSelectedItemId callback"
          }
-@@ -24,14 +459,80 @@
+@@ -24,14 +459,88 @@
      }
 
      override fun setSelectedItemId(itemId: Int) {
@@ -565,7 +585,12 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
 +}
 +
 +/** Only sample the content sibling: tabs must never capture or blur themselves. */
-+internal class TabsBackdropView(context: Context, source: BlurTarget) : BlurView(context) {
++internal class TabsBackdropView(context: Context, private val source: CroppedBlurTarget) : BlurView(context) {
++    companion object {
++        const val BLUR_RADIUS = 20f
++        const val BLUR_SCALE_FACTOR = 4f
++    }
++
 +    private val clearDrawable = ColorDrawable(Color.WHITE)
 +    private val tintPaint = Paint()
 +    private val strokePaint =
@@ -581,7 +606,7 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
 +        outlineProvider = CapsuleOutlineProvider
 +        clipToOutline = true
 +        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-+            setupWith(source).setFrameClearDrawable(clearDrawable).setBlurRadius(20f)
++            setupWith(source, BLUR_SCALE_FACTOR, true).setFrameClearDrawable(clearDrawable).setBlurRadius(BLUR_RADIUS)
 +        }
 +    }
 +
@@ -600,7 +625,10 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
 +    }
 +
 +    override fun draw(canvas: Canvas) {
-+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) super.draw(canvas)
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
++            if (canvas.isHardwareAccelerated) source.updateSnapshot()
++            super.draw(canvas)
++        }
 +        canvas.drawColor(tintPaint.color)
 +        val halfStroke = strokePaint.strokeWidth / 2f
 +        val radius =
@@ -641,15 +669,16 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
  import androidx.core.view.size
  import androidx.core.widget.NestedScrollView
  import androidx.fragment.app.FragmentManager
-@@ -39,6 +42,7 @@
+@@ -39,6 +42,8 @@
  import com.swmansion.rnscreens.safearea.SafeAreaProvider
  import com.swmansion.rnscreens.safearea.SafeAreaView
  import com.swmansion.rnscreens.utils.RNSLog
 +import eightbitlab.com.blurview.BlurTarget
++import eightbitlab.com.blurview.CroppedBlurTarget
  import kotlin.properties.Delegates
 
  /**
-@@ -145,8 +149,8 @@
+@@ -145,8 +150,8 @@
      internal var colorScheme: ColorScheme by colorSchemeCoordinator::colorScheme
      internal var tabBarRespectsIMEInsets: Boolean = false
 
@@ -660,11 +689,20 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
              layoutParams =
                  LayoutParams(
                      LayoutParams.MATCH_PARENT,
-@@ -155,6 +159,30 @@
+@@ -155,6 +160,39 @@
              id = ViewIdGenerator.generateViewId()
          }
 
-+    private val navigationBackdrop = TabsBackdropView(context, contentView).apply {
++    // Keep three sigma of the effective blur radius plus room for native drag scaling.
++    private val backdropSamplePadding =
++        (3 * TabsBackdropView.BLUR_RADIUS * TabsBackdropView.BLUR_SCALE_FACTOR).toInt() +
++            (16 * resources.displayMetrics.density).toInt()
++    private val backdropBlurTarget = CroppedBlurTarget(context, contentView).apply {
++        layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, Gravity.BOTTOM)
++        visibility = View.INVISIBLE
++        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
++    }
++    private val navigationBackdrop = TabsBackdropView(context, backdropBlurTarget).apply {
 +        layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, Gravity.BOTTOM)
 +        isVisible = false
 +    }
@@ -691,15 +729,16 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
      private val appearanceCoordinator =
          TabsAppearanceCoordinator(bottomNavigationView, tabsModel)
 
-@@ -174,6 +202,7 @@
+@@ -174,6 +212,8 @@
 
      init {
          addView(contentView)
++        addView(backdropBlurTarget)
 +        addView(navigationBackdrop)
          addView(bottomNavigationView)
 
          bottomNavigationView.setOnItemSelectedListener(this::onMenuItemSelected)
-@@ -316,6 +345,7 @@
+@@ -316,6 +356,7 @@
      }
 
      override fun onDetachedFromWindow() {
@@ -707,7 +746,7 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
          super.onDetachedFromWindow()
          teardownFragmentManager()
          parentContainerRegistry.detach(this)
-@@ -325,6 +355,36 @@
+@@ -325,6 +366,42 @@
      override fun onConfigurationChanged(newConfig: Configuration?) {
          super.onConfigurationChanged(newConfig)
          colorSchemeCoordinator.onConfigurationChanged(newConfig)
@@ -735,6 +774,12 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
 +            gravity = params.gravity
 +            bottomMargin = params.bottomMargin
 +        }
++        (backdropBlurTarget.layoutParams as LayoutParams).apply {
++            width = if (floatingNavigation) params.width + 2 * backdropSamplePadding else 0
++            height = if (floatingNavigation) params.height + 2 * backdropSamplePadding else 0
++            gravity = params.gravity
++            bottomMargin = params.bottomMargin - backdropSamplePadding
++        }
 +        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
 +    }
 +
@@ -744,7 +789,7 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
      }
 
      override fun dispatchApplyWindowInsets(insets: WindowInsets?): WindowInsets? {
-@@ -337,6 +397,12 @@
+@@ -337,6 +414,12 @@
              return insets
          }
 
@@ -757,7 +802,7 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
          for (child in children) {
              if (child === bottomNavigationView) {
                  val insetsForBottomNavigationView = getInsetsForBottomNavigationView(insets)
-@@ -386,7 +452,7 @@
+@@ -386,7 +469,7 @@
          }
      }
 
@@ -766,7 +811,7 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
 
      override fun getResolvedUiNightMode() = colorSchemeCoordinator.getResolvedUiNightMode()
 
-@@ -593,6 +659,18 @@
+@@ -593,6 +676,18 @@
          currSelectedFragment: TabsScreenFragment,
          nextSelectedFragment: TabsScreenFragment,
      ) {
@@ -785,7 +830,7 @@ diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/container/
          requireFragmentManager
              .createTransactionWithReordering()
              .let {
-@@ -745,25 +823,25 @@
+@@ -745,25 +840,25 @@
          }
 
      private fun updateInterfaceInsets(newHeight: Int? = null) {
@@ -944,3 +989,65 @@ index 64beb499a6d661cb1bf02a1d88d6dd422081138d..6c541e7656117ba680c664320a4cf5f1
  #if !defined(NDEBUG) // We're in debug mode here
    if (imageSource.packagerAsset) {
      // We use `+ [RCTConvert UIImage:]` only in debug mode, because it is deprecated, however
+diff --git a/CroppedBlurTarget.java b/CroppedBlurTarget.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..36e0d14b2eec78c44a3b9fa316fab62218b2a4eb
+--- /dev/null
++++ b/CroppedBlurTarget.java
+@@ -0,0 +1,56 @@
++package eightbitlab.com.blurview;
++
++import android.annotation.SuppressLint;
++import android.content.Context;
++import android.graphics.Canvas;
++import android.graphics.RecordingCanvas;
++import android.os.Build;
++
++import androidx.annotation.NonNull;
++import androidx.annotation.RequiresApi;
++
++/**
++ * A small, invisible BlurView source that reuses the content's recorded RenderNode.
++ * It shares BlurView 3.1's package to access the snapshot without redrawing the View hierarchy.
++ */
++@SuppressLint("ViewConstructor")
++public final class CroppedBlurTarget extends BlurTarget {
++    private final BlurTarget source;
++    private final int[] sourceLocation = new int[2];
++    private final int[] targetLocation = new int[2];
++
++    public CroppedBlurTarget(@NonNull Context context, @NonNull BlurTarget source) {
++        super(context);
++        this.source = source;
++    }
++
++    @RequiresApi(Build.VERSION_CODES.S)
++    public void updateSnapshot() {
++        if (getWidth() <= 0 || getHeight() <= 0 || !source.renderNode.hasDisplayList()) {
++            return;
++        }
++        source.getLocationOnScreen(sourceLocation);
++        getLocationOnScreen(targetLocation);
++        renderNode.setPosition(0, 0, getWidth(), getHeight());
++        RecordingCanvas canvas = renderNode.beginRecording();
++        try {
++            canvas.translate(sourceLocation[0] - targetLocation[0], sourceLocation[1] - targetLocation[1]);
++            canvas.drawRenderNode(source.renderNode);
++        } finally {
++            renderNode.endRecording();
++        }
++    }
++
++    @Override
++    protected void dispatchDraw(@NonNull Canvas canvas) {
++        // Preserve BlurView's rare software/snapshot fallback without changing the normal draw path.
++        if (!canvas.isHardwareAccelerated()) {
++            source.getLocationOnScreen(sourceLocation);
++            getLocationOnScreen(targetLocation);
++            int save = canvas.save();
++            canvas.translate(sourceLocation[0] - targetLocation[0], sourceLocation[1] - targetLocation[1]);
++            source.draw(canvas);
++            canvas.restoreToCount(save);
++        }
++    }
++}

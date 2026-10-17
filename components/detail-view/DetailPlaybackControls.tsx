@@ -22,13 +22,35 @@ import {
 import { ActivityIndicator, Platform, StyleSheet, View, type ViewProps } from 'react-native';
 
 import { ShadowedGlassCard } from '../ui/GlassCard';
-import { PlayButton } from './common';
+import { Skeleton } from '../ui/Skeleton';
+import { detailViewStyles, PlayButton } from './common';
 import { createDetailPlaybackMenu } from './detailPlaybackMenu';
 
 // MenuView forwards View accessibility props; its published type omits them.
 const AccessibleMenuView = MenuView as ComponentType<
   ComponentProps<typeof MenuView> & ViewProps & RefAttributes<MenuComponentRef>
 >;
+
+export function DetailPlaybackControlsPlaceholder() {
+  return (
+    <View style={styles.row}>
+      <View style={styles.playButton}>
+        <Skeleton
+          tone="subtle"
+          height="auto"
+          borderRadius={999}
+          style={detailViewStyles.playButtonPressable}
+        />
+      </View>
+      <Skeleton
+        tone="subtle"
+        width={styles.menuAnchor.width}
+        height={styles.menuAnchor.height}
+        borderRadius={styles.menuAnchor.borderRadius}
+      />
+    </View>
+  );
+}
 
 export function DetailPlaybackControls({ item }: { item: MediaItem }) {
   // Remount when changing episodes so an earlier episode's indices cannot leak.
