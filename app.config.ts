@@ -2,9 +2,9 @@ import 'tsx/cjs';
 
 import { ExpoConfig } from '@expo/config';
 
+import { getOtaChannel, validateOtaURL } from './config/ota';
+import { resolveBuildReleaseTag } from './config/release';
 import updatesConfig from './config/updates.json';
-import { resolveBuildReleaseTag } from './lib/appUpdates';
-import { getOtaChannel, validateOtaURL } from './lib/otaConfig';
 import packageJson from './package.json';
 
 const IS_DEV = process.env.APP_VARIANT === 'development';

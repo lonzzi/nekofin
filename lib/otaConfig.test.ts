@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest';
 
+import { getOtaChannel, validateOtaURL } from '../config/ota';
 import { resolveInstalledRelease } from './appUpdates';
-import { getNativeReleaseTag, getOtaChannel, isProductionBuild, validateOtaURL } from './otaConfig';
+import { getNativeReleaseTag, isProductionBuild } from './otaConfig';
 
 it('preserves installation identity from the native channel across OTA config changes', () => {
   const channel = getOtaChannel('production', 'v0.1.0-beta.1', '0.1.0');

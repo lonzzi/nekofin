@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  isUpdatePromptRoute,
-  resolveBuildReleaseTag,
-  resolveInstalledRelease,
-  selectAppUpdate,
-} from './appUpdates';
+import { resolveBuildReleaseTag } from '../config/release';
+import { isUpdatePromptRoute, resolveInstalledRelease, selectAppUpdate } from './appUpdates';
 
 function release(
   tag: string,

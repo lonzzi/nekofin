@@ -14,17 +14,6 @@ function isReleaseTag(tag: string) {
   return /^v\d/.test(tag) && tag.trim() === tag && valid(tag.slice(1)) !== null;
 }
 
-export function resolveBuildReleaseTag(appVersion: string, releaseTag: string | undefined) {
-  if (!releaseTag) return null;
-  if (
-    !isReleaseTag(releaseTag) ||
-    resolveInstalledRelease(appVersion, releaseTag) !== releaseTag.slice(1)
-  ) {
-    throw new Error(`Release tag "${releaseTag}" must match app version "${appVersion}".`);
-  }
-  return releaseTag;
-}
-
 export function resolveInstalledRelease(nativeVersion: string | null, releaseTag: unknown) {
   const native = nativeVersion ? parse(nativeVersion) : null;
   if (!native) return null;
