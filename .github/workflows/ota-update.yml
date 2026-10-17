@@ -10,6 +10,11 @@ on:
       - 'lib/otaConfig*'
       - 'hooks/useHotUpdate.ts'
       - 'app.config.ts'
+      - 'config/**'
+      - 'fingerprint.config.js'
+      - '.github/scripts/**'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/build-apps.yml'
       - 'package.json'
       - 'bun.lock'
   workflow_dispatch:
@@ -49,6 +54,7 @@ jobs:
       - run: bun run test
       - run: bun run typecheck
       - run: bun run test:ota
+      - run: node --test .github/scripts/*.test.cjs
   publish:
     if: github.event_name == 'workflow_dispatch'
     needs: validate
@@ -65,6 +71,8 @@ jobs:
       OTA_OPERATION: ${{ inputs.operation }}
     steps:
       - uses: actions/checkout@v4
+      - name: Set app version from target installer tag
+        run: node .github/scripts/release-metadata.cjs "$NEKOFIN_RELEASE_TAG" --write-version
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest

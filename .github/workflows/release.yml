@@ -37,12 +37,12 @@ jobs:
       - name: Test release automation
         run: node --test .github/scripts/*.test.cjs
 
-      - name: Validate tag against app version
+      - name: Set app version from release tag
         id: version
         env:
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          node .github/scripts/release-metadata.cjs "$RELEASE_TAG"
+          node .github/scripts/release-metadata.cjs "$RELEASE_TAG" --write-version
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: oven-sh/setup-bun@v2
@@ -127,3 +127,23 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash .github/scripts/publish-release.sh
+
+  sync-version:
+    name: Sync released version to main
+    needs: [prepare, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-version-main
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Commit the released version without downgrading main
+        env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          RELEASE_SHA: ${{ needs.prepare.outputs.sha }}
+        run: node .github/scripts/sync-release-version.cjs "$RELEASE_TAG" "$RELEASE_SHA"
