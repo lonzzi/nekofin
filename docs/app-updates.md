@@ -72,3 +72,5 @@ APP_VARIANT=production NEKOFIN_RELEASE_TAG=v0.1.0-beta.1 bunx expo config --type
 验证命令：`bun run test`、`bun run typecheck`、`bun run test:ota`、`node --test .github/scripts/*.test.cjs`。协议参考：[Expo Updates v1](https://docs.expo.dev/technical-specs/expo-updates-1/)、[SDK 57 Updates](https://docs.expo.dev/versions/v57.0.0/sdk/updates/)。
 
 需要验证线上资源时，运行 `node scripts/ota/verify-live.mjs RUNTIMES_FILE`。它会检查双端清单签名、下载每项 GitHub 资源并校验 SHA-256；目标运行时应有一份已发布的热更新，而非回退指令。
+
+iOS Release 模拟器已实际验证下载、下次冷启动应用与签名回退，截图及验证范围见 [OTA 验证记录](validation/ota/README.md)。
