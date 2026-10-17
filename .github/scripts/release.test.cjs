@@ -5,7 +5,7 @@ const { tmpdir } = require('node:os');
 const path = require('node:path');
 const { test } = require('node:test');
 
-const { getReleaseMetadata } = require('./release-metadata.cjs');
+const { getReleaseMetadata, parseReleaseTag } = require('./release-metadata.cjs');
 
 for (const [tag, prerelease] of [
   ['v0.2.0', false],
@@ -19,6 +19,7 @@ for (const [tag, prerelease] of [
 ]) {
   test(`classifies ${tag}`, () => {
     assert.deepEqual(getReleaseMetadata(tag, '0.2.0'), { tag, version: '0.2.0', prerelease });
+    assert.deepEqual(parseReleaseTag(tag), { tag, version: '0.2.0', prerelease });
   });
 }
 
@@ -69,6 +70,56 @@ test('writes validated metadata to GitHub outputs and rejects mismatched version
   assert.equal(readFileSync(output, 'utf8'), expected);
 });
 
+test('sets the numeric package version from a release tag without changing dependencies', (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'nekofin-tag-version-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const original = {
+    name: 'nekofin',
+    version: '0.1.0',
+    dependencies: { expo: '~57.0.28' },
+    scripts: { test: 'vitest run' },
+  };
+  const packagePath = path.join(directory, 'package.json');
+  const output = path.join(directory, 'output');
+  writeFileSync(packagePath, JSON.stringify(original, null, 2) + '\n');
+  writeFileSync(path.join(directory, 'bun.lock'), 'unchanged lockfile');
+  const run = (tag, ...args) =>
+    spawnSync(process.execPath, [require.resolve('./release-metadata.cjs'), tag, ...args], {
+      cwd: directory,
+      encoding: 'utf8',
+      env: { ...process.env, GITHUB_OUTPUT: output },
+    });
+
+  for (const [tag, version, prerelease] of [
+    ['v0.2.0-beta.1', '0.2.0', true],
+    ['v0.3.1', '0.3.1', false],
+    ['v0.3.1-rc.2+build.7', '0.3.1', true],
+  ]) {
+    const result = run(tag, '--write-version');
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(readFileSync(packagePath, 'utf8')), { ...original, version });
+    assert.match(result.stdout, new RegExp(`prerelease=${prerelease}`));
+    assert.equal(readFileSync(path.join(directory, 'bun.lock'), 'utf8'), 'unchanged lockfile');
+    // Existing strict validation remains available after synchronization.
+    const validation = run(tag);
+    assert.equal(validation.status, 0, validation.stderr);
+  }
+
+  const before = readFileSync(packagePath, 'utf8');
+  const beforeOutput = readFileSync(output, 'utf8');
+  for (const args of [
+    ['nightly', '--write-version'],
+    ['v0.4.0-beta.01', '--write-version'],
+    ['v0.4.0', '--unknown'],
+    ['v0.4.0', '--write-version', '--unexpected'],
+  ]) {
+    const result = run(...args);
+    assert.notEqual(result.status, 0);
+    assert.equal(readFileSync(packagePath, 'utf8'), before);
+    assert.equal(readFileSync(output, 'utf8'), beforeOutput);
+  }
+});
+
 function publish(
   t,
   {
@@ -77,6 +128,7 @@ function publish(
     state = 'missing',
     failUpload = false,
     missingAsset = false,
+    runtimeAsset = false,
   } = {},
 ) {
   const directory = mkdtempSync(path.join(tmpdir(), 'nekofin-release-'));
@@ -90,6 +142,10 @@ function publish(
     if (!missingAsset || !name.endsWith('.ipa')) {
       writeFileSync(path.join(directory, 'release', name), 'test asset');
     }
+  }
+
+  if (runtimeAsset) {
+    writeFileSync(path.join(directory, 'release', `nekofin-${tag}-runtimes.json`), '{"version":1}');
   }
 
   const log = path.join(directory, 'gh-calls.jsonl');
@@ -151,6 +207,12 @@ test('publishes a prerelease without replacing the latest stable release', (t) =
   assert.ok(result.calls[1].includes('--prerelease=true'));
   assert.ok(result.calls[3].includes('--prerelease=true'));
   assert.ok(result.calls[3].includes('--latest=false'));
+});
+
+test('includes runtime contracts in OTA-capable installer releases', (t) => {
+  const result = publish(t, { runtimeAsset: true });
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(result.calls[2].includes('release/nekofin-v0.2.0-runtimes.json'));
 });
 
 test('resumes an existing draft after a failed run', (t) => {
