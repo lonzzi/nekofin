@@ -2,7 +2,7 @@ import 'tsx/cjs';
 
 import { ExpoConfig } from '@expo/config';
 
-import { getOtaChannel, validateOtaURL } from './config/ota';
+import { getBuildRuntimeVersion, getOtaChannel, validateOtaURL } from './config/ota';
 import { resolveBuildReleaseTag } from './config/release';
 import updatesConfig from './config/updates.json';
 import packageJson from './package.json';
@@ -42,7 +42,7 @@ export default ({ config: _config }: { config: ExpoConfig }): ExpoConfig => {
     name: getAppName(),
     slug: 'nekofin',
     version: packageJson.version,
-    runtimeVersion: { policy: 'fingerprint' },
+    runtimeVersion: getBuildRuntimeVersion(process.env.NEKOFIN_NATIVE_RUNTIME),
     updates: {
       enabled: !IS_DEV && Boolean(otaURL),
       ...(otaURL ? { url: otaURL } : {}),
