@@ -94,7 +94,7 @@ function ServerConfigScreen() {
           <NativeSettingsItem
             title={<SettingsTitle>服务器线路</SettingsTitle>}
             subtitle={
-              <SettingsSubtitle primary="局域网与外网地址，可在首页头像菜单中切换" lines={2} />
+              <SettingsSubtitle primary="管理多个地址，配置 Wi-Fi 下的内外网自动切换" lines={2} />
             }
             disclosure
             onPress={() =>

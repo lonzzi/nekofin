@@ -14,7 +14,7 @@ export type PlayerTransportAction = {
   seekOffsetMs?: number;
 };
 
-export type PlayerActionButtonKey = 'episodes' | 'danmaku' | 'tracks' | 'playback';
+export type PlayerActionButtonKey = 'episodes' | 'danmaku' | 'tracks' | 'quality' | 'playback';
 
 export type PlayerActionButton = {
   accessibilityLabel: string;
@@ -112,6 +112,10 @@ export function derivePlayerActionButtons({
     {
       accessibilityLabel: '字幕与音轨',
       key: 'tracks',
+    },
+    {
+      accessibilityLabel: '画质',
+      key: 'quality',
     },
     {
       accessibilityLabel: '播放设置',

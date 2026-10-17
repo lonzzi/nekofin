@@ -12,7 +12,8 @@ import { storage } from '@/lib/storage';
 import { formatBitrate, getDeviceId, ticksToMilliseconds, ticksToSeconds } from '@/lib/utils';
 import { resolveDanmakuSelection, type DanmakuCommentsData } from '@/services/danmaku';
 import { danmakuSourcesKey } from '@/services/danmakuSources';
-import { applyPlaybackQuality } from '@/services/media/playbackQuality';
+import { prioritizeSubtitleTracks } from '@/services/media/externalTracks';
+import { applyPlaybackQuality, type PlaybackQuality } from '@/services/media/playbackQuality';
 import type { PlaybackSelection } from '@/services/media/playbackSelection';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import {
@@ -38,6 +39,7 @@ import { usePlaybackSync } from '../../hooks/usePlaybackSync';
 import { Controls } from './Controls';
 import { DanmakuLayer, DanmakuLayerRef } from './DanmakuLayer';
 import { createExternalSubtitleCache } from './externalSubtitleCache';
+import { derivePlaybackSourceInfo } from './playbackInfo';
 import {
   acknowledgePlaybackSeek,
   createPlaybackSeekGateState,
@@ -62,7 +64,12 @@ import {
 } from './playerDerived';
 import { PlayerEntryVisibilityContext } from './PlayerEntryContext';
 import { createPlayerLoadRecovery, playbackFailureMessage } from './playerLoadRecovery';
-import { isExternalTrackCommandError, loadExternalPlayerTrack } from './playerTrackLoading';
+import { serverIndexForNativeTrack } from './playerQualitySelection';
+import {
+  isExternalTrackCommandError,
+  loadExternalPlayerTrack,
+  loadExternalTracksProgressively,
+} from './playerTrackLoading';
 import { usePlayerQueries } from './usePlayerQueries';
 
 type BufferInfo = { percent: number; rate: number };
@@ -194,9 +201,17 @@ export const VideoPlayer = ({
     }),
     [],
   );
+  const [qualityChoice, setQualityChoice] = useState<{
+    itemId: string;
+    quality: PlaybackQuality;
+  } | null>(null);
+  const quality =
+    qualityChoice?.itemId === itemId
+      ? qualityChoice.quality
+      : (initialSelection?.quality ?? 'auto');
   const { enableTranscoding, enableSubtitleBurnIn, maxBitrate, selectedCodec } = useMemo(
-    () => applyPlaybackQuality(initialSelection?.quality, playbackDefaults),
-    [initialSelection?.quality, playbackDefaults],
+    () => applyPlaybackQuality(quality, playbackDefaults),
+    [quality, playbackDefaults],
   );
 
   const player = useRef<ExpoMpvViewRef>(null);
@@ -334,6 +349,77 @@ export const VideoPlayer = ({
       activePlaybackContextRef.current === context &&
       (!targetPlayer || player.current === targetPlayer),
     [],
+  );
+  const playbackSourceInfo = useMemo(
+    () =>
+      derivePlaybackSourceInfo(
+        playbackSourceUrl,
+        streamInfo?.mediaSource,
+        enableTranscoding ? maxBitrate : undefined,
+      ),
+    [playbackSourceUrl, streamInfo?.mediaSource, enableTranscoding, maxBitrate],
+  );
+  const readPlaybackMediaInfo = useCallback(async () => {
+    const target = player.current;
+    if (!target || !isPlayerReadyRef.current || !isPlaybackContextActive(playbackContext, target))
+      return null;
+    const info = await target.getMediaInfo();
+    return isPlaybackContextActive(playbackContext, target) ? info : null;
+  }, [playbackContext, isPlaybackContextActive]);
+  const handleQualityChange = useCallback(
+    async (next: PlaybackQuality) => {
+      if (next === quality) return;
+      const target = player.current;
+      const source = streamInfo?.mediaSource;
+      let audio = activeServerTrackChoice?.audio ?? playbackSelection.audioStreamIndex;
+      let subtitle = activeServerTrackChoice?.subtitle ?? playbackSelection.subtitleStreamIndex;
+      if (target && source && !usesServerTracks && isPlayerReadyRef.current) {
+        try {
+          const tracks = await target.getTrackList();
+          if (!isPlaybackContextActive(playbackContext, target)) return;
+          const indices = await target.getCurrentTrackIds();
+          if (!isPlaybackContextActive(playbackContext, target)) return;
+          const serverStreams = source.MediaStreams ?? [];
+          audio =
+            serverIndexForNativeTrack({
+              type: 'Audio',
+              nativeId: indices.aid,
+              nativeTracks: tracks,
+              serverStreams,
+              externalIds: externalTrackLoads.current?.audioIds,
+            }) ?? audio;
+          subtitle =
+            serverIndexForNativeTrack({
+              type: 'Subtitle',
+              nativeId: indices.sid,
+              nativeTracks: tracks,
+              serverStreams,
+              externalIds: externalTrackLoads.current?.subtitleIds,
+            }) ?? subtitle;
+        } catch {
+          /* The server can still resolve default tracks if native discovery fails. */
+        }
+      }
+      if (!isPlaybackContextActive(playbackContext)) return;
+      if (isLoaded) resumePausedRef.current = !isPlaying;
+      if (source?.Id) {
+        setVersionChoice({ itemId, id: source.Id });
+        setServerTrackChoice({ itemId, sourceId: source.Id, audio, subtitle });
+      }
+      setQualityChoice({ itemId, quality: next });
+    },
+    [
+      quality,
+      streamInfo?.mediaSource,
+      activeServerTrackChoice,
+      playbackSelection,
+      usesServerTracks,
+      isPlaybackContextActive,
+      playbackContext,
+      isLoaded,
+      isPlaying,
+      itemId,
+    ],
   );
 
   const danmakuData = manualDanmaku ?? autoCommentsData;
@@ -656,7 +742,14 @@ export const VideoPlayer = ({
   useEffect(() => {
     const targetPlayer = player.current;
     const targetSource = streamInfo?.url ?? null;
-    if (!isLoaded || !targetPlayer || !targetSource || loadedSourceRef.current !== targetSource)
+    if (
+      !isLoaded ||
+      !targetPlayer ||
+      !targetSource ||
+      !currentServer?.id ||
+      !currentServer.userId ||
+      loadedSourceRef.current !== targetSource
+    )
       return;
 
     if (
@@ -670,7 +763,13 @@ export const VideoPlayer = ({
         requests: new Map(),
         subtitleIds: new Map(),
         audioIds: new Map(),
-        subtitleCache: createExternalSubtitleCache(),
+        subtitleCache: createExternalSubtitleCache({
+          serverId: currentServer.id,
+          userId: currentServer.userId,
+          itemId,
+          mediaSourceId: streamInfo?.mediaSource?.Id ?? itemId,
+          sourceSize: streamInfo?.mediaSource?.Size,
+        }),
       };
     }
     const loads = externalTrackLoads.current;
@@ -681,48 +780,52 @@ export const VideoPlayer = ({
     let cancelled = false;
     const loadTracks = async () => {
       const pending = [
-        ...externalSubtitles.map((track) => ({
-          track,
-          type: 'sub' as const,
-          ids: loads.subtitleIds,
-        })),
+        ...prioritizeSubtitleTracks(externalSubtitles, playbackSelection.subtitleStreamIndex).map(
+          (track) => ({
+            track,
+            type: 'sub' as const,
+            ids: loads.subtitleIds,
+          }),
+        ),
         ...externalAudios.map((track) => ({ track, type: 'audio' as const, ids: loads.audioIds })),
       ];
-      let failed = false;
-      for (const { track, type, ids } of pending) {
-        if (cancelled || !isActive()) return;
-        const key = `${type}:${track.index}:${track.url}`;
-        let request = loads.requests.get(key);
-        if (!request) {
-          request = (async () => {
-            const prepared =
-              type === 'sub' ? await loads.subtitleCache.prepare(track, isActive) : track;
-            if (!prepared || !isActive()) return;
-            return loadExternalPlayerTrack(targetPlayer, type, prepared, isActive);
-          })();
-          loads.requests.set(key, request);
-        }
-        try {
+      const result = await loadExternalTracksProgressively(
+        pending.map(({ track, type, ids }) => async () => {
+          const key = `${type}:${track.index}:${track.url}`;
+          let request = loads.requests.get(key);
+          if (!request) {
+            request = (async () => {
+              const prepared =
+                type === 'sub' ? await loads.subtitleCache.prepare(track, isActive) : track;
+              if (!prepared || !isActive()) return;
+              return loadExternalPlayerTrack(targetPlayer, type, prepared, isActive);
+            })();
+            loads.requests.set(key, request);
+          }
           const id = await request;
           if (id != null) ids.set(track.index, id);
-        } catch {
-          failed = true;
-        }
-      }
-      if (!cancelled && isActive()) {
-        await refreshMpvTracks(targetPlayer, targetSource);
-        if (failed)
-          Alert.alert(
-            '部分轨道加载失败',
-            '部分外挂字幕或音轨未能加载，请检查服务器连接后重新播放。',
-          );
-      }
+        }),
+        () => refreshMpvTracks(targetPlayer, targetSource),
+        () => !cancelled && isActive(),
+      );
+      if (result?.failed)
+        Alert.alert('部分轨道加载失败', '部分外挂字幕或音轨未能加载，请检查服务器连接后重新播放。');
     };
     void loadTracks();
     return () => {
       cancelled = true;
     };
-  }, [externalSubtitles, externalAudios, isLoaded, refreshMpvTracks, streamInfo?.url]);
+  }, [
+    externalSubtitles,
+    externalAudios,
+    isLoaded,
+    refreshMpvTracks,
+    streamInfo?.url,
+    currentServer,
+    itemId,
+    streamInfo?.mediaSource,
+    playbackSelection.subtitleStreamIndex,
+  ]);
 
   const handlePlayPause = useCallback(() => {
     if (loadFailure) {
@@ -1203,6 +1306,10 @@ export const VideoPlayer = ({
               resumePausedRef.current = !isPlaying;
               setVersionChoice({ itemId, id });
             }}
+            quality={quality}
+            onQualityChange={handleQualityChange}
+            playbackSourceInfo={playbackSourceInfo}
+            readPlaybackMediaInfo={readPlaybackMediaInfo}
             aspectRatio={aspectRatio}
             onAspectRatioChange={handleAspectRatioChange}
             hasPreviousEpisode={hasPreviousEpisode}

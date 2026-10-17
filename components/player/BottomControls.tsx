@@ -1,7 +1,7 @@
 import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { formatTimeWorklet } from '@/lib/utils';
 import { useCallback } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useDerivedValue,
@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PlaybackInfoBadges } from './PlaybackInfoBadges';
 import { PlayerActionBar } from './PlayerActionBar';
 import { usePlayer } from './PlayerContext';
 import { PlayerProgressSlider } from './PlayerProgressSlider';
@@ -16,7 +17,7 @@ import { TransportControls } from './TransportControls';
 import { useOverlayInsets } from './useOverlayInsets';
 
 export function BottomControls() {
-  const { side, bottomExtra, maxContentWidth, stackBottomControls } = useOverlayInsets();
+  const { side, safeSideGap, bottomExtra, maxContentWidth } = useOverlayInsets();
   const insets = useSafeAreaInsets();
   const {
     bufferedProgress,
@@ -70,63 +71,52 @@ export function BottomControls() {
 
   const formattedCurrentTime = formatTimeWorklet(currentTimeMs);
   const formattedDuration = formatTimeWorklet(duration);
-  const leftInset = Math.max(side, insets.left + 8);
-  const rightInset = Math.max(side, insets.right + 8);
+  const leftInset = Math.max(side, insets.left + safeSideGap);
+  const rightInset = Math.max(side, insets.right + safeSideGap);
+  const bottomInset = insets.bottom + (Platform.OS === 'ios' ? 16 : 24) + bottomExtra;
 
   return (
     <View
       pointerEvents="box-none"
-      style={[
-        styles.container,
-        { bottom: insets.bottom + 10 + bottomExtra, left: leftInset, right: rightInset },
-      ]}
+      style={[styles.container, { bottom: bottomInset, left: leftInset, right: rightInset }]}
     >
       <View pointerEvents="box-none" style={[styles.content, { maxWidth: maxContentWidth }]}>
-        <View pointerEvents="box-none" style={styles.progressRow}>
+        <View pointerEvents="box-none" style={styles.metadataRow}>
+          <PlaybackInfoBadges />
           <Animated.Text pointerEvents="none" style={[styles.timeText, fadeAnimatedStyle]}>
-            {formattedCurrentTime}
-          </Animated.Text>
-          <Animated.View
-            pointerEvents={showControls ? 'auto' : 'none'}
-            style={[styles.progressSlider, fadeAnimatedStyle]}
-          >
-            <PlayerProgressSlider
-              accessibilityStep={duration > 0 ? Math.min(1, 10_000 / duration) : 0.01}
-              accessibilityValue={`${formattedCurrentTime} / ${formattedDuration}`}
-              bufferedProgress={bufferedProgress}
-              disabled={isLoading || duration <= 0}
-              onSlidingComplete={handleSliderSlidingComplete}
-              onSlidingCancel={() => {
-                progressValue.value = duration > 0 ? currentTime.value / duration : 0;
-                setIsDragging(false);
-                hideControlsWithDelay();
-              }}
-              onSlidingStart={() => {
-                clearControlsTimeout();
-                seekPreviewStartTime.value = currentTime.value;
-                seekPreviewTime.value = currentTime.value;
-                setIsDragging(true);
-              }}
-              onValueChange={(value) => {
-                seekPreviewTime.value = value * duration;
-              }}
-              progress={progressValue}
-            />
-          </Animated.View>
-          <Animated.Text pointerEvents="none" style={[styles.timeText, fadeAnimatedStyle]}>
-            {formattedDuration}
+            {formattedCurrentTime} / {formattedDuration}
           </Animated.Text>
         </View>
-
-        <View
-          pointerEvents="box-none"
-          style={[styles.bottomRow, stackBottomControls && styles.stackedBottomRow]}
+        <Animated.View
+          pointerEvents={showControls ? 'auto' : 'none'}
+          style={[styles.progressSlider, fadeAnimatedStyle]}
         >
+          <PlayerProgressSlider
+            accessibilityStep={duration > 0 ? Math.min(1, 10_000 / duration) : 0.01}
+            accessibilityValue={`${formattedCurrentTime} / ${formattedDuration}`}
+            bufferedProgress={bufferedProgress}
+            disabled={isLoading || duration <= 0}
+            onSlidingComplete={handleSliderSlidingComplete}
+            onSlidingCancel={() => {
+              progressValue.value = duration > 0 ? currentTime.value / duration : 0;
+              setIsDragging(false);
+              hideControlsWithDelay();
+            }}
+            onSlidingStart={() => {
+              clearControlsTimeout();
+              seekPreviewStartTime.value = currentTime.value;
+              seekPreviewTime.value = currentTime.value;
+              setIsDragging(true);
+            }}
+            onValueChange={(value) => {
+              seekPreviewTime.value = value * duration;
+            }}
+            progress={progressValue}
+          />
+        </Animated.View>
+        <View pointerEvents="box-none" style={styles.bottomRow}>
           <TransportControls />
-          <View
-            pointerEvents="box-none"
-            style={[styles.actionRow, !stackBottomControls && styles.inlineActionRow]}
-          >
+          <View pointerEvents="box-none" style={styles.actionRow}>
             <PlayerActionBar />
           </View>
         </View>
@@ -142,25 +132,27 @@ const styles = StyleSheet.create({
   },
   content: {
     alignSelf: 'center',
-    gap: 10,
+    gap: 0,
     width: '100%',
   },
-  progressRow: {
+  metadataRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 10,
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    columnGap: 8,
+    rowGap: 2,
   },
   progressSlider: {
-    flex: 1,
     height: 44,
   },
   timeText: {
     color: 'rgba(255,255,255,0.82)',
-    fontSize: 12,
+    fontSize: 11,
     fontVariant: ['tabular-nums'],
     fontWeight: '600',
-    minWidth: 48,
-    textAlign: 'center',
+    marginLeft: 'auto',
+    textAlign: 'right',
     textShadowColor: 'rgba(0,0,0,0.55)',
     textShadowOffset: { height: 1, width: 0 },
     textShadowRadius: 4,
@@ -168,17 +160,12 @@ const styles = StyleSheet.create({
   bottomRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 8,
+    flexWrap: 'wrap',
+    columnGap: 8,
+    rowGap: 4,
     justifyContent: 'space-between',
   },
-  stackedBottomRow: {
-    alignItems: 'stretch',
-    flexDirection: 'column',
-  },
   actionRow: {
-    alignSelf: 'flex-end',
-  },
-  inlineActionRow: {
     marginLeft: 'auto',
   },
 });

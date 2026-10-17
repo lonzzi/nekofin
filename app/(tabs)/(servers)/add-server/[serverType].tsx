@@ -1,63 +1,35 @@
-import { AddServerForm, type AddServerFormHandle } from '@/components/AddServerForm';
-import { HeaderButton, HeaderToolbar } from '@/components/navigation/HeaderToolbar';
-import { getAddServerSavePresentation } from '@/components/navigation/nativeHeaderModel';
-import { getNativeToolbarIcon } from '@/components/navigation/nativeToolbarIcons';
+import { AddServerForm } from '@/components/AddServerForm';
+import { OuterScreenOptions } from '@/components/outer/OuterPrimitives';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import type { MediaServerType } from '@/services/media/types';
-import { Stack, useLocalSearchParams } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { isMediaServerType } from '@/lib/mediaServerTypes';
+import { withOuterTheme } from '@/lib/theme/OuterTheme';
+import { useLocalSearchParams } from 'expo-router';
 
-const serverTitleByType: Record<MediaServerType, string> = {
-  jellyfin: 'Jellyfin',
-  emby: 'Emby',
-};
-
-function getServerType(value: string | string[] | undefined): MediaServerType {
-  return value === 'emby' ? 'emby' : 'jellyfin';
-}
-
-export default function AddServerScreen() {
+function AddServerScreen() {
   const { serverType: serverTypeParam, serverId } = useLocalSearchParams<{
     serverType?: string;
     serverId?: string;
   }>();
   const { servers } = useMediaServers();
   const existingServer = servers.find((server) => server.id === serverId);
-  const serverType = existingServer?.type ?? getServerType(serverTypeParam);
-  const formRef = useRef<AddServerFormHandle>(null);
+  const serverType =
+    existingServer?.type ?? (isMediaServerType(serverTypeParam) ? serverTypeParam : 'jellyfin');
   const router = useTracedRouter('add-server');
-  const [isSaving, setIsSaving] = useState(false);
-
-  const title = useMemo(() => serverTitleByType[serverType], [serverType]);
-  const savePresentation = getAddServerSavePresentation(isSaving);
-
   return (
     <>
-      <Stack.Title large={!(Platform.OS === 'ios' && Platform.isPad)}>{title}</Stack.Title>
-      <HeaderToolbar placement="right">
-        <HeaderButton
-          accessibilityLabel={savePresentation.accessibilityLabel}
-          disabled={savePresentation.disabled}
-          icon={
-            process.env.EXPO_OS === 'ios' ? undefined : getNativeToolbarIcon('save', 'checkmark')
-          }
-          onPress={() => {
-            void formRef.current?.submit();
-          }}
-          variant="done"
-        >
-          {savePresentation.label}
-        </HeaderButton>
-      </HeaderToolbar>
+      <OuterScreenOptions
+        title={existingServer ? '重新登录' : '添加服务器'}
+        large={false}
+        grouped
+      />
       <AddServerForm
+        key={existingServer?.id ?? serverType}
         existingServer={existingServer}
-        ref={formRef}
         serverType={serverType}
-        onLoadingChange={setIsSaving}
         onSuccess={() => router.back()}
       />
     </>
   );
 }
+export default withOuterTheme(AddServerScreen);

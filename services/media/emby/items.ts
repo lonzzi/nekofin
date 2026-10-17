@@ -11,6 +11,7 @@ import type {
   GetLatestItemsParams,
   GetNextUpItemsByFolderParams,
   GetNextUpItemsParams,
+  GetRandomItemsParams,
   GetRecommendedSearchKeywordsParams,
   GetResumeItemsParams,
   GetSeasonsBySeriesParams,
@@ -66,10 +67,14 @@ export const getLatestItemsByFolder = async (
     ),
   });
 
-export const getNextUpItems = async (client: ApiClient, { userId, limit }: GetNextUpItemsParams) =>
+export const getNextUpItems = async (
+  client: ApiClient,
+  { userId, limit, startIndex }: GetNextUpItemsParams,
+) =>
   await client.get<EmbyItemsResponse>(`/Shows/NextUp`, {
     Limit: limit,
     UserId: userId,
+    StartIndex: startIndex,
     Fields: 'PrimaryImageAspectRatio,DateCreated,MediaSourceCount',
     ImageTypeLimit: 1,
     EnableImageTypes: 'Primary,Backdrop,Banner,Thumb',
@@ -85,7 +90,10 @@ export const getNextUpItemsByFolder = async (
     ParentId: folderId,
   });
 
-export const getResumeItems = async (client: ApiClient, { userId, limit }: GetResumeItemsParams) =>
+export const getResumeItems = async (
+  client: ApiClient,
+  { userId, limit, startIndex }: GetResumeItemsParams,
+) =>
   await client.get<EmbyItemsResponse>(`/Users/${userId}/Items/Resume`, {
     Recursive: true,
     Fields: 'BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear',
@@ -93,6 +101,7 @@ export const getResumeItems = async (client: ApiClient, { userId, limit }: GetRe
     EnableImageTypes: 'Primary,Backdrop,Thumb',
     MediaTypes: 'Video',
     Limit: limit,
+    StartIndex: startIndex,
   });
 
 export const getFavoriteItems = async (
@@ -254,7 +263,7 @@ export const getRecommendedSearchKeywords = async (
 
 export const getRandomItems = async (
   client: ApiClient,
-  { userId, limit }: { userId: string; limit?: number },
+  { userId, limit, folderId }: GetRandomItemsParams,
 ) =>
   await client.get<EmbyItemsResponse>(`/Users/${userId}/Items`, {
     UserId: userId,
@@ -262,6 +271,7 @@ export const getRandomItems = async (
     IncludeItemTypes: 'Movie,Series',
     SortBy: 'Random',
     Limit: limit,
+    ParentId: folderId,
     ...defaultItemParams(
       'BasicSyncInfo,CanDelete,PrimaryImageAspectRatio,ProductionYear,Status,EndDate,Path,ParentId',
     ),

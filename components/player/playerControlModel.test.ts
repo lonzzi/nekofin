@@ -81,13 +81,14 @@ describe('player control model', () => {
       derivePlayerActionButtons({ danmakuCount: 128, episodeCount: 12, isMovie: false }).map(
         (action) => action.key,
       ),
-    ).toEqual(['episodes', 'danmaku', 'tracks', 'playback']);
+    ).toEqual(['episodes', 'danmaku', 'tracks', 'quality', 'playback']);
 
     expect(
       derivePlayerActionButtons({ danmakuCount: Number.NaN, episodeCount: 0, isMovie: false }),
     ).toEqual([
       { accessibilityLabel: '弹幕设置，当前 0 条', key: 'danmaku' },
       { accessibilityLabel: '字幕与音轨', key: 'tracks' },
+      { accessibilityLabel: '画质', key: 'quality' },
       { accessibilityLabel: '播放设置', key: 'playback' },
     ]);
   });

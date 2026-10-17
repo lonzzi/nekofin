@@ -1,12 +1,9 @@
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  aggregateHomeQueryOptions,
-  groupAggregateLatestFolders,
-  mergeAggregateHomeItems,
-} from './aggregateHome';
-import type { MediaItem, MediaServerInfo } from './types';
+import { groupAggregateLatestFolders, mergeAggregateHomeItems } from './aggregateHome';
+import { homeResumeQueryOptions } from './queryOptions';
+import type { MediaAdapter, MediaItem, MediaServerInfo } from './types';
 
 const server = (id: string): MediaServerInfo => ({
   id,
@@ -100,6 +97,7 @@ describe('aggregate home', () => {
   it('loads accounts independently so a failed server does not discard successful results', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const adapter = {
+      getItemAncestors: vi.fn(async () => [item('visible')]),
       getResumeItems: vi.fn(async ({ userId }: { userId: string }) => {
         if (userId === 'user-b') throw new Error('offline');
         return { items: [item('resume')] };
@@ -110,14 +108,19 @@ describe('aggregate home', () => {
     const settled = await Promise.allSettled(
       ['a', 'b'].map((id) =>
         client.fetchQuery({
-          ...aggregateHomeQueryOptions({ adapter, server: server(id), section: 'resume' }),
+          ...homeResumeQueryOptions({
+            adapter: adapter as unknown as MediaAdapter,
+            currentServer: server(id),
+            libraryIds: ['visible'],
+            queryClient: client,
+          }),
           retry: false,
         }),
       ),
     );
     expect(settled.map((result) => result.status)).toEqual(['fulfilled', 'rejected']);
     const successful = settled[0];
-    expect(successful.status === 'fulfilled' && successful.value.items[0].id).toBe('resume');
+    expect(successful.status === 'fulfilled' && successful.value[0].id).toBe('resume');
     client.clear();
   });
 });

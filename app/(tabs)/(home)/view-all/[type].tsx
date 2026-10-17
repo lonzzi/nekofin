@@ -1,17 +1,22 @@
 import { ItemGridScreen } from '@/components/media/ItemGridScreen';
 import type { MediaItemSource } from '@/components/media/mediaSource';
+import { useHiddenUserViews } from '@/hooks/useHiddenUserViews';
 import { useMediaServerSources } from '@/hooks/useMediaServerSources';
 import { useRefetchOnScreenFocus } from '@/hooks/useRefetchOnScreenFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { getHiddenUserViews } from '@/lib/utils/userViewConfig';
 import {
   groupAggregateLatestFolders,
   mergeAggregateHomeItems,
 } from '@/services/media/aggregateHome';
-import { mediaQueryKeys } from '@/services/media/queryKeys';
-import { homeUserViewsQueryOptions } from '@/services/media/queryOptions';
+import { visibleHomeLibraryIds } from '@/services/media/homeVisibility';
+import {
+  homeLatestByFolderQueryOptions,
+  homeNextUpQueryOptions,
+  homeResumeQueryOptions,
+  homeUserViewsQueryOptions,
+} from '@/services/media/queryOptions';
 import type { MediaItem } from '@/services/media/types';
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 
@@ -27,18 +32,17 @@ export default function AggregateViewAllScreen() {
     [allServers, serverId],
   );
   const sources = useMediaServerSources(servers);
+  const hidden = useHiddenUserViews(servers.map((server) => server.id));
+  const queryClient = useQueryClient();
   const libraryQueries = useQueries({
-    queries:
-      type === 'latest'
-        ? sources.map(({ server, adapter }) => ({
-            ...homeUserViewsQueryOptions({ adapter, currentServer: server }),
-            retry: 1,
-          }))
-        : [],
+    queries: sources.map(({ server, adapter }) => ({
+      ...homeUserViewsQueryOptions({ adapter, currentServer: server }),
+      retry: 1,
+    })),
   });
   const groups = groupAggregateLatestFolders(
     sources.map(({ server }, index) => ({ server, items: libraryQueries[index]?.data ?? [] })),
-    Object.fromEntries(servers.map((server) => [server.id, getHiddenUserViews(server.id)])),
+    hidden,
   );
   const group = groups.find((group) => group.key === sectionKey);
   const requests =
@@ -49,23 +53,32 @@ export default function AggregateViewAllScreen() {
         }))
       : sources.map((source) => ({ ...source, folderId: undefined }));
   const queries = useQueries({
-    queries: requests.map(({ server, adapter, folderId }) => ({
-      queryKey: [...mediaQueryKeys.server(server.id), 'aggregate-view-all', type, folderId ?? ''],
-      enabled: !!server.userId,
-      staleTime: 60_000,
-      refetchOnWindowFocus: false,
-      retry: 1,
-      queryFn: async () => {
-        if (type === 'latest' && folderId)
-          return (
-            await adapter.getLatestItemsByFolder({ userId: server.userId, folderId, limit: 40 })
-          ).items;
-        const params = { userId: server.userId, limit: 40 };
-        if (type === 'resume') return (await adapter.getResumeItems(params)).items;
-        if (type === 'nextup') return (await adapter.getNextUpItems(params)).items;
-        return [];
-      },
-    })),
+    queries: requests.map(({ server, adapter, folderId }) => {
+      const sourceIndex = sources.findIndex((source) => source.server.id === server.id);
+      const scope = {
+        libraryIds: visibleHomeLibraryIds(libraryQueries[sourceIndex]?.data, hidden[server.id]),
+        queryClient,
+      };
+      if (type === 'resume' || type === 'nextup')
+        return {
+          ...(type === 'resume' ? homeResumeQueryOptions : homeNextUpQueryOptions)({
+            adapter,
+            currentServer: server,
+            ...scope,
+            limit: 40,
+          }),
+          retry: 1,
+        };
+      return {
+        ...homeLatestByFolderQueryOptions({
+          adapter,
+          currentServer: server,
+          folderId: folderId ?? '',
+          limit: 40,
+        }),
+        retry: 1,
+      };
+    }),
   });
   const refetch = () =>
     Promise.allSettled([...queries, ...libraryQueries].map((query) => query.refetch()));
@@ -85,7 +98,8 @@ export default function AggregateViewAllScreen() {
     queries[index].data?.forEach((item) => sourceByItem.set(item, source)),
   );
   const isLoading =
-    (type === 'latest' && !group && libraryQueries.some((query) => query.isLoading)) ||
+    (requests.length === 0 && libraryQueries.some((query) => query.isLoading)) ||
+    (libraryQueries.length > 0 && libraryQueries.every((query) => query.isLoading)) ||
     (queries.length > 0 && queries.every((query) => query.isLoading));
   return (
     <ItemGridScreen
@@ -99,10 +113,7 @@ export default function AggregateViewAllScreen() {
         isLoading: !!isLoading,
         isError:
           (queries.length > 0 && queries.every((query) => query.isError)) ||
-          (type === 'latest' &&
-            !group &&
-            libraryQueries.length > 0 &&
-            libraryQueries.every((query) => query.isError)),
+          (libraryQueries.length > 0 && libraryQueries.every((query) => query.isError)),
         refetch,
       }}
       type={type === 'latest' ? 'series' : 'episode'}

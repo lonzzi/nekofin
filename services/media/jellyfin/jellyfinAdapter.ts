@@ -74,6 +74,7 @@ import {
   getEpisodesBySeason,
   getFavoriteItems,
   getFavoriteItemsPaged,
+  getItemAncestors,
   getLatestItems,
   getLatestItemsByFolder,
   getNextUpItems,
@@ -207,9 +208,13 @@ export class JellyfinAdapter extends MediaAdapter {
     return parseJellyfinItemArrayResponse(result);
   }
 
-  async getNextUpItems({ userId, limit }: GetNextUpItemsParams): Promise<MediaPage<MediaItem>> {
+  async getNextUpItems({
+    userId,
+    limit,
+    startIndex,
+  }: GetNextUpItemsParams): Promise<MediaPage<MediaItem>> {
     const api = this.requireApi();
-    const result = await getNextUpItems(api, userId, limit);
+    const result = await getNextUpItems(api, userId, limit, startIndex);
     return parseJellyfinItemsPage(result);
   }
 
@@ -223,10 +228,18 @@ export class JellyfinAdapter extends MediaAdapter {
     return parseJellyfinItemsPage(result);
   }
 
-  async getResumeItems({ userId, limit }: GetResumeItemsParams): Promise<MediaPage<MediaItem>> {
+  async getResumeItems({
+    userId,
+    limit,
+    startIndex,
+  }: GetResumeItemsParams): Promise<MediaPage<MediaItem>> {
     const api = this.requireApi();
-    const result = await getResumeItems(api, userId, limit);
+    const result = await getResumeItems(api, userId, limit, startIndex);
     return parseJellyfinItemsPage(result);
+  }
+
+  async getItemAncestors({ userId, itemId }: GetItemDetailParams): Promise<MediaItem[]> {
+    return (await getItemAncestors(this.requireApi(), userId, itemId)).map(mapRawItemToMediaItem);
   }
 
   async getFavoriteItems({ userId, limit }: GetFavoriteItemsParams): Promise<MediaPage<MediaItem>> {
@@ -382,7 +395,7 @@ export class JellyfinAdapter extends MediaAdapter {
 
   async getRandomItems(params: GetRandomItemsParams): Promise<MediaItem[]> {
     const api = this.requireApi();
-    const result = await getRandomItems(api, params.userId, params.limit);
+    const result = await getRandomItems(api, params.userId, params.limit, params.folderId);
     return result.map(mapRawItemToMediaItem);
   }
 

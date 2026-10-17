@@ -1,3 +1,8 @@
+import {
+  parsePlaybackQuality,
+  playbackQualityOptions,
+  type PlaybackQuality,
+} from '@/services/media/playbackQuality';
 import { playbackSourceLabel } from '@/services/media/playbackSelection';
 import type { MediaSource } from '@/services/media/types';
 import type { MenuAction } from '@react-native-menu/menu';
@@ -15,6 +20,7 @@ const SUBTITLE_PREFIX = 'track:subtitle:';
 const VERSION_PREFIX = 'source:';
 const RATE_PREFIX = 'playback:rate:';
 const ASPECT_PREFIX = 'playback:aspect:';
+const QUALITY_PREFIX = 'playback:quality:';
 
 export const PLAYER_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
 
@@ -33,6 +39,7 @@ export type PlayerMenuSelection =
   | { kind: 'subtitleTrack'; trackIndex: number }
   | { kind: 'mediaSource'; id: string }
   | { kind: 'rate'; rate: number }
+  | { kind: 'quality'; quality: PlaybackQuality }
   | { aspectRatio: string; kind: 'aspectRatio' };
 
 const selectedState = (selected: boolean): MenuAction['state'] => (selected ? 'on' : 'off');
@@ -179,7 +186,19 @@ export function derivePlaybackMenuActions(rate: number, aspectRatio = 'fit'): Me
   ];
 }
 
+export function deriveQualityMenuActions(quality: PlaybackQuality = 'auto'): MenuAction[] {
+  return playbackQualityOptions.map((option) => ({
+    id: `${QUALITY_PREFIX}${option.id}`,
+    title: option.id === 'auto' ? '自动（跟随播放设置）' : option.title,
+    state: selectedState(option.id === quality),
+  }));
+}
+
 export function parsePlayerMenuAction(actionId: string): PlayerMenuSelection | null {
+  if (actionId.startsWith(QUALITY_PREFIX)) {
+    const quality = parsePlaybackQuality(actionId.slice(QUALITY_PREFIX.length));
+    return quality ? { kind: 'quality', quality } : null;
+  }
   switch (actionId) {
     case PLAYER_MENU_ACTION_IDS.danmakuToggle:
       return { kind: 'danmakuToggle' };

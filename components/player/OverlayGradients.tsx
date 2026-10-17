@@ -75,12 +75,12 @@ const styles = StyleSheet.create({
   topContainer: {
     position: 'absolute',
     zIndex: 5,
-    height: 150,
+    height: 100,
   },
   bottomContainer: {
     position: 'absolute',
     zIndex: 5,
-    height: 230,
+    height: 170,
   },
   fill: {
     width: '100%',

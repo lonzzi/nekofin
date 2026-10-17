@@ -39,14 +39,20 @@ export const DETAIL_MORE_MENU_ICONS = {
 } as const;
 
 export function getServerMenuIcon(type: MediaServerType): ImageSourcePropType {
-  if (process.env.EXPO_OS === 'ios') {
-    return { uri: type === 'jellyfin' ? 'jellyfin-icon--color-on-light' : 'emby' };
-  }
   // Android menu actions always tint their icon; keep the play triangle transparent.
-  return type === 'jellyfin'
-    ? require('../../assets/icons/jellyfin-icon--color-on-light.png')
-    : require('../../assets/drawables/emby_template.xml');
+  return SERVER_MENU_ICONS[type];
 }
+
+const SERVER_MENU_ICONS: Record<MediaServerType, ImageSourcePropType> =
+  process.env.EXPO_OS === 'ios'
+    ? {
+        jellyfin: { uri: 'jellyfin-icon--color-on-light' },
+        emby: { uri: 'emby' },
+      }
+    : {
+        jellyfin: require('../../assets/icons/jellyfin-icon--color-on-light.png'),
+        emby: require('../../assets/drawables/emby_template.xml'),
+      };
 
 export function getNativeToolbarIcon(
   androidDrawable: AndroidToolbarDrawable,

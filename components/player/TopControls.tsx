@@ -26,7 +26,7 @@ const networkIcons: Partial<Record<Network.NetworkStateType, keyof typeof Ionico
 };
 
 export function TopControls() {
-  const { side, topExtra, maxContentWidth, isCompact } = useOverlayInsets();
+  const { side, safeSideGap, topExtra, maxContentWidth, isCompact } = useOverlayInsets();
   const insets = useSafeAreaInsets();
   const {
     currentItem,
@@ -87,8 +87,8 @@ export function TopControls() {
   ]
     .filter(Boolean)
     .join('，');
-  const leftInset = Math.max(side, insets.left + 8);
-  const rightInset = Math.max(side, insets.right + 8);
+  const leftInset = Math.max(side, insets.left + safeSideGap);
+  const rightInset = Math.max(side, insets.right + safeSideGap);
 
   return (
     <View

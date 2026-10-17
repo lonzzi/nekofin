@@ -1,3 +1,4 @@
+import { useAutomaticServerConnections } from '@/hooks/useAutomaticServerConnections';
 import {
   createMediaAdapterWithApi,
   createMediaApiFromServerInfo,
@@ -17,13 +18,14 @@ import React, {
 } from 'react';
 
 import {
-  createMediaServerStorageId,
   normalizeServerAddress,
+  prepareAuthenticatedServer,
   upsertMediaServer,
 } from '../mediaServerStore';
 import { buildConnectionAddress } from '../serverConnection';
 import { clearServerConnectionQueries } from '../serverConnectionQueries';
 import {
+  getConnectionPolicy,
   getServerConnections,
   hasSameServerSession,
   selectServerConnection,
@@ -59,7 +61,11 @@ interface MediaServerContextType {
     address: string,
     connectionId?: string,
   ) => Promise<void>;
-  switchConnection: (id: string, connectionId: string) => Promise<void>;
+  switchConnection: (
+    id: string,
+    connectionId: string,
+    options?: { automatic: boolean; isCurrent: () => boolean },
+  ) => Promise<void>;
   removeConnection: (id: string, connectionId: string) => Promise<void>;
 }
 
@@ -144,13 +150,8 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
 
   const addServer = useCallback(
     async (server: Omit<MediaServerInfo, 'id' | 'createdAt'>) => {
-      const normalizedAddress = normalizeServerAddress(server.address);
-      const serverId = createMediaServerStorageId(normalizedAddress, server.userId);
-      const newServer: Omit<MediaServerInfo, 'createdAt'> = {
-        ...server,
-        address: normalizedAddress,
-        id: serverId,
-      };
+      const newServer = prepareAuthenticatedServer(serversRef.current, server);
+      const serverId = newServer.id;
 
       const existing = serversRef.current.find((server) => server.id === serverId);
       if (existing && !hasSameServerSession(existing, newServer)) {
@@ -219,9 +220,9 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
   );
 
   const updateServer = useCallback(
-    async (id: string, updates: Partial<MediaServerInfo>) => {
+    async (id: string, updates: Partial<MediaServerInfo>, isCurrent?: () => boolean) => {
       const existing = serversRef.current.find((server) => server.id === id);
-      if (!existing) return;
+      if (!existing || (isCurrent && !isCurrent())) return;
       const next = {
         ...existing,
         ...updates,
@@ -238,6 +239,7 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
           throw new Error('服务器连接已更新，请重试');
         deleteCachedApiForServer(id);
       }
+      if (isCurrent && !isCurrent()) return;
       const updatedServers = serversRef.current.map((server) =>
         server.id === id
           ? {
@@ -287,7 +289,7 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
       const connections = getServerConnections(server);
       if (connections.some((line) => line.address === address && line.id !== connectionId))
         throw new Error('这个地址已在服务器线路中');
-      const { remoteServerId } = await verifyConnection(server, address);
+      const { remoteServerId, user } = await verifyConnection(server, address);
       const latestConnections = getServerConnections(requireUnchangedSession(server));
       if (connectionId && !latestConnections.some((line) => line.id === connectionId))
         throw new Error('线路已被删除，请重试');
@@ -298,14 +300,12 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
         name: name.trim() || '备用线路',
         address,
       };
-      if (
+      const editingActive =
         connectionId &&
-        connections.find((item) => item.id === connectionId)?.address === server.address &&
-        address !== server.address
-      )
-        throw new Error('请先切换到其他线路，再修改当前线路的地址');
+        connections.find((item) => item.id === connectionId)?.address === server.address;
       await updateServer(id, {
         remoteServerId,
+        ...(editingActive ? { address, userAvatar: user.avatar || '' } : {}),
         connections: connectionId
           ? latestConnections.map((item) => (item.id === connectionId ? line : item))
           : [...latestConnections, line],
@@ -315,21 +315,41 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
   );
 
   const switchConnection = useCallback(
-    async (id: string, connectionId: string) => {
-      const server = serversRef.current.find((server) => server.id === id);
+    async (
+      id: string,
+      connectionId: string,
+      options?: { automatic: boolean; isCurrent: () => boolean },
+    ) => {
+      let server = serversRef.current.find((server) => server.id === id);
       if (!server) throw new Error('服务器不存在');
+      if (!options?.automatic && server.connectionPolicy?.enabled) {
+        await updateServer(id, {
+          connectionPolicy: { ...getConnectionPolicy(server), enabled: false },
+        });
+        server = requireUnchangedSession(server);
+      }
       const next = selectServerConnection(server, connectionId);
       if (next.address === server.address) return;
       const { remoteServerId, user } = await verifyConnection(server, next.address);
       const latest = requireUnchangedSession(server);
       const latestSelection = selectServerConnection(latest, connectionId);
       if (latestSelection.address !== next.address) throw new Error('线路地址已更新，请重试');
-      await updateServer(id, {
-        address: next.address,
-        connections: latestSelection.connections,
-        remoteServerId,
-        userAvatar: user.avatar || '',
-      });
+      if (options && (!options.isCurrent() || !getConnectionPolicy(latest).enabled)) return;
+      await updateServer(
+        id,
+        {
+          address: next.address,
+          connections: latestSelection.connections,
+          remoteServerId,
+          userAvatar: user.avatar || '',
+        },
+        options
+          ? () => {
+              const current = serversRef.current.find((server) => server.id === id);
+              return !!current && options.isCurrent() && getConnectionPolicy(current).enabled;
+            }
+          : undefined,
+      );
     },
     [requireUnchangedSession, updateServer, verifyConnection],
   );
@@ -343,6 +363,11 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
         throw new Error('请先切换到其他线路，再删除当前线路');
       await updateServer(id, {
         connections: connections.filter((line) => line.id !== connectionId),
+        connectionPolicy:
+          server.connectionPolicy?.localConnectionId === connectionId ||
+          server.connectionPolicy?.defaultConnectionId === connectionId
+            ? { ...getConnectionPolicy(server), enabled: false, localConnectionId: undefined }
+            : server.connectionPolicy,
       });
     },
     [updateServer],
@@ -391,6 +416,13 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
     },
     [updateServer],
   );
+
+  useAutomaticServerConnections({
+    servers,
+    isInitialized,
+    switchConnection,
+    verifyConnection,
+  });
 
   const value = useMemo<MediaServerContextType>(
     () => ({

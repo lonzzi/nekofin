@@ -1,4 +1,5 @@
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
+import { playbackQualityOptions } from '@/services/media/playbackQuality';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MenuView, type MenuComponentRef, type NativeActionEvent } from '@react-native-menu/menu';
 import {
@@ -9,7 +10,7 @@ import {
   type ComponentType,
   type RefAttributes,
 } from 'react';
-import { Platform, Pressable, StyleSheet, View, type ViewProps } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View, type ViewProps } from 'react-native';
 
 import { usePlayer } from './PlayerContext';
 import { derivePlayerActionButtons, type PlayerActionButtonKey } from './playerControlModel';
@@ -17,11 +18,12 @@ import { PlayerGlassSurface } from './PlayerGlassSurface';
 import {
   deriveDanmakuMenuActions,
   derivePlaybackMenuActions,
+  deriveQualityMenuActions,
   deriveTrackMenuActions,
   parsePlayerMenuAction,
 } from './playerMenuModel';
 
-const icons: Record<PlayerActionButtonKey, keyof typeof Ionicons.glyphMap> = {
+const icons: Record<Exclude<PlayerActionButtonKey, 'quality'>, keyof typeof Ionicons.glyphMap> = {
   episodes: 'albums-outline',
   danmaku: 'chatbubble-ellipses-outline',
   tracks: 'text-outline',
@@ -70,6 +72,7 @@ type ActionButtonProps = {
   actionKey: PlayerActionButtonKey;
   danmakuEnabled?: boolean;
   onPress?: () => void;
+  qualityLabel?: string;
 };
 
 function ActionButton({
@@ -78,6 +81,7 @@ function ActionButton({
   actionKey,
   danmakuEnabled,
   onPress,
+  qualityLabel = 'AUTO',
 }: ActionButtonProps) {
   return (
     <Pressable
@@ -90,7 +94,13 @@ function ActionButton({
       style={({ pressed }) => [styles.button, pressed ? styles.pressed : null]}
     >
       <View style={styles.iconWrap}>
-        <Ionicons name={icons[actionKey]} size={18} color="#fff" />
+        {actionKey === 'quality' ? (
+          <Text maxFontSizeMultiplier={1.4} numberOfLines={1} style={styles.qualityText}>
+            {qualityLabel}
+          </Text>
+        ) : (
+          <Ionicons name={icons[actionKey]} size={18} color="#fff" />
+        )}
         {actionKey === 'danmaku' ? (
           <View
             accessibilityElementsHidden
@@ -123,6 +133,8 @@ export function PlayerActionBar() {
     mediaSources,
     selectedMediaSourceId,
     onMediaSourceChange,
+    quality = 'auto',
+    onQualityChange,
   } = usePlayer();
   const { settings, setSettings } = useDanmakuSettings();
   const actions = useMemo(
@@ -150,6 +162,13 @@ export function PlayerActionBar() {
     () => derivePlaybackMenuActions(rate, aspectRatio),
     [aspectRatio, rate],
   );
+  const qualityMenuActions = useMemo(() => deriveQualityMenuActions(quality), [quality]);
+  const currentQuality =
+    playbackQualityOptions.find((option) => option.id === quality) ?? playbackQualityOptions[0];
+  const qualityLabel =
+    currentQuality.id === 'auto'
+      ? 'AUTO'
+      : currentQuality.title.replace(' Mbps', 'M').replace(' Kbps', 'K');
 
   const handleDanmakuAction = useCallback(
     ({ nativeEvent }: NativeActionEvent) => {
@@ -192,6 +211,13 @@ export function PlayerActionBar() {
     },
     [onAspectRatioChange, onRateChange],
   );
+  const handleQualityAction = useCallback(
+    ({ nativeEvent }: NativeActionEvent) => {
+      const selection = parsePlayerMenuAction(nativeEvent.event);
+      if (selection?.kind === 'quality') onQualityChange?.(selection.quality);
+    },
+    [onQualityChange],
+  );
   const handleEpisodesPress = useCallback(() => {
     openPanel({ key: 'episodes' });
   }, [openPanel]);
@@ -208,11 +234,13 @@ export function PlayerActionBar() {
       <View style={styles.row}>
         {actions.map((action, index) => {
           const accessibilityLabel =
-            action.key === 'danmaku'
-              ? `${action.accessibilityLabel}，${settings.enabled ? '已开启' : '已关闭'}`
-              : action.key === 'playback' && rate !== 1
-                ? `${action.accessibilityLabel}，当前 ${rate} 倍速`
-                : action.accessibilityLabel;
+            action.key === 'quality'
+              ? `画质，当前 ${currentQuality.id === 'auto' ? '自动' : currentQuality.title}`
+              : action.key === 'danmaku'
+                ? `${action.accessibilityLabel}，${settings.enabled ? '已开启' : '已关闭'}`
+                : action.key === 'playback' && rate !== 1
+                  ? `${action.accessibilityLabel}，当前 ${rate} 倍速`
+                  : action.accessibilityLabel;
           const actionButton = (
             <ActionButton
               accessible={action.key === 'episodes'}
@@ -220,6 +248,7 @@ export function PlayerActionBar() {
               actionKey={action.key}
               danmakuEnabled={settings.enabled}
               onPress={action.key === 'episodes' ? handleEpisodesPress : undefined}
+              qualityLabel={qualityLabel}
             />
           );
 
@@ -262,6 +291,23 @@ export function PlayerActionBar() {
                 >
                   {actionButton}
                 </PlayerMenu>
+              ) : action.key === 'quality' ? (
+                <PlayerMenu
+                  accessibilityLabel={accessibilityLabel}
+                  accessibilityRole="button"
+                  actions={qualityMenuActions}
+                  isAnchoredToRight
+                  onCloseMenu={hideControlsWithDelay}
+                  onOpenMenu={clearControlsTimeout}
+                  onPressAction={handleQualityAction}
+                  shouldOpenOnLongPress={false}
+                  style={styles.menuAnchor}
+                  testID="player-quality-menu"
+                  themeVariant="dark"
+                  title="画质"
+                >
+                  {actionButton}
+                </PlayerMenu>
               ) : (
                 <PlayerMenu
                   accessibilityLabel={accessibilityLabel}
@@ -289,19 +335,25 @@ export function PlayerActionBar() {
 }
 
 const styles = StyleSheet.create({
+  qualityText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
   surface: {
-    height: 46,
+    height: 44,
   },
   surfaceInner: {
-    minHeight: 46,
+    minHeight: 44,
   },
   content: {
-    height: 46,
+    height: 44,
   },
   row: {
     alignItems: 'center',
     flexDirection: 'row',
-    height: 46,
+    height: 44,
     paddingHorizontal: 4,
   },
   itemGroup: {
@@ -310,7 +362,7 @@ const styles = StyleSheet.create({
   },
   menuAnchor: {
     backgroundColor: 'transparent',
-    height: 46,
+    height: 44,
     width: 44,
   },
   separator: {
@@ -320,7 +372,7 @@ const styles = StyleSheet.create({
   },
   button: {
     alignItems: 'center',
-    height: 46,
+    height: 44,
     justifyContent: 'center',
     width: 44,
   },
