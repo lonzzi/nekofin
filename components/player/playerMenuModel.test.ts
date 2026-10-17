@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   deriveDanmakuMenuActions,
   derivePlaybackMenuActions,
+  deriveQualityMenuActions,
   deriveTrackMenuActions,
   parsePlayerMenuAction,
 } from './playerMenuModel';
@@ -120,4 +121,23 @@ describe('player native menu model', () => {
     expect(parsePlayerMenuAction(`track:audio:${Number.MAX_SAFE_INTEGER + 1}`)).toBeNull();
     expect(parsePlayerMenuAction('unknown')).toBeNull();
   });
+});
+
+it('exposes supported quality caps as a native menu with the current cap checked', () => {
+  const actions = deriveQualityMenuActions('2000000');
+  expect(actions.find((action) => action.id === 'playback:quality:2000000')).toMatchObject({
+    title: '2 Mbps',
+    state: 'on',
+  });
+  expect(actions.filter((action) => action.state === 'on')).toHaveLength(1);
+  expect(parsePlayerMenuAction('playback:quality:2000000')).toEqual({
+    kind: 'quality',
+    quality: '2000000',
+  });
+  expect(parsePlayerMenuAction('playback:quality:auto')).toEqual({
+    kind: 'quality',
+    quality: 'auto',
+  });
+  for (const value of ['1e6', '0', '-1', '99999999', ''])
+    expect(parsePlayerMenuAction(`playback:quality:${value}`)).toBeNull();
 });

@@ -1,5 +1,7 @@
+import { QUERY_CACHE_MAX_AGE_MS } from '@/lib/queryCachePolicy';
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 
+import { fetchVisibleHomePage, nextVisibleHomePage, type HomeLibraryScope } from './homeVisibility';
 import { getNextMediaPageParam, type InfiniteMediaPage } from './pagination';
 import { mediaQueryKeys, type StreamInfoKeyOptions } from './queryKeys';
 import type {
@@ -16,7 +18,7 @@ const FAVORITES_PAGE_SIZE = 40;
 const VIEW_ALL_PAGE_SIZE = 40;
 const HOME_SECTION_STALE_TIME_MS = 60 * 1000;
 
-export type MediaItemsPage = InfiniteMediaPage<MediaItem>;
+export type MediaItemsPage = InfiniteMediaPage<MediaItem> & { nextStartIndex?: number };
 
 export type DetailBundleMode = 'series' | 'season' | 'movie' | 'episode';
 
@@ -41,6 +43,7 @@ export function folderItemsQueryOptions({
   filters: MediaItemQueryFilters;
 }) {
   return infiniteQueryOptions({
+    gcTime: QUERY_CACHE_MAX_AGE_MS,
     enabled: !!currentServer && !!folderId,
     queryKey: mediaQueryKeys.folderItems(currentServer?.id, folderId, filters),
     initialPageParam: 0,
@@ -76,6 +79,7 @@ export function favoritesQueryOptions({
   filters: MediaItemQueryFilters;
 }) {
   return infiniteQueryOptions({
+    gcTime: QUERY_CACHE_MAX_AGE_MS,
     enabled: !!currentServer,
     queryKey: mediaQueryKeys.favorites(currentServer?.id, filters),
     initialPageParam: 0,
@@ -106,37 +110,55 @@ export function viewAllQueryOptions({
   type,
   folderId,
   filters,
+  libraryIds,
+  queryClient,
 }: {
   adapter: MediaAdapter;
   currentServer: MediaServerInfo | null;
   type: string;
   folderId?: string;
   filters: MediaItemQueryFilters;
-}) {
+} & HomeLibraryScope) {
+  const folderVisible = !!folderId && libraryIds.includes(folderId);
   return infiniteQueryOptions({
-    enabled: !!currentServer,
-    queryKey: mediaQueryKeys.viewAll(currentServer?.id, type, folderId, filters),
+    gcTime: QUERY_CACHE_MAX_AGE_MS,
+    enabled:
+      !!currentServer?.userId && libraryIds.length > 0 && (type !== 'latest' || folderVisible),
+    queryKey: [
+      ...mediaQueryKeys.viewAll(currentServer?.id, type, folderId, filters),
+      { libraryIds: [...libraryIds].sort() },
+    ],
     initialPageParam: 0,
-    queryFn: async (): Promise<MediaItemsPage> => {
-      if (!currentServer) return { items: [], total: 0 };
+    queryFn: async ({ pageParam = 0, signal }): Promise<MediaItemsPage> => {
+      if (!currentServer || !libraryIds.length) return { items: [], total: 0 };
 
       switch (type) {
         case 'resume': {
-          const response = await adapter.getResumeItems({
-            userId: currentServer.userId,
+          return fetchVisibleHomePage({
+            adapter,
+            server: currentServer,
+            scope: { libraryIds, queryClient },
             limit: VIEW_ALL_PAGE_SIZE,
+            startIndex: pageParam,
+            signal,
+            fetchPage: (startIndex, limit) =>
+              adapter.getResumeItems({ userId: currentServer.userId, startIndex, limit }),
           });
-          return { items: response.items, total: response.items.length };
         }
         case 'nextup': {
-          const response = await adapter.getNextUpItems({
-            userId: currentServer.userId,
+          return fetchVisibleHomePage({
+            adapter,
+            server: currentServer,
+            scope: { libraryIds, queryClient },
             limit: VIEW_ALL_PAGE_SIZE,
+            startIndex: pageParam,
+            signal,
+            fetchPage: (startIndex, limit) =>
+              adapter.getNextUpItems({ userId: currentServer.userId, startIndex, limit }),
           });
-          return { items: response.items, total: response.items.length };
         }
         case 'latest': {
-          if (folderId) {
+          if (folderId && folderVisible) {
             const response = await adapter.getLatestItemsByFolder({
               userId: currentServer.userId,
               folderId,
@@ -145,22 +167,16 @@ export function viewAllQueryOptions({
             return { items: response.items, total: response.items.length };
           }
 
-          const response = await adapter.getLatestItems({
-            userId: currentServer.userId,
-            limit: VIEW_ALL_PAGE_SIZE,
-            includeItemTypes: filters.includeItemTypes,
-            sortBy: filters.sortBy,
-            sortOrder: filters.sortOrder,
-            year: filters.year,
-            tags: filters.tags,
-          });
-          return { items: response.items, total: response.items.length };
+          return { items: [], total: 0 };
         }
         default:
           return { items: [], total: 0 };
       }
     },
-    getNextPageParam: getNextMediaPageParam,
+    getNextPageParam: (lastPage, pages) =>
+      type === 'resume' || type === 'nextup'
+        ? nextVisibleHomePage(lastPage, pages)
+        : getNextMediaPageParam(lastPage, pages),
   });
 }
 
@@ -179,6 +195,7 @@ function homeSectionQueryOptions(
   fetch: (server: MediaServerInfo) => Promise<MediaItem[]>,
 ) {
   return queryOptions({
+    gcTime: QUERY_CACHE_MAX_AGE_MS,
     enabled: !!currentServer?.id && !!currentServer?.userId,
     queryKey: mediaQueryKeys.homeSection(currentServer?.id, section),
     queryFn: async (): Promise<MediaItem[]> => (currentServer ? fetch(currentServer) : []),
@@ -187,30 +204,46 @@ function homeSectionQueryOptions(
   });
 }
 
-export function homeResumeQueryOptions({
-  adapter,
-  currentServer,
-}: {
+type HomeWatchOptions = HomeLibraryScope & {
   adapter: MediaAdapter;
   currentServer: MediaServerInfo | null;
-}) {
-  return homeSectionQueryOptions('resume', currentServer, async (server) => {
-    const response = await adapter.getResumeItems({ userId: server.userId, limit: 10 });
-    return response.items;
+  limit?: number;
+};
+
+function homeWatchQueryOptions(
+  section: 'resume' | 'nextup',
+  { adapter, currentServer, libraryIds, queryClient, limit = 10 }: HomeWatchOptions,
+) {
+  return queryOptions({
+    gcTime: QUERY_CACHE_MAX_AGE_MS,
+    enabled: !!currentServer?.userId && libraryIds.length > 0,
+    queryKey: mediaQueryKeys.homeVisibleSection(currentServer?.id, section, libraryIds, limit),
+    queryFn: async ({ signal }): Promise<MediaItem[]> => {
+      if (!currentServer || !libraryIds.length) return [];
+      const result = await fetchVisibleHomePage({
+        adapter,
+        server: currentServer,
+        scope: { libraryIds, queryClient },
+        limit,
+        signal,
+        fetchPage: (startIndex, limit) =>
+          section === 'resume'
+            ? adapter.getResumeItems({ userId: currentServer.userId, startIndex, limit })
+            : adapter.getNextUpItems({ userId: currentServer.userId, startIndex, limit }),
+      });
+      return result.items;
+    },
+    staleTime: HOME_SECTION_STALE_TIME_MS,
+    refetchOnWindowFocus: false,
   });
 }
 
-export function homeNextUpQueryOptions({
-  adapter,
-  currentServer,
-}: {
-  adapter: MediaAdapter;
-  currentServer: MediaServerInfo | null;
-}) {
-  return homeSectionQueryOptions('nextup', currentServer, async (server) => {
-    const response = await adapter.getNextUpItems({ userId: server.userId, limit: 10 });
-    return response.items;
-  });
+export function homeResumeQueryOptions(options: HomeWatchOptions) {
+  return homeWatchQueryOptions('resume', options);
+}
+
+export function homeNextUpQueryOptions(options: HomeWatchOptions) {
+  return homeWatchQueryOptions('nextup', options);
 }
 
 export function homeUserViewsQueryOptions({
@@ -230,20 +263,26 @@ export function homeLatestByFolderQueryOptions({
   adapter,
   currentServer,
   folderId,
+  limit = 16,
 }: {
   adapter: MediaAdapter;
   currentServer: MediaServerInfo | null;
   folderId: string;
+  limit?: number;
 }) {
   return queryOptions({
+    gcTime: QUERY_CACHE_MAX_AGE_MS,
     enabled: !!currentServer?.id && !!currentServer?.userId,
-    queryKey: mediaQueryKeys.homeLatest(currentServer?.id, folderId),
+    queryKey:
+      limit === 16
+        ? mediaQueryKeys.homeLatest(currentServer?.id, folderId)
+        : [...mediaQueryKeys.homeLatest(currentServer?.id, folderId), { limit }],
     queryFn: async () => {
       if (!currentServer) return [];
       const response = await adapter.getLatestItemsByFolder({
         userId: currentServer.userId,
         folderId,
-        limit: 16,
+        limit,
       });
       return response.items;
     },
@@ -255,13 +294,52 @@ export function homeLatestByFolderQueryOptions({
 export function homeRandomQueryOptions({
   adapter,
   currentServer,
+  libraryIds,
 }: {
   adapter: MediaAdapter;
   currentServer: MediaServerInfo | null;
+  libraryIds: string[];
 }) {
-  return homeSectionQueryOptions('random', currentServer, (server) =>
-    adapter.getRandomItems({ userId: server.userId, limit: 6 }),
-  );
+  const folders = [...new Set(libraryIds)].filter(Boolean).sort();
+  return queryOptions({
+    gcTime: QUERY_CACHE_MAX_AGE_MS,
+    enabled: !!currentServer?.userId && folders.length > 0,
+    queryKey: mediaQueryKeys.homeRandom(currentServer?.id, folders),
+    queryFn: async (): Promise<MediaItem[]> => {
+      if (!currentServer?.userId || !folders.length) return [];
+      // Query descendants of visible libraries on the server. A returned item's
+      // immediate ParentId may be a nested folder, so client-side ID filtering
+      // cannot reliably enforce library visibility.
+      const pages: MediaItem[][] = new Array(folders.length);
+      let nextFolder = 0;
+      await Promise.all(
+        Array.from({ length: Math.min(4, folders.length) }, async () => {
+          while (nextFolder < folders.length) {
+            const index = nextFolder++;
+            pages[index] = await adapter.getRandomItems({
+              userId: currentServer.userId,
+              folderId: folders[index],
+              limit: 6,
+            });
+          }
+        }),
+      );
+      const seen = new Set<string>();
+      const items = pages.flat().filter((item) => {
+        if (!item.id || seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      });
+      // Avoid always filling the six slots from the first libraries in key order.
+      for (let index = items.length - 1; index > 0; index--) {
+        const other = Math.floor(Math.random() * (index + 1));
+        [items[index], items[other]] = [items[other], items[index]];
+      }
+      return items.slice(0, 6);
+    },
+    refetchOnWindowFocus: false,
+    staleTime: HOME_SECTION_STALE_TIME_MS,
+  });
 }
 
 export function detailBundleQueryOptions({
@@ -276,6 +354,7 @@ export function detailBundleQueryOptions({
   itemId: string;
 }) {
   return queryOptions({
+    gcTime: QUERY_CACHE_MAX_AGE_MS,
     enabled: !!itemId && !!currentServer?.userId,
     queryKey: mediaQueryKeys.detailBundle(currentServer?.id, mode, itemId),
     queryFn: async (): Promise<DetailBundle> => {
@@ -343,6 +422,7 @@ export function availableFiltersQueryOptions({
   enabled: boolean;
 }) {
   return queryOptions({
+    gcTime: QUERY_CACHE_MAX_AGE_MS,
     enabled: enabled && !!currentServer?.userId,
     queryKey: mediaQueryKeys.availableFilters(currentServer?.id),
     queryFn: async () => {
@@ -365,6 +445,7 @@ export function firstEpisodeBySeasonQueryOptions({
   enabled: boolean;
 }) {
   return queryOptions({
+    gcTime: QUERY_CACHE_MAX_AGE_MS,
     enabled: enabled && !!seasonId && !!currentServer?.userId,
     queryKey: mediaQueryKeys.firstEpisodeBySeason(
       currentServer?.id,
@@ -390,6 +471,7 @@ export function serverUserViewsQueryOptions({
   server: MediaServerInfo | undefined;
 }) {
   return queryOptions({
+    gcTime: QUERY_CACHE_MAX_AGE_MS,
     enabled: !!adapter && !!server?.userId,
     queryKey: mediaQueryKeys.serverUserViews(server?.id),
     queryFn: async () => {
@@ -453,6 +535,7 @@ export function itemDetailQueryOptions({
   itemId: string | null | undefined;
 }) {
   return queryOptions({
+    gcTime: QUERY_CACHE_MAX_AGE_MS,
     enabled: !!itemId && !!currentServer?.userId,
     queryKey: mediaQueryKeys.itemDetail(currentServer?.id, itemId, currentServer?.userId),
     queryFn: async (): Promise<MediaItem | null> => {
@@ -475,6 +558,7 @@ export function episodesBySeasonQueryOptions({
   seasonId: string | null | undefined;
 }) {
   return queryOptions({
+    gcTime: QUERY_CACHE_MAX_AGE_MS,
     enabled: !!seasonId && !!currentServer?.userId,
     queryKey: mediaQueryKeys.episodes(currentServer?.id, seasonId, currentServer?.userId),
     queryFn: async (): Promise<MediaItem[]> => {

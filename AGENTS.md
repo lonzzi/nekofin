@@ -11,9 +11,9 @@ Examples:
 
 Before committing behavior changes, run the relevant local regression commands and mention any command that could not be run.
 
-## Repository documentation
+## Repository cleanliness
 
-Do not add new files under `docs/` unless explicitly requested. Keep device-specific or simulator-specific reports, validation screenshots, run logs, and temporary investigation notes outside the repository. Update existing documentation for durable usage and release instructions, and put verification details in the pull request description.
+Do not add new files under `docs/` unless explicitly requested. Keep device-specific or simulator-specific reports, ad hoc inspection reports, diagnostic logs, validation screenshots, recordings, sampling data, and temporary investigation notes outside the repository, such as in a task-specific directory under `/tmp`. Retain only maintained project documentation and intentional product or README assets in the repository. Update existing documentation for durable usage and release instructions, and put verification details in the pull request description.
 
 ## UI components
 

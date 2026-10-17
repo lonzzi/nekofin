@@ -1,5 +1,6 @@
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { usePlaybackPreferences } from '@/hooks/usePlaybackPreferences';
+import { useSubtitlePrefetch } from '@/hooks/useSubtitlePrefetch';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { spacing, useAppTheme } from '@/lib/theme';
 import {
@@ -67,6 +68,11 @@ function ItemPlaybackControls({ item }: { item: MediaItem }) {
   const [choice, setChoice] = useState<PlaybackSelection>({});
   const preferences = usePlaybackPreferences();
   const selected = resolvePlaybackSelection(sources, choice, preferences);
+  useSubtitlePrefetch(
+    item.id,
+    sources.find((source) => source.id === selected.mediaSourceId),
+    selected.subtitleStreamIndex,
+  );
   const menu = createDetailPlaybackMenu(
     sources,
     selected,

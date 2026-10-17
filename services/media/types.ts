@@ -208,6 +208,11 @@ export interface MediaServerInfo {
   type: MediaServerType;
   remoteServerId?: string;
   connections?: MediaServerConnection[];
+  connectionPolicy?: {
+    enabled: boolean;
+    defaultConnectionId: string;
+    localConnectionId?: string;
+  };
 }
 
 export interface MediaServerConnection {
@@ -271,9 +276,9 @@ export type MediaItemQueryFilters = WithFilterOptions;
 // 组合别名（保持原导出名不变）
 export type GetLatestItemsParams = WithUserId & WithLimit & Omit<WithFilterOptions, 'onlyUnplayed'>;
 export type GetLatestItemsByFolderParams = WithUserId & WithFolderId & WithLimit;
-export type GetNextUpItemsParams = WithUserId & WithLimit;
+export type GetNextUpItemsParams = WithUserId & WithPaging;
 export type GetNextUpItemsByFolderParams = WithUserId & WithFolderId & WithLimit;
-export type GetResumeItemsParams = WithUserId & WithLimit;
+export type GetResumeItemsParams = WithUserId & WithPaging;
 export type GetFavoriteItemsParams = WithUserId & WithLimit;
 export type GetFavoriteItemsPagedParams = WithUserId & WithPaging & WithFilterOptions;
 export type GetItemDetailParams = WithItemId & WithUserId;
@@ -293,7 +298,7 @@ export type SearchItemsParams = WithUserId & { searchTerm: string } & WithLimit 
     includeItemTypes?: MediaItemType[];
   };
 export type GetRecommendedSearchKeywordsParams = WithUserId & WithLimit;
-export type GetRandomItemsParams = WithUserId & WithLimit;
+export type GetRandomItemsParams = WithUserId & WithLimit & { folderId?: string };
 export type GetAvailableFiltersParams = WithUserId & { parentId?: string };
 export interface GetImageInfoParams {
   item: MediaItem | MediaPerson;
@@ -387,6 +392,7 @@ export abstract class MediaAdapter {
   abstract logout(): Promise<void>;
   abstract getUserInfo(params: GetUserInfoParams): Promise<MediaUser>;
   abstract getItemDetail(params: GetItemDetailParams): Promise<MediaItem>;
+  abstract getItemAncestors(params: GetItemDetailParams): Promise<MediaItem[]>;
   abstract getItemMediaSources(params: GetItemMediaSourcesParams): Promise<MediaPlaybackInfo>;
   abstract getUserView(params: GetUserViewParams): Promise<MediaItem[]>;
   abstract getAllItemsByFolder(params: GetAllItemsByFolderParams): Promise<MediaPage<MediaItem>>;

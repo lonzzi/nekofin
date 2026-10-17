@@ -6,8 +6,10 @@ import {
   getFavoriteItemsPaged,
   getLatestItems,
   getLatestItemsByFolder,
+  getNextUpItems,
   getRandomItems,
   getRecommendedSearchKeywords,
+  getResumeItems,
 } from './items';
 
 const createClient = () =>
@@ -16,6 +18,19 @@ const createClient = () =>
   }) as unknown as ApiClient & { get: ReturnType<typeof vi.fn> };
 
 describe('emby items endpoints', () => {
+  it('forwards raw paging cursors for both home watch endpoints', async () => {
+    const client = createClient();
+    await getResumeItems(client, { userId: 'user-1', limit: 40, startIndex: 80 });
+    await getNextUpItems(client, { userId: 'user-1', limit: 40, startIndex: 120 });
+    expect(client.get).toHaveBeenCalledWith(
+      '/Users/user-1/Items/Resume',
+      expect.objectContaining({ StartIndex: 80, Limit: 40 }),
+    );
+    expect(client.get).toHaveBeenCalledWith(
+      '/Shows/NextUp',
+      expect.objectContaining({ StartIndex: 120, Limit: 40 }),
+    );
+  });
   it('builds latest item params with filters and default image fields', async () => {
     const client = createClient();
 
@@ -165,6 +180,15 @@ describe('emby items endpoints', () => {
         ImageTypeLimit: '1',
         EnableImageTypes: 'Primary,Backdrop,Thumb,Logo',
       }),
+    );
+  });
+
+  it('scopes random carousel items recursively to the selected library', async () => {
+    const client = createClient();
+    await getRandomItems(client, { userId: 'user-1', limit: 6, folderId: 'visible-library' });
+    expect(client.get).toHaveBeenCalledWith(
+      '/Users/user-1/Items',
+      expect.objectContaining({ ParentId: 'visible-library', Recursive: true, SortBy: 'Random' }),
     );
   });
 });

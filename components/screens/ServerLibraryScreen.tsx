@@ -16,7 +16,7 @@ export default function HomeScreen() {
 
   const router = useTracedRouter('server-library');
 
-  const { sections, randomItemsQuery } = useHomeSections(currentServer);
+  const { sections, randomItemsQuery, isCarouselLoading } = useHomeSections(currentServer);
 
   const carouselItems = useMemo(() => {
     return randomItemsQuery.data ?? [];
@@ -94,7 +94,7 @@ export default function HomeScreen() {
       {toolbar}
       <MediaHomeContent
         carouselItems={carouselItems}
-        isCarouselLoading={randomItemsQuery.isLoading}
+        isCarouselLoading={isCarouselLoading}
         sections={sections.map((section) => ({
           ...section,
           onViewAll:

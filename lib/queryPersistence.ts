@@ -1,6 +1,8 @@
 import { storage } from '@/lib/storage';
 
-export const QUERY_CACHE_BUSTER = 'media-cache-v2';
+import { utf8Bytes } from './queryCachePolicy';
+
+export const QUERY_CACHE_BUSTER = 'media-cache-v3';
 export const QUERY_CACHE_STORAGE_KEY = 'REACT_QUERY_OFFLINE_CACHE';
 
 export const queryPersistenceStorage = {
@@ -28,10 +30,10 @@ export function getPersistedQueryCacheBytes() {
     const mutationCount = parsed.clientState?.mutations?.length ?? 0;
     if (queryCount === 0 && mutationCount === 0) return 0;
   } catch {
-    return raw.length;
+    return utf8Bytes(raw);
   }
 
-  return raw.length;
+  return utf8Bytes(raw);
 }
 
 export function formatStorageBytes(value: number) {

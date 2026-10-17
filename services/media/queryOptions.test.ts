@@ -119,6 +119,7 @@ function createAdapter(overrides: Partial<MediaAdapter> = {}) {
     getStreamInfo: vi.fn(async () => ({ url: 'https://stream.test', sessionId: 'session-1' })),
     getAllItemsByFolder: vi.fn(async () => ({ items: [{ id: 'folder-item' }], total: 10 })),
     getFavoriteItemsPaged: vi.fn(async () => ({ items: [{ id: 'favorite-item' }], total: 8 })),
+    getItemAncestors: vi.fn(async () => [{ id: 'visible-library' }]),
     getResumeItems: vi.fn(async () => ({ items: [{ id: 'resume-item' }], total: 99 })),
     getNextUpItems: vi.fn(async () => ({ items: [{ id: 'nextup-item' }], total: 99 })),
     getLatestItemsByFolder: vi.fn(async () => ({
@@ -200,6 +201,8 @@ describe('media query options', () => {
       currentServer: server,
       type: 'resume',
       filters: {},
+      libraryIds: ['visible-library'],
+      queryClient: new QueryClient(),
     });
 
     expect(options.queryFn).toBeDefined();
@@ -217,9 +220,21 @@ describe('media query options', () => {
         ],
       })),
     });
-    const options = homeResumeQueryOptions({ adapter, currentServer: server });
+    const options = homeResumeQueryOptions({
+      adapter,
+      currentServer: server,
+      libraryIds: ['visible-library'],
+      queryClient: new QueryClient(),
+    });
 
-    expect(options.queryKey).toEqual(['media', 'server', 'server-1', 'home', 'resume']);
+    expect(options.queryKey).toEqual([
+      'media',
+      'server',
+      'server-1',
+      'home',
+      'resume',
+      { libraryIds: ['visible-library'], limit: 10 },
+    ]);
     expect(options.queryFn).toBeDefined();
     await expect(options.queryFn!({} as never)).resolves.toEqual([
       { id: 'home-resume-item', name: 'Home Resume Item', type: 'Movie', raw: {} },
@@ -227,6 +242,7 @@ describe('media query options', () => {
     expect(adapter.getResumeItems).toHaveBeenCalledWith({
       userId: 'user-1',
       limit: 10,
+      startIndex: 0,
     });
   });
 
@@ -251,11 +267,21 @@ describe('media query options', () => {
   it('keeps home sections fresh across quick detail back navigation', () => {
     const adapter = createAdapter();
     const homeOptions = [
-      homeResumeQueryOptions({ adapter, currentServer: server }),
-      homeNextUpQueryOptions({ adapter, currentServer: server }),
+      homeResumeQueryOptions({
+        adapter,
+        currentServer: server,
+        libraryIds: ['visible-library'],
+        queryClient: new QueryClient(),
+      }),
+      homeNextUpQueryOptions({
+        adapter,
+        currentServer: server,
+        libraryIds: ['visible-library'],
+        queryClient: new QueryClient(),
+      }),
       homeUserViewsQueryOptions({ adapter, currentServer: server }),
       homeLatestByFolderQueryOptions({ adapter, currentServer: server, folderId: 'folder-1' }),
-      homeRandomQueryOptions({ adapter, currentServer: server }),
+      homeRandomQueryOptions({ adapter, currentServer: server, libraryIds: ['library-1'] }),
     ];
 
     for (const options of homeOptions) {

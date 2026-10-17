@@ -7,6 +7,24 @@ vi.mock('@/lib/utils', () => ({
 }));
 
 describe('EmbyAdapter instance client', () => {
+  it('loads ancestry with the bound account and maps ancestor IDs', async () => {
+    const fetchMock = vi.fn(
+      async (_input: unknown) =>
+        new Response(
+          JSON.stringify([{ Id: 'library', Name: 'Movies', Type: 'CollectionFolder' }]),
+          { status: 200 },
+        ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const adapter = new EmbyAdapter();
+    adapter.setApi({ basePath: 'https://emby.test', accessToken: 'test-token' });
+    expect(await adapter.getItemAncestors({ userId: 'user', itemId: 'series' })).toMatchObject([
+      { id: 'library', name: 'Movies' },
+    ]);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      'https://emby.test/Items/series/Ancestors?UserId=user',
+    );
+  });
   afterEach(() => {
     vi.restoreAllMocks();
   });

@@ -1,6 +1,7 @@
+import { useHiddenUserViews } from '@/hooks/useHiddenUserViews';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
-import { getHiddenUserViews } from '@/lib/utils/userViewConfig';
+import { visibleHomeLibraryIds } from '@/services/media/homeVisibility';
 import {
   homeLatestByFolderQueryOptions,
   homeNextUpQueryOptions,
@@ -9,9 +10,8 @@ import {
   homeUserViewsQueryOptions,
 } from '@/services/media/queryOptions';
 import { MediaItem, MediaServerInfo } from '@/services/media/types';
-import { useQueries } from '@tanstack/react-query';
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
 export type HomeSection = {
   key: string;
@@ -24,41 +24,16 @@ export type HomeSectionWithStatus = HomeSection & { isLoading: boolean };
 
 const HOME_LATEST_SECTION_LIMIT = 4;
 
-function areStringArraysEqual(left: string[], right: string[]) {
-  if (left.length !== right.length) return false;
-  return left.every((value, index) => value === right[index]);
-}
-
 export function useHomeSections(currentServer: MediaServerInfo | null) {
   const mediaAdapter = useMediaAdapter();
   const currentServerId = currentServer?.id;
+  const queryClient = useQueryClient();
 
-  const [hiddenUserViewIds, setHiddenUserViewIds] = useState<string[]>(() =>
-    currentServerId ? getHiddenUserViews(currentServerId) : [],
+  const hidden = useHiddenUserViews(currentServerId ? [currentServerId] : []);
+  const hiddenUserViewIds = useMemo(
+    () => (currentServerId ? (hidden[currentServerId] ?? []) : []),
+    [currentServerId, hidden],
   );
-
-  useFocusEffect(
-    useCallback(() => {
-      if (currentServerId) {
-        const nextHiddenUserViewIds = getHiddenUserViews(currentServerId);
-        setHiddenUserViewIds((currentHiddenUserViewIds) =>
-          areStringArraysEqual(currentHiddenUserViewIds, nextHiddenUserViewIds)
-            ? currentHiddenUserViewIds
-            : nextHiddenUserViewIds,
-        );
-      }
-    }, [currentServerId]),
-  );
-
-  const resumeQuery = useQueryWithFocus({
-    ...homeResumeQueryOptions({ adapter: mediaAdapter, currentServer }),
-    refetchOnScreenFocus: 'stale',
-  });
-
-  const nextUpQuery = useQueryWithFocus({
-    ...homeNextUpQueryOptions({ adapter: mediaAdapter, currentServer }),
-    refetchOnScreenFocus: 'stale',
-  });
 
   const allUserViewQuery = useQueryWithFocus({
     ...homeUserViewsQueryOptions({ adapter: mediaAdapter, currentServer }),
@@ -72,6 +47,16 @@ export function useHomeSections(currentServer: MediaServerInfo | null) {
       data: allUserViewQuery.data.filter((item) => item.id && !hiddenUserViewIds.includes(item.id)),
     };
   }, [allUserViewQuery, hiddenUserViewIds]);
+
+  const libraryIds = visibleHomeLibraryIds(allUserViewQuery.data, hiddenUserViewIds);
+  const resumeQuery = useQueryWithFocus({
+    ...homeResumeQueryOptions({ adapter: mediaAdapter, currentServer, libraryIds, queryClient }),
+    refetchOnScreenFocus: 'stale',
+  });
+  const nextUpQuery = useQueryWithFocus({
+    ...homeNextUpQueryOptions({ adapter: mediaAdapter, currentServer, libraryIds, queryClient }),
+    refetchOnScreenFocus: 'stale',
+  });
 
   const latestFolders = useMemo(() => {
     if (!userViewQuery.data) return [];
@@ -101,7 +86,11 @@ export function useHomeSections(currentServer: MediaServerInfo | null) {
   });
 
   const randomItemsQuery = useQueryWithFocus({
-    ...homeRandomQueryOptions({ adapter: mediaAdapter, currentServer }),
+    ...homeRandomQueryOptions({
+      adapter: mediaAdapter,
+      currentServer,
+      libraryIds,
+    }),
     refetchOnScreenFocus: false,
   });
 
@@ -111,9 +100,9 @@ export function useHomeSections(currentServer: MediaServerInfo | null) {
       title: '继续观看',
       items: resumeQuery.data ?? [],
       type: 'resume',
-      isLoading: resumeQuery.isPending,
+      isLoading: allUserViewQuery.isLoading || resumeQuery.isLoading,
     }),
-    [resumeQuery.data, resumeQuery.isPending],
+    [resumeQuery.data, resumeQuery.isLoading, allUserViewQuery.isLoading],
   );
 
   const nextUpSection = useMemo<HomeSectionWithStatus>(
@@ -122,9 +111,9 @@ export function useHomeSections(currentServer: MediaServerInfo | null) {
       title: '接下来',
       items: nextUpQuery.data ?? [],
       type: 'nextup',
-      isLoading: nextUpQuery.isPending,
+      isLoading: allUserViewQuery.isLoading || nextUpQuery.isLoading,
     }),
-    [nextUpQuery.data, nextUpQuery.isPending],
+    [nextUpQuery.data, nextUpQuery.isLoading, allUserViewQuery.isLoading],
   );
 
   const userViewSection = useMemo<HomeSectionWithStatus>(
@@ -167,5 +156,6 @@ export function useHomeSections(currentServer: MediaServerInfo | null) {
     userView: userViewSection,
     latest: latestSections,
     randomItemsQuery,
+    isCarouselLoading: allUserViewQuery.isLoading || randomItemsQuery.isLoading,
   };
 }

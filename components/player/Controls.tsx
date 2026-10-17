@@ -1,7 +1,8 @@
 import { DandanComment } from '@/services/dandanplay';
 import type { DanmakuCommentsData, DanmakuTrack } from '@/services/danmaku';
+import type { PlaybackQuality } from '@/services/media/playbackQuality';
 import { MediaItem, MediaSource } from '@/services/media/types';
-import type { HdrStateChangeEvent } from 'expo-mpv';
+import type { HdrStateChangeEvent, MediaInfo } from 'expo-mpv';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 import {
@@ -27,6 +28,7 @@ import {
   playerPanelReducer,
   type PlayerPanelRoute,
 } from './panels/playerPanelRoute';
+import type { PlaybackSourceInfo } from './playbackInfo';
 import { MediaStats, MediaTrack, MediaTracks, PlayerContext } from './PlayerContext';
 import { SeekPreview } from './SeekPreview';
 import { TopControls } from './TopControls';
@@ -52,6 +54,10 @@ type ControlsProps = {
   mediaSources?: MediaSource[];
   selectedMediaSourceId?: string | null;
   onMediaSourceChange?: (id: string) => void;
+  quality?: PlaybackQuality;
+  onQualityChange?: (quality: PlaybackQuality) => void;
+  playbackSourceInfo?: PlaybackSourceInfo;
+  readPlaybackMediaInfo?: () => Promise<MediaInfo | null>;
   aspectRatio?: string;
   onAspectRatioChange?: (mode: string) => void;
   hasPreviousEpisode?: boolean;
@@ -92,6 +98,10 @@ export function Controls({
   mediaSources,
   selectedMediaSourceId,
   onMediaSourceChange,
+  quality,
+  onQualityChange,
+  playbackSourceInfo,
+  readPlaybackMediaInfo,
   aspectRatio,
   onAspectRatioChange,
   hasPreviousEpisode,
@@ -295,6 +305,10 @@ export function Controls({
     mediaSources,
     selectedMediaSourceId,
     onMediaSourceChange,
+    quality,
+    onQualityChange,
+    playbackSourceInfo,
+    readPlaybackMediaInfo,
     aspectRatio,
     onAspectRatioChange,
     hasPreviousEpisode,

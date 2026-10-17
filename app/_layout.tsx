@@ -16,59 +16,55 @@ import {
   resolveVideoScreenOrientation,
 } from '@/lib/playerOrientation';
 import {
+  QUERY_CACHE_MAX_AGE_MS,
+  serializeQueryCache,
+  shouldPersistQuery,
+} from '@/lib/queryCachePolicy';
+import { createAppQueryClient } from '@/lib/queryClient';
+import {
   QUERY_CACHE_BUSTER,
   QUERY_CACHE_STORAGE_KEY,
   queryPersistenceStorage,
 } from '@/lib/queryPersistence';
 import { storage } from '@/lib/storage';
 import { useAppTheme } from '@/lib/theme';
-import { mediaQueryKeys } from '@/services/media/queryKeys';
+import { pruneSubtitleCache } from '@/services/media/subtitleCache';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { defaultShouldDehydrateQuery, QueryClient, type Query } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Stack, usePathname } from 'expo-router';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { StatusBar } from 'expo-status-bar';
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { AppState, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useMMKVString } from 'react-native-mmkv';
 
 import 'react-native-reanimated';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5,
-      refetchOnWindowFocus: true,
-      refetchOnMount: true,
-      refetchOnReconnect: true,
-      retryOnMount: true,
-      structuralSharing: true,
-    },
-  },
-});
-
-function shouldPersistQuery(query: Query) {
-  return defaultShouldDehydrateQuery(query) && query.queryKey[0] !== mediaQueryKeys.all[0];
-}
+const queryClient = createAppQueryClient();
 
 const persister = createAsyncStoragePersister({
   key: QUERY_CACHE_STORAGE_KEY,
+  throttleTime: 2000,
+  serialize: serializeQueryCache,
   storage: queryPersistenceStorage,
 });
 
 export default function RootLayout() {
+  useEffect(() => {
+    void pruneSubtitleCache().catch(() => {});
+  }, []);
   return (
     <PersistQueryClientProvider
       client={queryClient}
       persistOptions={{
         persister,
         buster: QUERY_CACHE_BUSTER,
-        maxAge: 1000 * 60 * 60 * 24,
+        maxAge: QUERY_CACHE_MAX_AGE_MS,
         dehydrateOptions: {
           shouldDehydrateQuery: shouldPersistQuery,
+          shouldDehydrateMutation: () => false,
         },
       }}
     >
