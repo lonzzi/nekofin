@@ -78,7 +78,7 @@ jobs:
       EXPO_PUBLIC_DANDANPLAY_API_URL: ${{ secrets.EXPO_PUBLIC_DANDANPLAY_API_URL }}
       NEKOFIN_RELEASE_TAG: ${{ inputs.release_tag || '' }}
       NEKOFIN_OTA_URL: ${{ vars.NEKOFIN_OTA_URL }}
-      EXPO_UPDATES_FINGERPRINT_OVERRIDE: ${{ inputs.android_runtime || '' }}
+      NEKOFIN_NATIVE_RUNTIME: ${{ inputs.android_runtime || '' }}
       EXPO_UPDATES_WORKFLOW_OVERRIDE: managed
       ANDROID_NDK_VERSION: 27.1.12297006
 
@@ -186,6 +186,10 @@ jobs:
           BUILD_PROFILE: ${{ inputs.android_profile || 'production' }}
         run: eas build --local --platform android --profile "$BUILD_PROFILE" --output build-android.apk --non-interactive
 
+      - name: Verify Android installer runtime
+        if: env.NEKOFIN_NATIVE_RUNTIME != ''
+        run: node .github/scripts/verify-native-runtime.cjs android build-android.apk "$NEKOFIN_NATIVE_RUNTIME"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -201,7 +205,7 @@ jobs:
       EXPO_PUBLIC_DANDANPLAY_API_URL: ${{ secrets.EXPO_PUBLIC_DANDANPLAY_API_URL }}
       NEKOFIN_RELEASE_TAG: ${{ inputs.release_tag || '' }}
       NEKOFIN_OTA_URL: ${{ vars.NEKOFIN_OTA_URL }}
-      EXPO_UPDATES_FINGERPRINT_OVERRIDE: ${{ inputs.ios_runtime || '' }}
+      NEKOFIN_NATIVE_RUNTIME: ${{ inputs.ios_runtime || '' }}
       EXPO_UPDATES_WORKFLOW_OVERRIDE: managed
       APP_VARIANT: ${{ inputs.ios_build_type == 'development' && 'development' || 'production' }}
       BUILD_CONFIGURATION: ${{ inputs.ios_build_type == 'development' && 'Debug' || 'Release' }}
@@ -264,6 +268,10 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY="" \
             clean archive
+
+      - name: Verify iOS installer runtime
+        if: env.NEKOFIN_NATIVE_RUNTIME != ''
+        run: node .github/scripts/verify-native-runtime.cjs ios build/nekofin.xcarchive/Products/Applications/nekofin.app "$NEKOFIN_NATIVE_RUNTIME"
 
       - name: Package ipa
         run: |

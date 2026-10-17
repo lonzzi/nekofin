@@ -20,6 +20,35 @@ import { resolveRuntimes } from './runtime.mjs';
 
 const require = createRequire(import.meta.url);
 
+test('native config stays pinned when EAS replaces its internal fingerprint override', async (t) => {
+  const keys = ['APP_VARIANT', 'NEKOFIN_NATIVE_RUNTIME', 'EXPO_UPDATES_FINGERPRINT_OVERRIDE'];
+  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  t.after(() => {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+  const expected = 'a'.repeat(40);
+  process.env.APP_VARIANT = 'production';
+  process.env.NEKOFIN_NATIVE_RUNTIME = expected;
+  process.env.EXPO_UPDATES_FINGERPRINT_OVERRIDE = 'b'.repeat(40);
+  const { getConfig } = require('expo/config');
+  assert.equal(getConfig(process.cwd()).exp.runtimeVersion, expected);
+  const {
+    resolveRuntimeVersionAsync,
+  } = require('expo-updates/utils/build/resolveRuntimeVersionAsync.js');
+  for (const platform of ['ios', 'android']) {
+    const result = await resolveRuntimeVersionAsync(
+      process.cwd(),
+      platform,
+      { silent: true },
+      { workflowOverride: 'managed' },
+    );
+    assert.equal(result.runtimeVersion, expected);
+  }
+});
+
 test('fingerprints build configuration and native sources without capturing client update logic', async () => {
   const version = JSON.parse(readFileSync('package.json', 'utf8')).version;
   process.env.APP_VARIANT = 'production';
