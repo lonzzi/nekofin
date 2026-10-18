@@ -227,6 +227,7 @@ export function NativeSettingsItem({
   subtitle?: ReactNode;
   leading?: ReactNode;
   value?: string;
+  /** Native SwiftUI/Compose content, without a React Native host wrapper. */
   trailing?: ReactNode;
   disclosure?: boolean;
   onPress?: () => void;
@@ -249,9 +250,7 @@ export function NativeSettingsItem({
       {busy ? (
         <ProgressView modifiers={[controlSize('small'), accessibilityHidden()]} />
       ) : trailing ? (
-        <RNHostView matchContents>
-          <>{trailing}</>
-        </RNHostView>
+        trailing
       ) : disclosure ? (
         <NativeDisclosureIndicator />
       ) : value ? (
