@@ -110,7 +110,8 @@ fun FunctionalComposableScope.PopupMenuContent(props: PopupMenuProps, onDismiss:
       val textColor = props.textColor?.composeOrNull ?: Color.Black
       Popup(popupPositionProvider = position,
         onDismissRequest = onDismiss,
-        properties = PopupProperties(focusable = true, dismissOnBackPress = false)) {
+        // Keep Compose's system back callback; key previews do not cover back gestures.
+        properties = PopupProperties(focusable = true, dismissOnBackPress = true)) {
         // Animate in the popup's composition; a toolbar's frame clock can pause
         // while this separate window owns focus.
         val reveal = remember { Animatable(0f) }
