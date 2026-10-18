@@ -1,5 +1,6 @@
 import { OuterTitle } from '@/components/outer/OuterPrimitives';
 import {
+  NativeSettingsButton,
   NativeSettingsForm,
   NativeSettingsItem,
   NativeSettingsPicker,
@@ -35,34 +36,38 @@ export default function SubtitleFontSettings() {
   const router = useRouter();
   const { fonts, selection } = useCustomSubtitleFonts();
   const { currentApi, currentServer } = useMediaServers();
-  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
+  const busy = pending !== null;
   const [serverFonts, setServerFonts] = useState<SubtitleFont[]>();
   const operation = useRef<AbortController | null>(null);
   useEffect(() => () => operation.current?.abort(), []);
   useEffect(() => {
     operation.current?.abort();
     operation.current = null;
-    setBusy(false);
+    setPending(null);
     setServerFonts(undefined);
   }, [currentServer?.id]);
 
-  const run = async (action: (signal: AbortSignal) => Promise<void>) => {
+  const run = async (key: string, action: (signal: AbortSignal) => Promise<void>) => {
     if (operation.current) return;
     const controller = new AbortController();
     operation.current = controller;
-    setBusy(true);
+    setPending(key);
     try {
       await action(controller.signal);
     } catch (error) {
       if (!controller.signal.aborted)
-        Alert.alert('无法导入字体', error instanceof Error ? error.message : '请稍后重试');
+        Alert.alert(
+          key === 'server' ? '无法读取服务器字体' : '无法导入字体',
+          error instanceof Error ? error.message : '请稍后重试',
+        );
     } finally {
-      if (!controller.signal.aborted) setBusy(false);
+      if (!controller.signal.aborted) setPending(null);
       if (operation.current === controller) operation.current = null;
     }
   };
   const importFile = () =>
-    void run(async (signal) => {
+    void run('file', async (signal) => {
       const result = await getDocumentAsync({
         type: '*/*',
         multiple: false,
@@ -78,7 +83,7 @@ export default function SubtitleFontSettings() {
       }
     });
   const loadServerFonts = () =>
-    void run(async (signal) => {
+    void run('server', async (signal) => {
       if (!currentApi || currentServer?.type !== 'jellyfin') return;
       const controller = new AbortController();
       const cancel = () => controller.abort();
@@ -109,6 +114,7 @@ export default function SubtitleFontSettings() {
       <NativeSettingsForm testID="subtitle-font-settings">
         <NativeSettingsSection title="播放器字体">
           <NativeSettingsPicker
+            disabled={busy}
             title={<SettingsTitle>当前字体</SettingsTitle>}
             value={selection ? JSON.stringify(selection) : 'auto'}
             options={[
@@ -127,27 +133,39 @@ export default function SubtitleFontSettings() {
         </NativeSettingsSection>
         <NativeSettingsSection
           title="导入字体"
-          footer="支持 TTF、OTF、TTC、WOFF、WOFF2，单个文件不超过 32 MB。"
+          footer="支持 TTF、OTF、TTC、WOFF、WOFF2，单个文件不超过 32 MB。导入后自动设为当前字体。"
         >
           <NativeSettingsItem
             title={
               <SettingsActionTitle tone="accent">
-                {busy ? '正在处理…' : '从文件导入'}
+                {pending === 'file' ? '正在导入文件…' : '从文件导入'}
               </SettingsActionTitle>
             }
-            onPress={busy ? undefined : importFile}
+            onPress={importFile}
+            disabled={busy}
+            busy={pending === 'file'}
           />
           <NativeSettingsItem
             title={<SettingsActionTitle tone="accent">从 URL 导入</SettingsActionTitle>}
             disclosure
-            onPress={busy ? undefined : () => router.push('/subtitle-font-url')}
+            onPress={() => router.push('/subtitle-font-url')}
+            disabled={busy}
           />
         </NativeSettingsSection>
         {currentServer?.type === 'jellyfin' && (
-          <NativeSettingsSection title="服务端字体">
+          <NativeSettingsSection
+            title="服务端字体"
+            footer={serverFonts?.length ? '导入后自动设为当前字体。' : undefined}
+          >
             <NativeSettingsItem
-              title={<SettingsActionTitle tone="accent">查看服务器字体</SettingsActionTitle>}
-              onPress={busy ? undefined : loadServerFonts}
+              title={
+                <SettingsActionTitle tone="accent">
+                  {pending === 'server' ? '正在读取服务器字体…' : '查看服务器字体'}
+                </SettingsActionTitle>
+              }
+              onPress={loadServerFonts}
+              disabled={busy}
+              busy={pending === 'server'}
             />
             {serverFonts?.length === 0 && (
               <NativeSettingsItem title={<SettingsTitle>服务器暂无可导入的字体</SettingsTitle>} />
@@ -157,27 +175,36 @@ export default function SubtitleFontSettings() {
                 key={font.revision}
                 title={<SettingsTitle>{font.name}</SettingsTitle>}
                 subtitle={<SettingsSubtitle primary={sizeLabel(font.size ?? 0)} />}
-                onPress={
-                  busy
-                    ? undefined
-                    : () =>
-                        void run(async (signal) => {
-                          await importCustomSubtitleFont({
-                            uri: font.url,
-                            name: font.name,
-                            signal,
-                            headers: currentApi?.accessToken
-                              ? { 'X-Emby-Token': currentApi.accessToken }
-                              : undefined,
-                          });
-                        })
+                disabled={busy}
+                busy={pending === font.revision}
+                trailing={
+                  <NativeSettingsButton
+                    label="导入"
+                    disabled={busy}
+                    accessibilityLabel={`导入字体 ${font.name}`}
+                    onPress={() =>
+                      void run(font.revision, async (signal) => {
+                        await importCustomSubtitleFont({
+                          uri: font.url,
+                          name: font.name,
+                          signal,
+                          headers: currentApi?.accessToken
+                            ? { 'X-Emby-Token': currentApi.accessToken }
+                            : undefined,
+                        });
+                      })
+                    }
+                  />
                 }
               />
             ))}
           </NativeSettingsSection>
         )}
         {fonts.length > 0 && (
-          <NativeSettingsSection title="已导入">
+          <NativeSettingsSection
+            title="已导入"
+            footer="删除当前使用的字体后，将恢复“跟随字幕与服务器”。"
+          >
             {fonts.map((font) => (
               <NativeSettingsItem
                 key={font.id}
@@ -187,21 +214,34 @@ export default function SubtitleFontSettings() {
                     primary={`${font.families.join('、')} · ${sizeLabel(font.size)}`}
                   />
                 }
-                onPress={() =>
-                  Alert.alert('删除字体', `删除“${font.name}”？`, [
-                    { text: '取消', style: 'cancel' },
-                    {
-                      text: '删除',
-                      style: 'destructive',
-                      onPress: () => {
-                        try {
-                          removeCustomSubtitleFont(font.id);
-                        } catch {
-                          Alert.alert('无法删除字体', '请稍后重试');
-                        }
-                      },
-                    },
-                  ])
+                disabled={busy}
+                trailing={
+                  <NativeSettingsButton
+                    label="删除"
+                    disabled={busy}
+                    destructive
+                    accessibilityLabel={`删除字体 ${font.name}`}
+                    onPress={() =>
+                      Alert.alert(
+                        '删除字体？',
+                        `“${font.name}”${selection?.id === font.id ? '\n删除后将恢复“跟随字幕与服务器”。' : ''}`,
+                        [
+                          { text: '取消', style: 'cancel' },
+                          {
+                            text: '删除',
+                            style: 'destructive',
+                            onPress: () => {
+                              try {
+                                removeCustomSubtitleFont(font.id);
+                              } catch {
+                                Alert.alert('无法删除字体', '请稍后重试');
+                              }
+                            },
+                          },
+                        ],
+                      )
+                    }
+                  />
                 }
               />
             ))}

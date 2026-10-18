@@ -26,7 +26,7 @@ export default function AggregateViewAllScreen() {
     sectionKey?: string;
     serverId?: string;
   }>();
-  const { servers: allServers } = useMediaServers();
+  const { activeServers: allServers } = useMediaServers();
   const servers = useMemo(
     () => (serverId ? allServers.filter((server) => server.id === serverId) : allServers),
     [allServers, serverId],

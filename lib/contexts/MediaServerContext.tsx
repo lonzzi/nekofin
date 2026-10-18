@@ -22,6 +22,12 @@ import {
   prepareAuthenticatedServer,
   upsertMediaServer,
 } from '../mediaServerStore';
+import {
+  assertSameServerAccount,
+  getActiveServerAccounts,
+  isSameMediaServer,
+  selectServerAccountIds,
+} from '../serverAccounts';
 import { buildConnectionAddress } from '../serverConnection';
 import { clearServerConnectionQueries } from '../serverConnectionQueries';
 import {
@@ -35,6 +41,8 @@ import { storage } from '../storage';
 
 interface MediaServerContextType {
   servers: MediaServerInfo[];
+  activeServers: MediaServerInfo[];
+  selectServerAccount: (server: MediaServerInfo) => void;
   currentServer: MediaServerInfo | null;
   currentApi: MediaApi | null;
   setCurrentServer: (server: MediaServerInfo) => void;
@@ -74,6 +82,7 @@ const MediaServerContext = createContext<MediaServerContextType | undefined>(und
 const STORAGE_KEY = 'nekofin_servers';
 const CURRENT_SERVER_ID_KEY = 'nekofin_current_server_id';
 const HOME_SERVER_ID_KEY = 'nekofin_home_server_id';
+const SELECTED_ACCOUNT_IDS_KEY = 'nekofin_selected_account_ids';
 
 export function MediaServerProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
@@ -82,6 +91,11 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
   const [homeServerId, setHomeServerId] = useState<string | null>(null);
   const [currentServerId, setCurrentServerId] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
+  const activeServers = useMemo(
+    () => getActiveServerAccounts(servers, selectedAccountIds),
+    [servers, selectedAccountIds],
+  );
 
   const currentServer = useMemo(() => {
     return servers.find((server) => server.id === currentServerId) || null;
@@ -104,15 +118,30 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
     storage.set(CURRENT_SERVER_ID_KEY, server.id);
   }, []);
 
+  const selectServerAccount = useCallback(
+    (server: MediaServerInfo) => {
+      if (!serversRef.current.some((account) => account.id === server.id)) return;
+      setSelectedAccountIds((previous) => {
+        return selectServerAccountIds(serversRef.current, previous, server);
+      });
+      setCurrentServer(server);
+      setHomeServerId((previous) => {
+        const home = serversRef.current.find((account) => account.id === previous);
+        if (!home || !isSameMediaServer(home, server)) return previous;
+        return server.id;
+      });
+    },
+    [setCurrentServer],
+  );
+
   const setHomeServer = useCallback(
     (server: MediaServerInfo | null) => {
       setHomeServerId(server?.id ?? null);
       if (server) {
-        storage.set(HOME_SERVER_ID_KEY, server.id);
-        setCurrentServer(server);
-      } else storage.delete(HOME_SERVER_ID_KEY);
+        selectServerAccount(server);
+      }
     },
-    [setCurrentServer],
+    [selectServerAccount],
   );
 
   const loadServers = useCallback(async () => {
@@ -129,6 +158,10 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
       const homeId = storage.getString(HOME_SERVER_ID_KEY);
       setHomeServerId(normalizedServers.some((server) => server.id === homeId) ? homeId! : null);
       const persistedId = storage.getString(CURRENT_SERVER_ID_KEY) || null;
+      const selectedIds = storage.getString(SELECTED_ACCOUNT_IDS_KEY);
+      setSelectedAccountIds(
+        selectedIds ? JSON.parse(selectedIds) : [homeId, persistedId].filter(Boolean),
+      );
       if (persistedId && normalizedServers.some((s) => s.id === persistedId)) {
         setCurrentServerId(persistedId);
       } else if (normalizedServers.length > 0) {
@@ -141,6 +174,16 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     void loadServers();
   }, [loadServers]);
+
+  useEffect(() => {
+    if (isInitialized) storage.set(SELECTED_ACCOUNT_IDS_KEY, JSON.stringify(selectedAccountIds));
+  }, [isInitialized, selectedAccountIds]);
+
+  useEffect(() => {
+    if (!isInitialized) return;
+    if (homeServerId) storage.set(HOME_SERVER_ID_KEY, homeServerId);
+    else storage.delete(HOME_SERVER_ID_KEY);
+  }, [isInitialized, homeServerId]);
 
   const saveServers = useCallback(async (newServers: MediaServerInfo[]) => {
     serversRef.current = newServers;
@@ -163,10 +206,9 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
         connections: newServer.connections ?? existing?.connections,
       });
       await saveServers(updatedServers);
-      setCurrentServerId(newServer.id);
-      storage.set(CURRENT_SERVER_ID_KEY, newServer.id);
+      selectServerAccount(updatedServers.find((server) => server.id === newServer.id)!);
     },
-    [queryClient, saveServers],
+    [queryClient, saveServers, selectServerAccount],
   );
 
   const authenticateAndAddServer = useCallback(
@@ -201,12 +243,18 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
 
   const removeServer = useCallback(
     async (id: string) => {
+      const removed = serversRef.current.find((server) => server.id === id);
       await clearServerConnectionQueries(queryClient, id);
       const updatedServers = serversRef.current.filter((server) => server.id !== id);
+      const sibling =
+        removed && updatedServers.find((server) => isSameMediaServer(removed, server));
       await saveServers(updatedServers);
+      setSelectedAccountIds((previous) => {
+        return previous.filter((accountId) => accountId !== id);
+      });
       deleteCachedApiForServer(id);
       if (currentServerId === id) {
-        const next = updatedServers[0]?.id || null;
+        const next = sibling?.id ?? updatedServers[0]?.id ?? null;
         setCurrentServerId(next);
         if (next) {
           storage.set(CURRENT_SERVER_ID_KEY, next);
@@ -214,7 +262,7 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
           storage.delete(CURRENT_SERVER_ID_KEY);
         }
       }
-      if (homeServerId === id) setHomeServer(null);
+      if (homeServerId === id) setHomeServer(sibling ?? null);
     },
     [currentServerId, homeServerId, queryClient, setHomeServer, saveServers],
   );
@@ -228,6 +276,7 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
         ...updates,
         address: updates.address ? normalizeServerAddress(updates.address) : existing.address,
       };
+      assertSameServerAccount(existing, next);
       if (!hasSameServerSession(existing, next)) {
         await clearServerConnectionQueries(queryClient, id);
         if (
@@ -303,6 +352,11 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
       const editingActive =
         connectionId &&
         connections.find((item) => item.id === connectionId)?.address === server.address;
+      if (editingActive && !server.remoteServerId) {
+        // Keep the verified identity before replacing a legacy account's last shared address.
+        await updateServer(id, { remoteServerId });
+        requireUnchangedSession(server);
+      }
       await updateServer(id, {
         remoteServerId,
         ...(editingActive ? { address, userAvatar: user.avatar || '' } : {}),
@@ -418,7 +472,7 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
   );
 
   useAutomaticServerConnections({
-    servers,
+    servers: activeServers,
     isInitialized,
     switchConnection,
     verifyConnection,
@@ -427,6 +481,8 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
   const value = useMemo<MediaServerContextType>(
     () => ({
       servers,
+      activeServers,
+      selectServerAccount,
       currentServer,
       currentApi,
       setCurrentServer,
@@ -455,6 +511,8 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
       refreshServerInfo,
       removeServer,
       servers,
+      activeServers,
+      selectServerAccount,
       setCurrentServer,
       updateServer,
       homeServerId,

@@ -3,6 +3,7 @@ import { layout, useAppTheme } from '@/lib/theme';
 import { ListItem, Slider, Switch } from '@expo/ui';
 import {
   AlertDialog,
+  CircularProgressIndicator,
   Column,
   Host,
   LazyColumn,
@@ -22,6 +23,8 @@ import {
   padding,
   selectable,
   selectableGroup,
+  semantics,
+  size,
   weight,
 } from '@expo/ui/jetpack-compose/modifiers';
 import { useState, type ComponentProps } from 'react';
@@ -105,19 +108,49 @@ export function NativeSettingsItem({
   onPress,
   testID,
   modifiers,
+  disabled = false,
+  busy = false,
 }: ComponentProps<typeof SharedSettings.NativeSettingsItem>) {
   const theme = useAppTheme();
   return (
     <ListItem
       leading={leading}
       supportingText={subtitle}
-      trailing={trailing ?? value}
-      onPress={onPress}
+      trailing={
+        busy ? <CircularProgressIndicator modifiers={[size(24, 24)]} /> : (trailing ?? value)
+      }
+      onPress={disabled || busy ? undefined : onPress}
       colors={{ containerColor: theme.colors.backgroundGrouped }}
-      modifiers={[fillMaxWidth(), ...(testID ? [nativeTestID(testID)] : []), ...(modifiers ?? [])]}
+      modifiers={[
+        fillMaxWidth(),
+        alpha(disabled || busy ? 0.38 : 1),
+        ...(testID ? [nativeTestID(testID)] : []),
+        ...(modifiers ?? []),
+      ]}
     >
       {title}
     </ListItem>
+  );
+}
+
+export function NativeSettingsButton({
+  label,
+  onPress,
+  destructive,
+  accessibilityLabel,
+  disabled,
+}: ComponentProps<typeof SharedSettings.NativeSettingsButton>) {
+  const colors = useMaterialColors();
+  return (
+    <TextButton
+      onClick={onPress}
+      enabled={!disabled}
+      modifiers={
+        accessibilityLabel ? [semantics({ contentDescription: accessibilityLabel })] : undefined
+      }
+    >
+      <Text color={destructive ? colors.error : colors.primary}>{label}</Text>
+    </TextButton>
   );
 }
 
@@ -223,6 +256,53 @@ export function NativeSettingsPicker({
         </AlertDialog>
       ) : null}
     </>
+  );
+}
+
+export function NativeSettingsChoiceList({
+  label,
+  value,
+  options,
+  onValueChange,
+  disabled = false,
+}: ComponentProps<typeof SharedSettings.NativeSettingsChoiceList>) {
+  const colors = useMaterialColors();
+  return (
+    <Column
+      modifiers={[fillMaxWidth(), selectableGroup(), semantics({ contentDescription: label })]}
+    >
+      {options.map((option) => (
+        <Row
+          key={option.value}
+          verticalAlignment="center"
+          horizontalArrangement={{ spacedBy: 16 }}
+          modifiers={[
+            fillMaxWidth(),
+            selectable(
+              option.value === value,
+              () => {
+                if (!disabled) onValueChange(option.value);
+              },
+              'radioButton',
+            ),
+            alpha(disabled ? 0.38 : 1),
+            padding(16, 12, 16, 12),
+          ]}
+        >
+          <RadioButton selected={option.value === value} />
+          <Column modifiers={[weight(1)]}>
+            <Text color={colors.onSurface} style={{ typography: 'bodyLarge' }}>
+              {option.title}
+            </Text>
+            {option.subtitle ? (
+              <Text color={colors.onSurfaceVariant} style={{ typography: 'bodySmall' }}>
+                {option.subtitle}
+              </Text>
+            ) : null}
+          </Column>
+        </Row>
+      ))}
+    </Column>
   );
 }
 

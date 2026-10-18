@@ -21,7 +21,9 @@ export function hasSameServerSession(expected: ServerSession, current?: ServerSe
 }
 
 /** The account id stays stable when its active address changes. */
-export function getServerConnections(server: MediaServerInfo): MediaServerConnection[] {
+export function getServerConnections(
+  server: Pick<MediaServerInfo, 'address' | 'connections'>,
+): MediaServerConnection[] {
   const connections = server.connections ?? [];
   const address = server.address.replace(/\/+$/, '');
   return connections.some((line) => line.address === address)

@@ -1,5 +1,6 @@
 import { getNativeToolbarIcon } from '@/components/navigation/nativeToolbarIcons';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { groupServerAccounts } from '@/lib/serverAccounts';
 import { getConnectionPolicy, getServerConnections } from '@/lib/serverConnections';
 import { useAppTheme } from '@/lib/theme';
 import { getCachedToolbarAvatar, getToolbarAvatar } from '@/modules/toolbar-avatar';
@@ -16,6 +17,8 @@ const AVATAR_DIAMETER = 36;
 export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo | null }) {
   const {
     servers,
+    activeServers,
+    selectServerAccount,
     currentServer,
     homeServerId,
     setHomeServer,
@@ -69,6 +72,9 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
     router.navigate('/(tabs)/(home)');
   };
   const connections = server ? getServerConnections(server) : [];
+  const accounts =
+    groupServerAccounts(servers).find((group) => group.some((item) => item.id === server?.id)) ??
+    [];
   const policy = server ? getConnectionPolicy(server) : null;
   return (
     <>
@@ -81,7 +87,7 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
           accessibilityLabel={
             switching
               ? '正在切换服务器线路'
-              : `${server?.username || '用户'}，切换首页视图和服务器线路`
+              : `${server?.username || '用户'}，切换账号、首页视图和服务器线路`
           }
         >
           <AccountMenu inline title="首页视图">
@@ -92,7 +98,7 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
             >
               聚合视图
             </AccountMenuAction>
-            {servers.map((item) => (
+            {activeServers.map((item) => (
               <AccountMenuAction
                 key={item.id}
                 onPress={() => selectView(item)}
@@ -103,6 +109,44 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
               </AccountMenuAction>
             ))}
           </AccountMenu>
+          {server ? (
+            <AccountMenu title="切换账号">
+              <AccountMenu inline title={server.name}>
+                {accounts.map((item) => (
+                  <AccountMenuAction
+                    key={item.id}
+                    isOn={activeServers.some((active) => active.id === item.id)}
+                    onPress={() => {
+                      selectServerAccount(item);
+                      router.navigate('/(tabs)/(home)');
+                    }}
+                  >
+                    {item.username}
+                  </AccountMenuAction>
+                ))}
+              </AccountMenu>
+              <AccountMenuAction
+                onPress={() =>
+                  router.push({
+                    pathname: '/(tabs)/(servers)/add-server/[serverType]',
+                    params: { serverType: server.type, accountServerId: server.id },
+                  })
+                }
+              >
+                添加账号
+              </AccountMenuAction>
+              <AccountMenuAction
+                onPress={() =>
+                  router.push({
+                    pathname: '/(tabs)/(servers)/server-accounts/[serverId]',
+                    params: { serverId: server.id },
+                  })
+                }
+              >
+                管理账号
+              </AccountMenuAction>
+            </AccountMenu>
+          ) : null}
           {server ? (
             <AccountMenu title="服务器线路">
               <AccountMenuAction

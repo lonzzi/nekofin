@@ -64,10 +64,7 @@ function ServerConfigScreen() {
       <>
         <NativeSettingsForm testID="server-config-missing-form">
           <NativeSettingsSection>
-            <NativeSettingsItem
-              title={<SettingsTitle>服务器不存在</SettingsTitle>}
-              subtitle={<SettingsSubtitle primary="这个账号可能已经被删除" />}
-            />
+            <NativeSettingsItem title={<SettingsTitle>服务器不存在</SettingsTitle>} />
           </NativeSettingsSection>
         </NativeSettingsForm>
       </>
@@ -88,14 +85,21 @@ function ServerConfigScreen() {
             }
           />
           <NativeSettingsItem
+            title={<SettingsTitle>服务器账号</SettingsTitle>}
+            disclosure
+            onPress={() =>
+              router.push({
+                pathname: '/(tabs)/(servers)/server-accounts/[serverId]',
+                params: { serverId: server.id },
+              })
+            }
+          />
+          <NativeSettingsItem
             title={<SettingsTitle>服务器地址</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={server.address} lines={3} />}
           />
           <NativeSettingsItem
             title={<SettingsTitle>服务器线路</SettingsTitle>}
-            subtitle={
-              <SettingsSubtitle primary="管理多个地址，配置 Wi-Fi 下的内外网自动切换" lines={2} />
-            }
             disclosure
             onPress={() =>
               router.push({
@@ -105,9 +109,13 @@ function ServerConfigScreen() {
             }
           />
           <NativeSettingsItem
-            title={<SettingsTitle>{checking ? '正在检查连接…' : '测试连接'}</SettingsTitle>}
+            title={
+              <SettingsActionTitle tone="accent">
+                {checking ? '正在检查连接…' : '测试连接'}
+              </SettingsActionTitle>
+            }
+            busy={checking}
             subtitle={connection ? <SettingsSubtitle primary={connection} lines={3} /> : undefined}
-            // Keep the native clickable modifier mounted while the request is pending.
             onPress={() => {
               if (checking) return;
               setChecking(true);
@@ -127,7 +135,6 @@ function ServerConfigScreen() {
           />
           <NativeSettingsItem
             title={<SettingsTitle>编辑连接或重新登录</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="更新地址需要重新验证账号" />}
             disclosure
             onPress={() =>
               router.push({
@@ -139,14 +146,12 @@ function ServerConfigScreen() {
         </NativeSettingsSection>
         <NativeSettingsSection title="显示在首页的媒体库">
           {userViewQuery.isPending ? (
-            <NativeSettingsItem
-              title={<SettingsTitle>正在加载媒体库...</SettingsTitle>}
-              subtitle={<SettingsSubtitle primary="正在从当前服务器读取媒体库列表" />}
-            />
+            <NativeSettingsItem title={<SettingsTitle>正在加载媒体库…</SettingsTitle>} busy />
           ) : userViewQuery.isError ? (
             <NativeSettingsItem
-              title={<SettingsTitle>媒体库加载失败</SettingsTitle>}
-              subtitle={<SettingsSubtitle primary="点按重试；也可先测试连接或重新登录。" />}
+              title={
+                <SettingsActionTitle tone="accent">媒体库加载失败，点按重试</SettingsActionTitle>
+              }
               onPress={() => void userViewQuery.refetch()}
             />
           ) : userViewQuery.data && userViewQuery.data.length > 0 ? (
@@ -162,18 +167,14 @@ function ServerConfigScreen() {
               );
             })
           ) : (
-            <NativeSettingsItem
-              title={<SettingsTitle>暂无媒体库</SettingsTitle>}
-              subtitle={<SettingsSubtitle primary="当前账号没有可配置的媒体库" />}
-            />
+            <NativeSettingsItem title={<SettingsTitle>暂无媒体库</SettingsTitle>} />
           )}
         </NativeSettingsSection>
         <NativeSettingsSection title="此设备">
           <NativeSettingsItem
             title={<SettingsActionTitle>移除此账号</SettingsActionTitle>}
-            subtitle={<SettingsSubtitle primary="不会删除服务器上的媒体和账号。" />}
             onPress={() =>
-              Alert.alert('移除此账号？', `${server.name} / ${server.username}`, [
+              Alert.alert('移除此账号？', `${server.name} / ${server.username}\n仅从此设备移除。`, [
                 { text: '取消', style: 'cancel' },
                 {
                   text: '移除',

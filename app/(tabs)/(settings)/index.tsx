@@ -5,7 +5,7 @@ import {
   NativeSettingsPicker,
   NativeSettingsSection,
 } from '@/components/ui/NativeSettings';
-import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
+import { SettingsTitle } from '@/components/ui/SettingsVisual';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useThemePreference, type ThemePreference } from '@/lib/contexts/ThemePreferenceContext';
 
@@ -19,19 +19,16 @@ export default function SettingsScreen() {
         <NativeSettingsSection title="观影体验">
           <NativeSettingsItem
             title={<SettingsTitle>播放与画质</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="方向、默认倍速与转码偏好" />}
             disclosure
             onPress={() => router.push('/playback')}
           />
           <NativeSettingsItem
             title={<SettingsTitle>音频与字幕</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="默认语言、字幕显示与字体" />}
             disclosure
             onPress={() => router.push('/audio')}
           />
           <NativeSettingsItem
             title={<SettingsTitle>弹幕</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="显示效果、速度与内容过滤" />}
             disclosure
             onPress={() => router.push('/danmaku')}
           />
@@ -49,7 +46,6 @@ export default function SettingsScreen() {
           />
           <NativeSettingsItem
             title={<SettingsTitle>存储管理</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="临时缓存与本地文件分开管理" />}
             disclosure
             onPress={() => router.push('/cache')}
           />

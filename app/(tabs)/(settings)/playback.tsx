@@ -74,7 +74,6 @@ export default function PlaybackSettings() {
         <NativeSettingsSection title="播放默认值">
           <NativeSettingsSwitch
             title={<SettingsTitle>自动播放下一集</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="本集播放结束后自动继续下一集。" lines={2} />}
             value={autoPlayNext}
             onValueChange={setAutoPlayNext}
           />
@@ -104,12 +103,12 @@ export default function PlaybackSettings() {
             }}
           />
         </NativeSettingsSection>
-        <NativeSettingsSection title="画质与兼容性">
+        <NativeSettingsSection
+          title="画质与兼容性"
+          footer="开启自定义转码后，可设置码率、视频编码和字幕烧录；兼容时仍优先直接播放。"
+        >
           <NativeSettingsSwitch
             title={<SettingsTitle>自定义转码</SettingsTitle>}
-            subtitle={
-              <SettingsSubtitle primary="设置码率和转码格式，兼容时仍优先直接播放。" lines={2} />
-            }
             value={enableTranscoding}
             onValueChange={handleTranscodingToggle}
           />

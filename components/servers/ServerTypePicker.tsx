@@ -1,4 +1,3 @@
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import { NativeSettingsForm, NativeSettingsItem } from '@/components/ui/NativeSettings';
 import { MEDIA_SERVER_TYPE_OPTIONS } from '@/lib/mediaServerTypes';
 import { useAppTheme } from '@/lib/theme';
@@ -24,9 +23,7 @@ export function ServerTypePicker({ onSelect }: { onSelect: (type: MediaServerTyp
             key={type}
             title={label}
             leading={<ServerTypeIcon type={type} size={36} />}
-            trailing={
-              <IconSymbol name="chevron.right" size={16} color={theme.colors.textTertiary} />
-            }
+            disclosure
             onPress={() => onSelect(type)}
             testID={`connect-${type}`}
           />

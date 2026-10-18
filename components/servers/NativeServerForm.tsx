@@ -25,7 +25,7 @@ export type NativeServerFormProps = {
   busy: boolean;
   error: string;
   onSubmit: () => void;
-  onChangeServer: () => void;
+  onChangeServer?: () => void;
 };
 
 export function NativeServerForm({
@@ -112,12 +112,14 @@ export function NativeServerForm({
       />
       {connection ? (
         <>
-          <Button
-            title="更换服务器"
-            color={theme.colors.tint}
-            disabled={busy}
-            onPress={onChangeServer}
-          />
+          {onChangeServer ? (
+            <Button
+              title="更换服务器"
+              color={theme.colors.tint}
+              disabled={busy}
+              onPress={onChangeServer}
+            />
+          ) : null}
           <Button
             title={expanded ? '收起显示选项' : '显示选项（可选）'}
             color={theme.colors.textSecondary}

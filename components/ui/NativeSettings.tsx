@@ -1,32 +1,44 @@
 import { layout, useAppTheme } from '@/lib/theme';
 import { useIsOuterTheme } from '@/lib/theme/OuterTheme';
-import {
-  FieldGroup,
-  ListItem,
-  Text as NativeText,
-  Picker,
-  Slider,
-  Switch,
-  type ListItemProps,
-} from '@expo/ui';
+import { FieldGroup, Text as NativeText, type ListItemProps } from '@expo/ui';
 import { Host as ComposeHost } from '@expo/ui/jetpack-compose';
 import {
+  Button,
+  HStack,
+  Menu,
+  ProgressView,
+  RNHostView,
+  Slider,
+  Spacer,
   Host as SwiftHost,
   Image as SwiftImage,
   Picker as SwiftPicker,
   Text as SwiftText,
+  Toggle,
+  VStack,
 } from '@expo/ui/swift-ui';
 import {
+  accessibilityHidden,
+  accessibilityValue,
+  buttonStyle,
+  contentShape,
+  controlSize,
   disabled as disabledModifier,
+  font,
+  foregroundStyle,
   frame,
+  labelsHidden,
   listSectionSpacing,
+  accessibilityLabel as nativeAccessibilityLabel,
+  opacity,
   pickerStyle,
   scrollContentBackground,
+  shapes,
   tag,
   tint,
 } from '@expo/ui/swift-ui/modifiers';
 import type { ReactNode } from 'react';
-import { Platform } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
 
 export type NativeSettingsOption = {
   title: string;
@@ -146,6 +158,58 @@ function NativeDisclosureIndicator() {
   );
 }
 
+function SettingsLabel({
+  title,
+  subtitle,
+  leading,
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  leading?: ReactNode;
+}) {
+  return (
+    <HStack spacing={12}>
+      {leading ? (
+        <RNHostView matchContents>
+          <>{leading}</>
+        </RNHostView>
+      ) : null}
+      <VStack alignment="leading" spacing={3}>
+        {typeof title === 'string' ? <SwiftText>{title}</SwiftText> : title}
+        {typeof subtitle === 'string' ? <SwiftText>{subtitle}</SwiftText> : subtitle}
+      </VStack>
+    </HStack>
+  );
+}
+
+export function NativeSettingsButton({
+  label,
+  onPress,
+  destructive,
+  accessibilityLabel,
+  disabled = false,
+}: {
+  label: string;
+  onPress: () => void;
+  destructive?: boolean;
+  accessibilityLabel?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <Button
+      label={label}
+      role={destructive ? 'destructive' : 'default'}
+      onPress={onPress}
+      modifiers={[
+        buttonStyle('borderless'),
+        frame({ minHeight: 44 }),
+        disabledModifier(disabled),
+        ...(accessibilityLabel ? [nativeAccessibilityLabel(accessibilityLabel)] : []),
+      ]}
+    />
+  );
+}
+
 export function NativeSettingsItem({
   title,
   subtitle,
@@ -156,30 +220,57 @@ export function NativeSettingsItem({
   onPress,
   testID,
   modifiers,
+  disabled = false,
+  busy = false,
 }: {
   title: ReactNode;
   subtitle?: ReactNode;
   leading?: ReactNode;
   value?: string;
+  /** Native SwiftUI/Compose content, without a React Native host wrapper. */
   trailing?: ReactNode;
   disclosure?: boolean;
   onPress?: () => void;
   testID?: string;
   modifiers?: ListItemProps['modifiers'];
+  disabled?: boolean;
+  busy?: boolean;
 }) {
-  const resolvedTrailing = trailing ?? (disclosure ? <NativeDisclosureIndicator /> : value);
-
-  return (
-    <ListItem
-      leading={leading}
-      onPress={onPress}
-      supportingText={subtitle}
-      trailing={resolvedTrailing}
-      testID={testID}
-      modifiers={modifiers}
+  const inactive = disabled || busy;
+  const row = (
+    <HStack
+      spacing={12}
+      modifiers={[
+        frame({ maxWidth: Infinity, minHeight: 28, alignment: 'leading' }),
+        contentShape(shapes.rectangle()),
+      ]}
     >
-      {title}
-    </ListItem>
+      <SettingsLabel title={title} subtitle={subtitle} leading={leading} />
+      <Spacer />
+      {busy ? (
+        <ProgressView modifiers={[controlSize('small'), accessibilityHidden()]} />
+      ) : trailing ? (
+        trailing
+      ) : disclosure ? (
+        <NativeDisclosureIndicator />
+      ) : value ? (
+        <SwiftText>{value}</SwiftText>
+      ) : null}
+    </HStack>
+  );
+  const rowModifiers = [
+    disabledModifier(inactive),
+    ...(inactive ? [opacity(0.45)] : []),
+    ...(modifiers ?? []),
+  ];
+  return onPress ? (
+    <Button onPress={onPress} testID={testID} modifiers={[buttonStyle('plain'), ...rowModifiers]}>
+      {row}
+    </Button>
+  ) : (
+    <VStack testID={testID} alignment="leading" modifiers={rowModifiers}>
+      {row}
+    </VStack>
   );
 }
 
@@ -199,12 +290,13 @@ export function NativeSettingsSwitch({
   disabled?: boolean;
 }) {
   return (
-    <NativeSettingsItem
-      title={title}
-      subtitle={subtitle}
-      leading={leading}
-      trailing={<Switch value={value} onValueChange={onValueChange} disabled={disabled} />}
-    />
+    <Toggle
+      isOn={value}
+      onIsOnChange={onValueChange}
+      modifiers={[disabledModifier(!!disabled), ...(disabled ? [opacity(0.45)] : [])]}
+    >
+      <SettingsLabel title={title} subtitle={subtitle} leading={leading} />
+    </Toggle>
   );
 }
 
@@ -226,16 +318,57 @@ export function NativeSettingsPicker({
   disabled?: boolean;
 }) {
   const theme = useAppTheme();
-  const picker =
-    Platform.OS === 'ios' ? (
+  const selected = options.find((option) => option.value === value);
+  const { fontScale } = useWindowDimensions();
+  const valueLabel = (
+    <HStack spacing={8}>
+      <SwiftText modifiers={[foregroundStyle(theme.colors.tint)]}>
+        {selected?.title ?? value}
+      </SwiftText>
+      <SwiftImage systemName="chevron.up.chevron.down" size={12} color={theme.colors.tint} />
+    </HStack>
+  );
+  return (
+    <Menu
+      label={
+        fontScale > 1.3 ? (
+          <VStack
+            alignment="leading"
+            spacing={8}
+            modifiers={[
+              frame({ maxWidth: Infinity, alignment: 'leading' }),
+              contentShape(shapes.rectangle()),
+            ]}
+          >
+            <SettingsLabel title={title} subtitle={subtitle} leading={leading} />
+            {valueLabel}
+          </VStack>
+        ) : (
+          <HStack
+            spacing={12}
+            modifiers={[
+              frame({ maxWidth: Infinity, minHeight: 28, alignment: 'leading' }),
+              contentShape(shapes.rectangle()),
+            ]}
+          >
+            <SettingsLabel title={title} subtitle={subtitle} leading={leading} />
+            <Spacer />
+            {valueLabel}
+          </HStack>
+        )
+      }
+      modifiers={[
+        buttonStyle('plain'),
+        tint(theme.colors.tint),
+        disabledModifier(!!disabled),
+        ...(disabled ? [opacity(0.45)] : []),
+      ]}
+    >
       <SwiftPicker
+        label={title}
         selection={value}
         onSelectionChange={(next) => onValueChange?.(String(next))}
-        modifiers={[
-          pickerStyle('menu'),
-          tint(theme.colors.textSecondary),
-          ...(disabled ? [disabledModifier(true)] : []),
-        ]}
+        modifiers={[pickerStyle('inline'), labelsHidden()]}
       >
         {options.map((option) => (
           <SwiftText key={option.value} modifiers={[tag(option.value)]}>
@@ -243,20 +376,53 @@ export function NativeSettingsPicker({
           </SwiftText>
         ))}
       </SwiftPicker>
-    ) : (
-      <Picker
-        selectedValue={value}
-        onValueChange={(next) => onValueChange?.(String(next))}
-        enabled={!disabled}
-      >
-        {options.map((option) => (
-          <Picker.Item key={option.value} label={option.title} value={option.value} />
-        ))}
-      </Picker>
-    );
+    </Menu>
+  );
+}
 
+export function NativeSettingsChoiceList({
+  label,
+  value,
+  options,
+  onValueChange,
+  disabled = false,
+}: {
+  label: string;
+  value: string;
+  options: NativeSettingsOption[];
+  onValueChange: (value: string) => void;
+  disabled?: boolean;
+}) {
+  const theme = useAppTheme();
   return (
-    <NativeSettingsItem title={title} subtitle={subtitle} leading={leading} trailing={picker} />
+    <SwiftPicker
+      label={label}
+      selection={value}
+      onSelectionChange={(next) => onValueChange(String(next))}
+      modifiers={[
+        pickerStyle('inline'),
+        labelsHidden(),
+        tint(theme.colors.tint),
+        disabledModifier(disabled),
+        ...(disabled ? [opacity(0.45)] : []),
+      ]}
+    >
+      {options.map((option) => (
+        <VStack key={option.value} alignment="leading" modifiers={[tag(option.value)]}>
+          <SwiftText>{option.title}</SwiftText>
+          {option.subtitle ? (
+            <SwiftText
+              modifiers={[
+                font({ textStyle: 'footnote' }),
+                foregroundStyle(theme.colors.textSecondary),
+              ]}
+            >
+              {option.subtitle}
+            </SwiftText>
+          ) : null}
+        </VStack>
+      ))}
+    </SwiftPicker>
   );
 }
 
@@ -285,28 +451,37 @@ export function NativeSettingsSlider({
 }) {
   const theme = useAppTheme();
   const displayValue = formatValue ? formatValue(value) : String(value);
+  const { fontScale } = useWindowDimensions();
 
   return (
-    <ListItem
-      leading={leading}
-      trailing={displayValue}
-      supportingText={
-        <>
-          {subtitle}
-          <Slider
-            value={value}
-            min={min}
-            max={max}
-            step={step}
-            disabled={disabled}
-            onValueChange={onValueChange}
-            modifiers={Platform.OS === 'ios' ? [tint(theme.colors.tint)] : undefined}
-          />
-        </>
-      }
+    <VStack
+      alignment="leading"
+      spacing={8}
+      modifiers={[disabledModifier(!!disabled), ...(disabled ? [opacity(0.45)] : [])]}
     >
-      {title}
-    </ListItem>
+      {fontScale > 1.3 ? (
+        <VStack alignment="leading" spacing={4} modifiers={[accessibilityHidden()]}>
+          <SettingsLabel title={title} leading={leading} />
+          <SwiftText>{displayValue}</SwiftText>
+        </VStack>
+      ) : (
+        <HStack spacing={12} modifiers={[accessibilityHidden()]}>
+          <SettingsLabel title={title} leading={leading} />
+          <Spacer />
+          <SwiftText>{displayValue}</SwiftText>
+        </HStack>
+      )}
+      {subtitle}
+      <Slider
+        label={title}
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        onValueChange={onValueChange}
+        modifiers={[tint(theme.colors.tint), accessibilityValue(displayValue)]}
+      />
+    </VStack>
   );
 }
 

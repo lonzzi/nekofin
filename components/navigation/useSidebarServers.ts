@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 /** Only display data crosses the native sidebar boundary, never server sessions. */
 export function useSidebarServers() {
-  const { servers, homeServerId, setHomeServer } = useMediaServers();
+  const { activeServers: servers, homeServerId, setHomeServer } = useMediaServers();
   const [avatars, setAvatars] = useState<ReadonlyMap<string, string>>(() => new Map());
 
   useEffect(() => {

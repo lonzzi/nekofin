@@ -84,11 +84,47 @@ describe('media server store helpers', () => {
     expect(incoming.id).toBe(existing.id);
     expect(incoming.connections).toHaveLength(2);
   });
+
+  it('copies saved routes for a new account without sharing credentials or settings', () => {
+    const existing = {
+      ...baseServer,
+      remoteServerId: 'nas',
+      connections: [
+        { id: 'default', name: '外网', address: baseServer.address },
+        { id: 'lan', name: '内网', address: 'http://nas.local:8096' },
+      ],
+    };
+    const incoming = prepareAuthenticatedServer([existing], {
+      ...baseServer,
+      remoteServerId: 'nas',
+      userId: 'user-2',
+      accessToken: 'token-2',
+      connections: existing.connections,
+    });
+    const saved = upsertMediaServer([existing], incoming);
+    expect(saved).toHaveLength(2);
+    expect(saved[0]).toEqual(existing);
+    expect(saved[1].connections).toEqual(existing.connections);
+    expect(saved[1].connections).not.toBe(existing.connections);
+    expect(saved[1].accessToken).toBe('token-2');
+  });
   it('normalizes trailing slashes for server ids', () => {
     expect(normalizeServerAddress('https://media.test/')).toBe('https://media.test');
     expect(createMediaServerStorageId('https://media.test/', 'user-1')).toBe(
       'https://media.test_user-1',
     );
+  });
+
+  it('never overwrites an account when legacy ids collide across server types or identities', () => {
+    for (const changes of [{ type: 'emby' as const }, { remoteServerId: 'another-nas' }]) {
+      const existing = { ...baseServer, remoteServerId: 'nas' };
+      const incoming = prepareAuthenticatedServer([existing], { ...baseServer, ...changes });
+      expect(incoming.id).not.toBe(existing.id);
+      const saved = upsertMediaServer([existing], incoming);
+      expect(saved).toHaveLength(2);
+      expect(saved[0]).toEqual(existing);
+      expect(prepareAuthenticatedServer(saved, incoming).id).toBe(incoming.id);
+    }
   });
 
   it('updates an existing server account without duplicating list keys', () => {

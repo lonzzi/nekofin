@@ -116,7 +116,7 @@ function AggregateSearchScreen() {
     }, [androidTablet]),
   );
   const tabBarInset = useFloatingTabBarInset();
-  const { servers, setCurrentServer } = useMediaServers();
+  const { activeServers: servers, setCurrentServer } = useMediaServers();
   const t = useAppTheme();
   const router = useTracedRouter('aggregate-search');
   const [keyword, setKeyword] = useState('');

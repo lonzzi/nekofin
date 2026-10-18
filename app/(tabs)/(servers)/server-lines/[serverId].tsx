@@ -2,6 +2,7 @@ import { HeaderButton, HeaderToolbar } from '@/components/navigation/HeaderToolb
 import { getNativeToolbarIcon } from '@/components/navigation/nativeToolbarIcons';
 import { OuterScreenOptions } from '@/components/outer/OuterPrimitives';
 import {
+  NativeSettingsChoiceList,
   NativeSettingsForm,
   NativeSettingsItem,
   NativeSettingsPicker,
@@ -63,42 +64,48 @@ function ServerLinesScreen() {
           <>
             <NativeSettingsSection
               title={server.name}
-              footer="点按地址切换线路。手动选择会关闭自动切换。"
+              footer="点按其他线路即可切换，并关闭自动切换。"
             >
-              {connections.map((line) => (
+              {/* Reset native selection after a failed request to reflect the active connection. */}
+              <NativeSettingsChoiceList
+                key={pending ? 'pending' : server.address}
+                label="切换服务器线路"
+                value={connections.find((line) => line.address === server.address)?.id ?? ''}
+                options={connections.map((line) => ({
+                  title: line.name,
+                  subtitle: line.address,
+                  value: line.id,
+                }))}
+                disabled={!!pending}
+                onValueChange={(id) => void run(id, () => switchConnection(serverId, id))}
+              />
+              {pending ? (
                 <NativeSettingsItem
-                  key={line.id}
-                  title={<SettingsTitle>{line.name}</SettingsTitle>}
-                  subtitle={<SettingsSubtitle primary={line.address} lines={2} />}
-                  value={
-                    pending === line.id
-                      ? '正在连接…'
-                      : line.address === server.address
-                        ? '✓ 当前'
-                        : undefined
+                  title={
+                    <SettingsTitle>
+                      {pending === 'policy'
+                        ? '正在保存切换设置…'
+                        : `正在连接 ${connections.find((line) => line.id === pending)?.name ?? '线路'}…`}
+                    </SettingsTitle>
                   }
-                  onPress={() => void run(line.id, () => switchConnection(serverId, line.id))}
+                  busy
                 />
-              ))}
+              ) : null}
             </NativeSettingsSection>
             <NativeSettingsSection
               title="内外网自动切换"
-              footer="连接 Wi-Fi 后，验证局域网地址可用时优先使用；离开 Wi-Fi 或验证失败时回到默认线路。播放期间暂停自动切换。"
+              footer="Wi-Fi 下优先使用局域网，连接失败时回到默认线路。播放时不自动切换。"
             >
               <NativeSettingsSwitch
                 key={connections.length < 2 ? 'single-line' : 'multiple-lines'}
                 title={<SettingsTitle>自动切换线路</SettingsTitle>}
                 subtitle={
-                  <SettingsSubtitle
-                    primary={
-                      connections.length < 2
-                        ? '先添加一条局域网或外网线路'
-                        : '无需读取 Wi-Fi 名称或位置'
-                    }
-                  />
+                  connections.length < 2 ? (
+                    <SettingsSubtitle primary="请先添加另一条线路" />
+                  ) : undefined
                 }
                 value={policy.enabled}
-                disabled={connections.length < 2}
+                disabled={connections.length < 2 || !!pending}
                 onValueChange={(enabled) =>
                   void run('policy', () =>
                     updateServer(serverId, {
@@ -114,8 +121,8 @@ function ServerLinesScreen() {
                 }
               />
               <NativeSettingsPicker
+                disabled={!!pending}
                 title={<SettingsTitle>默认线路</SettingsTitle>}
-                subtitle={<SettingsSubtitle primary="外网地址，离开局域网时使用" />}
                 value={policy.defaultConnectionId}
                 options={connections.map((line) => ({ title: line.name, value: line.id }))}
                 onValueChange={(defaultConnectionId) =>
@@ -135,8 +142,8 @@ function ServerLinesScreen() {
               />
               {connections.length > 1 ? (
                 <NativeSettingsPicker
+                  disabled={!!pending}
                   title={<SettingsTitle>局域网线路</SettingsTitle>}
-                  subtitle={<SettingsSubtitle primary="Wi-Fi 下验证后优先使用的地址" />}
                   value={policy.localConnectionId ?? ''}
                   options={[
                     { title: '请选择', value: '' },
@@ -158,16 +165,14 @@ function ServerLinesScreen() {
                 />
               ) : null}
             </NativeSettingsSection>
-            <NativeSettingsSection
-              title="管理线路"
-              footer="所有线路共用这个服务器账号，无需重复登录。添加或修改地址时会验证服务器和账号。"
-            >
+            <NativeSettingsSection title="管理线路">
               {connections.map((line) => (
                 <NativeSettingsItem
                   key={line.id}
                   title={<SettingsTitle>{`编辑 ${line.name}`}</SettingsTitle>}
                   subtitle={<SettingsSubtitle primary={line.address} lines={2} />}
                   disclosure
+                  disabled={!!pending}
                   onPress={() => {
                     if (!busyRef.current) editLine(line.id);
                   }}
@@ -175,6 +180,7 @@ function ServerLinesScreen() {
               ))}
               <NativeSettingsItem
                 title={<SettingsActionTitle tone="accent">添加线路</SettingsActionTitle>}
+                disabled={!!pending}
                 onPress={() => {
                   if (!busyRef.current) editLine();
                 }}

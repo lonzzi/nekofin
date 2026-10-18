@@ -12,7 +12,7 @@ import { useDanmakuSources } from '@/lib/contexts/DanmakuSourcesContext';
 import { normalizeDanmakuApiUrl } from '@/services/danmakuSources';
 import { TextInput, useNativeState, type TextInputRef } from '@expo/ui';
 import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
-import { frame } from '@expo/ui/swift-ui/modifiers';
+import { accessibilityLabel, frame } from '@expo/ui/swift-ui/modifiers';
 import { randomUUID } from 'expo-crypto';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -28,7 +28,7 @@ export default function DanmakuSourceEditor() {
   const [enabled, setEnabled] = useState(existing?.enabled ?? true);
   const nameState = useNativeState(name);
   const addressState = useNativeState(address);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<{ field: 'name' | 'address'; message: string } | null>(null);
   const nameRef = useRef<TextInputRef>(null);
   const addressRef = useRef<TextInputRef>(null);
   useEffect(() => {
@@ -41,11 +41,18 @@ export default function DanmakuSourceEditor() {
     });
     return () => subscription.remove();
   }, []);
-  const modifiers = Platform.OS === 'ios' ? [frame({ maxWidth: Infinity })] : [fillMaxWidth()];
+  const modifiers = (label: string) =>
+    Platform.OS === 'ios'
+      ? [frame({ maxWidth: Infinity, minHeight: 44 }), accessibilityLabel(label)]
+      : [fillMaxWidth()];
 
   const save = () => {
+    if (!name.trim()) {
+      setError({ field: 'name', message: '请输入 API 名称' });
+      nameRef.current?.focus();
+      return;
+    }
     try {
-      if (!name.trim()) throw new Error('请输入 API 名称');
       const baseUrl = normalizeDanmakuApiUrl(address);
       if (
         sourceSettings.customSources.some(
@@ -63,7 +70,11 @@ export default function DanmakuSourceEditor() {
       }));
       router.back();
     } catch (error) {
-      setError(error instanceof Error ? error.message : '请检查 API 地址');
+      setError({
+        field: 'address',
+        message: error instanceof Error ? error.message : '请检查 API 地址',
+      });
+      addressRef.current?.focus();
     }
   };
   return (
@@ -81,16 +92,22 @@ export default function DanmakuSourceEditor() {
         </HeaderButton>
       </HeaderToolbar>
       <NativeSettingsForm testID="danmaku-api-editor">
-        <NativeSettingsSection title="名称">
+        <NativeSettingsSection
+          title="名称"
+          footer={error?.field === 'name' ? error.message : undefined}
+        >
           <NativeSettingsItem
             title={
               <TextInput
                 ref={nameRef}
                 value={nameState}
-                onChangeText={setName}
+                onChangeText={(text) => {
+                  setName(text);
+                  if (error?.field === 'name') setError(null);
+                }}
                 placeholder="例如：家里的弹幕 API"
-                modifiers={modifiers}
-                style={{ height: 44 }}
+                modifiers={modifiers('API 名称')}
+                style={Platform.OS === 'ios' ? undefined : { height: 44 }}
                 testID="danmaku-api-name"
               />
             }
@@ -98,20 +115,23 @@ export default function DanmakuSourceEditor() {
         </NativeSettingsSection>
         <NativeSettingsSection
           title="API 地址"
-          footer="支持弹弹 Play 兼容接口，可填写含 Token 的完整 API 前缀。"
+          footer={error?.field === 'address' ? error.message : '弹弹 Play 兼容接口，可包含 Token。'}
         >
           <NativeSettingsItem
             title={
               <TextInput
                 ref={addressRef}
                 value={addressState}
-                onChangeText={setAddress}
+                onChangeText={(text) => {
+                  setAddress(text);
+                  if (error?.field === 'address') setError(null);
+                }}
                 placeholder="https://example.com/api/v2"
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="url"
-                modifiers={modifiers}
-                style={{ height: 44 }}
+                modifiers={modifiers('API 地址')}
+                style={Platform.OS === 'ios' ? undefined : { height: 44 }}
                 testID="danmaku-api-url"
               />
             }
@@ -122,11 +142,6 @@ export default function DanmakuSourceEditor() {
             onValueChange={setEnabled}
           />
         </NativeSettingsSection>
-        {error ? (
-          <NativeSettingsSection title="提示">
-            <NativeSettingsItem title={<SettingsActionTitle>{error}</SettingsActionTitle>} />
-          </NativeSettingsSection>
-        ) : null}
         {existing ? (
           <NativeSettingsSection>
             <NativeSettingsItem

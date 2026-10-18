@@ -64,15 +64,12 @@ export default function DanmakuSourcesScreen() {
             />
           ))}
           {!sourceSettings.customSources.length ? (
-            <NativeSettingsItem
-              title={<SettingsTitle>还没有自定义 API</SettingsTitle>}
-              subtitle={<SettingsSubtitle primary="点击右上角 ＋ 添加兼容接口" />}
-            />
+            <NativeSettingsItem title={<SettingsTitle>还没有自定义 API</SettingsTitle>} />
           ) : null}
         </NativeSettingsSection>
         <NativeSettingsSection
           title="自动匹配"
-          footer="先匹配片名、季度与集数，再优先选择弹幕更多的结果；播放时可以随时切换。"
+          footer="最佳匹配使用一个匹配源；合并匹配源会合并多个来源的弹幕。播放时可随时切换。"
         >
           <NativeSettingsPicker
             title={<SettingsTitle>默认显示方式</SettingsTitle>}
