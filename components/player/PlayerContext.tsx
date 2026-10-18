@@ -54,6 +54,7 @@ export type PlayerContextValue = {
   title: string;
   isPlaying: boolean;
   isLoading: boolean;
+  canSeek: boolean;
   duration: number;
   currentTime: SharedValue<number>;
   onSeek: (position: number) => void;

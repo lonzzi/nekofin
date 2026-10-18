@@ -11,6 +11,7 @@ import { useOverlayInsets } from './useOverlayInsets';
 export function TransportControls() {
   const { isCompact } = useOverlayInsets();
   const {
+    canSeek,
     currentTime,
     duration,
     fadeAnim,
@@ -60,7 +61,6 @@ export function TransportControls() {
     [hideControlsWithDelay, onNextEpisode, onPreviousEpisode],
   );
 
-  const canSeek = duration > 0;
   const groupHeight = isCompact ? 44 : 48;
   const sideButtonWidth = isCompact ? 44 : 46;
   const playButtonWidth = isCompact ? 52 : 56;

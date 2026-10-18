@@ -30,6 +30,7 @@ import {
 } from './panels/playerPanelRoute';
 import type { PlaybackSourceInfo } from './playbackInfo';
 import { MediaStats, MediaTrack, MediaTracks, PlayerContext } from './PlayerContext';
+import { canSeekPlayback } from './playerControlModel';
 import { SeekPreview } from './SeekPreview';
 import { TopControls } from './TopControls';
 
@@ -41,6 +42,7 @@ type ControlsProps = {
   title: string;
   isPlaying: boolean;
   isLoading: boolean;
+  isPlayerReady: boolean;
   duration: number;
   currentTime: SharedValue<number>;
   onSeek: (position: number) => void;
@@ -81,9 +83,10 @@ type ControlsProps = {
 
 export function Controls({
   autoHideControls = true,
-  initiallyVisible = true,
+  initiallyVisible = false,
   isPlaying,
   isLoading,
+  isPlayerReady,
   duration,
   currentTime,
   onSeek,
@@ -292,6 +295,7 @@ export function Controls({
     title,
     isPlaying,
     isLoading,
+    canSeek: canSeekPlayback({ durationMs: duration, isPlayerReady }),
     duration,
     currentTime,
     onSeek,

@@ -337,6 +337,7 @@ export function PlayerLabScreen({ onClose }: PlayerLabScreenProps) {
         hasNextEpisode={episodeIndex < MOCK_EPISODES.length - 1}
         hasPreviousEpisode={episodeIndex > 0}
         isLoading={isLoading}
+        isPlayerReady={playbackState !== 'idle' && playbackState !== 'loading'}
         isPlaying={isPlaying}
         initiallyVisible
         onAspectRatioChange={setAspectRatio}
