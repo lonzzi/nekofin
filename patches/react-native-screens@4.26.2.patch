@@ -71,7 +71,7 @@ diff --git a/ScreenBlurTarget.java b/ScreenBlurTarget.java
 new file mode 100644
 --- /dev/null
 +++ b/ScreenBlurTarget.java
-@@ -0,0 +1,25 @@
+@@ -0,0 +1,29 @@
 +package eightbitlab.com.blurview;
 +
 +import android.annotation.SuppressLint;
@@ -79,7 +79,9 @@ new file mode 100644
 +import android.graphics.Canvas;
 +import android.graphics.RecordingCanvas;
 +import android.os.Build;
++import android.os.IBinder;
 +import android.view.View;
++import android.view.ViewTreeObserver;
 +import androidx.annotation.RequiresApi;
 +
 +/** A body-only source; the native stack toolbar is outside the owning Screen. */
@@ -88,6 +90,8 @@ new file mode 100644
 +    private final View owner;
 +    public ScreenBlurTarget(Context context, View owner) { super(context); this.owner = owner; }
 +    @Override public void getLocationOnScreen(int[] location) { owner.getLocationOnScreen(location); }
++    @Override public IBinder getWindowToken() { return owner.getWindowToken(); }
++    @Override public ViewTreeObserver getViewTreeObserver() { return owner.getViewTreeObserver(); }
 +    public interface DrawChildren { void draw(Canvas canvas); }
 +    @RequiresApi(Build.VERSION_CODES.S)
 +    public void drawBody(Canvas destination, DrawChildren children) {
@@ -933,7 +937,7 @@ diff --git a/CroppedBlurTarget.java b/CroppedBlurTarget.java
 new file mode 100644
 --- /dev/null
 +++ b/CroppedBlurTarget.java
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,140 @@
 +package eightbitlab.com.blurview;
 +
 +import android.annotation.SuppressLint;
@@ -944,6 +948,7 @@ new file mode 100644
 +import android.graphics.Shader;
 +import android.os.Build;
 +import android.view.View;
++import android.view.ViewTreeObserver;
 +import com.facebook.react.views.drawer.ReactDrawerLayout;
 +
 +import androidx.annotation.NonNull;
@@ -964,10 +969,40 @@ new file mode 100644
 +    private boolean hadContent;
 +    private int snapshotWidth;
 +    private int snapshotHeight;
++    private boolean snapshotDirty = true;
++    private ViewTreeObserver sourceObserver;
++    private final ViewTreeObserver.OnDrawListener sourceDraw = () -> {
++        snapshotDirty = true;
++        android.view.ViewParent parent = getParent();
++        if (parent instanceof View && ((View) parent).isShown()) {
++            ((View) parent).postInvalidateOnAnimation();
++        }
++    };
 +
 +    public CroppedBlurTarget(@NonNull Context context, @NonNull BlurTarget source) {
 +        super(context);
 +        this.source = source;
++    }
++
++    @Override
++    protected void onAttachedToWindow() {
++        super.onAttachedToWindow();
++        snapshotDirty = true;
++        // A popup has its own renderer and needs a frame when the source window draws.
++        // Same-window RenderNode references already update without extra invalidation.
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && getWindowToken() != source.getWindowToken()) {
++            sourceObserver = source.getViewTreeObserver();
++            sourceObserver.addOnDrawListener(sourceDraw);
++        }
++    }
++
++    @Override
++    protected void onDetachedFromWindow() {
++        if (sourceObserver != null && sourceObserver.isAlive()) {
++            sourceObserver.removeOnDrawListener(sourceDraw);
++        }
++        sourceObserver = null;
++        super.onDetachedFromWindow();
 +    }
 +
 +    @RequiresApi(Build.VERSION_CODES.S)
@@ -992,7 +1027,8 @@ new file mode 100644
 +        int width = (int) Math.ceil(getWidth() / SCALE);
 +        int height = (int) Math.ceil(getHeight() / SCALE);
 +        boolean hasContent = source.renderNode.hasDisplayList();
-+        if (renderNode.hasDisplayList() && snapshotWidth == width && snapshotHeight == height
++        // This caches drawing commands, not pixels: the child RenderNode remains live.
++        if (!snapshotDirty && renderNode.hasDisplayList() && snapshotWidth == width && snapshotHeight == height
 +                && previousSourceX == sourceLocation[0] && previousSourceY == sourceLocation[1]
 +                && previousTargetX == targetLocation[0] && previousTargetY == targetLocation[1]
 +                && previousClearColor == clearColor && hadContent == hasContent) return;
@@ -1002,6 +1038,7 @@ new file mode 100644
 +        previousTargetY = targetLocation[1];
 +        previousClearColor = clearColor;
 +        hadContent = hasContent;
++        snapshotDirty = false;
 +        if (snapshotWidth != width || snapshotHeight != height) {
 +            snapshotWidth = width;
 +            snapshotHeight = height;
