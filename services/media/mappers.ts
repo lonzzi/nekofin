@@ -129,6 +129,13 @@ export type RawMediaSource = {
   DefaultAudioStreamIndex?: number | null;
   DefaultSubtitleStreamIndex?: number | null;
   MediaStreams?: RawMediaStream[] | null;
+  MediaAttachments?:
+    | {
+        Index?: number | null;
+        FileName?: string | null;
+        DeliveryUrl?: string | null;
+      }[]
+    | null;
 };
 
 export function mapMediaStream(stream: RawMediaStream): MediaSource['mediaStreams'][number] {
@@ -176,5 +183,20 @@ export function mapMediaSource(source: RawMediaSource): MediaSource {
     defaultAudioStreamIndex: source.DefaultAudioStreamIndex ?? undefined,
     defaultSubtitleStreamIndex: source.DefaultSubtitleStreamIndex ?? undefined,
     mediaStreams: source.MediaStreams?.map(mapMediaStream) ?? [],
+    ...(source.MediaAttachments?.length
+      ? {
+          mediaAttachments: source.MediaAttachments.flatMap((attachment) =>
+            attachment.Index != null && attachment.FileName
+              ? [
+                  {
+                    index: attachment.Index,
+                    fileName: attachment.FileName,
+                    deliveryUrl: attachment.DeliveryUrl ?? undefined,
+                  },
+                ]
+              : [],
+          ),
+        }
+      : {}),
   };
 }

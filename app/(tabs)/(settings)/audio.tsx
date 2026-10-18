@@ -1,12 +1,15 @@
 import { OuterTitle } from '@/components/outer/OuterPrimitives';
 import {
   NativeSettingsForm,
+  NativeSettingsItem,
   NativeSettingsPicker,
   NativeSettingsSection,
   NativeSettingsSwitch,
 } from '@/components/ui/NativeSettings';
-import { SettingsTitle } from '@/components/ui/SettingsVisual';
+import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
+import { useCustomSubtitleFonts } from '@/hooks/useCustomSubtitleFonts';
 import { storage } from '@/lib/storage';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 
 const languages = [
@@ -17,6 +20,8 @@ const languages = [
   { title: '韩语', value: 'ko' },
 ];
 export default function AudioSettings() {
+  const router = useRouter();
+  const { selected } = useCustomSubtitleFonts();
   const [audio, setAudio] = useState(storage.getString('playback.audioLanguage') ?? 'auto');
   const [subtitle, setSubtitle] = useState(
     storage.getString('playback.subtitleLanguage') ?? 'auto',
@@ -55,6 +60,14 @@ export default function AudioSettings() {
               setSubtitle(v);
               storage.set('playback.subtitleLanguage', v);
             }}
+          />
+        </NativeSettingsSection>
+        <NativeSettingsSection title="字体">
+          <NativeSettingsItem
+            title={<SettingsTitle>字幕字体</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={selected?.family ?? '跟随字幕与服务器'} />}
+            disclosure
+            onPress={() => router.push('/subtitle-fonts')}
           />
         </NativeSettingsSection>
       </NativeSettingsForm>

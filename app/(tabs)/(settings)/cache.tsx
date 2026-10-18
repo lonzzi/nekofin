@@ -20,6 +20,10 @@ import {
 } from '@/lib/queryPersistence';
 import { useAppTheme } from '@/lib/theme';
 import { clearSubtitleCache, SUBTITLE_CACHE_PATH } from '@/services/media/subtitleCache';
+import {
+  clearSubtitleFontCache,
+  SUBTITLE_FONT_CACHE_PATH,
+} from '@/services/media/subtitleFontCache';
 import { Column, RNHostView } from '@expo/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -66,6 +70,7 @@ const cacheUriGroups: Record<FileCacheKey, string[]> = {
     joinUri(FileSystem.cacheDirectory, 'expo-image/'),
   ]),
   subtitle: uniqueUris([
+    joinUri(FileSystem.cacheDirectory, SUBTITLE_FONT_CACHE_PATH),
     joinUri(FileSystem.cacheDirectory, SUBTITLE_CACHE_PATH),
     joinUri(FileSystem.cacheDirectory, 'player-subtitles/'),
     joinUri(FileSystem.cacheDirectory, 'nekofin/subtitles/'),
@@ -202,9 +207,12 @@ export default function CacheSettingsScreen() {
   }, []);
 
   const clearSubtitleFiles = useCallback(async () => {
-    await clearSubtitleCache();
+    await Promise.all([clearSubtitleCache(), clearSubtitleFontCache()]);
     const sharedUri = joinUri(FileSystem.cacheDirectory, SUBTITLE_CACHE_PATH);
-    await clearCacheUris(cacheUriGroups.subtitle.filter((uri) => uri !== sharedUri));
+    const fontUri = joinUri(FileSystem.cacheDirectory, SUBTITLE_FONT_CACHE_PATH);
+    await clearCacheUris(
+      cacheUriGroups.subtitle.filter((uri) => uri !== sharedUri && uri !== fontUri),
+    );
   }, []);
 
   const clearAllCaches = useCallback(async () => {
@@ -301,7 +309,7 @@ export default function CacheSettingsScreen() {
           />
           <NativeSettingsItem
             testID="cache-row-subtitle"
-            title={<SettingsTitle>字幕缓存</SettingsTitle>}
+            title={<SettingsTitle>字幕与字体缓存</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.subtitle)} />}
             trailing={<SettingsValue label={clearingLabel('subtitle')} tone="danger" />}
             onPress={() => void clearTarget('subtitle', clearSubtitleFiles)}

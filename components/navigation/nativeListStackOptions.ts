@@ -1,15 +1,19 @@
+import { useAppTheme } from '@/lib/theme';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Platform } from 'react-native';
 
+import { nativeStatusBarOptions } from './nativeStackConfig';
 import { platformHeaderOptions } from './platformHeaderOptions';
 import { useTabletSidebar } from './TabletSidebarContext';
 
 /** Let UIKit render its own navigation and scroll-edge materials on iOS 26+. */
 export function useNativeListStackOptions(backgroundColor: string) {
+  const theme = useAppTheme();
   const ios = Platform.OS === 'ios';
   const sidebar = useTabletSidebar();
   return {
     ...platformHeaderOptions,
+    ...nativeStatusBarOptions(theme.isDark),
     orientation: Platform.OS === 'ios' ? (Platform.isPad ? 'all' : 'portrait_up') : undefined,
     headerTransparent: ios,
     headerLargeTitle: Platform.OS === 'ios' && !Platform.isPad,

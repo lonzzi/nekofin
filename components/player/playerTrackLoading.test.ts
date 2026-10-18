@@ -5,7 +5,76 @@ import {
   isExternalTrackCommandError,
   loadExternalPlayerTrack,
   loadExternalTracksProgressively,
+  selectPlayerSubtitleTrack,
 } from './playerTrackLoading';
+
+describe('native subtitle selection confirmation', () => {
+  const createPlayer = () => ({
+    setSubtitleTrack: vi.fn().mockResolvedValue(undefined),
+    setPropertyString: vi.fn().mockResolvedValue(undefined),
+    getCurrentTrackIds: vi.fn().mockResolvedValue({ vid: 1, aid: 2, sid: 7 }),
+  });
+
+  it('confirms the native subtitle ID before reporting success', async () => {
+    const player = createPlayer();
+    await expect(selectPlayerSubtitleTrack(player, 7, () => true)).resolves.toEqual({
+      vid: 1,
+      aid: 2,
+      sid: 7,
+    });
+    expect(player.setSubtitleTrack).toHaveBeenCalledExactlyOnceWith(7);
+  });
+
+  it('propagates a rejected embedded switch so its pending choice can be cleared', async () => {
+    const player = createPlayer();
+    const error = new Error('Unsupported subtitle stream');
+    player.setSubtitleTrack.mockRejectedValue(error);
+    await expect(selectPlayerSubtitleTrack(player, 7, () => true)).rejects.toBe(error);
+    expect(player.getCurrentTrackIds).not.toHaveBeenCalled();
+  });
+
+  it.each([7, -1])(
+    'rejects a switch to %s that resolves without changing the native sid',
+    async (trackId) => {
+      const player = createPlayer();
+      player.getCurrentTrackIds.mockResolvedValue({ vid: 1, aid: 2, sid: 3 });
+      await expect(selectPlayerSubtitleTrack(player, trackId, () => true)).rejects.toThrow(
+        'Subtitle selection was not confirmed',
+      );
+    },
+  );
+
+  it('propagates a failed confirmation read', async () => {
+    const player = createPlayer();
+    player.getCurrentTrackIds.mockRejectedValue(new Error('Player unavailable'));
+    await expect(selectPlayerSubtitleTrack(player, 7, () => true)).rejects.toThrow(
+      'Player unavailable',
+    );
+  });
+
+  it.each([0, -1])('accepts disabled subtitles reported as sid=%s', async (sid) => {
+    const player = createPlayer();
+    player.getCurrentTrackIds.mockResolvedValue({ vid: 1, aid: 2, sid });
+    await expect(selectPlayerSubtitleTrack(player, -1, () => true)).resolves.toMatchObject({
+      sid,
+    });
+    expect(player.setPropertyString).toHaveBeenCalledExactlyOnceWith('sid', 'no');
+    expect(player.setSubtitleTrack).not.toHaveBeenCalled();
+  });
+
+  it('discards a confirmation when a newer choice or source supersedes it', async () => {
+    const player = createPlayer();
+    let active = false;
+    await expect(selectPlayerSubtitleTrack(player, 7, () => active)).resolves.toBeUndefined();
+    expect(player.setSubtitleTrack).not.toHaveBeenCalled();
+    active = true;
+    player.getCurrentTrackIds.mockImplementation(async () => {
+      active = false;
+      return { vid: 1, aid: 2, sid: 7 };
+    });
+    await expect(selectPlayerSubtitleTrack(player, 7, () => active)).resolves.toBeUndefined();
+  });
+});
 
 describe('external native track loading', () => {
   afterEach(() => vi.useRealTimers());
@@ -121,5 +190,42 @@ describe('external native track loading', () => {
       ),
     ).resolves.toBeUndefined();
     expect(player.addAudio).not.toHaveBeenCalled();
+  });
+
+  it('serializes native adds when a menu choice overtakes a background download', async () => {
+    vi.useFakeTimers();
+    const tracks = [{ id: 1, type: 'sub' }] as TrackInfo[];
+    let finishFirst!: () => void;
+    const player = {
+      getTrackList: vi.fn(async () => [...tracks]),
+      addSubtitle: vi.fn(async (_url: string, _flag?: string, name?: string) => {
+        if (name === 'background') await new Promise<void>((resolve) => (finishFirst = resolve));
+        tracks.push({
+          id: name === 'background' ? 3 : 7,
+          type: 'sub',
+          isExternal: true,
+        } as TrackInfo);
+      }),
+      addAudio: vi.fn(),
+    };
+    const background = loadExternalPlayerTrack(
+      player,
+      'sub',
+      { index: 8, name: 'background', url: 'file:///background.ass' },
+      () => true,
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    const chosen = loadExternalPlayerTrack(
+      player,
+      'sub',
+      { index: 12, name: 'chosen', url: 'file:///chosen.ass' },
+      () => true,
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(player.addSubtitle).toHaveBeenCalledTimes(1);
+    finishFirst();
+    await vi.runAllTimersAsync();
+    expect(await background).toBe(3);
+    expect(await chosen).toBe(7);
   });
 });

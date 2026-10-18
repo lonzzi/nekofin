@@ -9,6 +9,31 @@ export function prioritizeSubtitleTracks<T extends { index: number }>(
   );
 }
 
+export function subtitleTracksToLoad<T extends { index: number; url: string }>(
+  tracks: T[],
+  streams: RawMediaStream[],
+  preferredIndex?: number,
+) {
+  return prioritizeSubtitleTracks(
+    tracks.filter((track) => {
+      if (track.index === preferredIndex) return true;
+      const codec = streams
+        .find((stream) => stream.Index === track.index)
+        ?.Codec?.trim()
+        .toLowerCase();
+      const path = new URL(track.url).pathname;
+      return !(
+        /^(pgs|pgssub|hdmv_pgs_subtitle|sup|dvdsub|dvd_subtitle|vobsub|dvbsub|dvb_subtitle|xsub)$/.test(
+          codec ?? '',
+        ) ||
+        /\.(sup|pgs|pgssub|idx)$/i.test(path) ||
+        (!codec && !/\.(ass|ssa|srt|vtt|ttml)$/i.test(path))
+      );
+    }),
+    preferredIndex,
+  );
+}
+
 type ExternalTrackContext = {
   itemId?: string;
   mediaSourceId?: string | null;
@@ -50,7 +75,11 @@ export function deriveExternalSubtitles(
         (sub.IsExternal || sub.DeliveryMethod === 'External'),
     )
     .flatMap((sub) => {
-      const format = { subrip: 'srt', webvtt: 'vtt' }[sub.Codec ?? ''] ?? sub.Codec;
+      const codec = sub.Codec?.toLowerCase();
+      const format =
+        { subrip: 'srt', webvtt: 'vtt', pgs: 'sup', pgssub: 'sup', hdmv_pgs_subtitle: 'sup' }[
+          codec ?? ''
+        ] ?? codec;
       const path =
         sub.DeliveryUrl ||
         (context.itemId && context.mediaSourceId && sub.Index != null && format

@@ -90,6 +90,21 @@ describe('player native menu model', () => {
     ]);
   });
 
+  it('keeps pending subtitles selectable without a loading label', () => {
+    const pending = { index: 8, name: '简体中文', language: 'zh', loading: true };
+    const actions = deriveTrackMenuActions(
+      { subtitle: [pending, { index: 12, name: '繁體中文', failed: true }] },
+      { subtitle: pending },
+    );
+    expect(actions[0].title).toBe('字幕 · 简体中文');
+    expect(actions[0].subactions).toMatchObject([
+      { id: 'track:subtitle:-1', state: 'off' },
+      { id: 'track:subtitle:8', state: 'on', subtitle: 'ZH' },
+      { id: 'track:subtitle:12', subtitle: '加载失败，点按重试' },
+    ]);
+    expect(actions[0].subactions?.every((entry) => !entry.attributes?.disabled)).toBe(true);
+  });
+
   it('models playback choices as selected native submenus', () => {
     const actions = derivePlaybackMenuActions(1.5, 'fill');
 

@@ -1,3 +1,4 @@
+import { useSubtitlePrefetch } from '@/hooks/useSubtitlePrefetch';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { useDanmakuSources } from '@/lib/contexts/DanmakuSourcesContext';
 import { dandanplayCommentsQueryOptions } from '@/services/dandanplayQueryOptions';
@@ -5,6 +6,7 @@ import { getDanmakuByItem } from '@/services/danmaku';
 import { danmakuSourcesKey } from '@/services/danmakuSources';
 import {
   needsPlaybackPreferenceTracks,
+  resolvePlaybackSelection,
   resolvePreferredPlaybackTracks,
   type PlaybackPreferences,
 } from '@/services/media/playbackSelection';
@@ -30,6 +32,7 @@ export function usePlayerQueries({
   streamDeviceId,
   playbackAttempt,
   preferences,
+  subtitlePrefetchChoice,
 }: {
   itemId: string;
   mediaAdapter: MediaAdapter;
@@ -40,6 +43,7 @@ export function usePlayerQueries({
   streamDeviceId: string;
   playbackAttempt: number;
   preferences: PlaybackPreferences;
+  subtitlePrefetchChoice?: { sourceId: string; index: number };
 }) {
   const { sources } = useDanmakuSources();
   const { settings } = useDanmakuSettings();
@@ -83,6 +87,22 @@ export function usePlayerQueries({
         preferences,
       ),
     [playbackInfo, streamInfoKeyOptions, preferences],
+  );
+  const subtitlePrefetchSelection = resolvePlaybackSelection(
+    playbackInfo?.mediaSources ?? [],
+    playbackSelection,
+    preferences,
+  );
+  // Prefetch the selected subtitle alongside stream negotiation.
+  useSubtitlePrefetch(
+    itemId,
+    playbackInfo?.mediaSources.find(
+      (source) => source.id === subtitlePrefetchSelection.mediaSourceId,
+    ),
+    subtitlePrefetchChoice &&
+      subtitlePrefetchChoice.sourceId === subtitlePrefetchSelection.mediaSourceId
+      ? subtitlePrefetchChoice.index
+      : subtitlePrefetchSelection.subtitleStreamIndex,
   );
   const streamOptions = streamInfoQueryOptions({
     adapter: mediaAdapter,

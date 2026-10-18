@@ -39,7 +39,6 @@ export const DETAIL_MORE_MENU_ICONS = {
 } as const;
 
 export function getServerMenuIcon(type: MediaServerType): ImageSourcePropType {
-  // Android menu actions always tint their icon; keep the play triangle transparent.
   return SERVER_MENU_ICONS[type];
 }
 
@@ -51,7 +50,7 @@ const SERVER_MENU_ICONS: Record<MediaServerType, ImageSourcePropType> =
       }
     : {
         jellyfin: require('../../assets/icons/jellyfin-icon--color-on-light.png'),
-        emby: require('../../assets/drawables/emby_template.xml'),
+        emby: require('../../assets/drawables/emby.xml'),
       };
 
 export function getNativeToolbarIcon(

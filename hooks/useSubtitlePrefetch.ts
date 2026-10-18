@@ -1,12 +1,14 @@
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
-import { deriveExternalSubtitles, prioritizeSubtitleTracks } from '@/services/media/externalTracks';
+import { deriveExternalSubtitles } from '@/services/media/externalTracks';
 import { createExternalSubtitleCache } from '@/services/media/subtitleCache';
 import type { MediaSource } from '@/services/media/types';
 import { useGlobalSearchParams, usePathname } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
 import { useEffect } from 'react';
 
-/** Warm only the displayed item's selected version; playback shares the same in-flight work. */
+import { useSubtitleFonts } from './useSubtitleFonts';
+
+/** Warm the selected subtitle; playback shares the same file and in-flight work. */
 export function useSubtitlePrefetch(
   itemId: string,
   source: MediaSource | undefined,
@@ -25,8 +27,18 @@ export function useSubtitlePrefetch(
   const enabled =
     focused ||
     ((pathname === '/player' || pathname.startsWith('/player/')) && playerItemId === itemId);
+  useSubtitleFonts(itemId, source, enabled);
   useEffect(() => {
-    if (!enabled || !serverId || !userId || !source || !basePath) return;
+    if (
+      !enabled ||
+      !serverId ||
+      !userId ||
+      !source ||
+      !basePath ||
+      preferredIndex == null ||
+      preferredIndex < 0
+    )
+      return;
     const tracks = deriveExternalSubtitles(
       source.mediaStreams.map((stream) => ({
         Type: stream.type,
@@ -41,8 +53,8 @@ export function useSubtitlePrefetch(
       basePath,
       { itemId, mediaSourceId: source.id, accessToken },
     );
-    if (!tracks.length) return;
-    // Download the selected subtitle first. A failing optional track must not stop the rest.
+    const track = tracks.find((entry) => entry.index === preferredIndex);
+    if (!track) return;
     const cache = createExternalSubtitleCache({
       serverId,
       userId,
@@ -53,10 +65,7 @@ export function useSubtitlePrefetch(
     let active = true;
     void (async () => {
       try {
-        for (const track of prioritizeSubtitleTracks(tracks, preferredIndex)) {
-          if (!active) break;
-          await cache.prepare(track, () => active).catch(() => {});
-        }
+        await cache.prepare(track, () => active).catch(() => {});
       } finally {
         cache.dispose();
       }

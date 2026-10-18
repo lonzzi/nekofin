@@ -74,6 +74,7 @@ export function tabletDestinationKey(segments: readonly string[]) {
   if (group === '(settings)') {
     const screen = segments[segments.indexOf(group) + 1];
     if (screen?.startsWith('danmaku')) return 'danmaku';
+    if (screen === 'subtitle-fonts' || screen === 'subtitle-font-url') return 'audio';
     return tabletDestinations.some((item) => item.key === screen) ? screen : 'settings';
   }
   return group?.slice(1, -1) ?? 'home';
