@@ -352,6 +352,11 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
       const editingActive =
         connectionId &&
         connections.find((item) => item.id === connectionId)?.address === server.address;
+      if (editingActive && !server.remoteServerId) {
+        // Keep the verified identity before replacing a legacy account's last shared address.
+        await updateServer(id, { remoteServerId });
+        requireUnchangedSession(server);
+      }
       await updateServer(id, {
         remoteServerId,
         ...(editingActive ? { address, userAvatar: user.avatar || '' } : {}),

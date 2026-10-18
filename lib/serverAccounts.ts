@@ -18,7 +18,7 @@ export function isSameMediaServer(left: ServerIdentity, right: ServerIdentity) {
 export function groupServerAccounts(servers: MediaServerInfo[]) {
   const groups: MediaServerInfo[][] = [];
   for (const server of servers) {
-    const group = groups.find(
+    const matches = groups.filter(
       (accounts) =>
         accounts.some((account) => isSameMediaServer(account, server)) &&
         accounts.every(
@@ -28,8 +28,21 @@ export function groupServerAccounts(servers: MediaServerInfo[]) {
             account.remoteServerId === server.remoteServerId,
         ),
     );
-    if (group) group.push(server);
-    else groups.push([server]);
+    const group = matches[0];
+    if (group) {
+      group.push(server);
+      for (const matching of matches.slice(1)) {
+        const identity = group.find((account) => account.remoteServerId)?.remoteServerId;
+        if (
+          identity &&
+          matching.some((account) => account.remoteServerId && account.remoteServerId !== identity)
+        )
+          continue;
+        group.push(...matching);
+        groups.splice(groups.indexOf(matching), 1);
+      }
+      group.sort((left, right) => servers.indexOf(left) - servers.indexOf(right));
+    } else groups.push([server]);
   }
   return groups;
 }

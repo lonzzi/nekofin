@@ -50,6 +50,33 @@ describe('server account selection', () => {
     ]);
   });
 
+  it.each([
+    [0, 1, 2],
+    [0, 2, 1],
+    [1, 0, 2],
+    [1, 2, 0],
+    [2, 0, 1],
+    [2, 1, 0],
+  ])('merges transitively connected accounts in storage order %j', (...order) => {
+    const legacy = { ...first, id: 'legacy', remoteServerId: undefined };
+    const accounts = [second, legacy, first];
+    const servers = order.map((index) => accounts[index]);
+    expect(groupServerAccounts(servers)).toEqual([servers]);
+    expect(getActiveServerAccounts(servers, [first.id])).toEqual([first]);
+    expect(getActiveServerAccounts(servers, [legacy.id])).toEqual([legacy]);
+  });
+
+  it('does not merge conflicting known identities through a legacy bridge', () => {
+    const legacy = {
+      ...first,
+      id: 'legacy',
+      remoteServerId: undefined,
+      connections: [{ id: 'other', name: 'Other', address: other.address }],
+    };
+    expect(groupServerAccounts([first, other, legacy])).toEqual([[first, legacy], [other]]);
+    expect(groupServerAccounts([other, first, legacy])).toEqual([[other, legacy], [first]]);
+  });
+
   it('aggregates only the selected account per server and restores a saved choice', () => {
     const servers = [first, second, other];
     expect(getActiveServerAccounts(servers, [])).toEqual([first, other]);
