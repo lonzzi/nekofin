@@ -15,8 +15,8 @@ import {
   isVerticalPan,
   type VerticalGestureMode,
 } from './gestureMath';
+import { GestureValuePreview } from './GestureValuePreview';
 import { usePlayer } from './PlayerContext';
-import { VerticalSlider } from './VerticalSlider';
 
 type PanMode = VerticalGestureMode | 'seek';
 
@@ -26,6 +26,7 @@ const selectionFeedback = () => {
 
 export function GestureHandler() {
   const {
+    canSeek,
     duration,
     currentTime,
     onSeek,
@@ -89,16 +90,16 @@ export function GestureHandler() {
   }, [clearControlsTimeout, setShowControls]);
   const finishSeek = useCallback(
     (time: number, commit: boolean) => {
-      if (commit && duration > 0) onSeek(time / duration);
+      if (commit && canSeek) onSeek(time / duration);
       hideControlsWithDelay();
     },
-    [duration, onSeek, hideControlsWithDelay],
+    [canSeek, duration, onSeek, hideControlsWithDelay],
   );
 
   // Decide once, after a deliberate movement. Vertical drift after activation
   // must never cancel seeking or change it into a brightness/volume gesture.
   const panGesture = Gesture.Pan()
-    .enabled(!isPanelOpen && !isLoading && !isDragging)
+    .enabled(!isPanelOpen && !isDragging)
     .manualActivation(true)
     .maxPointers(1)
     .onTouchesDown((event, manager) => {
@@ -121,9 +122,9 @@ export function GestureHandler() {
       }
       const x = touch.x - touchStartX.value;
       const y = touch.y - touchStartY.value;
-      if (isHorizontalPan(x, y) && duration > 0) {
+      if (isHorizontalPan(x, y) && canSeek) {
         panMode.value = 'seek';
-      } else if (isVerticalPan(x, y) && isInitialized) {
+      } else if (isVerticalPan(x, y) && isInitialized && !isLoading) {
         panMode.value = getVerticalGestureMode(touchStartX.value, screenWidth);
       } else {
         return;
@@ -241,17 +242,11 @@ export function GestureHandler() {
 
   return (
     <Fragment>
-      <VerticalSlider
-        iconName="sunny"
-        progress={brightnessValue}
-        active={isBrightnessGestureActive}
-        style={styles.brightnessSliderContainer}
-      />
-      <VerticalSlider
-        iconName="volume-high"
-        progress={volumeValue}
-        active={isVolumeGestureActive}
-        style={styles.volumeSliderContainer}
+      <GestureValuePreview
+        brightness={brightnessValue}
+        volume={volumeValue}
+        isBrightnessActive={isBrightnessGestureActive}
+        isVolumeActive={isVolumeGestureActive}
       />
       <GestureDetector gesture={composed}>
         <Animated.View style={styles.touchOverlay} />
@@ -262,6 +257,4 @@ export function GestureHandler() {
 
 const styles = StyleSheet.create({
   touchOverlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 5 },
-  brightnessSliderContainer: { left: 60 },
-  volumeSliderContainer: { right: 60 },
 });

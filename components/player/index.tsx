@@ -58,6 +58,7 @@ import {
   type PlaybackSeekCompletion,
 } from './playbackSeekGate';
 import { createPlayerAutoNext, type PlaybackCompletion } from './playerAutoNext';
+import { canSeekPlayback } from './playerControlModel';
 import {
   deriveBufferedProgress,
   deriveDurationMs,
@@ -1156,10 +1157,9 @@ export const VideoPlayer = ({
     (position: number) => {
       const playerView = player.current;
       if (
-        !isPlayerReadyRef.current ||
+        !canSeekPlayback({ durationMs: duration, isPlayerReady: isPlayerReadyRef.current }) ||
         loadedSourceRef.current !== streamInfo?.url ||
         !playerView ||
-        duration <= 0 ||
         !Number.isFinite(position)
       ) {
         return;
@@ -1510,6 +1510,7 @@ export const VideoPlayer = ({
           <Controls
             isPlaying={isPlaying}
             isLoading={showLoading}
+            isPlayerReady={isLoaded && !loadFailure}
             duration={duration}
             currentTime={currentTime}
             onSeek={handleSeek}

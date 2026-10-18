@@ -23,7 +23,7 @@ import {
 import { findDandanEpisode } from '@/services/danmakuMatching';
 import { danmakuSourcesKey } from '@/services/danmakuSources';
 import { Text as NativeText, TextInput as NativeTextInput, Row, useNativeState } from '@expo/ui';
-import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
+import { fillMaxWidth, padding, weight } from '@expo/ui/jetpack-compose/modifiers';
 import { Picker as SwiftPicker, Text as SwiftText } from '@expo/ui/swift-ui';
 import {
   disabled as disabledModifier,
@@ -273,7 +273,8 @@ export function DanmakuSearchPanel({
       />
     </NativeSettingsSection>
   ) : null;
-  const inputModifiers = Platform.OS === 'ios' ? [frame({ maxWidth: Infinity })] : [fillMaxWidth()];
+  // Compose measures unweighted children first, reserving room for the submit button.
+  const inputModifiers = Platform.OS === 'ios' ? [frame({ maxWidth: Infinity })] : [weight(1)];
   const searchDisabled = !keyword.trim() || loading || !apiIds.length;
   const seasonOptions = danmakuSeasonOptions(animes);
   const playingEpisode = currentItem?.type === 'Movie' ? undefined : currentItem?.indexNumber;
@@ -466,7 +467,11 @@ export function DanmakuSearchPanel({
         <Row
           alignment="center"
           spacing={12}
-          modifiers={Platform.OS === 'ios' ? [listRowSeparator('hidden', 'all')] : undefined}
+          modifiers={
+            Platform.OS === 'ios'
+              ? [listRowSeparator('hidden', 'all')]
+              : [fillMaxWidth(), padding(16, 0, 16, 0)]
+          }
         >
           <NativeTextInput
             value={keywordState}

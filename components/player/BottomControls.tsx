@@ -21,6 +21,7 @@ export function BottomControls() {
   const insets = useSafeAreaInsets();
   const {
     bufferedProgress,
+    canSeek,
     currentTime,
     seekPreviewTime,
     seekPreviewStartTime,
@@ -30,7 +31,6 @@ export function BottomControls() {
     fadeAnim,
     hideControlsWithDelay,
     isDragging,
-    isLoading,
     onSeek,
     setIsDragging,
     showControls,
@@ -53,11 +53,11 @@ export function BottomControls() {
 
   const seekToTime = useCallback(
     (time: number) => {
-      if (duration <= 0) return;
+      if (!canSeek) return;
       const clampedTime = Math.max(0, Math.min(time, duration));
       onSeek(clampedTime / duration);
     },
-    [duration, onSeek],
+    [canSeek, duration, onSeek],
   );
 
   const handleSliderSlidingComplete = (value: number) => {
@@ -95,7 +95,7 @@ export function BottomControls() {
             accessibilityStep={duration > 0 ? Math.min(1, 10_000 / duration) : 0.01}
             accessibilityValue={`${formattedCurrentTime} / ${formattedDuration}`}
             bufferedProgress={bufferedProgress}
-            disabled={isLoading || duration <= 0}
+            disabled={!canSeek}
             onSlidingComplete={handleSliderSlidingComplete}
             onSlidingCancel={() => {
               progressValue.value = duration > 0 ? currentTime.value / duration : 0;
