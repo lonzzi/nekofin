@@ -20,13 +20,14 @@ export function ServerFormButton({
   onPress,
 }: ServerFormButtonProps) {
   const theme = useAppTheme();
-  const NativeButton = variant === 'text' ? TextButton : Button;
   const contentColor =
     disabled || busy
       ? theme.colors.textSecondary
       : variant === 'text'
         ? (color ?? theme.colors.tint)
         : theme.colors.inverseText;
+  const NativeButton = variant === 'text' ? TextButton : Button;
+
   return (
     <Host
       style={{ height: 52, width: '100%' }}
@@ -36,9 +37,14 @@ export function ServerFormButton({
       <NativeButton
         onClick={onPress}
         enabled={!disabled && !busy}
+        colors={{
+          ...(variant === 'filled' ? { containerColor: color ?? theme.colors.tint } : {}),
+          contentColor,
+          disabledContentColor: theme.colors.textSecondary,
+        }}
         modifiers={[fillMaxWidth(), height(52)]}
       >
-        <Row verticalAlignment="center" horizontalArrangement={{ spacedBy: 8 }}>
+        <Row horizontalArrangement={{ spacedBy: 8 }} verticalAlignment="center">
           {busy ? (
             <CircularProgressIndicator color={contentColor} modifiers={[size(20, 20)]} />
           ) : null}

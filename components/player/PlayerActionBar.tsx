@@ -1,7 +1,7 @@
+import { MenuView, type MenuComponentRef, type NativeActionEvent } from '@/components/ui/MenuView';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { playbackQualityOptions } from '@/services/media/playbackQuality';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { MenuView, type MenuComponentRef, type NativeActionEvent } from '@react-native-menu/menu';
 import {
   useCallback,
   useMemo,

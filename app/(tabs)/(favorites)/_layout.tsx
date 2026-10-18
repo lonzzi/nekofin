@@ -21,7 +21,6 @@ export default function FavoritesLayout() {
         name="index"
         options={{
           title: '我的收藏',
-          headerLargeTitle: true,
           headerLargeTitleShadowVisible: false,
         }}
       />

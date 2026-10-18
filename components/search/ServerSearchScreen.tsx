@@ -1,5 +1,6 @@
 import { EpisodeCard, SeriesCard } from '@/components/media/Card';
 import { ItemGridScreen } from '@/components/media/ItemGridScreen';
+import { NativeListTitle } from '@/components/navigation/NativeListTitle';
 import PageScrollView from '@/components/PageScrollView';
 import { SkeletonHorizontalSection } from '@/components/ui/Skeleton';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
@@ -100,7 +101,7 @@ export default function ServerSearchScreen() {
 
   const header = (
     <>
-      <Stack.Title large>{effectiveKeyword.length === 0 ? '推荐' : '搜索'}</Stack.Title>
+      <NativeListTitle>{effectiveKeyword.length === 0 ? '推荐' : '搜索'}</NativeListTitle>
       <Stack.SearchBar
         ref={searchBarRef}
         placeholder={

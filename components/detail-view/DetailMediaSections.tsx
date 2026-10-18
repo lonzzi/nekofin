@@ -1,15 +1,9 @@
 import { getMediaRailListConfig } from '@/components/media/railPerformanceConfig';
+import { useContentDimensions } from '@/hooks/useContentDimensions';
 import { useAppTheme } from '@/lib/theme';
 import type { MediaItem, MediaPerson } from '@/services/media/types';
 import { memo } from 'react';
-import {
-  FlatList,
-  Platform,
-  Text,
-  useWindowDimensions,
-  View,
-  type ListRenderItemInfo,
-} from 'react-native';
+import { FlatList, Platform, Text, View, type ListRenderItemInfo } from 'react-native';
 
 import { SeriesCard } from '../media/Card';
 import { detailViewStyles } from './common';
@@ -33,7 +27,7 @@ function getMediaItemKey(item: MediaItem) {
 
 export const PeopleSection = memo(function PeopleSection({ items }: { items: MediaPerson[] }) {
   const theme = useAppTheme();
-  const { width } = useWindowDimensions();
+  const { width } = useContentDimensions();
   const batching =
     Platform.OS === 'android'
       ? getMediaRailListConfig({
@@ -69,7 +63,7 @@ export const SimilarItemsSection = memo(function SimilarItemsSection({
   items: MediaItem[];
 }) {
   const theme = useAppTheme();
-  const { width } = useWindowDimensions();
+  const { width } = useContentDimensions();
   const batching =
     Platform.OS === 'android'
       ? getMediaRailListConfig({

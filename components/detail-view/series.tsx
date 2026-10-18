@@ -1,7 +1,8 @@
 import { getMediaRailListConfig } from '@/components/media/railPerformanceConfig';
+import { useContentDimensions, useLargeContentLayout } from '@/hooks/useContentDimensions';
 import { useAppTheme } from '@/lib/theme';
 import { MediaItem, MediaPerson } from '@/services/media/types';
-import { FlatList, Platform, Text, useWindowDimensions, View } from 'react-native';
+import { FlatList, Platform, Text, View } from 'react-native';
 
 import { EpisodeCard, SeriesCard } from '../media/Card';
 import { detailViewStyles, ItemInfoList, ItemMeta, ItemOverview } from './common';
@@ -23,7 +24,7 @@ export const SeriesModeContent = ({
 }) => {
   const theme = useAppTheme();
   const textColor = theme.colors.text;
-  const { width } = useWindowDimensions();
+  const { width } = useContentDimensions();
   const railBatching = (cardWidth: number) =>
     Platform.OS === 'android'
       ? getMediaRailListConfig({
@@ -33,7 +34,7 @@ export const SeriesModeContent = ({
           viewportWidth: width,
         })
       : {};
-  const tablet = Platform.OS === 'ios' && Platform.isPad;
+  const tablet = useLargeContentLayout();
   return (
     <>
       <DetailSummary

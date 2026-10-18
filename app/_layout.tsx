@@ -2,6 +2,7 @@ import { PLAYER_LAB_AVAILABLE } from '@/components/dev/player-lab/PlayerLabEntry
 import { nativeStatusBarOptions } from '@/components/navigation/nativeStackConfig';
 import { platformHeaderOptions } from '@/components/navigation/platformHeaderOptions';
 import { PerformanceOverlay } from '@/components/performance/PerformanceOverlay';
+import { useIsTablet } from '@/hooks/useIsTablet';
 import { AppUpdateProvider } from '@/lib/contexts/AppUpdateContext';
 import { DanmakuSettingsProvider } from '@/lib/contexts/DanmakuSettingsContext';
 import { DanmakuSourcesProvider } from '@/lib/contexts/DanmakuSourcesContext';
@@ -90,6 +91,7 @@ export default function RootLayout() {
 
 function RootNavigation() {
   const appTheme = useAppTheme();
+  const tablet = useIsTablet();
   const pathname = usePathname();
   const [videoOrientation] = useMMKVString('videoOrientation', storage);
   const stackScreenListeners = usePerformanceStackScreenListeners('root');
@@ -99,7 +101,9 @@ function RootNavigation() {
     ? resolveVideoOrientationLock(videoOrientation)
     : isPlayerLabRoute
       ? ScreenOrientation.OrientationLock.LANDSCAPE
-      : ScreenOrientation.OrientationLock.PORTRAIT_UP;
+      : tablet
+        ? ScreenOrientation.OrientationLock.DEFAULT
+        : ScreenOrientation.OrientationLock.PORTRAIT_UP;
   const wasPlayerRoute = useRef(isPlayerRoute);
   const deferOrientationRestore = useRef(false);
   const desiredOrientationLock = useRef(orientationLock);
@@ -113,7 +117,7 @@ function RootNavigation() {
     // iOS rotates with the native screen lifecycle. Android needs an explicit lock.
     const applyOrientation = async () => {
       // Keep the video Surface and navigation animation in the same window size.
-      // The returning screen's transitionEnd restores portrait after the native pop.
+      // The returning screen restores its browsing orientation after the native pop.
       if (deferOrientationRestore.current) return;
       await ScreenOrientation.lockAsync(orientationLock).catch((error) => {
         console.warn('Failed to apply the route orientation', error);

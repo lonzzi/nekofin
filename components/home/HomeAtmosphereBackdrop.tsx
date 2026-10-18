@@ -1,7 +1,8 @@
+import { useLargeContentLayout } from '@/hooks/useContentDimensions';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo } from 'react';
-import { Easing, StyleSheet, View } from 'react-native';
+import { Easing, Platform, StyleSheet, View } from 'react-native';
 import { easeGradient } from 'react-native-easing-gradient';
 
 import { CAROUSEL_FADE_MS } from './carouselMotion';
@@ -32,6 +33,7 @@ export function HomeAtmosphereBackdrop({
   imageTransitionDuration = CAROUSEL_FADE_MS,
 }: HomeAtmosphereBackdropProps) {
   const imageOpacity = isDark ? 0.42 : 0.58;
+  const large = useLargeContentLayout();
   const source = useMemo(() => (imageUrl ? { uri: imageUrl } : undefined), [imageUrl]);
   const placeholder = useMemo(() => (blurhash ? { blurhash } : undefined), [blurhash]);
   const imageLoadingProps = optimizeImageLoading
@@ -69,6 +71,7 @@ export function HomeAtmosphereBackdrop({
           placeholder={placeholder}
           cachePolicy="memory-disk"
           contentFit="cover"
+          allowDownscaling={!(Platform.OS === 'android' && large)}
           placeholderContentFit="cover"
           contentPosition="center"
           blurRadius={60}

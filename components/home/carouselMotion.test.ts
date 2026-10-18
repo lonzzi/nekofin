@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { getCarouselPresentation, getMountedCarouselIndexes } from './carouselMotion';
+import {
+  getCarouselDragOffset,
+  getCarouselPresentation,
+  getCarouselSnapDuration,
+  getCarouselSnapTarget,
+  getMountedCarouselIndexes,
+} from './carouselMotion';
 
 const presentation = (
   index: number,
@@ -64,5 +70,57 @@ describe('carousel image continuity', () => {
     expect(presentation(0, 0)).toMatchObject({ opacity: 1, textOpacity: 1, textOffset: 0 });
     expect(presentation(1, 0)).toMatchObject({ opacity: 0, textOpacity: 0 });
     expect(presentation(5, 0)).toMatchObject({ opacity: 0, textOpacity: 0 });
+  });
+});
+
+describe('interrupted carousel gestures', () => {
+  it('uses the released position when the final move was coalesced', () => {
+    const lastRenderedOffset = getCarouselDragOffset(0, 30, 400);
+    const releasedOffset = getCarouselDragOffset(0, 300, 400);
+    expect(getCarouselSnapTarget(lastRenderedOffset, 0, 400)).toBe(0);
+    expect(getCarouselSnapTarget(releasedOffset, 0, 400)).toBe(400);
+    expect(getCarouselSnapDuration(releasedOffset, 400, 400)).toBe(60);
+  });
+
+  it.each([-1, 1])('continues a reveal from its visible position in direction %i', (direction) => {
+    const interruptedOffset = direction * 260;
+    const resumedOffset = getCarouselDragOffset(interruptedOffset, direction * 20, 400);
+    const target = direction < 0 ? 1 : 5;
+    const before = presentation(target, 0, -1, 0, interruptedOffset, true);
+    const after = presentation(target, 0, -1, 0, resumedOffset, true);
+    expect(after.offset - before.offset).toBe(direction * 20);
+    expect(after.textOpacity).toBeGreaterThan(before.textOpacity);
+  });
+
+  it.each([-1, 1])(
+    'finishes an interrupted reveal without another animation in direction %i',
+    (direction) => {
+      const drag = getCarouselDragOffset(direction * 330, direction * 150, 400);
+      const target = getCarouselSnapTarget(drag, direction * 900, 400);
+      expect(drag).toBe(direction * 400);
+      expect(target).toBe(drag);
+      expect(getCarouselSnapDuration(drag, target, 400)).toBe(0);
+    },
+  );
+
+  it('shortens the remaining animation instead of restarting the full settle time', () => {
+    expect(getCarouselSnapDuration(0, 400, 400)).toBe(240);
+    expect(getCarouselSnapDuration(300, 400, 400)).toBe(60);
+    expect(getCarouselSnapDuration(-300, -400, 400)).toBe(60);
+  });
+
+  it.each([-1, 1])(
+    'lets a fast reverse swipe change direction from a partial reveal %i',
+    (direction) => {
+      const drag = getCarouselDragOffset(direction * 300, direction * -100, 400);
+      expect(getCarouselSnapTarget(drag, direction * -900, 400)).toBe(direction * -400);
+      expect(getCarouselSnapDuration(drag, direction * -400, 400)).toBe(240);
+    },
+  );
+
+  it('returns a small released drag to the current image', () => {
+    expect(getCarouselSnapTarget(60, 100, 400)).toBe(0);
+    expect(getCarouselSnapTarget(-60, -100, 400)).toBe(0);
+    expect(getCarouselSnapDuration(60, 0, 400)).toBe(180);
   });
 });

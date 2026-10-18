@@ -159,8 +159,8 @@ export default function ParallaxScrollView({
             styles.header,
             {
               backgroundColor: headerBackgroundColor?.[colorScheme === 'dark' ? 'dark' : 'light'],
-              height: headerHeight + headerOverscrollExtent,
               marginTop: -headerOverscrollExtent,
+              height: headerHeight + headerOverscrollExtent,
             },
           ]}
         >

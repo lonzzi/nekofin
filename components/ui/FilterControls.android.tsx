@@ -1,13 +1,6 @@
 import { useAppTheme } from '@/lib/theme';
-import {
-  DropdownMenu,
-  DropdownMenuItem,
-  FilterChip,
-  Host,
-  Icon,
-  Row,
-  Text,
-} from '@expo/ui/jetpack-compose';
+import { PopupMenu, PopupMenuItem } from '@/modules/native-layout/PopupMenu.android';
+import { FilterChip, Host, Icon, Row, Text } from '@expo/ui/jetpack-compose';
 import { rotate, semantics } from '@expo/ui/jetpack-compose/modifiers';
 import { useState } from 'react';
 
@@ -38,8 +31,13 @@ export function FilterButton({ label, title, options, onSelect }: FilterButtonPr
   const theme = useAppTheme();
   const [expanded, setExpanded] = useState(false);
   return (
-    <DropdownMenu expanded={expanded} onDismissRequest={() => setExpanded(false)}>
-      <DropdownMenu.Trigger>
+    <PopupMenu
+      expanded={expanded}
+      onDismissRequest={() => setExpanded(false)}
+      color={theme.colors.background}
+      textColor={theme.colors.text}
+    >
+      <PopupMenu.Trigger>
         <FilterChip
           selected={false}
           onClick={() => setExpanded(true)}
@@ -58,31 +56,34 @@ export function FilterButton({ label, title, options, onSelect }: FilterButtonPr
             />
           </FilterChip.TrailingIcon>
         </FilterChip>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Items>
+      </PopupMenu.Trigger>
+      <PopupMenu.Items>
         {options.map((option) => (
-          <DropdownMenuItem
+          <PopupMenuItem
             key={option.value ?? '__all__'}
+            selected={option.active}
             onClick={() => {
               setExpanded(false);
               onSelect(option.value);
             }}
           >
-            <DropdownMenuItem.Text>
-              <Text>{option.label}</Text>
-            </DropdownMenuItem.Text>
+            <PopupMenuItem.Text>
+              <Text color={theme.colors.text} style={{ fontSize: 16 }}>
+                {option.label}
+              </Text>
+            </PopupMenuItem.Text>
             {option.active ? (
-              <DropdownMenuItem.TrailingIcon>
+              <PopupMenuItem.TrailingIcon>
                 <Icon
-                  source={require('../../assets/drawables/checkmark_circle.png')}
+                  source={require('../../assets/drawables/check.xml')}
                   size={20}
                   tint={theme.colors.tint}
                 />
-              </DropdownMenuItem.TrailingIcon>
+              </PopupMenuItem.TrailingIcon>
             ) : null}
-          </DropdownMenuItem>
+          </PopupMenuItem>
         ))}
-      </DropdownMenu.Items>
-    </DropdownMenu>
+      </PopupMenu.Items>
+    </PopupMenu>
   );
 }
