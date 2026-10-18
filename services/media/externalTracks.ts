@@ -9,6 +9,31 @@ export function prioritizeSubtitleTracks<T extends { index: number }>(
   );
 }
 
+export function subtitleTracksToLoad<T extends { index: number; url: string }>(
+  tracks: T[],
+  streams: RawMediaStream[],
+  preferredIndex?: number,
+) {
+  return prioritizeSubtitleTracks(
+    tracks.filter((track) => {
+      if (track.index === preferredIndex) return true;
+      const codec = streams
+        .find((stream) => stream.Index === track.index)
+        ?.Codec?.trim()
+        .toLowerCase();
+      const path = new URL(track.url).pathname;
+      return !(
+        /^(pgs|pgssub|hdmv_pgs_subtitle|sup|dvdsub|dvd_subtitle|vobsub|dvbsub|dvb_subtitle|xsub)$/.test(
+          codec ?? '',
+        ) ||
+        /\.(sup|pgs|pgssub|idx)$/i.test(path) ||
+        (!codec && !/\.(ass|ssa|srt|vtt|ttml)$/i.test(path))
+      );
+    }),
+    preferredIndex,
+  );
+}
+
 type ExternalTrackContext = {
   itemId?: string;
   mediaSourceId?: string | null;

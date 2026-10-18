@@ -55,7 +55,6 @@ export function useSubtitlePrefetch(
     );
     const track = tracks.find((entry) => entry.index === preferredIndex);
     if (!track) return;
-    // Prefetch only the selected external track; playback loads the remaining sidecars.
     const cache = createExternalSubtitleCache({
       serverId,
       userId,

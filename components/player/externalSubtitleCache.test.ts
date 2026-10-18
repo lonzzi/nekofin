@@ -1,6 +1,7 @@
 import {
   createSubtitleCacheStore,
   SUBTITLE_CACHE_MAX_AGE_MS,
+  SubtitleCacheLimitError,
 } from '@/services/media/subtitleCache';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -93,11 +94,19 @@ function completeFile(file: { uri: string }, size = 100) {
   return file;
 }
 function delayedDownload() {
-  const pending: { complete: () => void; signal: AbortSignal }[] = [];
+  const pending: {
+    complete: (size?: number) => void;
+    signal: AbortSignal;
+    progress: (bytesWritten: number, totalBytes?: number) => void;
+  }[] = [];
   io.download.mockImplementation(
-    (_url, file, { signal }) =>
+    (_url, file, { signal, onProgress }) =>
       new Promise((resolve, reject) => {
-        pending.push({ signal, complete: () => resolve(completeFile(file)) });
+        pending.push({
+          signal,
+          complete: (size) => resolve(completeFile(file, size)),
+          progress: (bytesWritten, totalBytes = -1) => onProgress({ bytesWritten, totalBytes }),
+        });
         signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
       }),
   );
@@ -142,6 +151,95 @@ describe('shared external subtitle cache', () => {
       expect(io.download).toHaveBeenCalledOnce();
     },
   );
+
+  it.each([false, true])('aborts oversized transfers with known length=%s', async (known) => {
+    const pending = delayedDownload();
+    const cache = session(createSubtitleCacheStore({ maxFileBytes: 100 }));
+    const loading = cache.prepare(track, active);
+    const assertion = expect(loading).rejects.toBeInstanceOf(SubtitleCacheLimitError);
+    await vi.waitFor(() => expect(pending).toHaveLength(1));
+    pending[0].progress(known ? 1 : 101, known ? 101 : -1);
+    expect(pending[0].signal.aborted).toBe(true);
+    await assertion;
+    expect(io.files.size).toBe(0);
+  });
+
+  it('rejects an oversized completed file even if download progress was unavailable', async () => {
+    const cache = session(createSubtitleCacheStore({ maxFileBytes: 100 }));
+    io.download.mockImplementationOnce(async (_url, file) => completeFile(file, 101));
+    await expect(cache.prepare(track, active)).rejects.toBeInstanceOf(SubtitleCacheLimitError);
+    expect(io.files.size).toBe(0);
+    await expect(cache.prepare(track, active)).resolves.toMatchObject({ index: 8 });
+  });
+
+  it('enforces the session budget on retained files and resets it after leaving playback', async () => {
+    const store = createSubtitleCacheStore({ maxFileBytes: 100, maxSessionBytes: 150 });
+    const cache = session(store);
+    io.download
+      .mockImplementationOnce(async (_url, file) => completeFile(file, 80))
+      .mockImplementationOnce(async (_url, file) => completeFile(file, 70));
+    await cache.prepare(track, active);
+    await cache.prepare({ ...track, index: 9 }, active);
+    await expect(cache.prepare({ ...track, index: 10 }, active)).rejects.toBeInstanceOf(
+      SubtitleCacheLimitError,
+    );
+    expect(io.download).toHaveBeenCalledTimes(2);
+    cache.dispose();
+    await expect(session(store).prepare({ ...track, index: 10 }, active)).resolves.toMatchObject({
+      index: 10,
+    });
+  });
+
+  it('reserves pending downloads so concurrent requests cannot exceed the session budget', async () => {
+    const pending = delayedDownload();
+    const cache = session(createSubtitleCacheStore({ maxFileBytes: 100, maxSessionBytes: 150 }));
+    const first = cache.prepare(track, active);
+    await vi.waitFor(() => expect(pending).toHaveLength(1));
+    const second = cache.prepare({ ...track, index: 9 }, active);
+    const assertion = expect(second).rejects.toBeInstanceOf(SubtitleCacheLimitError);
+    await vi.waitFor(() => expect(pending).toHaveLength(2));
+    pending[1].progress(60);
+    expect(pending[1].signal.aborted).toBe(true);
+    await assertion;
+    pending[0].complete(80);
+    await first;
+    const retry = cache.prepare({ ...track, index: 9 }, active);
+    await vi.waitFor(() => expect(pending).toHaveLength(3));
+    pending[2].complete(70);
+    await expect(retry).resolves.toMatchObject({ index: 9 });
+  });
+
+  it('checks a shared download against each consumer budget without evicting another player file', async () => {
+    const store = createSubtitleCacheStore({ maxFileBytes: 100, maxSessionBytes: 150 });
+    const crowded = session(store);
+    io.download.mockImplementation(async (_url, file) => completeFile(file, 60));
+    await crowded.prepare({ ...track, index: 9 }, active);
+    await crowded.prepare({ ...track, index: 10 }, active);
+    const pending = delayedDownload();
+    const other = session(store);
+    const first = other.prepare(track, active);
+    const second = crowded.prepare(track, active);
+    const assertion = expect(second).rejects.toBeInstanceOf(SubtitleCacheLimitError);
+    await vi.waitFor(() => expect(pending).toHaveLength(1));
+    pending[0].complete(80);
+    const prepared = await first;
+    await assertion;
+    expect(io.files.has(prepared!.url)).toBe(true);
+    expect(await other.prepare(track, active)).toEqual(prepared);
+    await expect(crowded.prepare(track, active)).rejects.toBeInstanceOf(SubtitleCacheLimitError);
+    expect(pending).toHaveLength(1);
+  });
+
+  it('does not reuse a file cached before the per-file limit was introduced', async () => {
+    const old = session(createSubtitleCacheStore({ maxFileBytes: 200 }));
+    io.download.mockImplementationOnce(async (_url, file) => completeFile(file, 150));
+    const prepared = await old.prepare(track, active);
+    old.dispose();
+    const current = session(createSubtitleCacheStore({ maxFileBytes: 100 }));
+    await current.prepare(track, active);
+    expect(io.files.get(prepared!.url)?.size).toBe(100);
+    expect(io.download).toHaveBeenCalledTimes(2);
+  });
 
   it('shares a file across LAN/WAN addresses and rotated tokens, while isolating accounts and versions', async () => {
     const store = createSubtitleCacheStore();

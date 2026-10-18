@@ -13,7 +13,7 @@ import { storage } from '@/lib/storage';
 import { formatBitrate, getDeviceId, ticksToMilliseconds, ticksToSeconds } from '@/lib/utils';
 import { resolveDanmakuSelection, type DanmakuCommentsData } from '@/services/danmaku';
 import { danmakuSourcesKey } from '@/services/danmakuSources';
-import { prioritizeSubtitleTracks } from '@/services/media/externalTracks';
+import { subtitleTracksToLoad } from '@/services/media/externalTracks';
 import { mapMediaSource } from '@/services/media/mappers';
 import { applyPlaybackQuality, type PlaybackQuality } from '@/services/media/playbackQuality';
 import {
@@ -44,7 +44,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import { usePlaybackSync } from '../../hooks/usePlaybackSync';
 import { Controls } from './Controls';
 import { DanmakuLayer, DanmakuLayerRef } from './DanmakuLayer';
-import { createExternalSubtitleCache } from './externalSubtitleCache';
+import { createExternalSubtitleCache, SubtitleCacheLimitError } from './externalSubtitleCache';
 import { derivePlaybackSourceInfo } from './playbackInfo';
 import {
   acknowledgePlaybackSeek,
@@ -961,14 +961,17 @@ export const VideoPlayer = ({
       loadedSourceRef.current === targetSource;
     let cancelled = false;
     const loadTracks = async () => {
+      let subtitleLimitMessage: string | undefined;
       const pending = [
-        ...prioritizeSubtitleTracks(externalSubtitles, preferredExternalSubtitleIndex).map(
-          (track) => ({
-            track,
-            type: 'sub' as const,
-            ids: loads.subtitleIds,
-          }),
-        ),
+        ...subtitleTracksToLoad(
+          externalSubtitles,
+          streamInfo?.mediaSource?.MediaStreams ?? [],
+          preferredExternalSubtitleIndex,
+        ).map((track) => ({
+          track,
+          type: 'sub' as const,
+          ids: loads.subtitleIds,
+        })),
         ...externalAudios.map((track) => ({ track, type: 'audio' as const, ids: loads.audioIds })),
       ];
       const result = await loadExternalTracksProgressively(
@@ -1002,6 +1005,7 @@ export const VideoPlayer = ({
               }
             }
           } catch (error) {
+            if (error instanceof SubtitleCacheLimitError) subtitleLimitMessage = error.message;
             if (type === 'sub' && isActive()) {
               setFailedSubtitleIndices((previous) => new Set([...previous, track.index]));
             }
@@ -1012,7 +1016,10 @@ export const VideoPlayer = ({
         () => !cancelled && isActive(),
       );
       if (result?.failed)
-        Alert.alert('部分轨道加载失败', '部分外挂字幕或音轨未能加载，请检查服务器连接后重新播放。');
+        Alert.alert(
+          '部分轨道加载失败',
+          subtitleLimitMessage ?? '部分外挂字幕或音轨未能加载，请检查服务器连接后重新播放。',
+        );
     };
     void loadTracks();
     return () => {

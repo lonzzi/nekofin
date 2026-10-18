@@ -3,7 +3,10 @@ import { Directory, File, Paths } from 'expo-file-system';
 
 export const SUBTITLE_CACHE_PATH = 'nekofin/subtitle-cache/v1';
 export const SUBTITLE_CACHE_MAX_BYTES = 128 * 1024 * 1024;
+export const SUBTITLE_CACHE_MAX_FILE_BYTES = 128 * 1024 * 1024;
+export const SUBTITLE_CACHE_MAX_SESSION_BYTES = 256 * 1024 * 1024;
 export const SUBTITLE_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+export class SubtitleCacheLimitError extends Error {}
 export type SubtitleTrack = { index: number; name: string; language?: string; url: string };
 export type SubtitleCacheScope = {
   serverId: string;
@@ -13,13 +16,15 @@ export type SubtitleCacheScope = {
   sourceSize?: number | null;
 };
 type Entry = { key: string; extension: string; createdAt: number; lastUsed: number; size: number };
-type Job = { promise: Promise<File>; controller: AbortController };
+type Job = { promise: Promise<File>; controller: AbortController; limit: { bytes: number } };
 
 /** Shared by details and playback, with persistent files and no stored signed URLs. */
 export function createSubtitleCacheStore({
   maxBytes = SUBTITLE_CACHE_MAX_BYTES,
   maxAge = SUBTITLE_CACHE_MAX_AGE_MS,
   maxEntries = 128,
+  maxFileBytes = SUBTITLE_CACHE_MAX_FILE_BYTES,
+  maxSessionBytes = SUBTITLE_CACHE_MAX_SESSION_BYTES,
 } = {}) {
   const directory = new Directory(Paths.cache, SUBTITLE_CACHE_PATH);
   const entries = new Map<string, Entry>();
@@ -33,6 +38,10 @@ export function createSubtitleCacheStore({
   const fileFor = (entry: Pick<Entry, 'key' | 'extension'>) =>
     new File(directory, `${entry.key}.${entry.extension}`);
   const metadataFor = (key: string) => new File(directory, `${key}.json`);
+  const sessionLimitError = () =>
+    new SubtitleCacheLimitError(
+      `本次播放的字幕缓存不能超过 ${Math.ceil(maxSessionBytes / 1024 / 1024)} MB，请退出播放后重试。`,
+    );
   const remove = (file: File) => {
     if (file.exists) file.delete();
   };
@@ -58,6 +67,7 @@ export function createSubtitleCacheStore({
             !Number.isFinite(entry.lastUsed) ||
             !Number.isFinite(entry.size) ||
             entry.size <= 0 ||
+            entry.size > maxFileBytes ||
             file.name !== `${entry.key}.json` ||
             fileFor(entry).size !== entry.size
           )
@@ -101,6 +111,7 @@ export function createSubtitleCacheStore({
     extension: string,
     url: string,
     controller: AbortController,
+    limit: { bytes: number },
   ) {
     // Bound total network/disk work across details and players.
     if (running >= 2) await new Promise<void>((resolve) => waiting.push(resolve));
@@ -108,13 +119,31 @@ export function createSubtitleCacheStore({
     const partial = new File(directory, `${key}-${randomUUID()}.part.${extension}`);
     const file = fileFor({ key, extension });
     let timeout: ReturnType<typeof setTimeout> | undefined;
+    let limitError: SubtitleCacheLimitError | undefined;
+    const exceeded = (size: number) =>
+      size > maxFileBytes
+        ? new SubtitleCacheLimitError(
+            `单个字幕文件不能超过 ${Math.ceil(maxFileBytes / 1024 / 1024)} MB。`,
+          )
+        : sessionLimitError();
     try {
       if (controller.signal.aborted) throw new Error('Subtitle download cancelled');
       // Large typeset ASS files can need more than thirty seconds on remote routes.
       timeout = setTimeout(() => controller.abort(), 120_000);
-      await File.downloadFileAsync(url, partial, { signal: controller.signal });
+      await File.downloadFileAsync(url, partial, {
+        signal: controller.signal,
+        onProgress: ({ bytesWritten, totalBytes }) => {
+          const size = Math.max(bytesWritten, totalBytes);
+          if (size > limit.bytes) {
+            limitError = exceeded(size);
+            controller.abort();
+          }
+        },
+      });
+      if (limitError) throw limitError;
       if (controller.signal.aborted) throw new Error('Subtitle download cancelled');
       if (partial.size <= 0) throw new Error('Empty subtitle file');
+      if (partial.size > limit.bytes) throw exceeded(partial.size);
       await partial.move(file, { overwrite: true });
       if (controller.signal.aborted) {
         remove(file);
@@ -133,7 +162,7 @@ export function createSubtitleCacheStore({
       return file;
     } catch (error) {
       remove(partial);
-      throw error;
+      throw limitError ?? error;
     } finally {
       clearTimeout(timeout);
       const next = waiting.shift();
@@ -154,6 +183,20 @@ export function createSubtitleCacheStore({
       const owner = Symbol('subtitle-consumer');
       const sessionGeneration = generation;
       const held = new Set<string>();
+      const reservations = new Map<string, number>();
+      const remainingFor = (key: string) =>
+        maxSessionBytes -
+        [...reservations].reduce((sum, [entry, size]) => sum + (entry === key ? 0 : size), 0);
+      const release = (key: string) => {
+        held.delete(key);
+        reservations.delete(key);
+        const owners = leases.get(key);
+        owners?.delete(owner);
+        if (!owners?.size) {
+          leases.delete(key);
+          jobs.get(key)?.controller.abort();
+        }
+      };
       let disposed = false;
       return {
         async prepare(track: SubtitleTrack, isActive: () => boolean) {
@@ -180,11 +223,17 @@ export function createSubtitleCacheStore({
           );
           await initialize();
           if (disposed || sessionGeneration !== generation || !isActive()) return;
+          const allowance = Math.min(maxFileBytes, remainingFor(key));
+          if (allowance <= 0 || (entries.get(key)?.size ?? 0) > allowance)
+            throw sessionLimitError();
+          // Reserve space before starting or joining a shared download.
+          reservations.set(key, allowance);
           const owners = leases.get(key) ?? new Set<symbol>();
           const alreadyLeased = owners.size > 0;
           owners.add(owner);
           leases.set(key, owners);
           held.add(key);
+          let retained = false;
           try {
             let entry = entries.get(key);
             if (
@@ -210,8 +259,9 @@ export function createSubtitleCacheStore({
                 job = jobs.get(key);
                 if (!job) {
                   const controller = new AbortController();
-                  const promise = download(key, extension, track.url, controller);
-                  job = { controller, promise };
+                  const limit = { bytes: allowance };
+                  const promise = download(key, extension, track.url, controller, limit);
+                  job = { controller, promise, limit };
                   jobs.set(key, job);
                   void promise
                     .finally(() => {
@@ -220,25 +270,27 @@ export function createSubtitleCacheStore({
                     .catch(() => {});
                 }
               }
+              job.limit.bytes = Math.max(job.limit.bytes, allowance);
               file = await job.promise;
             }
-            if (!disposed && sessionGeneration === generation && isActive())
+            if (!disposed && sessionGeneration === generation && isActive()) {
+              if (file.size > remainingFor(key)) throw sessionLimitError();
+              reservations.set(key, file.size);
+              retained = true;
               return { ...track, url: file.uri };
+            }
           } catch (error) {
             if (!disposed && sessionGeneration === generation && isActive()) throw error;
+          } finally {
+            if (!retained) {
+              release(key);
+              void prune().catch(() => {});
+            }
           }
         },
         dispose() {
           disposed = true;
-          for (const key of held) {
-            const owners = leases.get(key);
-            owners?.delete(owner);
-            if (!owners?.size) {
-              leases.delete(key);
-              jobs.get(key)?.controller.abort();
-            }
-          }
-          held.clear();
+          for (const key of held) release(key);
           void prune().catch(() => {});
         },
       };
