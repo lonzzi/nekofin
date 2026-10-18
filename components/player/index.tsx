@@ -82,6 +82,7 @@ import {
   isExternalTrackCommandError,
   loadExternalPlayerTrack,
   loadExternalTracksProgressively,
+  selectPlayerSubtitleTrack,
 } from './playerTrackLoading';
 import { createSubtitleFontController } from './subtitleFontSettings';
 import { usePlayerQueries } from './usePlayerQueries';
@@ -662,13 +663,22 @@ export const VideoPlayer = ({
     ) => {
       if (!targetPlayer || !targetSource) return;
 
+      const choice = subtitleChoiceRef.current;
+      const chosenSubtitle = subtitleChoiceForSource(
+        choice,
+        itemId,
+        streamInfo?.mediaSource?.Id ?? undefined,
+      );
+      const isActive = () =>
+        isMountedRef.current &&
+        player.current === targetPlayer &&
+        loadedSourceRef.current === targetSource &&
+        subtitleChoiceRef.current === choice;
       try {
         const list = await targetPlayer.getTrackList();
         const ids = await targetPlayer.getCurrentTrackIds();
 
-        if (player.current !== targetPlayer || loadedSourceRef.current !== targetSource) {
-          return;
-        }
+        if (!isActive()) return;
 
         const source = streamInfo?.mediaSource;
         const externalLoads = externalTrackLoads.current;
@@ -684,6 +694,7 @@ export const VideoPlayer = ({
             })
           : undefined;
         if (namedTracks) setMpvTracks(namedTracks);
+        let selectedIds: Awaited<ReturnType<typeof selectPlayerSubtitleTrack>>;
         if (list && ids) {
           const { audioLanguage, subtitleLanguage, subtitlesEnabled } = preferences;
           const rememberedId = (type: 'audio' | 'subtitle') => {
@@ -732,11 +743,6 @@ export const VideoPlayer = ({
                   audioLanguage,
                 )) ??
             serverTrackId('Audio', source?.DefaultAudioStreamIndex);
-          const chosenSubtitle = subtitleChoiceForSource(
-            subtitleChoiceRef.current,
-            itemId,
-            source?.Id ?? undefined,
-          );
           const subtitle =
             chosenSubtitle != null
               ? serverTrackId('Subtitle', chosenSubtitle)
@@ -752,7 +758,7 @@ export const VideoPlayer = ({
                         )) ?? serverTrackId('Subtitle', source?.DefaultSubtitleStreamIndex))));
           if (!manualTrackChoice.current.audio && audio != null && audio !== ids.aid) {
             await targetPlayer.setAudioTrack(audio);
-            if (player.current !== targetPlayer || loadedSourceRef.current !== targetSource) return;
+            if (!isActive()) return;
             ids.aid = audio;
           }
           if (
@@ -760,13 +766,12 @@ export const VideoPlayer = ({
             subtitle != null &&
             subtitle !== ids.sid
           ) {
-            if (subtitle === -1) await targetPlayer.setPropertyString('sid', 'no');
-            else await targetPlayer.setSubtitleTrack(subtitle);
-            ids.sid = subtitle;
+            selectedIds = await selectPlayerSubtitleTrack(targetPlayer, subtitle, isActive);
+            if (!selectedIds) return;
           }
         }
-        const confirmedIds = await targetPlayer.getCurrentTrackIds();
-        if (player.current === targetPlayer && loadedSourceRef.current === targetSource) {
+        const confirmedIds = selectedIds ?? (await targetPlayer.getCurrentTrackIds());
+        if (isActive()) {
           setCurrentTrackIds(confirmedIds);
           if (source?.Id && !source.TranscodingUrl && list) {
             setNativeSubtitleState({
@@ -782,6 +787,14 @@ export const VideoPlayer = ({
           }
         }
       } catch (e) {
+        if (isActive() && chosenSubtitle != null) {
+          subtitleChoiceRef.current = null;
+          setSubtitleChoice(null);
+          manualTrackChoice.current.subtitle = true;
+          rememberedTrackChoice.current.subtitle = undefined;
+          setFailedSubtitleIndices((previous) => new Set([...previous, chosenSubtitle]));
+          Alert.alert('字幕切换失败', '请重新选择字幕。');
+        }
         console.warn('refreshMpvTracks error:', e);
       }
     },

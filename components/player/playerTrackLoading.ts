@@ -7,6 +7,22 @@ export type ExternalPlayerTrack = {
   url: string;
 };
 
+export async function selectPlayerSubtitleTrack(
+  player: Pick<ExpoMpvViewRef, 'setSubtitleTrack' | 'setPropertyString' | 'getCurrentTrackIds'>,
+  trackId: number,
+  isActive: () => boolean,
+) {
+  if (!isActive()) return;
+  if (trackId === -1) await player.setPropertyString('sid', 'no');
+  else await player.setSubtitleTrack(trackId);
+  if (!isActive()) return;
+  const ids = await player.getCurrentTrackIds();
+  if (!isActive()) return;
+  if (trackId === -1 ? ids.sid > 0 : ids.sid !== trackId)
+    throw new Error('Subtitle selection was not confirmed');
+  return ids;
+}
+
 /** Publish embedded tracks first, then each loaded external track without waiting for the rest. */
 export async function loadExternalTracksProgressively(
   requests: (() => Promise<unknown>)[],
