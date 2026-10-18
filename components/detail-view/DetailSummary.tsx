@@ -1,4 +1,5 @@
 import { ItemImage } from '@/components/ItemImage';
+import { useContentDimensions, useLargeContentLayout } from '@/hooks/useContentDimensions';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useAppTheme } from '@/lib/theme';
 import type { MediaItem } from '@/services/media/types';
@@ -21,7 +22,7 @@ type Props = {
 
 export function DetailTitle({ title }: { title: string }) {
   const theme = useAppTheme();
-  const tablet = Platform.OS === 'ios' && Platform.isPad;
+  const tablet = useLargeContentLayout();
 
   return (
     <Text
@@ -36,7 +37,7 @@ export function DetailTitle({ title }: { title: string }) {
 export function DetailSummary({ item, metadata, controls, overview, children }: Props) {
   const adapter = useMediaAdapter();
   const { title, item: detailItem } = useDetailView();
-  const tablet = Platform.OS === 'ios' && Platform.isPad;
+  const tablet = useLargeContentLayout();
   const heading = <DetailTitle title={title || item.name} />;
   const logoItem = detailItem ?? item;
   const hasLogo =
@@ -73,8 +74,14 @@ function DetailSummaryLayout({
   overview,
   children,
 }: Omit<Props, 'item'> & { heading: ReactNode; secondaryHeading?: ReactNode }) {
-  const tablet = Platform.OS === 'ios' && Platform.isPad;
-  const [width, setWidth] = useState(0);
+  const tablet = useLargeContentLayout();
+  const theme = useAppTheme();
+  const pane = useContentDimensions();
+  const [measuredWidth, setWidth] = useState(0);
+  // Follow the destination pane once instead of rendering React on each native
+  // split-animation frame. Other platforms retain their measured container.
+  const width =
+    Platform.OS === 'android' ? Math.max(0, pane.width - theme.spacing.page * 2) : measuredWidth;
   const wide = width >= 640;
   if (!tablet) {
     return (
@@ -89,7 +96,11 @@ function DetailSummaryLayout({
   }
   return (
     <View
-      onLayout={({ nativeEvent }) => setWidth(nativeEvent.layout.width)}
+      onLayout={
+        Platform.OS === 'android'
+          ? undefined
+          : ({ nativeEvent }) => setWidth(nativeEvent.layout.width)
+      }
       style={styles.tabletSummary}
     >
       <View style={[styles.introduction, wide && styles.wideIntroduction]}>
@@ -116,7 +127,7 @@ export function DetailSummaryPlaceholder({
   mode: 'series' | 'movie' | 'episode';
 }) {
   const theme = useAppTheme();
-  const tablet = Platform.OS === 'ios' && Platform.isPad;
+  const tablet = useLargeContentLayout();
   return (
     <View
       accessible

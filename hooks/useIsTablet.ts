@@ -1,11 +1,12 @@
 import * as Device from 'expo-device';
-import { useMemo } from 'react';
+import { Dimensions, Platform } from 'react-native';
 
 export function useIsTablet() {
-  return useMemo(() => {
-    return (
-      Device.deviceType === Device.DeviceType.TABLET ||
-      Device.deviceType === Device.DeviceType.DESKTOP
-    );
-  }, []);
+  const screen = Dimensions.get('screen');
+  return (
+    Device.deviceType === Device.DeviceType.TABLET ||
+    Device.deviceType === Device.DeviceType.DESKTOP ||
+    (Platform.OS === 'ios' && Platform.isPad) ||
+    Math.min(screen.width, screen.height) >= 600
+  );
 }

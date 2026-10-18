@@ -28,7 +28,6 @@ function HomeLayout() {
         name="index"
         options={{
           title: '设置',
-          headerLargeTitle: true,
           headerLargeTitleShadowVisible: false,
         }}
       />

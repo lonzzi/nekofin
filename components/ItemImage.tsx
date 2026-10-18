@@ -13,6 +13,7 @@ type ItemImageProps = {
   contentPosition?: ImageProps['contentPosition'];
   cachePolicy?: ImageProps['cachePolicy'];
   enforceEarlyResizing?: ImageProps['enforceEarlyResizing'];
+  allowDownscaling?: ImageProps['allowDownscaling'];
   fallback?: ReactNode;
   onError?: ImageProps['onError'];
   onLoad?: ImageProps['onLoad'];
@@ -34,6 +35,7 @@ function ItemImageContent({
   contentPosition,
   cachePolicy,
   enforceEarlyResizing = true,
+  allowDownscaling,
   fallback,
   onError,
   onLoad,
@@ -70,6 +72,7 @@ function ItemImageContent({
           contentFit={contentFit}
           contentPosition={contentPosition}
           enforceEarlyResizing={enforceEarlyResizing}
+          allowDownscaling={allowDownscaling}
           priority={priority}
           recyclingKey={recyclingKey ?? uri}
           transition={transition}

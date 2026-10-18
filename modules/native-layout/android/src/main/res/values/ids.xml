@@ -1,0 +1,11 @@
+<resources>
+  <item name="native_layout_section_media" type="id" />
+  <item name="native_layout_section_app" type="id" />
+  <item name="native_layout_destination_0" type="id" />
+  <item name="native_layout_destination_1" type="id" />
+  <item name="native_layout_destination_2" type="id" />
+  <item name="native_layout_destination_3" type="id" />
+  <item name="native_layout_destination_4" type="id" />
+  <item name="native_layout_destination_5" type="id" />
+  <item name="native_layout_destination_6" type="id" />
+</resources>

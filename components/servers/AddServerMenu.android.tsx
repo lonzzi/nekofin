@@ -1,12 +1,8 @@
+import { MenuView, type MenuAction } from '@/components/ui/MenuView.android';
 import { useAppTheme } from '@/lib/theme';
 import type { MediaServerType } from '@/services/media/types';
-import { MenuView, type MenuAction } from '@expo/ui/community/menu';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image, Pressable, StyleSheet, Text, type ImageSourcePropType } from 'react-native';
-
-// Expo UI's Android Icon supports null tint for original colors, but MenuAction
-// currently types imageColor as ColorValue only.
-const originalIconColor = null as unknown as MenuAction['imageColor'];
 
 function resolveMenuIcon(source: ImageSourcePropType): ImageSourcePropType {
   const resolved = Image.resolveAssetSource(source);
@@ -18,13 +14,13 @@ const addServerActions: MenuAction[] = [
     id: 'jellyfin',
     title: 'Jellyfin',
     image: resolveMenuIcon(require('../../assets/icons/jellyfin-icon--color-on-light.png')),
-    imageColor: originalIconColor,
+    imageColor: null,
   },
   {
     id: 'emby',
     title: 'Emby',
     image: resolveMenuIcon(require('../../assets/drawables/emby.xml')),
-    imageColor: originalIconColor,
+    imageColor: null,
   },
 ];
 
@@ -38,6 +34,7 @@ export function AddServerMenu({ onSelect, variant = 'icon' }: AddServerMenuProps
 
   return (
     <MenuView
+      title="添加媒体账号"
       actions={addServerActions}
       onPressAction={({ nativeEvent }) => {
         onSelect(nativeEvent.event as MediaServerType);

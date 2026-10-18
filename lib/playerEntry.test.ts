@@ -18,7 +18,7 @@ describe('initial player presentation', () => {
     ).toBe(true);
   });
 
-  it('allows automatic orientation and iPad multitasking after measurement', () => {
+  it('allows automatic orientation and tablet multitasking after measurement', () => {
     expect(resolvePlayerEntryVisibility(false, { preference: 'auto', width: 0, height: 0 })).toBe(
       false,
     );

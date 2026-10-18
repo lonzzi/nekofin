@@ -1,15 +1,12 @@
-import { useAppTheme } from '@/lib/theme';
 import {
-  DropdownMenu,
-  DropdownMenuItem,
-  HorizontalDivider,
-  Host,
-  Icon,
-  Image,
-  Row,
-  Text,
-} from '@expo/ui/jetpack-compose';
-import { clip, rotate, Shapes, size } from '@expo/ui/jetpack-compose/modifiers';
+  NAVIGATION_CONTROL_GAP,
+  NAVIGATION_CONTROL_SIZE,
+  NAVIGATION_ICON_SIZE,
+} from '@/lib/navigationMetrics';
+import { useAppTheme } from '@/lib/theme';
+import { PopupMenu, PopupMenuItem } from '@/modules/native-layout/PopupMenu.android';
+import { Column, HorizontalDivider, Host, Icon, Image, Row, Text } from '@expo/ui/jetpack-compose';
+import { clip, Shapes, size } from '@expo/ui/jetpack-compose/modifiers';
 import { Stack } from 'expo-router';
 import { Children, createContext, useContext, useState, type ComponentProps } from 'react';
 import type { ImageSourcePropType } from 'react-native';
@@ -27,11 +24,19 @@ export function HeaderToolbar({
   return (
     <Stack.Toolbar placement={placement} asChild>
       <Host
-        style={{ width: items.length * 48 + Math.max(0, items.length - 1) * 8, height: 48 }}
+        style={{
+          width:
+            items.length * NAVIGATION_CONTROL_SIZE +
+            Math.max(0, items.length - 1) * NAVIGATION_CONTROL_GAP,
+          height: NAVIGATION_CONTROL_SIZE,
+        }}
         colorScheme={theme.colorScheme}
         matchContents
       >
-        <Row horizontalArrangement={{ spacedBy: 8 }} verticalAlignment="center">
+        <Row
+          horizontalArrangement={{ spacedBy: NAVIGATION_CONTROL_GAP }}
+          verticalAlignment="center"
+        >
           {items}
         </Row>
       </Host>
@@ -55,7 +60,7 @@ export function HeaderButton({
     <HeaderIconButton onClick={onPress} enabled={!disabled}>
       <Icon
         source={icon}
-        size={24}
+        size={NAVIGATION_ICON_SIZE}
         tint={iconRenderingMode === 'original' ? null : (tintColor ?? theme.colors.text)}
         contentDescription={
           accessibilityLabel ?? (typeof children === 'string' ? children : undefined)
@@ -104,7 +109,7 @@ export function HeaderMenu({
   accessibilityLabel,
   tintColor,
   iconRenderingMode,
-  iconSize = 24,
+  iconSize = NAVIGATION_ICON_SIZE,
   avatar = false,
 }: ComponentProps<typeof Stack.Toolbar.Menu> & { iconSize?: number; avatar?: boolean }) {
   const theme = useAppTheme();
@@ -122,51 +127,53 @@ export function HeaderMenu({
         <HorizontalDivider />
       </>
     );
+  if (parentClose) {
+    return (
+      <PopupMenu.Submenu title={title ?? ''} enabled={!disabled}>
+        <PopupMenuItem.Text>
+          <Text color={theme.colors.text} style={{ fontSize: 16 }}>
+            {title}
+          </Text>
+        </PopupMenuItem.Text>
+        <PopupMenu.Items>{children}</PopupMenu.Items>
+      </PopupMenu.Submenu>
+    );
+  }
   const avatarSource =
     avatar && icon && typeof icon === 'object' && !Array.isArray(icon) && 'uri' in icon
       ? icon
       : undefined;
   return (
-    <DropdownMenu expanded={expanded} onDismissRequest={() => setExpanded(false)}>
-      <DropdownMenu.Trigger>
-        {parentClose ? (
-          <DropdownMenuItem onClick={() => setExpanded(true)} enabled={!disabled}>
-            <DropdownMenuItem.Text>
-              <Text color={theme.colors.text}>{title}</Text>
-            </DropdownMenuItem.Text>
-            <DropdownMenuItem.TrailingIcon>
-              <Icon
-                source={require('../../assets/drawables/chevron_left.png')}
-                size={24}
-                tint={theme.colors.textSecondary}
-                modifiers={[rotate(180)]}
-              />
-            </DropdownMenuItem.TrailingIcon>
-          </DropdownMenuItem>
-        ) : (
-          <HeaderIconButton onClick={() => setExpanded(true)} enabled={!disabled}>
-            {avatarSource?.uri ? (
-              <HeaderAvatar
-                key={avatarSource.uri}
-                source={{ uri: avatarSource.uri }}
-                label={accessibilityLabel}
-                diameter={iconSize}
-              />
-            ) : icon && typeof icon !== 'string' ? (
-              <Icon
-                source={icon as ImageSourcePropType}
-                tint={iconRenderingMode === 'original' ? null : (tintColor ?? theme.colors.text)}
-                size={iconSize}
-                contentDescription={accessibilityLabel}
-              />
-            ) : null}
-          </HeaderIconButton>
-        )}
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Items>
+    <PopupMenu
+      expanded={expanded}
+      onDismissRequest={() => setExpanded(false)}
+      color={theme.colors.background}
+      textColor={theme.colors.text}
+      alignEnd
+    >
+      <PopupMenu.Trigger>
+        <HeaderIconButton onClick={() => setExpanded(true)} enabled={!disabled}>
+          {avatarSource?.uri ? (
+            <HeaderAvatar
+              key={avatarSource.uri}
+              source={{ uri: avatarSource.uri }}
+              label={accessibilityLabel}
+              diameter={iconSize}
+            />
+          ) : icon && typeof icon !== 'string' ? (
+            <Icon
+              source={icon as ImageSourcePropType}
+              tint={iconRenderingMode === 'original' ? null : (tintColor ?? theme.colors.text)}
+              size={iconSize}
+              contentDescription={accessibilityLabel}
+            />
+          ) : null}
+        </HeaderIconButton>
+      </PopupMenu.Trigger>
+      <PopupMenu.Items>
         <CloseMenuContext.Provider value={close}>{children}</CloseMenuContext.Provider>
-      </DropdownMenu.Items>
-    </DropdownMenu>
+      </PopupMenu.Items>
+    </PopupMenu>
   );
 }
 
@@ -180,37 +187,48 @@ export function HeaderMenuAction({
   icon,
   iconRenderingMode,
   unstable_keepPresented,
+  subtitle,
 }: ComponentProps<typeof Stack.Toolbar.MenuAction>) {
   const close = useContext(CloseMenuContext);
   const theme = useAppTheme();
   if (hidden) return null;
   const color = destructive ? theme.colors.danger : theme.colors.text;
   return (
-    <DropdownMenuItem
+    <PopupMenuItem
       enabled={!disabled}
+      selected={isOn}
       onClick={() => {
         onPress?.();
         if (!unstable_keepPresented) close?.();
       }}
     >
       {icon && typeof icon !== 'string' ? (
-        <DropdownMenuItem.LeadingIcon>
+        <PopupMenuItem.LeadingIcon>
           <Icon source={icon} size={24} tint={iconRenderingMode === 'original' ? null : color} />
-        </DropdownMenuItem.LeadingIcon>
+        </PopupMenuItem.LeadingIcon>
       ) : null}
-      <DropdownMenuItem.Text>
-        <Text color={color}>{children}</Text>
-      </DropdownMenuItem.Text>
+      <PopupMenuItem.Text>
+        <Column>
+          <Text color={color} style={{ fontSize: 16 }}>
+            {children}
+          </Text>
+          {subtitle ? (
+            <Text color={theme.colors.textSecondary} style={{ fontSize: 13 }}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </Column>
+      </PopupMenuItem.Text>
       {isOn ? (
-        <DropdownMenuItem.TrailingIcon>
+        <PopupMenuItem.TrailingIcon>
           <Icon
-            source={require('../../assets/drawables/checkmark_circle.png')}
+            source={require('../../assets/drawables/check.xml')}
             size={20}
             tint={theme.colors.tint}
           />
-        </DropdownMenuItem.TrailingIcon>
+        </PopupMenuItem.TrailingIcon>
       ) : null}
-    </DropdownMenuItem>
+    </PopupMenuItem>
   );
 }
 

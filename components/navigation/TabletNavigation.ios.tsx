@@ -1,38 +1,70 @@
+import { ContentDimensionsProvider } from '@/hooks/useContentDimensions';
 import { useOuterTheme } from '@/lib/theme/OuterTheme';
 import { embeddedNavigationBar } from '@/modules/native-layout';
+import { NativeTabSidebar } from '@/modules/native-layout/NativeTabSidebar.ios';
 import {
+  Button,
   Host,
+  HStack,
+  Image,
   Label,
   List,
   NavigationLink,
   NavigationSplitView,
   RNHostView,
   Section,
+  Spacer,
+  Text,
   VStack,
 } from '@expo/ui/swift-ui';
 import {
   background,
+  buttonStyle,
+  clipShape,
+  foregroundStyle,
+  frame,
   ignoreSafeArea,
   listStyle,
   navigationBarTitleDisplayMode,
   navigationSplitViewColumnWidth,
   navigationSplitViewStyle,
   navigationTitle,
+  resizable,
   tag,
 } from '@expo/ui/swift-ui/modifiers';
 import { useRouter, useSegments } from 'expo-router';
 import { useCallback, useMemo, useState, type ComponentProps, type PropsWithChildren } from 'react';
-import { Platform, View } from 'react-native';
+import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { tabletDestinationKey, tabletDestinations } from './tabletDestinations';
 import { TabletSidebarContext } from './TabletSidebarContext';
+import { useSidebarServers } from './useSidebarServers';
 
 export function TabletNavigation({ children }: PropsWithChildren) {
-  return Platform.OS === 'ios' && Platform.isPad ? (
-    <SplitNavigation>{children}</SplitNavigation>
+  if (Platform.OS !== 'ios' || !Platform.isPad) return children;
+  return Number.parseInt(Platform.Version, 10) >= 18 ? (
+    <AdaptiveTabNavigation>{children}</AdaptiveTabNavigation>
   ) : (
-    children
+    <SplitNavigation>{children}</SplitNavigation>
+  );
+}
+
+function AdaptiveTabNavigation({ children }: PropsWithChildren) {
+  const router = useRouter();
+  const segments = useSegments();
+  const { items, homeServerId, selectServer } = useSidebarServers();
+  return (
+    <NativeTabSidebar
+      style={{ flex: 1 }}
+      servers={items}
+      selectedServerId={tabletDestinationKey(segments) === 'home' ? (homeServerId ?? '') : ''}
+      onServerSelected={({ nativeEvent }) => {
+        if (selectServer(nativeEvent.id)) router.navigate('/(tabs)/(home)');
+      }}
+    >
+      {children}
+    </NativeTabSidebar>
   );
 }
 
@@ -41,6 +73,7 @@ function SplitNavigation({ children }: PropsWithChildren) {
   const router = useRouter();
   const segments = useSegments();
   const selected = tabletDestinationKey(segments);
+  const { items: servers, homeServerId, selectServer } = useSidebarServers();
   const [visibility, setVisibility] =
     useState<ComponentProps<typeof NavigationSplitView>['columnVisibility']>('all');
   const [compactColumn, setCompactColumn] =
@@ -81,21 +114,52 @@ function SplitNavigation({ children }: PropsWithChildren) {
                 navigationSplitViewColumnWidth({ min: 260, ideal: 280, max: 320 }),
               ]}
             >
-              {(['媒体', '设置'] as const).map((section) => (
-                <Section key={section} title={section}>
-                  {tabletDestinations
-                    .filter((entry) => entry.section === section)
-                    .map((entry) => (
-                      <NavigationLink
-                        key={entry.key}
-                        value={entry.key}
-                        modifiers={[tag(entry.key)]}
-                      >
-                        <Label title={entry.title} systemImage={entry.icon} />
-                      </NavigationLink>
-                    ))}
+              <Section title="媒体">
+                {tabletDestinations.map((entry) => (
+                  <NavigationLink key={entry.key} value={entry.key} modifiers={[tag(entry.key)]}>
+                    <Label title={entry.title} systemImage={entry.icon} />
+                  </NavigationLink>
+                ))}
+              </Section>
+              {servers.length ? (
+                <Section title="服务器">
+                  {servers.map((server) => (
+                    <Button
+                      key={server.id}
+                      onPress={() => {
+                        if (!selectServer(server.id)) return;
+                        router.navigate('/(tabs)/(home)');
+                        setCompactColumn('detail');
+                      }}
+                      modifiers={[buttonStyle('plain')]}
+                    >
+                      <HStack spacing={12}>
+                        {server.avatarUri ? (
+                          <Image
+                            uiImage={server.avatarUri}
+                            modifiers={[
+                              resizable(),
+                              frame({ width: 28, height: 28 }),
+                              clipShape('circle'),
+                            ]}
+                          />
+                        ) : (
+                          <Image
+                            systemName="externaldrive"
+                            color={server.type === 'emby' ? '#34C759' : '#8B5CF6'}
+                            modifiers={[frame({ width: 28, height: 28 })]}
+                          />
+                        )}
+                        <Text modifiers={[foregroundStyle(theme.colors.text)]}>{server.name}</Text>
+                        <Spacer />
+                        {homeServerId === server.id ? (
+                          <Image systemName="checkmark" size={14} color={theme.colors.tint} />
+                        ) : null}
+                      </HStack>
+                    </Button>
+                  ))}
                 </Section>
-              ))}
+              ) : null}
             </List>
           </NavigationSplitView.Sidebar>
           <NavigationSplitView.Detail>
@@ -110,7 +174,7 @@ function SplitNavigation({ children }: PropsWithChildren) {
             >
               <RNHostView>
                 <SafeAreaProvider style={{ flex: 1 }}>
-                  <View style={{ flex: 1 }}>{children}</View>
+                  <ContentDimensionsProvider>{children}</ContentDimensionsProvider>
                 </SafeAreaProvider>
               </RNHostView>
             </VStack>

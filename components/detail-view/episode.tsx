@@ -1,3 +1,4 @@
+import { MenuView } from '@/components/ui/MenuView';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
@@ -9,7 +10,6 @@ import {
 } from '@/services/media/queryOptions';
 import { MediaItem, MediaPerson } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { MenuView } from '@react-native-menu/menu';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 

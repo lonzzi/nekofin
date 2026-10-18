@@ -1,4 +1,24 @@
 export const CAROUSEL_FADE_MS = 650;
+const CAROUSEL_GESTURE_SETTLE_MS = 240;
+const CAROUSEL_CANCEL_SETTLE_MS = 180;
+
+export function getCarouselDragOffset(start: number, translation: number, width: number) {
+  'worklet';
+  return Math.max(-width, Math.min(width, start + translation));
+}
+
+export function getCarouselSnapTarget(drag: number, velocity: number, width: number) {
+  'worklet';
+  if (Math.abs(velocity) > 650) return velocity < 0 ? -width : width;
+  if (Math.abs(drag) > width * 0.22) return drag < 0 ? -width : width;
+  return 0;
+}
+
+export function getCarouselSnapDuration(drag: number, target: number, width: number) {
+  'worklet';
+  if (target === 0) return CAROUSEL_CANCEL_SETTLE_MS;
+  return Math.round(CAROUSEL_GESTURE_SETTLE_MS * Math.min(Math.abs(target - drag) / width, 1));
+}
 
 /** The same keyed slide survives preloading, the transition, and becoming current. */
 export function getMountedCarouselIndexes(current: number, count: number) {

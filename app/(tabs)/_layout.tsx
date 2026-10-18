@@ -1,19 +1,25 @@
 import { FloatingTabBarInsetProvider } from '@/components/navigation/FloatingTabBarInset';
+import { navigationDestinations } from '@/components/navigation/navigationDestinations';
 import { TabletNavigation } from '@/components/navigation/TabletNavigation';
+import { usesAndroidNavigationRail } from '@/lib/adaptiveLayout';
 import { useAppTheme } from '@/lib/theme';
 import { useOuterTheme } from '@/lib/theme/OuterTheme';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { Platform } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
 
 export default function TabLayout() {
   const accentColor = useOuterTheme().colors.tint;
   const theme = useAppTheme();
   const tablet = Platform.OS === 'ios' && Platform.isPad;
+  const { width, height } = useWindowDimensions();
+  const rail = Platform.OS === 'android' && usesAndroidNavigationRail(width, height);
 
   return (
     <TabletNavigation>
       <FloatingTabBarInsetProvider>
         <NativeTabs
+          sidebarAdaptable={tablet ? true : undefined}
+          hidden={rail}
           backgroundColor="transparent"
           blurEffect="systemUltraThinMaterial"
           minimizeBehavior="onScrollDown"
@@ -34,63 +40,29 @@ export default function TabLayout() {
           labelVisibilityMode={Platform.OS === 'android' ? 'labeled' : undefined}
           rippleColor={Platform.OS === 'android' ? 'transparent' : undefined}
         >
-          <NativeTabs.Trigger
-            name="(home)"
-            contentStyle={{ backgroundColor: theme.colors.background }}
-            disableAutomaticContentInsets={tablet || Platform.OS === 'android'}
-          >
-            <NativeTabs.Trigger.Label>首页</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon
-              drawable="home"
-              sf={{ default: 'house', selected: 'house.fill' }}
-              selectedColor={accentColor}
-            />
-          </NativeTabs.Trigger>
-          <NativeTabs.Trigger
-            name="(servers)"
-            disableAutomaticContentInsets={tablet || Platform.OS === 'android'}
-          >
-            <NativeTabs.Trigger.Label>服务器</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon
-              drawable="storage"
-              sf={{ default: 'externaldrive', selected: 'externaldrive.fill' }}
-              selectedColor={accentColor}
-            />
-          </NativeTabs.Trigger>
-          <NativeTabs.Trigger
-            name="(favorites)"
-            disableAutomaticContentInsets={Platform.OS === 'android'}
-          >
-            <NativeTabs.Trigger.Label>收藏</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon
-              drawable="heart_outline"
-              sf={{ default: 'heart', selected: 'heart.fill' }}
-              selectedColor={accentColor}
-            />
-          </NativeTabs.Trigger>
-          <NativeTabs.Trigger
-            name="(settings)"
-            disableAutomaticContentInsets={Platform.OS === 'android'}
-          >
-            <NativeTabs.Trigger.Label>设置</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon
-              drawable="settings"
-              sf={{ default: 'gearshape', selected: 'gearshape.fill' }}
-              selectedColor={accentColor}
-            />
-          </NativeTabs.Trigger>
-          <NativeTabs.Trigger
-            name="(search)"
-            role="search"
-            disableAutomaticContentInsets={Platform.OS === 'android'}
-          >
-            <NativeTabs.Trigger.Label>搜索</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon
-              drawable="search"
-              sf="magnifyingglass"
-              selectedColor={accentColor}
-            />
-          </NativeTabs.Trigger>
+          {navigationDestinations.map((destination) => (
+            <NativeTabs.Trigger
+              key={destination.key}
+              name={destination.name}
+              role={destination.role === 'search' ? 'search' : undefined}
+              contentStyle={
+                destination.key === 'home'
+                  ? { backgroundColor: theme.colors.background }
+                  : undefined
+              }
+              disableAutomaticContentInsets={
+                Platform.OS === 'android' ||
+                (tablet && (destination.key === 'home' || destination.key === 'servers'))
+              }
+            >
+              <NativeTabs.Trigger.Label>{destination.title}</NativeTabs.Trigger.Label>
+              <NativeTabs.Trigger.Icon
+                drawable={destination.drawable}
+                sf={destination.sf}
+                selectedColor={accentColor}
+              />
+            </NativeTabs.Trigger>
+          ))}
         </NativeTabs>
       </FloatingTabBarInsetProvider>
     </TabletNavigation>

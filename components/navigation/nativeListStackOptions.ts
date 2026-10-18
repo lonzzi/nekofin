@@ -1,21 +1,34 @@
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
-import { Platform } from 'react-native';
+import { createElement, useContext } from 'react';
+import { Platform, type ColorValue } from 'react-native';
 
 import { platformHeaderOptions } from './platformHeaderOptions';
+import { TabletChromeContext, TabletHeaderTitle } from './TabletChromeContext';
 import { useTabletSidebar } from './TabletSidebarContext';
+
+export const nativeListTitleOptions = {
+  headerLargeTitle: Platform.OS === 'ios' && !Platform.isPad,
+} as const;
 
 /** Let UIKit render its own navigation and scroll-edge materials on iOS 26+. */
 export function useNativeListStackOptions(backgroundColor: string) {
   const ios = Platform.OS === 'ios';
   const sidebar = useTabletSidebar();
+  const chrome = useContext(TabletChromeContext);
   return {
     ...platformHeaderOptions,
     orientation: Platform.OS === 'ios' ? (Platform.isPad ? 'all' : 'portrait_up') : undefined,
     headerTransparent: ios,
-    headerLargeTitle: Platform.OS === 'ios' && !Platform.isPad,
+    ...nativeListTitleOptions,
     headerShadowVisible: false,
     headerLargeTitleShadowVisible: false,
     headerBackButtonDisplayMode: 'minimal',
+    ...(Platform.OS === 'android' && chrome
+      ? {
+          headerTitle: ({ children, tintColor }: { children: string; tintColor?: ColorValue }) =>
+            createElement(TabletHeaderTitle, { tintColor }, children),
+        }
+      : {}),
     ...(ios && sidebar?.isCollapsed
       ? {
           // Keep the native back button when a pushed screen also offers the sidebar.

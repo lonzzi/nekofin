@@ -19,8 +19,7 @@ export default function PageScrollView({
   const tabBarInset = useFloatingTabBarInset();
   const flattenedContentStyle = StyleSheet.flatten(contentContainerStyle);
   const contentPaddingBottom = getNumericPaddingBottom(flattenedContentStyle);
-  const safePaddingBottom =
-    bottomTabBarHeight + (Platform.OS === 'android' ? tabBarInset || 100 : 0);
+  const safePaddingBottom = bottomTabBarHeight + (Platform.OS === 'android' ? tabBarInset : 0);
   const bottomContentInset = Platform.OS === 'ios' ? bottomTabBarHeight : 0;
   const bottomContentPadding =
     Platform.OS === 'ios' ? contentPaddingBottom : contentPaddingBottom + safePaddingBottom;

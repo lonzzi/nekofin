@@ -23,7 +23,6 @@ export default function ServersLayout() {
         options={{
           title: '服务器',
           headerTitle: '服务器',
-          headerLargeTitle: true,
           headerLargeTitleShadowVisible: false,
         }}
       />
@@ -47,7 +46,6 @@ export default function ServersLayout() {
         name="favorites"
         options={{
           title: '收藏',
-          headerLargeTitle: true,
           headerLargeTitleShadowVisible: false,
         }}
       />
@@ -55,7 +53,6 @@ export default function ServersLayout() {
         name="server-search"
         options={{
           title: '搜索',
-          headerLargeTitle: true,
           headerLargeTitleShadowVisible: false,
         }}
       />

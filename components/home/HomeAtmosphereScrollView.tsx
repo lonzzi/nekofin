@@ -91,8 +91,7 @@ export function HomeAtmosphereScrollView({
   const scroller = (
     <ParallaxScrollView
       contentContainerStyle={{
-        paddingBottom:
-          Platform.OS === 'android' ? tabBarInset || insets.bottom + 80 : insets.bottom,
+        paddingBottom: Platform.OS === 'android' ? tabBarInset : insets.bottom,
       }}
       showsVerticalScrollIndicator={false}
       style={styles.scroller}

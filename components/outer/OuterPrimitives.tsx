@@ -1,6 +1,10 @@
+import {
+  TabletChromeContext,
+  TabletHeaderTitle,
+} from '@/components/navigation/TabletChromeContext';
 import { useAppTheme } from '@/lib/theme';
 import { Stack } from 'expo-router';
-import type { PropsWithChildren } from 'react';
+import { useContext, type PropsWithChildren } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export function OuterScreenOptions({
@@ -13,12 +17,16 @@ export function OuterScreenOptions({
   grouped?: boolean;
 }) {
   const t = useAppTheme();
+  const chrome = useContext(TabletChromeContext);
   return (
     <>
       <Stack.Screen
         options={{
           title,
-          headerTitle: title,
+          headerTitle:
+            Platform.OS === 'android' && chrome
+              ? () => <TabletHeaderTitle tintColor={t.colors.text}>{title}</TabletHeaderTitle>
+              : title,
           headerLargeTitle: large && !(Platform.OS === 'ios' && Platform.isPad),
           headerTitleStyle: { color: t.colors.text },
           headerLargeTitleStyle: { color: t.colors.text },
@@ -122,6 +130,19 @@ const styles = StyleSheet.create({
 
 export function OuterTitle({ children, large = true }: { children: string; large?: boolean }) {
   const theme = useAppTheme();
+  const chrome = useContext(TabletChromeContext);
+  if (Platform.OS === 'android' && chrome) {
+    return (
+      <Stack.Screen
+        options={{
+          title: children,
+          headerTitle: () => (
+            <TabletHeaderTitle tintColor={theme.colors.text}>{children}</TabletHeaderTitle>
+          ),
+        }}
+      />
+    );
+  }
   return (
     <Stack.Title
       large={large && !(Platform.OS === 'ios' && Platform.isPad)}

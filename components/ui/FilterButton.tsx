@@ -1,6 +1,6 @@
+import { MenuAction, MenuView } from '@/components/ui/MenuView';
 import { useSettingsColors } from '@/hooks/useSettingsColors';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { MenuAction, MenuView } from '@react-native-menu/menu';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
