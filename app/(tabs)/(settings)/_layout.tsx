@@ -23,6 +23,8 @@ function HomeLayout() {
     >
       <Stack.Screen name="playback" options={{ title: '播放与画质' }} />
       <Stack.Screen name="audio" options={{ title: '音频与字幕' }} />
+      <Stack.Screen name="subtitle-fonts" options={{ title: '字幕字体' }} />
+      <Stack.Screen name="subtitle-font-url" options={{ title: '从 URL 导入' }} />
       <Stack.Screen name="about" options={{ title: '帮助与关于' }} />
       <Stack.Screen
         name="index"

@@ -43,6 +43,16 @@ type NormalizedSeekOptions = {
 
 const safeCount = (value: number) => (Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0);
 
+export function canSeekPlayback({
+  durationMs,
+  isPlayerReady,
+}: {
+  durationMs: number;
+  isPlayerReady: boolean;
+}): boolean {
+  return isPlayerReady && Number.isFinite(durationMs) && durationMs > 0;
+}
+
 export function deriveTransportActions({
   durationMs,
   hasNextEpisode,

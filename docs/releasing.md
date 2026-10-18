@@ -51,6 +51,8 @@ tag 是发布版本号的来源。工作流会在计算运行时和构建两个�
 
 更新说明由 GitHub 自动生成。发布先创建草稿，上传全部附件后再公开；上传失败会保留草稿，可以在 Actions 中重跑失败任务。已公开的 Release 不会在重跑时替换附件。
 
+双端构建通过 `NEKOFIN_NATIVE_RUNTIME` 将准备阶段生成的运行时固定到 Expo 原生配置。Android 的 EAS 构建会重新设置内部的 `EXPO_UPDATES_FINGERPRINT_OVERRIDE`，因此发布流程不依赖该内部变量。上传安装包前会读取 APK 编译后的 manifest / 资源或 iOS Archive 的 Expo.plist（必要时解析内置 fingerprint 文件），运行时与发布契约不一致会直接阻止发布。
+
 也可以手动运行 `Release`，填写已有的版本 tag；两个平台始终构建 tag 指向的同一提交。相同 tag 的发布按顺序执行，预发布版不会替换正式版的 Latest。
 
 版本回写在安装包发布成功后执行，只同步已合入 `main` 的提交。如果推送版本提交失败，可在 Actions 重跑 `Sync released version to main`，已公开的安装包和 tag 不会被替换。此 job 使用 `GITHUB_TOKEN` 的 `contents: write` 权限；仓库启用分支保护时，需要允许该自动化写入 `main`。

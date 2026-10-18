@@ -1,4 +1,4 @@
-import { IconSymbol } from '@/components/ui/IconSymbol';
+import { getServerMenuIcon } from '@/components/navigation/nativeToolbarIcons';
 import {
   NativeSettingsForm,
   NativeSettingsItem,
@@ -7,10 +7,8 @@ import {
 import { MEDIA_SERVER_TYPE_OPTIONS } from '@/lib/mediaServerTypes';
 import { useAppTheme } from '@/lib/theme';
 import type { MediaServerType } from '@/services/media/types';
-import { RNHostView, Text } from '@expo/ui/jetpack-compose';
-import { fillMaxWidth, padding } from '@expo/ui/jetpack-compose/modifiers';
-
-import { ServerTypeIcon } from './ServerTypeIcon';
+import { Icon, Text } from '@expo/ui/jetpack-compose';
+import { fillMaxWidth, padding, rotate } from '@expo/ui/jetpack-compose/modifiers';
 
 export function ServerTypePicker({ onSelect }: { onSelect: (type: MediaServerType) => void }) {
   const theme = useAppTheme();
@@ -28,15 +26,14 @@ export function ServerTypePicker({ onSelect }: { onSelect: (type: MediaServerTyp
           <NativeSettingsItem
             key={type}
             title={label}
-            leading={
-              <RNHostView matchContents>
-                <ServerTypeIcon type={type} size={36} />
-              </RNHostView>
-            }
+            leading={<Icon source={getServerMenuIcon(type)} size={36} tint={null} />}
             trailing={
-              <RNHostView matchContents>
-                <IconSymbol name="chevron.right" size={20} color={theme.colors.textTertiary} />
-              </RNHostView>
+              <Icon
+                source={require('../../assets/drawables/chevron_left.png')}
+                size={16}
+                tint={theme.colors.textTertiary}
+                modifiers={[rotate(180)]}
+              />
             }
             onPress={() => onSelect(type)}
             testID={`connect-${type}`}

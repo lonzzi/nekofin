@@ -1,1 +1,4 @@
-export { createExternalSubtitleCache } from '@/services/media/subtitleCache';
+export {
+  createExternalSubtitleCache,
+  SubtitleCacheLimitError,
+} from '@/services/media/subtitleCache';

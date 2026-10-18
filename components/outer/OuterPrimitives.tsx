@@ -18,6 +18,7 @@ export function OuterScreenOptions({
 }) {
   const t = useAppTheme();
   const chrome = useContext(TabletChromeContext);
+  const backgroundColor = grouped ? t.colors.backgroundGrouped : t.colors.background;
   return (
     <>
       <Stack.Screen
@@ -31,11 +32,12 @@ export function OuterScreenOptions({
           headerTitleStyle: { color: t.colors.text },
           headerLargeTitleStyle: { color: t.colors.text },
           headerTintColor: t.colors.tint,
-          headerStyle: { backgroundColor: 'transparent' },
-          headerLargeStyle: undefined,
-          contentStyle: {
-            backgroundColor: grouped ? t.colors.backgroundGrouped : t.colors.background,
+          // Android headers sit outside the content background during stack transitions.
+          headerStyle: {
+            backgroundColor: Platform.OS === 'ios' ? 'transparent' : backgroundColor,
           },
+          headerLargeStyle: undefined,
+          contentStyle: { backgroundColor },
         }}
       />
     </>

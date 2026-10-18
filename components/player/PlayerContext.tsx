@@ -13,6 +13,8 @@ export type TrackInfo = {
   name: string;
   index: number;
   language?: string;
+  loading?: boolean;
+  failed?: boolean;
 };
 
 export type VlcTrack = {
@@ -52,6 +54,7 @@ export type PlayerContextValue = {
   title: string;
   isPlaying: boolean;
   isLoading: boolean;
+  canSeek: boolean;
   duration: number;
   currentTime: SharedValue<number>;
   onSeek: (position: number) => void;

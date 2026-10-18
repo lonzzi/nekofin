@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  canSeekPlayback,
   derivePlayerActionButtons,
   deriveTransportActions,
   getNormalizedSeekPosition,
@@ -8,6 +9,18 @@ import {
 } from './playerControlModel';
 
 describe('player control model', () => {
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    'disables seeking with invalid duration %s even after the player is ready',
+    (durationMs) => {
+      expect(canSeekPlayback({ durationMs, isPlayerReady: true })).toBe(false);
+    },
+  );
+
+  it('requires a ready player even when server metadata already supplies a duration', () => {
+    expect(canSeekPlayback({ durationMs: 60_000, isPlayerReady: false })).toBe(false);
+    expect(canSeekPlayback({ durationMs: 60_000, isPlayerReady: true })).toBe(true);
+  });
+
   it('keeps episode navigation and time controls in the expected transport order', () => {
     const actions = deriveTransportActions({
       durationMs: 30 * 60 * 1000,

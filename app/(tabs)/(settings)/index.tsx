@@ -25,7 +25,7 @@ export default function SettingsScreen() {
           />
           <NativeSettingsItem
             title={<SettingsTitle>音频与字幕</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="默认语言与字幕显示" />}
+            subtitle={<SettingsSubtitle primary="默认语言、字幕显示与字体" />}
             disclosure
             onPress={() => router.push('/audio')}
           />

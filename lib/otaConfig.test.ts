@@ -1,8 +1,20 @@
 import { expect, it } from 'vitest';
 
-import { getOtaChannel, validateOtaURL } from '../config/ota';
+import { getBuildRuntimeVersion, getOtaChannel, validateOtaURL } from '../config/ota';
 import { resolveInstalledRelease } from './appUpdates';
 import { getNativeReleaseTag, isProductionBuild } from './otaConfig';
+
+it('pins installer builds to the published runtime and fingerprints ordinary builds', () => {
+  expect(getBuildRuntimeVersion(undefined)).toEqual({ policy: 'fingerprint' });
+  expect(getBuildRuntimeVersion('')).toEqual({ policy: 'fingerprint' });
+  for (const length of [40, 64]) {
+    const runtime = 'a'.repeat(length);
+    expect(getBuildRuntimeVersion(runtime)).toBe(runtime);
+  }
+  for (const invalid of ['fingerprint', 'a'.repeat(39), 'a'.repeat(41), 'A'.repeat(40)]) {
+    expect(() => getBuildRuntimeVersion(invalid)).toThrow(/NEKOFIN_NATIVE_RUNTIME/);
+  }
+});
 
 it('preserves installation identity from the native channel across OTA config changes', () => {
   const channel = getOtaChannel('production', 'v0.1.0-beta.1', '0.1.0');
