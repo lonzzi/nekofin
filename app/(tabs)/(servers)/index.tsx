@@ -15,6 +15,7 @@ import { ServerTypePicker } from '@/components/servers/ServerTypePicker';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { MEDIA_SERVER_TYPE_OPTIONS } from '@/lib/mediaServerTypes';
+import { groupServerAccounts } from '@/lib/serverAccounts';
 import { useAppTheme } from '@/lib/theme';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import type { MediaServerInfo, MediaServerType } from '@/services/media/types';
@@ -32,7 +33,9 @@ import {
 function ServersScreen() {
   const theme = useAppTheme();
   const router = useTracedRouter('servers');
-  const { servers, setHomeServer, currentServer, removeServer, isInitialized } = useMediaServers();
+  const { servers, activeServers, setHomeServer, currentServer, removeServer, isInitialized } =
+    useMediaServers();
+  const accountGroups = groupServerAccounts(servers);
   const isFocused = useIsFocused();
   const { width } = useWindowDimensions();
   const availableWidth = Math.max(Math.min(width, 840) - theme.spacing.page * 2, 0);
@@ -60,7 +63,7 @@ function ServersScreen() {
       params: { serverType },
     });
   const remove = (server: MediaServerInfo) =>
-    Alert.alert('删除服务器', `从 Nekofin 移除 ${server.name} / ${server.username}？`, [
+    Alert.alert('移除此账号', `从 Nekofin 移除 ${server.name} / ${server.username}？`, [
       { text: '取消', style: 'cancel' },
       { text: '删除', style: 'destructive', onPress: () => void removeServer(server.id) },
     ]);
@@ -95,14 +98,25 @@ function ServersScreen() {
               <View style={styles.servers}>
                 <View style={styles.heading}>
                   <Text style={[styles.count, { color: theme.colors.textSecondary }]}>
-                    {servers.length} 个服务器账号
+                    {activeServers.length} 个服务器 · {servers.length} 个账号
                   </Text>
                 </View>
                 <View style={styles.grid}>
-                  {servers.map((server) => (
+                  {activeServers.map((server) => (
                     <View key={server.id} style={[{ width: cardWidth }, androidCardStyle]}>
                       <HomeServerCard
                         server={server}
+                        accountCount={
+                          accountGroups.find((group) =>
+                            group.some((account) => account.id === server.id),
+                          )?.length ?? 1
+                        }
+                        onAccounts={() =>
+                          router.push({
+                            pathname: '/(tabs)/(servers)/server-accounts/[serverId]',
+                            params: { serverId: server.id },
+                          })
+                        }
                         isCurrent={currentServer?.id === server.id}
                         isScreenFocused={isFocused}
                         onOpen={() => open(server)}

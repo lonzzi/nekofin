@@ -79,6 +79,7 @@ export default function ServersLayout() {
         }}
       />
       <Stack.Screen name="server-lines/[serverId]" options={{ title: '服务器线路' }} />
+      <Stack.Screen name="server-accounts/[serverId]" options={{ title: '服务器账号' }} />
       <Stack.Screen name="server-line/[serverId]" options={{ title: '添加线路' }} />
       <Stack.Screen
         name="add-server/[serverType]"

@@ -49,8 +49,10 @@ export default function DanmakuSettingsScreen() {
   };
 
   const handleResetToDefault = () => {
-    setSettings(defaultSettings);
-    Alert.alert('恢复默认设置', '所有设置已恢复为默认值');
+    Alert.alert('恢复弹幕默认设置？', '将重置显示、过滤和时间偏移等弹幕设置，保留已添加的 API。', [
+      { text: '取消', style: 'cancel' },
+      { text: '恢复默认', style: 'destructive', onPress: () => setSettings(defaultSettings) },
+    ]);
   };
 
   return (
@@ -62,11 +64,7 @@ export default function DanmakuSettingsScreen() {
             title={<SettingsTitle>管理弹幕 API</SettingsTitle>}
             subtitle={
               <SettingsSubtitle
-                primary={
-                  '已启用 ' +
-                  sources.filter((source) => source.enabled).length +
-                  ' 个 API · 支持多源搜索与合并'
-                }
+                primary={'已启用 ' + sources.filter((source) => source.enabled).length + ' 个 API'}
               />
             }
             disclosure
@@ -76,7 +74,6 @@ export default function DanmakuSettingsScreen() {
         <NativeSettingsSection title="显示">
           <NativeSettingsSwitch
             title={<SettingsTitle>显示弹幕</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="关闭后播放器不再显示弹幕。" />}
             value={settings.enabled}
             onValueChange={(value) => updateSetting('enabled', value)}
           />
@@ -109,10 +106,12 @@ export default function DanmakuSettingsScreen() {
           />
         </NativeSettingsSection>
 
-        <NativeSettingsSection title="速度与密度">
+        <NativeSettingsSection
+          title="速度与密度"
+          footer={!settings.enabled ? '开启“显示弹幕”后可调整。' : undefined}
+        >
           <NativeSettingsSlider
             title={<SettingsTitle>滚动速度</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="长弹幕会在此基础上自动提速" />}
             value={Math.max(80, Math.min(240, settings.speed))}
             min={80}
             max={240}
@@ -123,7 +122,6 @@ export default function DanmakuSettingsScreen() {
           />
           <NativeSettingsPicker
             title={<SettingsTitle>屏幕密度</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="同时限制轨道拥挤度与同屏弹幕数量" />}
             value={String(settings.danmakuDensityLimit)}
             disabled={!settings.enabled}
             options={[
@@ -137,7 +135,6 @@ export default function DanmakuSettingsScreen() {
           />
           <NativeSettingsSwitch
             title={<SettingsTitle>防止重叠</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="避免同类型弹幕重叠，预测滚动追尾" />}
             value={settings.collisionPolicy === 'avoid'}
             disabled={!settings.enabled}
             onValueChange={(value) => updateSetting('collisionPolicy', value ? 'avoid' : 'allow')}
@@ -147,7 +144,7 @@ export default function DanmakuSettingsScreen() {
         <NativeSettingsSection title="时间同步">
           <NativeSettingsSlider
             title={<SettingsTitle>弹幕偏移</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="弹幕偏晚时向左调，偏早时向右调" />}
+            subtitle={<SettingsSubtitle primary="负值提前，正值延后" />}
             value={Math.max(-5, Math.min(5, settings.curEpOffset))}
             min={-5}
             max={5}

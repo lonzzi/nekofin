@@ -157,6 +157,8 @@ export function HomeServerCard({
   onOpen,
   onSettings,
   onRemove,
+  onAccounts,
+  accountCount,
 }: {
   server: MediaServerInfo;
   isCurrent: boolean;
@@ -164,6 +166,8 @@ export function HomeServerCard({
   onOpen: () => void;
   onSettings: () => void;
   onRemove: () => void;
+  onAccounts: () => void;
+  accountCount: number;
 }) {
   const theme = useAppTheme();
   const gradient = getServerGradient(server, isCurrent, theme.isDark);
@@ -233,14 +237,17 @@ export function HomeServerCard({
 
           <View style={styles.cardFooter}>
             <Text style={[styles.ageText, { color: theme.colors.textSecondary }]}>
-              {formatServerAge(server.createdAt)}
+              {accountCount > 1 ? `${accountCount} 个账号` : formatServerAge(server.createdAt)}
             </Text>
             <SafeGlassContainer spacing={8} style={styles.footerActions}>
+              <ServerCardAction
+                accessibilityLabel={`管理 ${server.name} 的账号`}
+                onPress={onAccounts}
+              >
+                <Ionicons name="people-outline" size={16} color={theme.colors.textSecondary} />
+              </ServerCardAction>
               <ServerCardAction accessibilityLabel={`配置 ${server.name}`} onPress={onSettings}>
                 <Ionicons name="settings-outline" size={16} color={theme.colors.textSecondary} />
-              </ServerCardAction>
-              <ServerCardAction accessibilityLabel={`删除 ${server.name}`} onPress={onRemove}>
-                <Ionicons name="trash-outline" size={16} color={theme.colors.danger} />
               </ServerCardAction>
             </SafeGlassContainer>
           </View>
@@ -254,6 +261,14 @@ export function HomeServerCard({
         <ContextMenu.Item key="settings" onSelect={onSettings}>
           <ContextMenu.ItemTitle>服务器设置</ContextMenu.ItemTitle>
           <ContextMenu.ItemIcon ios={{ name: 'gearshape' }} androidIconName="settings" />
+        </ContextMenu.Item>
+        <ContextMenu.Item key="accounts" onSelect={onAccounts}>
+          <ContextMenu.ItemTitle>管理账号</ContextMenu.ItemTitle>
+          <ContextMenu.ItemIcon ios={{ name: 'person.2' }} androidIconName="people" />
+        </ContextMenu.Item>
+        <ContextMenu.Item key="remove" destructive onSelect={onRemove}>
+          <ContextMenu.ItemTitle>移除此账号</ContextMenu.ItemTitle>
+          <ContextMenu.ItemIcon ios={{ name: 'trash' }} androidIconName="delete" />
         </ContextMenu.Item>
       </ContextMenu.Content>
     </ContextMenu.Root>

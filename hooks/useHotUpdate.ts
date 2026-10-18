@@ -32,10 +32,10 @@ export function useHotUpdate() {
           : result === 'error'
             ? '更新失败，点按重试'
             : updates.isUpdatePending
-              ? '更新已准备好，点按立即应用'
+              ? '更新就绪，点按应用'
               : result === 'current'
-                ? '当前已是最新版本'
-                : '下载并立即应用可用更新';
+                ? '已是最新版本'
+                : '';
 
   function fetchAndApply() {
     if (!available || busy || inFlight.current) return inFlight.current ?? Promise.resolve();

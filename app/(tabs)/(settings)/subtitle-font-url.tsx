@@ -6,10 +6,11 @@ import {
   NativeSettingsItem,
   NativeSettingsSection,
 } from '@/components/ui/NativeSettings';
+import { SettingsTitle } from '@/components/ui/SettingsVisual';
 import { importCustomSubtitleFont, normalizeFontUrl } from '@/services/customSubtitleFonts';
 import { TextInput, useNativeState } from '@expo/ui';
 import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
-import { frame } from '@expo/ui/swift-ui/modifiers';
+import { accessibilityLabel, frame } from '@expo/ui/swift-ui/modifiers';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Keyboard, Platform } from 'react-native';
@@ -58,23 +59,35 @@ export default function SubtitleFontUrl() {
         </HeaderButton>
       </HeaderToolbar>
       <NativeSettingsForm testID="subtitle-font-url">
-        <NativeSettingsSection title="字体文件链接">
+        <NativeSettingsSection
+          title="字体文件链接"
+          footer="填写字体文件的直接链接。导入后自动设为当前字体。"
+        >
           <NativeSettingsItem
             title={
               <TextInput
                 value={value}
+                editable={!busy}
                 onChangeText={setUrl}
                 placeholder="https://example.com/font.ttf"
                 keyboardType="url"
                 autoCapitalize="none"
                 autoCorrect={false}
                 modifiers={
-                  Platform.OS === 'ios' ? [frame({ maxWidth: Infinity })] : [fillMaxWidth()]
+                  Platform.OS === 'ios'
+                    ? [
+                        frame({ maxWidth: Infinity, minHeight: 44 }),
+                        accessibilityLabel('字体文件链接'),
+                      ]
+                    : [fillMaxWidth()]
                 }
-                style={{ height: 44 }}
+                style={Platform.OS === 'ios' ? undefined : { height: 44 }}
               />
             }
           />
+          {busy ? (
+            <NativeSettingsItem title={<SettingsTitle>正在下载并导入字体…</SettingsTitle>} busy />
+          ) : null}
         </NativeSettingsSection>
       </NativeSettingsForm>
     </>

@@ -3,7 +3,7 @@ import { useAppTheme } from '@/lib/theme';
 import { Text as NativeText } from '@expo/ui';
 import { Icon as ComposeIcon } from '@expo/ui/jetpack-compose';
 import { Image as SwiftImage } from '@expo/ui/swift-ui';
-import { frame } from '@expo/ui/swift-ui/modifiers';
+import { fixedSize, font, frame } from '@expo/ui/swift-ui/modifiers';
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { ANDROID_SETTINGS_ICONS, type SettingsSymbolName } from './nativeSettingsIcons';
@@ -61,7 +61,12 @@ export function SettingsTitle({ children }: { children: string }) {
 
   return (
     <NativeText
-      numberOfLines={1}
+      numberOfLines={Platform.OS === 'ios' ? undefined : 1}
+      modifiers={
+        Platform.OS === 'ios'
+          ? [font({ textStyle: 'body' }), fixedSize({ horizontal: false, vertical: true })]
+          : undefined
+      }
       textStyle={{
         color: theme.colors.text,
         fontSize: 17,
@@ -91,7 +96,12 @@ export function SettingsActionTitle({
 
   return (
     <NativeText
-      numberOfLines={1}
+      numberOfLines={Platform.OS === 'ios' ? undefined : 1}
+      modifiers={
+        Platform.OS === 'ios'
+          ? [font({ textStyle: 'body' }), fixedSize({ horizontal: false, vertical: true })]
+          : undefined
+      }
       textStyle={{
         color,
         fontSize: 16,
@@ -118,7 +128,12 @@ export function SettingsSubtitle({
   return (
     <>
       <NativeText
-        numberOfLines={lines}
+        numberOfLines={Platform.OS === 'ios' ? undefined : lines}
+        modifiers={
+          Platform.OS === 'ios'
+            ? [font({ textStyle: 'footnote' }), fixedSize({ horizontal: false, vertical: true })]
+            : undefined
+        }
         textStyle={{
           color: theme.colors.textSecondary,
           fontSize: 13,
@@ -130,7 +145,12 @@ export function SettingsSubtitle({
       </NativeText>
       {secondary ? (
         <NativeText
-          numberOfLines={2}
+          numberOfLines={Platform.OS === 'ios' ? undefined : 2}
+          modifiers={
+            Platform.OS === 'ios'
+              ? [font({ textStyle: 'footnote' }), fixedSize({ horizontal: false, vertical: true })]
+              : undefined
+          }
           textStyle={{
             color: theme.colors.textTertiary,
             fontSize: 13,
@@ -156,7 +176,12 @@ export function SettingsValue({ label, tone = 'accent' }: { label: string; tone?
 
   return (
     <NativeText
-      numberOfLines={1}
+      numberOfLines={Platform.OS === 'ios' ? undefined : 1}
+      modifiers={
+        Platform.OS === 'ios'
+          ? [font({ textStyle: 'body' }), fixedSize({ horizontal: false, vertical: true })]
+          : undefined
+      }
       textStyle={{
         color,
         fontSize: 14,

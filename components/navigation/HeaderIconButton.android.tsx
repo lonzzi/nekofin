@@ -1,6 +1,6 @@
 import { useAppTheme } from '@/lib/theme';
 import { Box, IconButton } from '@expo/ui/jetpack-compose';
-import { size } from '@expo/ui/jetpack-compose/modifiers';
+import { alpha, size } from '@expo/ui/jetpack-compose/modifiers';
 import type { ComponentProps } from 'react';
 
 import { getHeaderButtonBackground } from './headerButtonColors';
@@ -18,7 +18,10 @@ export function HeaderIconButton({
         {...props}
         colors={{ containerColor: getHeaderButtonBackground(theme.isDark), ...colors }}
       >
-        <Box contentAlignment="center" modifiers={[size(36, 36)]}>
+        <Box
+          contentAlignment="center"
+          modifiers={[size(36, 36), alpha(props.enabled === false ? 0.38 : 1)]}
+        >
           {children}
         </Box>
       </IconButton>

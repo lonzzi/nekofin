@@ -252,7 +252,9 @@ export function NativeServerForm({
               </Text>
             </HStack>
           </Button>
-          {connection ? <Button label="更换服务器" onPress={onChangeServer} /> : null}
+          {connection && onChangeServer ? (
+            <Button label="更换服务器" onPress={onChangeServer} />
+          ) : null}
         </Section>
         {connection ? (
           <Section>

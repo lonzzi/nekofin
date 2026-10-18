@@ -6,6 +6,7 @@ import ParallaxScrollView, {
 } from '@/components/ParallaxScrollView';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack } from 'expo-router';
+import { useIsFocused } from 'expo-router/react-navigation';
 import {
   useCallback,
   useMemo,
@@ -65,6 +66,7 @@ export function HomeAtmosphereScrollView({
   style,
   onLayout,
 }: HomeAtmosphereScrollViewProps) {
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const tabBarInset = useFloatingTabBarInset();
   const [headerBehindStatusBar, setHeaderBehindStatusBar] = useState(true);
@@ -138,7 +140,7 @@ export function HomeAtmosphereScrollView({
       refreshControl={refreshControl}
       onScroll={Platform.OS === 'android' && !isDark ? onScroll : undefined}
     >
-      {Platform.OS === 'android' && (
+      {Platform.OS === 'android' && isFocused && (
         <Stack.Screen options={nativeStatusBarOptions(isDark || statusBarOverArtwork)} />
       )}
       {children}

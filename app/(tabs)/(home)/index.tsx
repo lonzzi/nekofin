@@ -14,7 +14,7 @@ import { Pressable, Text, View } from 'react-native';
 export default function AggregateHomeScreen() {
   const theme = useAppTheme();
   const router = useTracedRouter('aggregate-home');
-  const { servers, isInitialized, homeServerId } = useMediaServers();
+  const { activeServers: servers, isInitialized, homeServerId } = useMediaServers();
   const visibleServers = useMemo(
     () => (homeServerId ? servers.filter((server) => server.id === homeServerId) : servers),
     [servers, homeServerId],

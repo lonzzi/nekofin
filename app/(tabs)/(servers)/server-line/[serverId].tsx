@@ -86,7 +86,7 @@ function ServerLineScreen() {
           {missing ? '服务器或线路已不存在，请返回重试。' : `${server.name} · ${server.username}`}
         </Text>
         {!missing ? (
-          <ServerFormSection footer="填写同一台服务器的完整地址，包括端口和路径。保存时会验证服务器和当前账号，无需再次输入密码。">
+          <ServerFormSection footer="使用同一服务器的完整地址。">
             <ServerFormField
               label="线路名称"
               placeholder="例如：家中 Wi-Fi、外网"
@@ -140,7 +140,7 @@ function ServerLineScreen() {
             />
             {active ? (
               <Text style={[theme.typography.footnote, { color: theme.colors.textSecondary }]}>
-                正在使用的线路可修改地址；如需删除，请先切换到其他线路。
+                删除前请先切换到其他线路。
               </Text>
             ) : null}
           </>

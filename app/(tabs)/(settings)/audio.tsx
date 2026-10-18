@@ -42,7 +42,10 @@ export default function AudioSettings() {
             }}
           />
         </NativeSettingsSection>
-        <NativeSettingsSection title="字幕">
+        <NativeSettingsSection
+          title="字幕"
+          footer={!enabled ? '开启“默认显示字幕”后可设置首选语言。' : undefined}
+        >
           <NativeSettingsSwitch
             title={<SettingsTitle>默认显示字幕</SettingsTitle>}
             value={enabled}

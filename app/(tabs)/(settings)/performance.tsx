@@ -54,23 +54,16 @@ export default function PerformanceSettingsScreen() {
     : latestSample?.nativeMetricsAvailable
       ? '已连接'
       : '未连接';
-  const nativeStatusDetail = latestSample?.nativeMetricsError
-    ? latestSample.nativeMetricsError
-    : latestSample?.nativeMetricsAvailable
-      ? 'react-native-performance-toolkit 已连接'
-      : '等待采样';
+  const nativeStatusDetail = latestSample?.nativeMetricsError;
 
   return (
     <NativeSettingsForm testID="performance-settings-form">
-      <NativeSettingsSection title="采样">
+      <NativeSettingsSection
+        title="采样"
+        footer="采样间隔越短，诊断开销越高。关闭性能分析后停止采样。"
+      >
         <NativeSettingsSwitch
           title={<SettingsTitle>启用性能分析</SettingsTitle>}
-          subtitle={
-            <SettingsSubtitle
-              primary="开启后采集 native UI/JS FPS、CPU、内存，并记录路由、网络和 Query 活动。"
-              lines={2}
-            />
-          }
           value={settings.enabled}
           onValueChange={(enabled) =>
             updateSettings({
@@ -81,29 +74,24 @@ export default function PerformanceSettingsScreen() {
         />
         <NativeSettingsSwitch
           title={<SettingsTitle>显示浮层</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary="复现卡顿时建议打开，平时保持关闭。" lines={2} />}
           value={settings.overlayVisible}
           disabled={!settings.enabled}
           onValueChange={(overlayVisible) => updateSettings({ overlayVisible })}
         />
         <NativeSettingsSwitch
           title={<SettingsTitle>记录网络请求</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary="记录 fetch 耗时、状态码和慢请求。" lines={2} />}
           value={settings.networkCaptureEnabled}
           disabled={!settings.enabled}
           onValueChange={(networkCaptureEnabled) => updateSettings({ networkCaptureEnabled })}
         />
         <NativeSettingsSwitch
           title={<SettingsTitle>保存诊断日志</SettingsTitle>}
-          subtitle={
-            <SettingsSubtitle primary="默认保存最近的采样和 trace，方便复现后再导出。" lines={2} />
-          }
+          subtitle={<SettingsSubtitle primary="保留最近的采样记录，便于稍后导出。" />}
           value={settings.persistentLogsEnabled}
           onValueChange={(persistentLogsEnabled) => updateSettings({ persistentLogsEnabled })}
         />
         <NativeSettingsSlider
           title={<SettingsTitle>采样间隔</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary="间隔越短越精确，也会带来更高诊断开销。" lines={2} />}
           value={settings.sampleIntervalMs}
           min={250}
           max={3000}
@@ -119,7 +107,11 @@ export default function PerformanceSettingsScreen() {
       <NativeSettingsSection title="实时指标">
         <NativeSettingsItem
           title={<SettingsTitle>Native 指标</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary={nativeStatusDetail} lines={2} />}
+          subtitle={
+            nativeStatusDetail ? (
+              <SettingsSubtitle primary={nativeStatusDetail} lines={2} />
+            ) : undefined
+          }
           value={nativeStatus}
         />
         <NativeSettingsItem
@@ -163,7 +155,7 @@ export default function PerformanceSettingsScreen() {
         />
         <NativeSettingsItem
           title={<SettingsTitle>刷新率</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary="当前刷新率 / 设备最大刷新率" />}
+          subtitle={<SettingsSubtitle primary="当前刷新率 / 设备最高刷新率" />}
           trailing={
             <SettingsValue
               label={`${formatHz(latestSample?.deviceCurrentRefreshRate)} / ${formatHz(
@@ -192,19 +184,17 @@ export default function PerformanceSettingsScreen() {
               导出 JSON
             </SettingsActionTitle>
           }
-          subtitle={
-            <SettingsSubtitle primary="分享当前保存的采样、路由、网络和 Query trace。" lines={2} />
-          }
-          onPress={hasDiagnosticLogs ? handleExport : undefined}
+          onPress={handleExport}
+          disabled={!hasDiagnosticLogs}
         />
         <NativeSettingsItem
           title={<SettingsActionTitle>清空诊断记录</SettingsActionTitle>}
-          subtitle={<SettingsSubtitle primary="清除当前内存记录和已保存的性能日志。" lines={2} />}
+          subtitle={<SettingsSubtitle primary="清除内存记录和已保存的诊断日志。" />}
           onPress={handleClearDiagnostics}
         />
         <NativeSettingsItem
-          title={<SettingsActionTitle tone="muted">隐藏诊断入口</SettingsActionTitle>}
-          subtitle={<SettingsSubtitle primary="关闭采样并从设置页移除性能分析入口。" lines={2} />}
+          title={<SettingsActionTitle tone="accent">隐藏诊断入口</SettingsActionTitle>}
+          subtitle={<SettingsSubtitle primary="同时关闭性能分析和浮层。" />}
           onPress={handleHideDiagnostics}
         />
       </NativeSettingsSection>

@@ -24,12 +24,13 @@ import {
   clearSubtitleFontCache,
   SUBTITLE_FONT_CACHE_PATH,
 } from '@/services/media/subtitleFontCache';
-import { Column, RNHostView } from '@expo/ui';
+import { Column, Text as NativeText, RNHostView } from '@expo/ui';
+import { font } from '@expo/ui/swift-ui/modifiers';
 import { useQueryClient } from '@tanstack/react-query';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Alert, Platform, View } from 'react-native';
 
 type FileCacheKey = 'video' | 'image' | 'subtitle' | 'download' | 'temporary';
 type ClearTarget = FileCacheKey | 'media' | 'diagnostics' | 'all';
@@ -244,7 +245,14 @@ export default function CacheSettingsScreen() {
   );
 
   const clearingLabel = useCallback(
-    (target: ClearTarget) => (clearingTarget === target ? '清理中' : '清理'),
+    (target: ClearTarget) =>
+      target === 'download'
+        ? clearingTarget === target
+          ? '删除中'
+          : '删除'
+        : clearingTarget === target
+          ? '清理中'
+          : '清理',
     [clearingTarget],
   );
 
@@ -253,48 +261,61 @@ export default function CacheSettingsScreen() {
       <OuterTitle>存储管理</OuterTitle>
       <NativeSettingsForm testID="cache-settings-form">
         <NativeSettingsSection title="本机空间">
-          <Column style={{ height: 150 }}>
-            <RNHostView>
-              <View style={{ padding: 8, gap: 14, width: '100%' }}>
-                <Text style={{ fontSize: 36, fontWeight: '600', color: theme.colors.text }}>
-                  {measuring ? '计算中…' : formatStorageBytes(totalBytes)}
-                </Text>
-                <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>
-                  已统计的本地文件与缓存
-                </Text>
+          <Column spacing={14} style={{ padding: 8 }}>
+            <NativeText
+              textStyle={{ fontSize: 36, fontWeight: '600', color: theme.colors.text }}
+              modifiers={
+                Platform.OS === 'ios'
+                  ? [font({ textStyle: 'largeTitle', weight: 'semibold' })]
+                  : undefined
+              }
+            >
+              {measuring ? '计算中…' : formatStorageBytes(totalBytes)}
+            </NativeText>
+            <NativeText
+              textStyle={{ color: theme.colors.textSecondary, fontSize: 14 }}
+              modifiers={Platform.OS === 'ios' ? [font({ textStyle: 'footnote' })] : undefined}
+            >
+              已统计的本地文件与缓存
+            </NativeText>
+            <RNHostView matchContents={{ vertical: true }}>
+              <View
+                accessible={false}
+                style={{
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: theme.colors.surfaceMuted,
+                  flexDirection: 'row',
+                  overflow: 'hidden',
+                }}
+              >
                 <View
                   style={{
-                    height: 6,
-                    borderRadius: 3,
-                    backgroundColor: theme.colors.surfaceMuted,
-                    flexDirection: 'row',
-                    overflow: 'hidden',
+                    flex: Math.max(totalBytes - fileCacheSizes.download, 0),
+                    backgroundColor: theme.colors.tint,
                   }}
-                >
-                  <View
-                    style={{
-                      flex: Math.max(totalBytes - fileCacheSizes.download, 0),
-                      backgroundColor: theme.colors.tint,
-                    }}
-                  />
-                  <View
-                    style={{
-                      flex: fileCacheSizes.download,
-                      backgroundColor: theme.colors.textSecondary,
-                    }}
-                  />
-                </View>
-                <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>
-                  临时数据 {formatStorageBytes(totalBytes - fileCacheSizes.download)} · 本地下载{' '}
-                  {formatStorageBytes(fileCacheSizes.download)}
-                </Text>
+                />
+                <View
+                  style={{
+                    flex: fileCacheSizes.download,
+                    backgroundColor: theme.colors.textSecondary,
+                  }}
+                />
               </View>
             </RNHostView>
+            <NativeText
+              textStyle={{ fontSize: 12, color: theme.colors.textSecondary }}
+              modifiers={Platform.OS === 'ios' ? [font({ textStyle: 'footnote' })] : undefined}
+            >
+              {`临时数据 ${formatStorageBytes(totalBytes - fileCacheSizes.download)} · 本地下载 ${formatStorageBytes(fileCacheSizes.download)}`}
+            </NativeText>
           </Column>
         </NativeSettingsSection>
         <NativeSettingsSection title="临时数据">
           <NativeSettingsItem
             testID="cache-row-video"
+            disabled={!!clearingTarget}
+            busy={clearingTarget === 'video'}
             title={<SettingsTitle>视频缓存</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.video)} />}
             trailing={<SettingsValue label={clearingLabel('video')} tone="danger" />}
@@ -302,6 +323,8 @@ export default function CacheSettingsScreen() {
           />
           <NativeSettingsItem
             testID="cache-row-image"
+            disabled={!!clearingTarget}
+            busy={clearingTarget === 'image'}
             title={<SettingsTitle>图片缓存</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.image)} />}
             trailing={<SettingsValue label={clearingLabel('image')} tone="danger" />}
@@ -309,6 +332,8 @@ export default function CacheSettingsScreen() {
           />
           <NativeSettingsItem
             testID="cache-row-subtitle"
+            disabled={!!clearingTarget}
+            busy={clearingTarget === 'subtitle'}
             title={<SettingsTitle>字幕与字体缓存</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.subtitle)} />}
             trailing={<SettingsValue label={clearingLabel('subtitle')} tone="danger" />}
@@ -316,6 +341,8 @@ export default function CacheSettingsScreen() {
           />
           <NativeSettingsItem
             testID="cache-row-temporary"
+            disabled={!!clearingTarget}
+            busy={clearingTarget === 'temporary'}
             title={<SettingsTitle>临时缓存</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.temporary)} />}
             trailing={<SettingsValue label={clearingLabel('temporary')} tone="danger" />}
@@ -328,6 +355,8 @@ export default function CacheSettingsScreen() {
         <NativeSettingsSection title="本地内容">
           <NativeSettingsItem
             testID="cache-row-download"
+            disabled={!!clearingTarget}
+            busy={clearingTarget === 'download'}
             title={<SettingsTitle>本地下载文件</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.download)} />}
             trailing={<SettingsValue label={clearingLabel('download')} tone="danger" />}
@@ -351,12 +380,13 @@ export default function CacheSettingsScreen() {
         <NativeSettingsSection title="应用数据">
           <NativeSettingsItem
             testID="cache-row-media"
+            disabled={!!clearingTarget}
+            busy={clearingTarget === 'media'}
             title={<SettingsTitle>媒体库缓存</SettingsTitle>}
             subtitle={
               <SettingsSubtitle
                 primary={formatStorageBytes(queryCacheBytes)}
-                secondary="清理后，媒体库页面会重新从服务器加载数据。"
-                lines={1}
+                secondary="清理后将从服务器重新加载媒体库。"
               />
             }
             trailing={<SettingsValue label={clearingLabel('media')} tone="danger" />}
@@ -364,6 +394,8 @@ export default function CacheSettingsScreen() {
           />
           <NativeSettingsItem
             testID="cache-row-diagnostics"
+            disabled={!!clearingTarget}
+            busy={clearingTarget === 'diagnostics'}
             title={<SettingsTitle>诊断日志</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={formatStorageBytes(diagnosticBytes)} />}
             trailing={<SettingsValue label={clearingLabel('diagnostics')} tone="danger" />}
@@ -373,7 +405,7 @@ export default function CacheSettingsScreen() {
 
         <NativeSettingsSection title="总览与清理">
           <NativeSettingsItem
-            title={<SettingsTitle>缓存大小</SettingsTitle>}
+            title={<SettingsTitle>本地数据总量</SettingsTitle>}
             trailing={
               <SettingsValue
                 label={measuring ? '计算中' : formatStorageBytes(totalBytes)}
@@ -382,6 +414,8 @@ export default function CacheSettingsScreen() {
             }
           />
           <NativeSettingsItem
+            disabled={!!clearingTarget}
+            busy={clearingTarget === 'all'}
             title={
               <SettingsActionTitle>
                 {clearingTarget === 'all' ? '清理中' : '清理临时缓存'}

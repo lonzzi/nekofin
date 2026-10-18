@@ -1,5 +1,10 @@
 import { NativeServerForm } from '@/components/servers/NativeServerForm';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import {
+  assertSameServerAccount,
+  isSameMediaServer,
+  ServerAccountError,
+} from '@/lib/serverAccounts';
 import { buildConnectionAddress } from '@/lib/serverConnection';
 import { connectToMediaServer } from '@/lib/serverConnections';
 import { getMediaAdapter } from '@/services/media';
@@ -9,18 +14,20 @@ import { Keyboard } from 'react-native';
 
 interface Props {
   existingServer?: MediaServerInfo;
+  accountServer?: MediaServerInfo;
   serverType: MediaServerType;
   onSuccess?: () => void;
 }
 
-export function AddServerForm({ serverType, existingServer, onSuccess }: Props) {
+export function AddServerForm({ serverType, existingServer, accountServer, onSuccess }: Props) {
   const { addServer, updateServer } = useMediaServers();
-  const type = existingServer?.type ?? serverType;
+  const source = existingServer ?? accountServer;
+  const type = source?.type ?? serverType;
   const [values, setValues] = useState({
-    address: existingServer?.address ?? '',
+    address: source?.address ?? '',
     username: existingServer?.username ?? '',
     password: '',
-    name: existingServer?.name ?? '',
+    name: source?.name ?? '',
     note: existingServer?.note ?? '',
   });
   const [connection, setConnection] = useState<{
@@ -28,7 +35,16 @@ export function AddServerForm({ serverType, existingServer, onSuccess }: Props) 
     id: string;
     name: string;
     version: string;
-  } | null>(null);
+  } | null>(
+    accountServer
+      ? {
+          address: accountServer.address,
+          id: accountServer.remoteServerId ?? '',
+          name: accountServer.name,
+          version: '',
+        }
+      : null,
+  );
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const mounted = useRef(true);
@@ -61,6 +77,19 @@ export function AddServerForm({ serverType, existingServer, onSuccess }: Props) 
         setConnection(info);
         setValues((previous) => ({ ...previous, address: info.address }));
       } else {
+        // Recheck server identity before sending credentials from an account shortcut.
+        if (accountServer) {
+          const info = await connectToMediaServer(connection.address, type);
+          if (!mounted.current) return;
+          if (
+            !isSameMediaServer(accountServer, {
+              type,
+              address: info.address,
+              remoteServerId: info.id,
+            })
+          )
+            throw new ServerAccountError('服务器身份已变化，请返回后重新添加服务器。');
+        }
         const params = {
           address: connection.address,
           username: values.username.trim(),
@@ -73,8 +102,17 @@ export function AddServerForm({ serverType, existingServer, onSuccess }: Props) 
           ...params,
           addServer: async (authenticated) => {
             if (!mounted.current) return;
-            if (existingServer) await updateServer(existingServer.id, authenticated);
-            else await addServer(authenticated);
+            if (existingServer) {
+              assertSameServerAccount(existingServer, authenticated);
+              await updateServer(existingServer.id, authenticated);
+            } else {
+              if (accountServer && !isSameMediaServer(accountServer, authenticated))
+                throw new ServerAccountError('登录结果来自其他服务器，请重新添加服务器。');
+              await addServer({
+                ...authenticated,
+                ...(accountServer ? { connections: accountServer.connections } : {}),
+              });
+            }
           },
         });
         if (mounted.current) {
@@ -86,7 +124,9 @@ export function AddServerForm({ serverType, existingServer, onSuccess }: Props) 
       if (mounted.current)
         setError(
           connection
-            ? '登录失败，请检查用户名、密码和网络后重试。'
+            ? error instanceof ServerAccountError
+              ? error.message
+              : '登录失败，请检查用户名、密码和网络后重试。'
             : error instanceof Error
               ? error.message
               : '连接失败，请检查服务器地址和网络。',
@@ -109,12 +149,16 @@ export function AddServerForm({ serverType, existingServer, onSuccess }: Props) 
       busy={busy}
       error={error}
       onSubmit={() => void submit()}
-      onChangeServer={() => {
-        if (busyRef.current) return;
-        setConnection(null);
-        setError('');
-        setValues((previous) => ({ ...previous, password: '' }));
-      }}
+      onChangeServer={
+        accountServer
+          ? undefined
+          : () => {
+              if (busyRef.current) return;
+              setConnection(null);
+              setError('');
+              setValues((previous) => ({ ...previous, password: '' }));
+            }
+      }
     />
   );
 }
