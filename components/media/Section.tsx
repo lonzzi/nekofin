@@ -1,17 +1,10 @@
 import { getHomeRailListConfig } from '@/components/home/homePerformanceConfig';
+import { useContentDimensions } from '@/hooks/useContentDimensions';
 import { useAppTheme } from '@/lib/theme';
 import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useCallback, useMemo } from 'react';
-import {
-  FlatList,
-  ListRenderItem,
-  Pressable,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { FlatList, ListRenderItem, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SafeGlassContainer } from '../ui/GlassCard';
 import { SkeletonCard, SkeletonSectionHeader } from '../ui/Skeleton';
@@ -36,7 +29,7 @@ export const Section = React.memo(function Section({
   showServerSource?: boolean;
 }) {
   const theme = useAppTheme();
-  const { width: viewportWidth } = useWindowDimensions();
+  const { width: viewportWidth } = useContentDimensions();
   const listPerformanceConfig = useMemo(
     () =>
       getHomeRailListConfig({

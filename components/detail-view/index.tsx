@@ -10,6 +10,7 @@ import {
   DETAIL_MORE_MENU_ICONS,
   getNativeToolbarIcon,
 } from '@/components/navigation/nativeToolbarIcons';
+import { useContentDimensions, useLargeContentLayout } from '@/hooks/useContentDimensions';
 import { DetailBundle, useDetailBundle } from '@/hooks/useDetailBundle';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import useRefresh from '@/hooks/useRefresh';
@@ -22,7 +23,7 @@ import { useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query'
 import { LinearGradient } from 'expo-linear-gradient';
 import { openBrowserAsync } from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Platform, Share, Text, useWindowDimensions, View } from 'react-native';
+import { Alert, Platform, Share, Text, View } from 'react-native';
 
 import { ItemImage } from '../ItemImage';
 import { SafeAreaRefreshControl } from '../ui/SafeAreaRefreshControl';
@@ -61,13 +62,13 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   );
   const { data: bundle, isLoading, isError, refetch } = query;
 
-  const window = useWindowDimensions();
-  const tablet = Platform.OS === 'ios' && Platform.isPad;
-  const [viewport, setViewport] = useState({ width: window.width, height: window.height });
-  const windowWidth = tablet ? viewport.width : window.width;
+  const window = useContentDimensions();
+  const tablet = useLargeContentLayout();
+  const [viewportHeight, setViewportHeight] = useState(window.height);
+  const windowWidth = window.width;
   const phoneHeaderHeight = useMediaHeroHeight();
   const headerHeight = tablet
-    ? Math.round(Math.max(260, Math.min(viewport.width * 0.5625, viewport.height * 0.52)))
+    ? Math.round(Math.max(260, Math.min(window.width * 0.5625, viewportHeight * 0.52)))
     : phoneHeaderHeight;
   const detailLogoWidth = Math.min(windowWidth * 0.72, 300);
 
@@ -262,6 +263,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
         style={detailViewStyles.headerMedia}
         placeholderBlurhash={headerImageInfo?.blurhash}
         contentFit="cover"
+        allowDownscaling={!(Platform.OS === 'android' && tablet)}
       />
       {!!logoImageUrl && (
         <LinearGradient
@@ -322,7 +324,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     <View style={{ flex: 1 }}>
       {toolbar}
       <HomeAtmosphereScrollView
-        onLayout={({ nativeEvent }) => setViewport(nativeEvent.layout)}
+        onLayout={({ nativeEvent }) => setViewportHeight(nativeEvent.layout.height)}
         backgroundColor={backgroundColor}
         contentStyle={atmosphereContentStyle}
         headerHeight={headerHeight}

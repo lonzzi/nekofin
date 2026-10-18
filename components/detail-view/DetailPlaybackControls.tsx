@@ -1,3 +1,4 @@
+import { MenuView, type MenuComponentRef } from '@/components/ui/MenuView';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { usePlaybackPreferences } from '@/hooks/usePlaybackPreferences';
 import { useSubtitlePrefetch } from '@/hooks/useSubtitlePrefetch';
@@ -10,7 +11,6 @@ import {
 import { mediaSourcesQueryOptions } from '@/services/media/queryOptions';
 import type { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { MenuView, type MenuComponentRef } from '@react-native-menu/menu';
 import { useQuery } from '@tanstack/react-query';
 import { isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
 import {

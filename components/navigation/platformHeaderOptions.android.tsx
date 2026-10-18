@@ -1,5 +1,11 @@
+import {
+  NAVIGATION_CONTROL_GAP,
+  NAVIGATION_CONTROL_SIZE,
+  NAVIGATION_ICON_SIZE,
+} from '@/lib/navigationMetrics';
 import { useAppTheme } from '@/lib/theme';
-import { Host, Icon } from '@expo/ui/jetpack-compose';
+import { Box, Host, Icon } from '@expo/ui/jetpack-compose';
+import { size } from '@expo/ui/jetpack-compose/modifiers';
 import { useRouter } from 'expo-router';
 
 import { HeaderIconButton } from './HeaderIconButton.android';
@@ -9,15 +15,29 @@ function HeaderBackButton() {
   const theme = useAppTheme();
   const router = useRouter();
   return (
-    <Host style={{ width: 48, height: 48 }} colorScheme={theme.colorScheme} matchContents>
-      <HeaderIconButton onClick={() => router.back()}>
-        <Icon
-          source={require('../../assets/drawables/chevron_left.png')}
-          size={24}
-          tint={theme.colors.text}
-          contentDescription="返回"
-        />
-      </HeaderIconButton>
+    <Host
+      style={{
+        width: NAVIGATION_CONTROL_SIZE + NAVIGATION_CONTROL_GAP,
+        height: NAVIGATION_CONTROL_SIZE,
+      }}
+      colorScheme={theme.colorScheme}
+      matchContents
+    >
+      <Box
+        contentAlignment="centerStart"
+        modifiers={[
+          size(NAVIGATION_CONTROL_SIZE + NAVIGATION_CONTROL_GAP, NAVIGATION_CONTROL_SIZE),
+        ]}
+      >
+        <HeaderIconButton onClick={() => router.back()}>
+          <Icon
+            source={require('../../assets/drawables/chevron_left.png')}
+            size={NAVIGATION_ICON_SIZE}
+            tint={theme.colors.text}
+            contentDescription="返回"
+          />
+        </HeaderIconButton>
+      </Box>
     </Host>
   );
 }

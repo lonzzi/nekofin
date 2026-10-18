@@ -14,6 +14,7 @@ export default function HomeLayout() {
         name="index"
         options={{
           title: '',
+          headerTitle: '',
           headerLargeTitle: false,
           headerTransparent: true,
           headerStyle: { backgroundColor: 'transparent' },

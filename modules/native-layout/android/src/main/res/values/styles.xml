@@ -1,0 +1,14 @@
+<resources>
+  <style name="ThemeOverlay.NativeLayout.Sidebar" parent="">
+    <item name="navigationViewStyle">@style/Widget.NativeLayout.Sidebar</item>
+    <item name="selectableItemBackground">@null</item>
+  </style>
+  <style name="Widget.NativeLayout.Sidebar" parent="Widget.Material3.NavigationView">
+    <item name="materialThemeOverlay">@style/ThemeOverlay.NativeLayout.SidebarContent</item>
+    <!-- The row background supplies a ripple with the same mask as selection. -->
+    <item name="itemRippleColor">@null</item>
+  </style>
+  <style name="ThemeOverlay.NativeLayout.SidebarContent" parent="ThemeOverlay.Material3.NavigationView">
+    <item name="android:listDivider">@android:color/transparent</item>
+  </style>
+</resources>

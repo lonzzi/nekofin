@@ -6,6 +6,7 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { SkeletonMediaHero } from '@/components/ui/Skeleton';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
+import { useContentDimensions, useLargeContentLayout } from '@/hooks/useContentDimensions';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useAppTheme } from '@/lib/theme';
@@ -17,7 +18,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
@@ -27,11 +28,14 @@ import Animated, {
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
+import { scheduleOnRN, scheduleOnUI } from 'react-native-worklets';
 
 import {
   CAROUSEL_FADE_MS,
+  getCarouselDragOffset,
   getCarouselPresentation,
+  getCarouselSnapDuration,
+  getCarouselSnapTarget,
   getMountedCarouselIndexes,
 } from './carouselMotion';
 
@@ -57,8 +61,6 @@ type CarouselImageInfo = {
   serverName?: string;
 };
 
-type RevealDirection = -1 | 1;
-
 function getCarouselItemKey(item: MediaItem, index: number) {
   return item.id ?? `${item.type}-${item.seriesId ?? index}`;
 }
@@ -68,6 +70,7 @@ function getCarouselItemTitle(item: MediaItem) {
 }
 
 function getRelativeIndex(index: number, direction: number, itemCount: number) {
+  'worklet';
   if (itemCount <= 0) return 0;
   return (index + direction + itemCount) % itemCount;
 }
@@ -79,6 +82,7 @@ type CarouselImageLayerProps = {
 
 function CarouselImageLayer({ imageInfo, onImageReady }: CarouselImageLayerProps) {
   const theme = useAppTheme();
+  const large = useLargeContentLayout();
   const mediaBackgroundColor = theme.isDark ? theme.colors.background : '#141416';
   const imageUrl = imageInfo?.imageUrl;
 
@@ -89,6 +93,7 @@ function CarouselImageLayer({ imageInfo, onImageReady }: CarouselImageLayerProps
         style={[styles.carouselImage, { backgroundColor: mediaBackgroundColor }]}
         contentFit="cover"
         contentPosition="center"
+        allowDownscaling={!(Platform.OS === 'android' && large)}
         cachePolicy="memory-disk"
         priority="high"
         placeholderBlurhash={imageInfo.blurhash}
@@ -350,7 +355,6 @@ function CarouselGradientScrim() {
 
 export function useCarouselHeaderLayers({
   items,
-  height,
   width,
   isFocused,
   isLoading = false,
@@ -373,13 +377,16 @@ export function useCarouselHeaderLayers({
   const currentAdapter = useMediaAdapter();
   const { currentServer, setCurrentServer } = useMediaServers();
   const theme = useAppTheme();
-  const { width: viewportWidth } = useWindowDimensions();
+  const { width: viewportWidth } = useContentDimensions();
   const dragX = useSharedValue(0);
+  const dragStartX = useSharedValue(0);
+  const panActive = useSharedValue(false);
   const autoProgress = useSharedValue(0);
   const autoTargetValue = useSharedValue(-1);
   const activeIndexValue = useSharedValue(0);
   const tapStartIndexValue = useSharedValue(0);
   const isGestureAnimating = useSharedValue(false);
+  const itemCount = items.length;
   const hasImages = items.length > 0;
   // Gestures/preload stay structurally mounted regardless of focus (gated only by
   // `canReveal`) so returning to Home doesn't rebuild the carousel subtree on the
@@ -509,39 +516,17 @@ export function useCarouselHeaderLayers({
     setReadyImageUrls(next);
   }, []);
 
-  const completeReveal = useCallback(
-    (direction: RevealDirection) => {
-      if (!items.length) return;
-      const nextIndex = getRelativeIndex(currentIndexRef.current, direction, items.length);
-      currentIndexRef.current = nextIndex;
-      activeIndexValue.value = nextIndex;
-      setCarouselIndex(nextIndex);
-      setAutoTargetIndex(null);
-      autoTargetValue.value = -1;
-      autoProgress.value = 0;
-      dragX.value = 0;
-      isGestureAnimating.value = false;
-    },
-    [activeIndexValue, autoProgress, autoTargetValue, dragX, isGestureAnimating, items.length],
-  );
-
-  const completeAutoAdvance = useCallback(
-    (nextIndex: number) => {
-      currentIndexRef.current = nextIndex;
-      activeIndexValue.value = nextIndex;
-      setCarouselIndex(nextIndex);
-      setAutoTargetIndex(null);
-      autoTargetValue.value = -1;
-      autoProgress.value = 0;
-      dragX.value = 0;
-    },
-    [activeIndexValue, autoProgress, autoTargetValue, dragX],
-  );
+  // UI worklets commit the visual state atomically. A delayed React update must
+  // never reset the offset or index of a newer gesture.
+  const syncCarouselIndex = useCallback((nextIndex: number) => {
+    currentIndexRef.current = nextIndex;
+    setCarouselIndex(nextIndex);
+    setAutoTargetIndex(null);
+  }, []);
 
   const clearAutoTarget = useCallback(() => {
     setAutoTargetIndex(null);
-    autoTargetValue.value = -1;
-  }, [autoTargetValue]);
+  }, []);
 
   const startAutoAdvance = useCallback(() => {
     if (!isFocused || !canReveal || !items.length) return;
@@ -570,7 +555,13 @@ export function useCarouselHeaderLayers({
       return;
     }
 
-    if (autoTargetIndex != null || Math.abs(dragX.value) > 1 || autoProgress.value > 0) return;
+    if (
+      isGestureAnimating.value ||
+      autoTargetIndex != null ||
+      Math.abs(dragX.value) > 1 ||
+      autoProgress.value > 0
+    )
+      return;
 
     setAutoTargetIndex(pendingAutoAdvance.targetIndex);
     setPendingAutoAdvance(null);
@@ -580,6 +571,7 @@ export function useCarouselHeaderLayers({
     carouselImageInfos,
     dragX,
     isFocused,
+    isGestureAnimating,
     pendingAutoAdvance,
     readyImageUrls,
   ]);
@@ -587,25 +579,37 @@ export function useCarouselHeaderLayers({
   useEffect(() => {
     if (autoTargetIndex == null) return;
 
-    cancelAnimation(autoProgress);
-    cancelAnimation(dragX);
-    autoProgress.value = 0;
-    dragX.value = 0;
-    autoTargetValue.value = autoTargetIndex;
-    autoProgress.value = withTiming(
-      1,
-      { duration: CAROUSEL_FADE_MS, easing: Easing.inOut(Easing.cubic) },
-      (finished) => {
-        if (finished) {
-          scheduleOnRN(completeAutoAdvance, autoTargetIndex);
-        }
-      },
-    );
+    scheduleOnUI(() => {
+      'worklet';
+      // Image readiness can reach React just as a drag begins.
+      if (isGestureAnimating.value) return;
+      cancelAnimation(autoProgress);
+      autoProgress.value = 0;
+      autoTargetValue.value = autoTargetIndex;
+      autoProgress.value = withTiming(
+        1,
+        { duration: CAROUSEL_FADE_MS, easing: Easing.inOut(Easing.cubic) },
+        (finished) => {
+          if (!finished) return;
+          activeIndexValue.value = autoTargetIndex;
+          autoTargetValue.value = -1;
+          autoProgress.value = 0;
+          scheduleOnRN(syncCarouselIndex, autoTargetIndex);
+        },
+      );
+    });
 
     return () => {
       cancelAnimation(autoProgress);
     };
-  }, [autoProgress, autoTargetIndex, autoTargetValue, completeAutoAdvance, dragX]);
+  }, [
+    activeIndexValue,
+    autoProgress,
+    autoTargetIndex,
+    autoTargetValue,
+    isGestureAnimating,
+    syncCarouselIndex,
+  ]);
 
   useEffect(() => {
     if (isFocused) return;
@@ -620,80 +624,74 @@ export function useCarouselHeaderLayers({
     setPendingAutoAdvance(null);
   }, [autoProgress, autoTargetValue, dragX, isFocused, isGestureAnimating]);
 
-  const panGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .enabled(canReveal)
-        .activeOffsetX([-12, 12])
-        .failOffsetY([-18, 18])
-        .onStart(() => {
-          isGestureAnimating.value = true;
-          cancelAnimation(autoProgress);
-          autoProgress.value = 0;
-          scheduleOnRN(clearAutoTarget);
-          scheduleOnRN(setPendingAutoAdvance, null);
-          cancelAnimation(dragX);
-        })
-        .onUpdate((event) => {
-          const nextTranslation = Math.max(-cardWidth, Math.min(cardWidth, event.translationX));
-          dragX.value = nextTranslation;
-        })
-        .onEnd((event) => {
-          const threshold = cardWidth * 0.22;
-          const wantsNext = dragX.value < -threshold || event.velocityX < -650;
-          const wantsPrevious = dragX.value > threshold || event.velocityX > 650;
+  const panGesture = useMemo(() => {
+    const settle = (target: number) => {
+      'worklet';
+      const nextIndex = getRelativeIndex(
+        activeIndexValue.value,
+        target === 0 ? 0 : target < 0 ? 1 : -1,
+        itemCount,
+      );
+      const finish = () => {
+        'worklet';
+        activeIndexValue.value = nextIndex;
+        dragX.value = 0;
+        isGestureAnimating.value = false;
+        if (target !== 0) scheduleOnRN(syncCarouselIndex, nextIndex);
+      };
+      const duration = getCarouselSnapDuration(dragX.value, target, cardWidth);
+      // Repeated swipes can already reveal the entire destination. Commit now
+      // instead of starting another cancellable 240 ms animation at its endpoint.
+      if (duration === 0) {
+        finish();
+        return;
+      }
+      dragX.value = withTiming(target, { duration }, (finished) => {
+        if (finished) finish();
+      });
+    };
 
-          if (wantsNext) {
-            dragX.value = withTiming(
-              -cardWidth,
-              { duration: CAROUSEL_GESTURE_SETTLE_MS },
-              (finished) => {
-                if (finished) {
-                  scheduleOnRN(completeReveal, 1);
-                }
-              },
-            );
-            return;
-          }
-
-          if (wantsPrevious) {
-            dragX.value = withTiming(
-              cardWidth,
-              { duration: CAROUSEL_GESTURE_SETTLE_MS },
-              (finished) => {
-                if (finished) {
-                  scheduleOnRN(completeReveal, -1);
-                }
-              },
-            );
-            return;
-          }
-
-          dragX.value = withTiming(0, { duration: CAROUSEL_CANCEL_SETTLE_MS }, (finished) => {
-            if (finished) {
-              isGestureAnimating.value = false;
-            }
-          });
-        })
-        .onFinalize((_event, success) => {
-          if (!success) {
-            dragX.value = withTiming(0, { duration: CAROUSEL_CANCEL_SETTLE_MS }, (finished) => {
-              if (finished) {
-                isGestureAnimating.value = false;
-              }
-            });
-          }
-        }),
-    [
-      autoProgress,
-      canReveal,
-      cardWidth,
-      clearAutoTarget,
-      completeReveal,
-      dragX,
-      isGestureAnimating,
-    ],
-  );
+    return Gesture.Pan()
+      .enabled(canReveal)
+      .activeOffsetX([-12, 12])
+      .failOffsetY([-18, 18])
+      .onStart(() => {
+        panActive.value = true;
+        isGestureAnimating.value = true;
+        cancelAnimation(autoProgress);
+        autoProgress.value = 0;
+        autoTargetValue.value = -1;
+        scheduleOnRN(clearAutoTarget);
+        scheduleOnRN(setPendingAutoAdvance, null);
+        cancelAnimation(dragX);
+        dragStartX.value = dragX.value;
+      })
+      .onUpdate((event) => {
+        dragX.value = getCarouselDragOffset(dragStartX.value, event.translationX, cardWidth);
+      })
+      .onEnd((event) => {
+        // A quick flick may end before its last move is delivered as onUpdate.
+        dragX.value = getCarouselDragOffset(dragStartX.value, event.translationX, cardWidth);
+        settle(getCarouselSnapTarget(dragX.value, event.velocityX, cardWidth));
+      })
+      .onFinalize((_event, success) => {
+        if (!success && panActive.value) settle(0);
+        panActive.value = false;
+      });
+  }, [
+    activeIndexValue,
+    autoProgress,
+    autoTargetValue,
+    canReveal,
+    cardWidth,
+    clearAutoTarget,
+    dragStartX,
+    dragX,
+    isGestureAnimating,
+    itemCount,
+    panActive,
+    syncCarouselIndex,
+  ]);
 
   const tapGesture = useMemo(
     () =>
@@ -701,18 +699,23 @@ export function useCarouselHeaderLayers({
         .maxDistance(10)
         .onBegin(() => {
           tapStartIndexValue.value = activeIndexValue.value;
-          cancelAnimation(autoProgress);
-          autoProgress.value = 0;
-          scheduleOnRN(clearAutoTarget);
         })
         .onEnd((_event, success) => {
           if (success) {
+            // A native toolbar or Drawer can cancel this touch after onBegin.
+            // Only a recognized carousel tap should interrupt its automatic fade.
+            cancelAnimation(autoProgress);
+            autoProgress.value = 0;
+            autoTargetValue.value = -1;
+            scheduleOnRN(clearAutoTarget);
+            scheduleOnRN(setPendingAutoAdvance, null);
             scheduleOnRN(handleCarouselItemPressAtIndex, tapStartIndexValue.value);
           }
         }),
     [
       activeIndexValue,
       autoProgress,
+      autoTargetValue,
       clearAutoTarget,
       handleCarouselItemPressAtIndex,
       tapStartIndexValue,
@@ -738,10 +741,6 @@ export function useCarouselHeaderLayers({
     setPendingAutoAdvance(null);
     setCarouselIndex(0);
   }, [activeIndexValue, autoProgress, autoTargetValue, dragX, isGestureAnimating, itemIdentity]);
-
-  useEffect(() => {
-    activeIndexValue.value = carouselIndex;
-  }, [activeIndexValue, carouselIndex]);
 
   useEffect(() => {
     if (!isFocused || !canReveal) return;
@@ -809,7 +808,7 @@ export function useCarouselHeaderLayers({
   const showSkeleton = isLoading && !hasImages;
 
   const headerImage = (
-    <View style={[styles.container, { height }]}>
+    <View style={[styles.container, { height: '100%' }]}>
       {showSkeleton && <SkeletonMediaHero />}
       {!showSkeleton && !hasImages && (
         <View style={[StyleSheet.absoluteFill, styles.carouselPlaceholder]}>
@@ -849,7 +848,7 @@ export function useCarouselHeaderLayers({
 
   const headerOverlay =
     !showSkeleton && hasImages ? (
-      <View pointerEvents="none" style={[styles.container, { height }]}>
+      <View pointerEvents="none" style={[styles.container, { height: '100%' }]}>
         {mountedIndexes.map((index) => (
           <CarouselTextSlide
             key={slideKey(index)}
@@ -887,8 +886,6 @@ export function CarouselHeader(props: CarouselHeaderProps) {
 }
 
 const CAROUSEL_AUTO_INTERVAL_MS = 10 * 1000;
-const CAROUSEL_GESTURE_SETTLE_MS = 240;
-const CAROUSEL_CANCEL_SETTLE_MS = 180;
 const CAROUSEL_OVERLAY_LEFT_INSET = 24;
 const CAROUSEL_OVERLAY_RIGHT_INSET = 20;
 

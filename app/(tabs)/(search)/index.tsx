@@ -5,6 +5,7 @@ import {
   getSeriesCardRoute,
 } from '@/components/media/cardHelpers';
 import { useFloatingTabBarInset } from '@/components/navigation/FloatingTabBarInset';
+import { TabletChromeContext } from '@/components/navigation/TabletChromeContext';
 import { OuterScreenOptions } from '@/components/outer/OuterPrimitives';
 import { emptyListContentStyle, EmptyListViewport } from '@/components/ui/EmptyListViewport';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -19,8 +20,9 @@ import { mediaQueryKeys } from '@/services/media/queryKeys';
 import type { MediaItem, MediaServerInfo } from '@/services/media/types';
 import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
 import { queryOptions } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { Stack, useFocusEffect } from 'expo-router';
+import { useIsFocused } from 'expo-router/react-navigation';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -30,6 +32,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import type { SearchBarCommands } from 'react-native-screens';
 
 type AggregateSearchResult = {
   key: string;
@@ -98,6 +101,20 @@ function aggregateSearchQueryOptions({
 }
 
 function AggregateSearchScreen() {
+  const tabletChrome = useContext(TabletChromeContext);
+  const androidTablet = tabletChrome != null;
+  const focused = useIsFocused();
+  const searchBar = useRef<SearchBarCommands>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (!androidTablet) return;
+      const frame = requestAnimationFrame(() => searchBar.current?.focus());
+      return () => {
+        cancelAnimationFrame(frame);
+        searchBar.current?.blur();
+      };
+    }, [androidTablet]),
+  );
   const tabBarInset = useFloatingTabBarInset();
   const { activeServers: servers, setCurrentServer } = useMediaServers();
   const t = useAppTheme();
@@ -132,6 +149,8 @@ function AggregateSearchScreen() {
     <>
       <OuterScreenOptions title="搜索" />
       <Stack.SearchBar
+        ref={searchBar}
+        autoFocus={androidTablet && focused}
         placeholder="搜索所有服务器"
         hideWhenScrolling={false}
         cancelButtonText="取消"

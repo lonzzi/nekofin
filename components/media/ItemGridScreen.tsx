@@ -1,5 +1,6 @@
 import { EpisodeCard, SeriesCard } from '@/components/media/Card';
 import { useFloatingTabBarInset } from '@/components/navigation/FloatingTabBarInset';
+import { NativeListTitle } from '@/components/navigation/NativeListTitle';
 import { useGridLayout } from '@/hooks/useGridLayout';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { MediaFilters } from '@/hooks/useMediaFilters';
@@ -10,7 +11,6 @@ import { useAppTheme } from '@/lib/theme';
 import { availableFiltersQueryOptions } from '@/services/media/queryOptions';
 import { MediaItem, MediaItemType, MediaSortBy } from '@/services/media/types';
 import { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
@@ -383,7 +383,7 @@ export function ItemGridScreen({
   if ((query || dataState) && isLoading) {
     return (
       <>
-        <Stack.Title large>{title}</Stack.Title>
+        <NativeListTitle>{title}</NativeListTitle>
         <PageScrollView style={[styles.container, { backgroundColor }]}>
           <SkeletonItemGrid type={type} numColumns={numColumns} itemWidth={itemWidth} gap={gap} />
         </PageScrollView>
@@ -394,7 +394,7 @@ export function ItemGridScreen({
   if ((query || dataState) && isError) {
     return (
       <>
-        <Stack.Title large>{title}</Stack.Title>
+        <NativeListTitle>{title}</NativeListTitle>
         <View style={[styles.container, { backgroundColor, paddingTop: insets.top }]}>
           <View style={styles.errorContainer}>
             <Text
@@ -430,7 +430,7 @@ export function ItemGridScreen({
   if (layout === 'grid' && items.length > 0) {
     return (
       <>
-        <Stack.Title large>{title}</Stack.Title>
+        <NativeListTitle>{title}</NativeListTitle>
         <SectionList
           sections={gridSections}
           keyExtractor={(row) => keyExtractor(row[0], 0)}
@@ -473,8 +473,7 @@ export function ItemGridScreen({
             {
               paddingHorizontal: theme.spacing.page,
               paddingTop: theme.spacing.sm,
-              paddingBottom:
-                Platform.OS === 'android' ? tabBarInset || 100 + insets.bottom : theme.spacing.xl,
+              paddingBottom: Platform.OS === 'android' ? tabBarInset : theme.spacing.xl,
             },
           ]}
           ListHeaderComponent={renderFilterBar()}
@@ -488,7 +487,7 @@ export function ItemGridScreen({
   if (groupedItems.length === 1) {
     return (
       <>
-        <Stack.Title large>{title}</Stack.Title>
+        <NativeListTitle>{title}</NativeListTitle>
         <FlatList
           data={groupedItems[0].items}
           renderItem={renderItem}
@@ -504,7 +503,7 @@ export function ItemGridScreen({
           contentContainerStyle={[
             styles.scrollContent,
             {
-              paddingBottom: Platform.OS === 'android' ? tabBarInset || 100 : 0,
+              paddingBottom: Platform.OS === 'android' ? tabBarInset : 0,
               paddingHorizontal: theme.spacing.page,
               paddingTop: theme.spacing.sm,
               rowGap: theme.spacing.lg,
@@ -527,7 +526,7 @@ export function ItemGridScreen({
 
   return (
     <>
-      <Stack.Title large>{title}</Stack.Title>
+      <NativeListTitle>{title}</NativeListTitle>
       <ScrollView
         style={{ backgroundColor }}
         contentContainerStyle={[

@@ -1,15 +1,9 @@
 import { getHomeRailListConfig } from '@/components/home/homePerformanceConfig';
+import { useContentDimensions } from '@/hooks/useContentDimensions';
 import { useAppTheme } from '@/lib/theme';
 import { MediaItem } from '@/services/media/types';
 import React, { useCallback, useMemo } from 'react';
-import {
-  FlatList,
-  ListRenderItem,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { FlatList, ListRenderItem, StyleSheet, Text, View } from 'react-native';
 
 import { getSourcedMediaKey, type GetMediaItemSource } from '../media/mediaSource';
 import { SkeletonUserViewCard } from '../ui/Skeleton';
@@ -33,7 +27,7 @@ export const UserViewSection = React.memo(function UserViewSection({
   showServerSource?: boolean;
 }) {
   const theme = useAppTheme();
-  const { width: viewportWidth } = useWindowDimensions();
+  const { width: viewportWidth } = useContentDimensions();
   const userViewItems = userView || [];
   const listPerformanceConfig = useMemo(
     () =>

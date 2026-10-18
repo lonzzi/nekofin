@@ -13,6 +13,7 @@ import PageScrollView from '@/components/PageScrollView';
 import { HomeServerCard } from '@/components/servers/HomeServerCard';
 import { ServerTypePicker } from '@/components/servers/ServerTypePicker';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
+import { useContentDimensions } from '@/hooks/useContentDimensions';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { MEDIA_SERVER_TYPE_OPTIONS } from '@/lib/mediaServerTypes';
 import { groupServerAccounts } from '@/lib/serverAccounts';
@@ -20,15 +21,7 @@ import { useAppTheme } from '@/lib/theme';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import type { MediaServerInfo, MediaServerType } from '@/services/media/types';
 import { useIsFocused } from 'expo-router/react-navigation';
-import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, Platform, StyleSheet, Text, View } from 'react-native';
 
 function ServersScreen() {
   const theme = useAppTheme();
@@ -37,7 +30,7 @@ function ServersScreen() {
     useMediaServers();
   const accountGroups = groupServerAccounts(servers);
   const isFocused = useIsFocused();
-  const { width } = useWindowDimensions();
+  const { width } = useContentDimensions();
   const availableWidth = Math.max(Math.min(width, 840) - theme.spacing.page * 2, 0);
   const columns = Math.max(
     2,
