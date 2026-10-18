@@ -65,7 +65,7 @@ const normalizeTracks = (tracks: TrackInfo[] | undefined, fallbackLabel: string)
 const trackAction = (prefix: string, track: TrackInfo, selectedTrack?: TrackInfo): MenuAction => ({
   id: `${prefix}${track.index}`,
   state: selectedState(track.index === selectedTrack?.index),
-  subtitle: track.language?.toUpperCase(),
+  subtitle: track.failed ? '加载失败，点按重试' : track.language?.toUpperCase(),
   title: track.name,
 });
 

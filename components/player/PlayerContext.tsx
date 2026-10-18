@@ -13,6 +13,8 @@ export type TrackInfo = {
   name: string;
   index: number;
   language?: string;
+  loading?: boolean;
+  failed?: boolean;
 };
 
 export type VlcTrack = {

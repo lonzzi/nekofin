@@ -1,11 +1,29 @@
 import { HomeAtmosphereBackdrop } from '@/components/home/HomeAtmosphereBackdrop';
 import { useFloatingTabBarInset } from '@/components/navigation/FloatingTabBarInset';
+import { nativeStatusBarOptions } from '@/components/navigation/nativeStackConfig';
 import ParallaxScrollView, {
   resolveParallaxHeaderOverscrollExtent,
 } from '@/components/ParallaxScrollView';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo, type ComponentProps, type PropsWithChildren, type ReactElement } from 'react';
-import { Easing, Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { Stack } from 'expo-router';
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type PropsWithChildren,
+  type ReactElement,
+} from 'react';
+import {
+  Easing,
+  Platform,
+  StyleProp,
+  StyleSheet,
+  View,
+  ViewStyle,
+  type ScrollViewProps,
+} from 'react-native';
 import { easeGradient } from 'react-native-easing-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollViewMarker } from 'react-native-screens/experimental';
@@ -49,6 +67,21 @@ export function HomeAtmosphereScrollView({
 }: HomeAtmosphereScrollViewProps) {
   const insets = useSafeAreaInsets();
   const tabBarInset = useFloatingTabBarInset();
+  const [headerBehindStatusBar, setHeaderBehindStatusBar] = useState(true);
+  const headerBehindStatusBarRef = useRef(true);
+  const onScroll = useCallback<NonNullable<ScrollViewProps['onScroll']>>(
+    ({ nativeEvent }) => {
+      const behind = nativeEvent.contentOffset.y < Math.max(0, headerHeight * 0.66 - insets.top);
+      // Only update native navigation options when crossing the artwork fade,
+      // not on every scroll frame.
+      if (behind === headerBehindStatusBarRef.current) return;
+      headerBehindStatusBarRef.current = behind;
+      setHeaderBehindStatusBar(behind);
+    },
+    [headerHeight, insets.top],
+  );
+  const statusBarOverArtwork =
+    headerBehindStatusBar && !!(imageInfo?.imageUrl || imageInfo?.blurhash);
   const headerOverscrollExtent = resolveParallaxHeaderOverscrollExtent(insets.top);
   const headerFadeGradient = useMemo(() => {
     if (headerFadeMode !== 'overlay') return null;
@@ -103,7 +136,11 @@ export function HomeAtmosphereScrollView({
       headerOverscrollExtent={headerOverscrollExtent}
       headerOverlay={resolvedHeaderOverlay}
       refreshControl={refreshControl}
+      onScroll={Platform.OS === 'android' && !isDark ? onScroll : undefined}
     >
+      {Platform.OS === 'android' && (
+        <Stack.Screen options={nativeStatusBarOptions(isDark || statusBarOverArtwork)} />
+      )}
       {children}
     </ParallaxScrollView>
   );

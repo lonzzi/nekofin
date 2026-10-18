@@ -35,14 +35,37 @@ export function isExternalTrackCommandError(message: string) {
   );
 }
 
-// Native addSubtitle/addAudio enqueue mpv commands. Their promises resolve before
-// network loading finishes, so wait for the new native ID before refreshing menus.
-export async function loadExternalPlayerTrack(
+// Keep each native add and ID discovery together so concurrent requests cannot
+// claim the same track ID.
+const nativeTrackQueues = new WeakMap<object, Promise<unknown>>();
+
+export function loadExternalPlayerTrack(
   player: Pick<ExpoMpvViewRef, 'getTrackList' | 'addSubtitle' | 'addAudio'>,
   type: 'sub' | 'audio',
   track: ExternalPlayerTrack,
   isActive: () => boolean,
 ): Promise<number | undefined> {
+  const previous = nativeTrackQueues.get(player) ?? Promise.resolve();
+  const request = previous
+    .catch(() => {})
+    .then(() => loadExternalPlayerTrackNow(player, type, track, isActive));
+  nativeTrackQueues.set(player, request);
+  void request
+    .finally(() => {
+      if (nativeTrackQueues.get(player) === request) nativeTrackQueues.delete(player);
+    })
+    .catch(() => {});
+  return request;
+}
+
+async function loadExternalPlayerTrackNow(
+  player: Pick<ExpoMpvViewRef, 'getTrackList' | 'addSubtitle' | 'addAudio'>,
+  type: 'sub' | 'audio',
+  track: ExternalPlayerTrack,
+  isActive: () => boolean,
+): Promise<number | undefined> {
+  // Native add commands can resolve before the new track is available.
+  if (!isActive()) return;
   const before = await player.getTrackList();
   if (!isActive()) return;
   const knownIds = new Set(before.filter((entry) => entry.type === type).map((entry) => entry.id));

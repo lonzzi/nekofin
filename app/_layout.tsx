@@ -1,4 +1,5 @@
 import { PLAYER_LAB_AVAILABLE } from '@/components/dev/player-lab/PlayerLabEntry';
+import { nativeStatusBarOptions } from '@/components/navigation/nativeStackConfig';
 import { platformHeaderOptions } from '@/components/navigation/platformHeaderOptions';
 import { PerformanceOverlay } from '@/components/performance/PerformanceOverlay';
 import { AppUpdateProvider } from '@/lib/contexts/AppUpdateContext';
@@ -34,7 +35,6 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { Stack, usePathname } from 'expo-router';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import { StatusBar } from 'expo-status-bar';
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { AppState, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -165,12 +165,11 @@ function RootNavigation() {
         }}
         screenOptions={{
           ...platformHeaderOptions,
+          ...nativeStatusBarOptions(appTheme.isDark),
           headerTransparent: Platform.OS === 'ios',
           headerBackTitle: '',
           headerBackButtonDisplayMode: 'minimal',
           orientation: Platform.OS === 'ios' ? (Platform.isPad ? 'all' : 'portrait_up') : undefined,
-          statusBarHidden: Platform.OS === 'ios' ? false : undefined,
-          statusBarStyle: Platform.OS === 'ios' ? (appTheme.isDark ? 'light' : 'dark') : undefined,
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -194,18 +193,12 @@ function RootNavigation() {
             contentStyle: { backgroundColor: '#090B10' },
             headerShown: false,
             orientation: Platform.OS === 'ios' && PLAYER_LAB_AVAILABLE ? 'landscape' : undefined,
-            statusBarHidden: Platform.OS === 'ios' && PLAYER_LAB_AVAILABLE ? true : undefined,
+            statusBarHidden: PLAYER_LAB_AVAILABLE,
           }}
         />
         <Stack.Screen name="+not-found" />
       </Stack>
       <PerformanceRouteObserver />
-      {Platform.OS !== 'ios' && (
-        <StatusBar
-          hidden={isPlayerRoute || isPlayerLabRoute}
-          style={appTheme.isDark ? 'light' : 'dark'}
-        />
-      )}
     </ThemeProvider>
   );
 }
