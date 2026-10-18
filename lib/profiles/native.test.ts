@@ -19,4 +19,16 @@ describe('MPV transcoding negotiation', () => {
       generateDeviceProfile({ transcode: true, subtitleBurnIn: true }).SubtitleProfiles,
     ).toContainEqual({ Format: 'ass', Method: 'Encode' });
   });
+
+  it.each([false, true])('supports external PGS alongside video (transcode=%s)', (transcode) => {
+    for (const format of ['pgs', 'pgssub', 'hdmv_pgs_subtitle', 'sup']) {
+      const profiles = generateDeviceProfile({ transcode }).SubtitleProfiles;
+      expect(profiles).toContainEqual({ Format: format, Method: 'Embed' });
+      expect(profiles).toContainEqual({ Format: format, Method: 'External' });
+      expect(profiles).not.toContainEqual({ Format: format, Method: 'Encode' });
+      const burnIn = generateDeviceProfile({ transcode, subtitleBurnIn: true }).SubtitleProfiles;
+      expect(burnIn).toContainEqual({ Format: format, Method: 'Encode' });
+      expect(burnIn).not.toContainEqual({ Format: format, Method: 'External' });
+    }
+  });
 });

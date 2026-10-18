@@ -6,6 +6,8 @@ import { useGlobalSearchParams, usePathname } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
 import { useEffect } from 'react';
 
+import { useSubtitleFonts } from './useSubtitleFonts';
+
 /** Warm the selected subtitle; playback shares the same file and in-flight work. */
 export function useSubtitlePrefetch(
   itemId: string,
@@ -25,6 +27,7 @@ export function useSubtitlePrefetch(
   const enabled =
     focused ||
     ((pathname === '/player' || pathname.startsWith('/player/')) && playerItemId === itemId);
+  useSubtitleFonts(itemId, source, enabled);
   useEffect(() => {
     if (
       !enabled ||

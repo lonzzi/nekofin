@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useSubtitlePrefetch } from './useSubtitlePrefetch';
 
+vi.mock('@/hooks/useSubtitleFonts', () => ({ useSubtitleFonts: vi.fn() }));
+
 const state = vi.hoisted(() => ({
   focused: true,
   pathname: '/movie/movie',

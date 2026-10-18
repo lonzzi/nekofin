@@ -149,6 +149,13 @@ export interface MediaSource {
   defaultAudioStreamIndex?: number;
   defaultSubtitleStreamIndex?: number;
   mediaStreams: MediaStream[];
+  mediaAttachments?: MediaAttachment[];
+}
+
+export interface MediaAttachment {
+  index: number;
+  fileName: string;
+  deliveryUrl?: string;
 }
 
 export interface MediaStream {

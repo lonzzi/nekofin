@@ -158,10 +158,11 @@ export function createSubtitleCacheStore({
       return {
         async prepare(track: SubtitleTrack, isActive: () => boolean) {
           if (disposed || sessionGeneration !== generation || !isActive()) return;
-          const extension =
+          const sourceExtension =
             new URL(track.url).pathname
-              .match(/\.(ass|ssa|srt|vtt|sub|idx|sup|ttml)$/i)?.[1]
+              .match(/\.(ass|ssa|srt|vtt|sub|idx|sup|pgs|pgssub|ttml)$/i)?.[1]
               ?.toLowerCase() ?? 'sub';
+          const extension = /^(pgs|pgssub)$/.test(sourceExtension) ? 'sup' : sourceExtension;
           // Independent of route/token, scoped to account, source and stream.
           const key = await digestStringAsync(
             CryptoDigestAlgorithm.SHA256,

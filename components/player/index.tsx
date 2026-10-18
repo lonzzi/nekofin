@@ -3,6 +3,7 @@
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { readPlaybackPreferences } from '@/hooks/usePlaybackPreferences';
+import { useSubtitleFonts } from '@/hooks/useSubtitleFonts';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { useDanmakuSources } from '@/lib/contexts/DanmakuSourcesContext';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
@@ -19,6 +20,7 @@ import {
   resolvePlaybackSelection,
   type PlaybackSelection,
 } from '@/services/media/playbackSelection';
+import { Paths } from 'expo-file-system';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import {
   ExpoMpvView,
@@ -35,7 +37,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, StyleSheet, Text, View } from 'react-native';
 import { useMMKVBoolean } from 'react-native-mmkv';
 import { useSharedValue } from 'react-native-reanimated';
 
@@ -81,6 +83,7 @@ import {
   loadExternalPlayerTrack,
   loadExternalTracksProgressively,
 } from './playerTrackLoading';
+import { createSubtitleFontController } from './subtitleFontSettings';
 import { usePlayerQueries } from './usePlayerQueries';
 
 type BufferInfo = { percent: number; rate: number };
@@ -436,6 +439,45 @@ export const VideoPlayer = ({
       (!targetPlayer || player.current === targetPlayer),
     [],
   );
+  const { directory: subtitleFontsDirectory, family: subtitleFontFamily } = useSubtitleFonts(
+    itemId,
+    subtitleMenuSource,
+  );
+  const fontController = useMemo(
+    () =>
+      createSubtitleFontController({
+        directory:
+          Platform.OS === 'ios'
+            ? decodeURIComponent(Paths.bundle.uri.replace(/^file:\/\//, ''))
+            : '',
+        family: Platform.OS === 'ios' ? 'Noto Sans CJK SC' : 'sans-serif',
+        assOverride: Platform.OS === 'ios' ? 'no' : 'scale',
+      }),
+    [],
+  );
+  useEffect(() => {
+    const target = player.current;
+    if (!isLoaded || !target || !isPlaybackContextActive(playbackContext, target)) return;
+    let active = true;
+    void fontController
+      .apply(
+        target,
+        { directory: subtitleFontsDirectory, family: subtitleFontFamily },
+        () => active && isPlaybackContextActive(playbackContext, target),
+        playbackContext,
+      )
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [
+    isLoaded,
+    subtitleFontsDirectory,
+    subtitleFontFamily,
+    fontController,
+    playbackContext,
+    isPlaybackContextActive,
+  ]);
   const playbackSourceInfo = useMemo(
     () =>
       derivePlaybackSourceInfo(

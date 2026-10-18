@@ -10,6 +10,8 @@ describe('tablet sidebar route selection', () => {
     [['(tabs)', '(favorites)', 'episode'], 'favorites'],
     [['(tabs)', '(search)', 'series', 'show'], 'search'],
     [['(tabs)', '(settings)', 'audio'], 'audio'],
+    [['(tabs)', '(settings)', 'subtitle-fonts'], 'audio'],
+    [['(tabs)', '(settings)', 'subtitle-font-url'], 'audio'],
     [['(tabs)', '(settings)', 'playback'], 'playback'],
     [['(tabs)', '(settings)', 'danmaku-source', 'source-id'], 'danmaku'],
     [['(tabs)', '(settings)', 'danmaku-sources'], 'danmaku'],

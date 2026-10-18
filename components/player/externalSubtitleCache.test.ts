@@ -128,6 +128,21 @@ describe('shared external subtitle cache', () => {
     expect(io.download).toHaveBeenCalledOnce();
   });
 
+  it.each(['sup', 'pgs', 'pgssub'])(
+    'caches a large %s bitmap subtitle unchanged',
+    async (format) => {
+      io.download.mockImplementation(async (_url, file) => completeFile(file, 83_594_085));
+      const pgs = { ...track, url: `https://media.test/Stream.${format}` };
+      const first = session(createSubtitleCacheStore());
+      const prepared = await first.prepare(pgs, active);
+      expect(prepared?.url).toMatch(/\/[a-f0-9]{64}\.sup$/);
+      expect(io.files.get(prepared!.url)?.size).toBe(83_594_085);
+      first.dispose();
+      expect(await session(createSubtitleCacheStore()).prepare(pgs, active)).toEqual(prepared);
+      expect(io.download).toHaveBeenCalledOnce();
+    },
+  );
+
   it('shares a file across LAN/WAN addresses and rotated tokens, while isolating accounts and versions', async () => {
     const store = createSubtitleCacheStore();
     const first = await session(store).prepare(track, active);
