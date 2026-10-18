@@ -70,7 +70,7 @@ private class MenuNavigation {
 }
 private val LocalMenuNavigation = staticCompositionLocalOf<MenuNavigation?> { null }
 
-/** A native anchored popup, with our own surface/rows rather than Material's menu skin. */
+/** Custom surface/rows explicitly requested to share the navigation's blurred material. */
 @Composable
 fun FunctionalComposableScope.PopupMenuContent(props: PopupMenuProps, onDismiss: () -> Unit) {
   val items = findChildSlotView(view, "items")

@@ -1,5 +1,6 @@
 package expo.modules.nativelayout
 
+import android.os.Build
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.kotlin.records.Field
@@ -23,6 +24,15 @@ class SidebarServer : Record {
 class NativeLayoutModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("NativeLayout")
+    Function("isWindowOrientationFlexible") {
+      val activity = appContext.currentActivity ?: return@Function false
+      // Multi-window ignores orientation locks. Android 16+ also ignores them
+      // on large windows for apps targeting API 36+, including fullscreen ones.
+      activity.isInMultiWindowMode || (
+        Build.VERSION.SDK_INT >= 36 && activity.applicationInfo.targetSdkVersion >= 36 &&
+          activity.resources.configuration.smallestScreenWidthDp >= 600
+        )
+    }
     View(NavigationRailView::class) {
       Events("onDestinationSelected", "onServerSelected", "onToggleSidebar")
       Prop("destinations") { view, value: List<RailDestination> -> view.destinations = value }

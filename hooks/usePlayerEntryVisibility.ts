@@ -1,5 +1,6 @@
 import { useIsTablet } from '@/hooks/useIsTablet';
 import { resolvePlayerEntryVisibility } from '@/lib/playerEntry';
+import { requireNativeModule } from 'expo';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform, type LayoutChangeEvent } from 'react-native';
 
@@ -21,7 +22,14 @@ export function usePlayerEntryVisibility(preference?: string, hasAppeared = true
       !resolvePlayerEntryVisibility(false, {
         ...layout,
         preference,
-        flexibleWindow: Platform.OS === 'web' || tablet,
+        // Android tablets can still honor fixed orientation requests. Only
+        // bypass the viewport check when the current window ignores those locks.
+        flexibleWindow:
+          Platform.OS === 'android'
+            ? requireNativeModule<{ isWindowOrientationFlexible(): boolean }>(
+                'NativeLayout',
+              ).isWindowOrientationFlexible()
+            : Platform.OS === 'web' || tablet,
       })
     )
       return;
