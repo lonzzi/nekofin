@@ -4,6 +4,7 @@ import {
   NativeSettingsItem,
   NativeSettingsSection,
 } from '@/components/ui/NativeSettings';
+import { settingsLayout } from '@/components/ui/settingsLayout';
 import {
   SettingsActionTitle,
   SettingsSubtitle,
@@ -261,7 +262,10 @@ export default function CacheSettingsScreen() {
       <OuterTitle>存储管理</OuterTitle>
       <NativeSettingsForm testID="cache-settings-form">
         <NativeSettingsSection title="本机空间">
-          <Column spacing={14} style={{ padding: 8 }}>
+          <Column
+            spacing={14}
+            style={{ padding: Platform.OS === 'android' ? settingsLayout.contentInset : 8 }}
+          >
             <NativeText
               textStyle={{ fontSize: 36, fontWeight: '600', color: theme.colors.text }}
               modifiers={

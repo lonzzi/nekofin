@@ -1,19 +1,18 @@
+import { settingsLayout } from '@/components/ui/settingsLayout';
 import { useAppTheme } from '@/lib/theme';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRef, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { useRef, useState } from 'react';
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type TextInputProps,
+} from 'react-native';
 
-export function ServerFormSection({ children, footer }: { children: ReactNode; footer?: string }) {
-  const theme = useAppTheme();
-  return (
-    <View style={{ gap: 8 }}>
-      <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>{children}</View>
-      {footer ? (
-        <Text style={[styles.footer, { color: theme.colors.textSecondary }]}>{footer}</Text>
-      ) : null}
-    </View>
-  );
-}
+export { SettingsGroup as ServerFormSection } from '@/components/ui/SettingsGroup';
 
 export function ServerFormField({
   label,
@@ -25,7 +24,7 @@ export function ServerFormField({
   // Keep native typing/IME composition intact. Form steps key inputs by their field name.
   const initialValue = useRef(props.defaultValue ?? '');
   return (
-    <View style={styles.field}>
+    <View style={[styles.field, Platform.OS === 'android' && styles.androidField]}>
       <Text style={[styles.label, { color: theme.colors.textSecondary }]}>{label}</Text>
       <View style={styles.inputRow}>
         <TextInput
@@ -36,6 +35,7 @@ export function ServerFormField({
           autoCorrect={false}
           returnKeyType="done"
           selectionColor={theme.colors.tint}
+          underlineColorAndroid="transparent"
           secureTextEntry={password && !visible}
           style={[styles.input, { color: theme.colors.text }]}
           {...props}
@@ -63,8 +63,10 @@ export function ServerFormField({
 }
 
 const styles = StyleSheet.create({
-  section: { borderRadius: 14, padding: 16, gap: 16 },
-  footer: { fontSize: 13, lineHeight: 19, paddingHorizontal: 12 },
+  androidField: {
+    paddingHorizontal: settingsLayout.contentInset,
+    paddingVertical: settingsLayout.rowPaddingVertical,
+  },
   field: { gap: 4 },
   label: { fontSize: 13, lineHeight: 18 },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
