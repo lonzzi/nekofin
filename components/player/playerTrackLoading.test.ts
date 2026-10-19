@@ -40,6 +40,28 @@ describe('external track attempts across effect restarts', () => {
     expect(start).toHaveBeenCalledOnce();
   });
 
+  it('retries a failed audio load while coalescing in-flight and successful attempts', async () => {
+    const cache = createExternalTrackRequestCache();
+    const key = externalTrackRequestKey('audio', {
+      index: 8,
+      name: 'Japanese',
+      url: 'https://media.test/audio.flac',
+    });
+    const start = vi.fn().mockRejectedValueOnce(new Error('HTTP 503')).mockResolvedValue(9);
+    const load = () => cache.load(key, start, { cacheFailures: false });
+
+    const failed = load();
+    expect(load()).toBe(failed);
+    await expect(failed).rejects.toThrow('HTTP 503');
+
+    const retried = load();
+    expect(retried).not.toBe(failed);
+    expect(load()).toBe(retried);
+    await expect(retried).resolves.toBe(9);
+    expect(load()).toBe(retried);
+    expect(start).toHaveBeenCalledTimes(2);
+  });
+
   it('lets other tracks load and scopes retries to the exact type, index and URL', async () => {
     const cache = createExternalTrackRequestCache();
     const track = { index: 8, name: 'Chinese', url: 'https://media.test/sub.srt' };

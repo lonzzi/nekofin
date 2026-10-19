@@ -979,21 +979,25 @@ export const VideoPlayer = ({
       await loadExternalTracksProgressively(
         pending.map(({ track, type, ids }) => async () => {
           const key = externalTrackRequestKey(type, track);
-          const request = loads.requests.load(key, async () => {
-            try {
-              const prepared =
-                type === 'sub' ? await loads.subtitleCache.prepare(track, isActive) : track;
-              if (!prepared || !isActive()) return;
-              return await loadExternalPlayerTrack(targetPlayer, type, prepared, isActive);
-            } catch (error) {
-              console.warn('External player track load failed', {
-                type,
-                index: track.index,
-                error: error instanceof Error ? error.name : 'Unknown error',
-              });
-              throw error;
-            }
-          });
+          const request = loads.requests.load(
+            key,
+            async () => {
+              try {
+                const prepared =
+                  type === 'sub' ? await loads.subtitleCache.prepare(track, isActive) : track;
+                if (!prepared || !isActive()) return;
+                return await loadExternalPlayerTrack(targetPlayer, type, prepared, isActive);
+              } catch (error) {
+                console.warn('External player track load failed', {
+                  type,
+                  index: track.index,
+                  error: error instanceof Error ? error.name : 'Unknown error',
+                });
+                throw error;
+              }
+            },
+            { cacheFailures: type === 'sub' },
+          );
           try {
             const id = await request;
             if (id != null) {

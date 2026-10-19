@@ -7,17 +7,25 @@ export type ExternalPlayerTrack = {
   url: string;
 };
 
-/** Keep failed attempts too: effect restarts must not retry optional sidecars indefinitely. */
+/** Retain failures only for tracks whose caller offers an explicit retry. */
 export function createExternalTrackRequestCache() {
   const requests = new Map<string, Promise<number | undefined>>();
   const failures = new Set<string>();
   return {
-    load(key: string, start: () => Promise<number | undefined>) {
+    load(
+      key: string,
+      start: () => Promise<number | undefined>,
+      { cacheFailures = true }: { cacheFailures?: boolean } = {},
+    ) {
       const existing = requests.get(key);
       if (existing) return existing;
       const request = Promise.resolve().then(start);
       requests.set(key, request);
-      void request.catch(() => failures.add(key));
+      void request.catch(() => {
+        if (requests.get(key) !== request) return;
+        if (cacheFailures) failures.add(key);
+        else requests.delete(key);
+      });
       return request;
     },
     retry(key: string) {
