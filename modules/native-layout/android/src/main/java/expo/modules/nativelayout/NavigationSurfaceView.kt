@@ -154,6 +154,12 @@ class NavigationSurfaceView(context: Context, appContext: AppContext) : ExpoView
   var surfaceColor: Int
     get() = material.surfaceColor
     set(value) { material.surfaceColor = value }
+  var sampleContent: Boolean
+    get() = material.sampleContent
+    set(value) { material.sampleContent = value }
+  var cornerRadius: Float
+    get() = material.cornerRadius
+    set(value) { material.cornerRadius = value }
   var trailingWidth: Float
     get() = material.trailingWidth
     set(value) { material.trailingWidth = value }

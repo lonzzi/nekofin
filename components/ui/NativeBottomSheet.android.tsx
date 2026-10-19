@@ -1,4 +1,5 @@
 import { useAppTheme } from '@/lib/theme';
+import { AndroidMaterialSurface } from '@/modules/native-layout/AndroidMaterialSurface';
 import { Host, ModalBottomSheet, type ModalBottomSheetRef } from '@expo/ui/jetpack-compose';
 import { testID as nativeTestID } from '@expo/ui/jetpack-compose/modifiers';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -11,6 +12,7 @@ export function NativeBottomSheet({
   onDismiss,
   skipPartiallyExpanded = false,
   containerColor,
+  material = false,
   testID,
 }: {
   children: ReactNode;
@@ -18,6 +20,7 @@ export function NativeBottomSheet({
   onDismiss: () => void;
   skipPartiallyExpanded?: boolean;
   containerColor?: ColorValue;
+  material?: boolean;
   testID?: string;
 }) {
   const theme = useAppTheme();
@@ -44,11 +47,22 @@ export function NativeBottomSheet({
         ref={sheet}
         onDismissRequest={onDismiss}
         skipPartiallyExpanded={skipPartiallyExpanded}
-        containerColor={containerColor ?? theme.colors.background}
+        containerColor={material ? 'transparent' : (containerColor ?? theme.colors.background)}
+        showDragHandle={!material}
         contentColor={theme.colors.text}
         modifiers={testID ? [nativeTestID(testID)] : undefined}
       >
-        {children}
+        {material ? (
+          <AndroidMaterialSurface
+            color={containerColor ?? theme.colors.background}
+            cornerRadius={28}
+            sheetDragHandle
+          >
+            {children}
+          </AndroidMaterialSurface>
+        ) : (
+          children
+        )}
       </ModalBottomSheet>
     </Host>
   );

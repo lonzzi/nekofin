@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PlaybackInfoBadges } from './PlaybackInfoBadges';
 import { PlayerActionBar } from './PlayerActionBar';
 import { usePlayer } from './PlayerContext';
+import { PlayerGlassSurface } from './PlayerGlassSurface';
 import { PlayerProgressSlider } from './PlayerProgressSlider';
 import { TransportControls } from './TransportControls';
 import { useOverlayInsets } from './useOverlayInsets';
@@ -75,6 +76,31 @@ export function BottomControls() {
   const rightInset = Math.max(side, insets.right + safeSideGap);
   const bottomInset = insets.bottom + (Platform.OS === 'ios' ? 16 : 24) + bottomExtra;
 
+  const progressSlider = (
+    <PlayerProgressSlider
+      accessibilityStep={duration > 0 ? Math.min(1, 10_000 / duration) : 0.01}
+      accessibilityValue={`${formattedCurrentTime} / ${formattedDuration}`}
+      bufferedProgress={bufferedProgress}
+      disabled={!canSeek}
+      onSlidingComplete={handleSliderSlidingComplete}
+      onSlidingCancel={() => {
+        progressValue.value = duration > 0 ? currentTime.value / duration : 0;
+        setIsDragging(false);
+        hideControlsWithDelay();
+      }}
+      onSlidingStart={() => {
+        clearControlsTimeout();
+        seekPreviewStartTime.value = currentTime.value;
+        seekPreviewTime.value = currentTime.value;
+        setIsDragging(true);
+      }}
+      onValueChange={(value) => {
+        seekPreviewTime.value = value * duration;
+      }}
+      progress={progressValue}
+    />
+  );
+
   return (
     <View
       pointerEvents="box-none"
@@ -87,33 +113,24 @@ export function BottomControls() {
             {formattedCurrentTime} / {formattedDuration}
           </Animated.Text>
         </View>
-        <Animated.View
-          pointerEvents={showControls ? 'auto' : 'none'}
-          style={[styles.progressSlider, fadeAnimatedStyle]}
-        >
-          <PlayerProgressSlider
-            accessibilityStep={duration > 0 ? Math.min(1, 10_000 / duration) : 0.01}
-            accessibilityValue={`${formattedCurrentTime} / ${formattedDuration}`}
-            bufferedProgress={bufferedProgress}
-            disabled={!canSeek}
-            onSlidingComplete={handleSliderSlidingComplete}
-            onSlidingCancel={() => {
-              progressValue.value = duration > 0 ? currentTime.value / duration : 0;
-              setIsDragging(false);
-              hideControlsWithDelay();
-            }}
-            onSlidingStart={() => {
-              clearControlsTimeout();
-              seekPreviewStartTime.value = currentTime.value;
-              seekPreviewTime.value = currentTime.value;
-              setIsDragging(true);
-            }}
-            onValueChange={(value) => {
-              seekPreviewTime.value = value * duration;
-            }}
-            progress={progressValue}
-          />
-        </Animated.View>
+        {Platform.OS === 'android' ? (
+          <PlayerGlassSurface
+            fadeProgress={fadeAnim}
+            visible={showControls}
+            radius={22}
+            style={styles.androidProgressSurface}
+            contentStyle={styles.androidProgressContent}
+          >
+            {progressSlider}
+          </PlayerGlassSurface>
+        ) : (
+          <Animated.View
+            pointerEvents={showControls ? 'auto' : 'none'}
+            style={[styles.progressSlider, fadeAnimatedStyle]}
+          >
+            {progressSlider}
+          </Animated.View>
+        )}
         <View pointerEvents="box-none" style={styles.bottomRow}>
           <TransportControls />
           <View pointerEvents="box-none" style={styles.actionRow}>
@@ -143,6 +160,8 @@ const styles = StyleSheet.create({
     columnGap: 8,
     rowGap: 2,
   },
+  androidProgressSurface: { height: 44, marginVertical: 6 },
+  androidProgressContent: { height: 44, paddingHorizontal: 14 },
   progressSlider: {
     height: 44,
   },

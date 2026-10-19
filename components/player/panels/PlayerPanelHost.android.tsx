@@ -15,6 +15,7 @@ export function PlayerPanelHost(props: PlayerPanelHostProps) {
       isPresented={visible}
       onDismiss={onDismiss}
       skipPartiallyExpanded
+      material
       containerColor={theme.colors.backgroundGrouped}
       testID={testID}
     >

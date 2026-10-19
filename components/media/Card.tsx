@@ -1,3 +1,11 @@
+import {
+  Content,
+  Item,
+  ItemIcon,
+  ItemTitle,
+  Root as Menu,
+  Trigger,
+} from '@/components/ui/ContextMenu';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaActions } from '@/hooks/useMediaActions';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
@@ -20,7 +28,6 @@ import {
   ViewStyle,
   type GestureResponderEvent,
 } from 'react-native';
-import { Content, Item, ItemIcon, ItemTitle, Root as Menu, Trigger } from 'zeego/context-menu';
 
 import { ItemImage } from '../ItemImage';
 import { CoverFrame } from '../ui/CoverFrame';

@@ -9,19 +9,21 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { useMemo, useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Platform, StyleSheet, TextInput, View } from 'react-native';
 import Animated, {
   setNativeProps,
   useAnimatedReaction,
   useAnimatedRef,
   useAnimatedStyle,
   useDerivedValue,
+  useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { formatSeekOffsetText } from './gestureMath';
 import { usePlayer } from './PlayerContext';
+import { PlayerGlassSurface } from './PlayerGlassSurface';
 import { getTrickplayFrame, getTrickplayManifest, getTrickplayTileUrl } from './trickplay';
 
 export function SeekPreview() {
@@ -64,6 +66,7 @@ export function SeekPreview() {
     gcTime: 5 * 60_000,
     retry: false,
   });
+  const materialOpacity = useSharedValue(1);
   const timeRef = useAnimatedRef<TextInput>();
   const detailRef = useAnimatedRef<TextInput>();
   const [preview, setPreview] = useState({ active: false, index: 0 });
@@ -123,7 +126,20 @@ export function SeekPreview() {
   const height = width / aspectRatio;
 
   return (
-    <Animated.View pointerEvents="none" style={[styles.container, previewStyle]}>
+    <Animated.View
+      pointerEvents="none"
+      style={[styles.container, Platform.OS === 'android' && styles.androidContainer, previewStyle]}
+    >
+      {Platform.OS === 'android' ? (
+        <PlayerGlassSurface
+          fadeProgress={materialOpacity}
+          visible={preview.active}
+          isInteractive={false}
+          pointerEvents="none"
+          radius={20}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
       {showImage && (
         <View style={[styles.thumbnail, { width, height }]}>
           <Image
@@ -181,6 +197,7 @@ const styles = StyleSheet.create({
     gap: 4,
     alignItems: 'center',
   },
+  androidContainer: { paddingVertical: 12, overflow: 'hidden', borderRadius: 20 },
   thumbnail: { borderRadius: 12, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.2)' },
   time: {
     width: 208,

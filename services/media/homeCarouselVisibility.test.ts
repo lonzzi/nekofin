@@ -1,6 +1,7 @@
 import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 
+import { homeCarouselLibraryIds, visibleHomeLibraryIds } from './homeVisibility';
 import { homeRandomQueryOptions } from './queryOptions';
 import type { MediaAdapter, MediaItem, MediaServerInfo } from './types';
 
@@ -17,6 +18,53 @@ const adapterWith = (
 ) => ({ getRandomItems }) as unknown as MediaAdapter;
 
 describe('home carousel library visibility', () => {
+  it('uses all visible libraries by default, including newly added libraries', () => {
+    const libraries = [item('movies'), item('anime'), item('hidden')];
+    expect(homeCarouselLibraryIds(libraries, ['hidden'])).toEqual(['anime', 'movies']);
+    expect(homeCarouselLibraryIds([...libraries, item('new')], ['hidden'])).toEqual([
+      'anime',
+      'movies',
+      'new',
+    ]);
+  });
+
+  it('only requests custom choices that are still available and visible', async () => {
+    const libraries = [item('movies'), item('anime'), item('hidden'), item('new')];
+    const adapter = adapterWith();
+    const libraryIds = homeCarouselLibraryIds(
+      libraries,
+      ['hidden'],
+      ['anime', 'hidden', 'deleted'],
+    );
+    expect(libraryIds).toEqual(['anime']);
+    await homeRandomQueryOptions({ adapter, currentServer: server, libraryIds }).queryFn!(
+      {} as never,
+    );
+    expect(adapter.getRandomItems).toHaveBeenCalledExactlyOnceWith({
+      userId: 'user',
+      folderId: 'anime',
+      limit: 6,
+    });
+    // Other home sections continue using all visible libraries.
+    expect(visibleHomeLibraryIds(libraries, ['hidden'])).toEqual(['anime', 'movies', 'new']);
+  });
+
+  it.each([{ selectedIds: [] }, { selectedIds: ['deleted'] }, { selectedIds: ['hidden'] }])(
+    'does not widen an empty or unavailable custom range: $selectedIds',
+    async ({ selectedIds }) => {
+      const adapter = adapterWith();
+      const libraryIds = homeCarouselLibraryIds(
+        [item('movies'), item('hidden')],
+        ['hidden'],
+        selectedIds,
+      );
+      const options = homeRandomQueryOptions({ adapter, currentServer: server, libraryIds });
+      expect(options.enabled).toBe(false);
+      await expect(options.queryFn!({} as never)).resolves.toEqual([]);
+      expect(adapter.getRandomItems).not.toHaveBeenCalled();
+    },
+  );
+
   it('only requests selected libraries, including their nested folders', async () => {
     const getRandomItems = vi.fn(async ({ folderId }: { folderId?: string }) => [item(folderId!)]);
     const options = homeRandomQueryOptions({

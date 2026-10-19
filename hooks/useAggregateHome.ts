@@ -1,11 +1,12 @@
 import type { GetMediaItemSource, MediaItemSource } from '@/components/media/mediaSource';
 import { useHiddenUserViews } from '@/hooks/useHiddenUserViews';
+import { useHomeCarouselLibraries } from '@/hooks/useHomeCarouselLibraries';
 import { useRefetchOnScreenFocus } from '@/hooks/useRefetchOnScreenFocus';
 import {
   groupAggregateLatestFolders,
   mergeAggregateHomeItems,
 } from '@/services/media/aggregateHome';
-import { visibleHomeLibraryIds } from '@/services/media/homeVisibility';
+import { homeCarouselLibraryIds, visibleHomeLibraryIds } from '@/services/media/homeVisibility';
 import {
   homeLatestByFolderQueryOptions,
   homeNextUpQueryOptions,
@@ -22,6 +23,7 @@ import { useMediaServerSources } from './useMediaServerSources';
 export function useAggregateHome(servers: MediaServerInfo[]) {
   const sources = useMediaServerSources(servers);
   const hidden = useHiddenUserViews(servers.map((server) => server.id));
+  const carouselLibraries = useHomeCarouselLibraries(servers.map((server) => server.id));
   const queryClient = useQueryClient();
 
   const libraryRequests = sources.map((source) => ({
@@ -73,8 +75,10 @@ export function useAggregateHome(servers: MediaServerInfo[]) {
       ...homeRandomQueryOptions({
         adapter: source.adapter,
         currentServer: source.server,
-        libraryIds: visibleHomeLibraryIds(
+        libraryIds: homeCarouselLibraryIds(
           librarySources.find(({ server }) => server.id === source.server.id)?.items,
+          hidden[source.server.id],
+          carouselLibraries[source.server.id],
         ),
       }),
       retry: 1,

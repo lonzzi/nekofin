@@ -19,6 +19,18 @@ export function visibleHomeLibraryIds(items: MediaItem[] | undefined, hiddenIds:
   ].sort();
 }
 
+/** Carousel choices never override account visibility or include unavailable libraries. */
+export function homeCarouselLibraryIds(
+  items: MediaItem[] | undefined,
+  hiddenIds: string[] = [],
+  selectedIds: string[] | null = null,
+) {
+  const visibleIds = visibleHomeLibraryIds(items, hiddenIds);
+  if (selectedIds === null) return visibleIds;
+  const selected = new Set(selectedIds);
+  return visibleIds.filter((id) => selected.has(id));
+}
+
 /** Preserve server watch order while checking the complete directory ancestry. */
 async function visibleItems(
   items: MediaItem[],

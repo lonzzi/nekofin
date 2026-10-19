@@ -1,7 +1,8 @@
 import { useHiddenUserViews } from '@/hooks/useHiddenUserViews';
+import { useHomeCarouselLibraries } from '@/hooks/useHomeCarouselLibraries';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
-import { visibleHomeLibraryIds } from '@/services/media/homeVisibility';
+import { homeCarouselLibraryIds, visibleHomeLibraryIds } from '@/services/media/homeVisibility';
 import {
   homeLatestByFolderQueryOptions,
   homeNextUpQueryOptions,
@@ -30,6 +31,7 @@ export function useHomeSections(currentServer: MediaServerInfo | null) {
   const queryClient = useQueryClient();
 
   const hidden = useHiddenUserViews(currentServerId ? [currentServerId] : []);
+  const carouselLibraries = useHomeCarouselLibraries(currentServerId ? [currentServerId] : []);
   const hiddenUserViewIds = useMemo(
     () => (currentServerId ? (hidden[currentServerId] ?? []) : []),
     [currentServerId, hidden],
@@ -89,7 +91,11 @@ export function useHomeSections(currentServer: MediaServerInfo | null) {
     ...homeRandomQueryOptions({
       adapter: mediaAdapter,
       currentServer,
-      libraryIds,
+      libraryIds: homeCarouselLibraryIds(
+        allUserViewQuery.data,
+        hiddenUserViewIds,
+        currentServerId ? carouselLibraries[currentServerId] : null,
+      ),
     }),
     refetchOnScreenFocus: false,
   });

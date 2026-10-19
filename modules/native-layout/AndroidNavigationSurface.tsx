@@ -3,6 +3,8 @@ import { processColor, type ViewProps } from 'react-native';
 
 const NativeSurface = requireNativeView<
   ViewProps & {
+    sampleContent?: boolean;
+    cornerRadius?: number;
     trailingWidth?: number;
     trailingGap?: number;
     drawer?: boolean;
@@ -14,6 +16,13 @@ const NativeSurface = requireNativeView<
 export function AndroidNavigationSurface({
   color,
   ...props
-}: ViewProps & { color: string; trailingWidth?: number; trailingGap?: number; drawer?: boolean }) {
+}: ViewProps & {
+  color: string;
+  sampleContent?: boolean;
+  cornerRadius?: number;
+  trailingWidth?: number;
+  trailingGap?: number;
+  drawer?: boolean;
+}) {
   return <NativeSurface {...props} surfaceColor={processColor(color)} />;
 }

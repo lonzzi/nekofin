@@ -15,6 +15,7 @@ import {
   type ImageSourcePropType,
   type ViewProps,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 export type { MenuComponentRef, NativeActionEvent } from '@react-native-menu/menu';
 export type MenuAction = Omit<NativeMenuAction, 'image' | 'subactions' | 'imageColor'> & {
@@ -29,6 +30,13 @@ const resourceIcons: Record<string, ImageSourcePropType> = {
   ic_lock_silent_mode_off: require('../../assets/drawables/volume_up.png'),
   ic_menu_edit: require('../../assets/drawables/chat_bubble.png'),
   ic_menu_manage: require('../../assets/drawables/settings.png'),
+  ic_media_play: require('../../assets/drawables/play_arrow.xml'),
+  ic_menu_info_details: require('../../assets/drawables/info.xml'),
+  ic_menu_favorite: require('../../assets/drawables/heart_outline.png'),
+  ic_menu_view: require('../../assets/drawables/checkmark_circle.png'),
+  ic_menu_view_off: require('../../assets/drawables/checkmark_circle_outline.png'),
+  ic_menu_person: require('../../assets/drawables/person.png'),
+  ic_menu_delete: require('../../assets/drawables/delete.xml'),
 };
 
 function menuColor(value: MenuAction['titleColor'], fallback: string): string {
@@ -159,6 +167,43 @@ export const MenuView = forwardRef<MenuComponentRef, Props>(function MenuView(
         </PopupMenuItem>
       );
     });
+
+  if (shouldOpenOnLongPress) {
+    // Let child cards and their secondary buttons keep normal tap handling.
+    // Activating the native long-press gesture cancels the pending child press.
+    const longPress = Gesture.LongPress().runOnJS(true).onStart(open);
+    return (
+      <GestureDetector gesture={longPress}>
+        <View
+          {...viewProps}
+          collapsable={false}
+          style={style}
+          accessibilityLabel={accessibilityLabel ?? title}
+          accessibilityState={{ ...accessibilityState, expanded }}
+        >
+          {children}
+          {expanded ? (
+            <Host
+              pointerEvents="none"
+              style={StyleSheet.absoluteFill}
+              colorScheme={theme.colorScheme}
+            >
+              <PopupMenu
+                expanded
+                onDismissRequest={close}
+                color={theme.colors.background}
+                textColor={theme.colors.text}
+                alignEnd={isAnchoredToRight}
+              >
+                <Box modifiers={[fillMaxSize()]} />
+                <PopupMenu.Items>{renderActions(actions)}</PopupMenu.Items>
+              </PopupMenu>
+            </Host>
+          ) : null}
+        </View>
+      </GestureDetector>
+    );
+  }
 
   return (
     <Pressable
