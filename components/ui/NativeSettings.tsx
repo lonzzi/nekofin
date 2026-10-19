@@ -1,6 +1,12 @@
 import { layout, useAppTheme } from '@/lib/theme';
 import { useIsOuterTheme } from '@/lib/theme/OuterTheme';
-import { FieldGroup, Text as NativeText, type ListItemProps } from '@expo/ui';
+import {
+  FieldGroup,
+  Text as NativeText,
+  TextInput,
+  type ListItemProps,
+  type TextInputProps,
+} from '@expo/ui';
 import { Host as ComposeHost } from '@expo/ui/jetpack-compose';
 import {
   Button,
@@ -40,10 +46,16 @@ import {
 import type { ReactNode } from 'react';
 import { Platform, useWindowDimensions } from 'react-native';
 
+import { settingsLayout } from './settingsLayout';
+
 export type NativeSettingsOption = {
   title: string;
   value: string;
   subtitle?: string;
+};
+
+export type NativeSettingsTextFieldProps = Omit<TextInputProps, 'modifiers' | 'style'> & {
+  label: string;
 };
 
 export function NativeSettingsForm({
@@ -271,6 +283,23 @@ export function NativeSettingsItem({
     <VStack testID={testID} alignment="leading" modifiers={rowModifiers}>
       {row}
     </VStack>
+  );
+}
+
+/** A settings input row with platform sizing and alignment, for use inside NativeSettingsSection. */
+export function NativeSettingsTextField({ label, ...props }: NativeSettingsTextFieldProps) {
+  return (
+    <NativeSettingsItem
+      title={
+        <TextInput
+          {...props}
+          modifiers={[
+            frame({ maxWidth: Infinity, minHeight: settingsLayout.inputMinHeight }),
+            nativeAccessibilityLabel(label),
+          ]}
+        />
+      }
+    />
   );
 }
 

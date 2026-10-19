@@ -6,13 +6,12 @@ import {
   NativeSettingsItem,
   NativeSettingsSection,
   NativeSettingsSwitch,
+  NativeSettingsTextField,
 } from '@/components/ui/NativeSettings';
 import { SettingsActionTitle, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { useDanmakuSources } from '@/lib/contexts/DanmakuSourcesContext';
 import { normalizeDanmakuApiUrl } from '@/services/danmakuSources';
-import { TextInput, useNativeState, type TextInputRef } from '@expo/ui';
-import { fillMaxWidth } from '@expo/ui/jetpack-compose/modifiers';
-import { accessibilityLabel, frame } from '@expo/ui/swift-ui/modifiers';
+import { useNativeState, type TextInputRef } from '@expo/ui';
 import { randomUUID } from 'expo-crypto';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -41,11 +40,6 @@ export default function DanmakuSourceEditor() {
     });
     return () => subscription.remove();
   }, []);
-  const modifiers = (label: string) =>
-    Platform.OS === 'ios'
-      ? [frame({ maxWidth: Infinity, minHeight: 44 }), accessibilityLabel(label)]
-      : [fillMaxWidth()];
-
   const save = () => {
     if (!name.trim()) {
       setError({ field: 'name', message: '请输入 API 名称' });
@@ -96,45 +90,35 @@ export default function DanmakuSourceEditor() {
           title="名称"
           footer={error?.field === 'name' ? error.message : undefined}
         >
-          <NativeSettingsItem
-            title={
-              <TextInput
-                ref={nameRef}
-                value={nameState}
-                onChangeText={(text) => {
-                  setName(text);
-                  if (error?.field === 'name') setError(null);
-                }}
-                placeholder="例如：家里的弹幕 API"
-                modifiers={modifiers('API 名称')}
-                style={Platform.OS === 'ios' ? undefined : { height: 44 }}
-                testID="danmaku-api-name"
-              />
-            }
+          <NativeSettingsTextField
+            label="API 名称"
+            ref={nameRef}
+            value={nameState}
+            onChangeText={(text) => {
+              setName(text);
+              if (error?.field === 'name') setError(null);
+            }}
+            placeholder="例如：家里的弹幕 API"
+            testID="danmaku-api-name"
           />
         </NativeSettingsSection>
         <NativeSettingsSection
           title="API 地址"
           footer={error?.field === 'address' ? error.message : '弹弹 Play 兼容接口，可包含 Token。'}
         >
-          <NativeSettingsItem
-            title={
-              <TextInput
-                ref={addressRef}
-                value={addressState}
-                onChangeText={(text) => {
-                  setAddress(text);
-                  if (error?.field === 'address') setError(null);
-                }}
-                placeholder="https://example.com/api/v2"
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-                modifiers={modifiers('API 地址')}
-                style={Platform.OS === 'ios' ? undefined : { height: 44 }}
-                testID="danmaku-api-url"
-              />
-            }
+          <NativeSettingsTextField
+            label="API 地址"
+            ref={addressRef}
+            value={addressState}
+            onChangeText={(text) => {
+              setAddress(text);
+              if (error?.field === 'address') setError(null);
+            }}
+            placeholder="https://example.com/api/v2"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            testID="danmaku-api-url"
           />
           <NativeSettingsSwitch
             title={<SettingsTitle>启用此 API</SettingsTitle>}

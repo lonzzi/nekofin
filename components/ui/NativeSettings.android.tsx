@@ -1,6 +1,6 @@
 import { useFloatingTabBarInset } from '@/components/navigation/FloatingTabBarInset';
 import { layout, useAppTheme } from '@/lib/theme';
-import { ListItem, Slider, Switch } from '@expo/ui';
+import { ListItem, Slider, Switch, TextInput } from '@expo/ui';
 import {
   AlertDialog,
   CircularProgressIndicator,
@@ -16,6 +16,7 @@ import {
 import {
   alpha,
   background,
+  defaultMinSize,
   fillMaxSize,
   fillMaxWidth,
   height,
@@ -26,13 +27,16 @@ import {
   semantics,
   size,
   weight,
+  wrapContentHeight,
 } from '@expo/ui/jetpack-compose/modifiers';
 import { useState, type ComponentProps } from 'react';
 import { useWindowDimensions } from 'react-native';
 
 import type * as SharedSettings from './NativeSettings';
+import { NativeSettingsGroup, NativeSettingsRows } from './NativeSettingsGroup.android';
+import { settingsLayout } from './settingsLayout';
 
-export type { NativeSettingsOption } from './NativeSettings';
+export type { NativeSettingsOption, NativeSettingsTextFieldProps } from './NativeSettings';
 
 // Keep Android preferences separate from the SwiftUI form used on iOS.
 export function NativeSettingsForm({
@@ -75,22 +79,32 @@ export function NativeSettingsSection({
 }: ComponentProps<typeof SharedSettings.NativeSettingsSection>) {
   const colors = useMaterialColors();
   return (
-    <Column modifiers={[fillMaxWidth(), padding(0, 16, 0, 8)]}>
+    <Column
+      modifiers={[
+        fillMaxWidth(),
+        padding(
+          settingsLayout.contentInset,
+          settingsLayout.sectionSpacing,
+          settingsLayout.contentInset,
+          settingsLayout.sectionSpacing,
+        ),
+      ]}
+    >
       {title ? (
         <Text
           color={colors.primary}
           style={{ typography: 'labelLarge' }}
-          modifiers={[padding(16, 0, 16, 8)]}
+          modifiers={[padding(settingsLayout.contentInset, 0, settingsLayout.contentInset, 8)]}
         >
           {title}
         </Text>
       ) : null}
-      {children}
+      <NativeSettingsGroup>{children}</NativeSettingsGroup>
       {footer ? (
         <Text
           color={colors.onSurfaceVariant}
           style={{ typography: 'bodySmall' }}
-          modifiers={[padding(16, 8, 16, 0)]}
+          modifiers={[padding(settingsLayout.contentInset, 8, settingsLayout.contentInset, 0)]}
         >
           {footer}
         </Text>
@@ -120,7 +134,7 @@ export function NativeSettingsItem({
         busy ? <CircularProgressIndicator modifiers={[size(24, 24)]} /> : (trailing ?? value)
       }
       onPress={disabled || busy ? undefined : onPress}
-      colors={{ containerColor: theme.colors.backgroundGrouped }}
+      colors={{ containerColor: theme.colors.surface }}
       modifiers={[
         fillMaxWidth(),
         alpha(disabled || busy ? 0.38 : 1),
@@ -130,6 +144,27 @@ export function NativeSettingsItem({
     >
       {title}
     </ListItem>
+  );
+}
+
+export function NativeSettingsTextField({
+  label,
+  ...props
+}: ComponentProps<typeof SharedSettings.NativeSettingsTextField>) {
+  return (
+    <NativeSettingsItem
+      title={
+        <TextInput
+          {...props}
+          modifiers={[
+            fillMaxWidth(),
+            defaultMinSize({ minHeight: settingsLayout.inputMinHeight }),
+            wrapContentHeight('centerVertically'),
+            semantics({ contentDescription: label }),
+          ]}
+        />
+      }
+    />
   );
 }
 
@@ -268,14 +303,12 @@ export function NativeSettingsChoiceList({
 }: ComponentProps<typeof SharedSettings.NativeSettingsChoiceList>) {
   const colors = useMaterialColors();
   return (
-    <Column
-      modifiers={[fillMaxWidth(), selectableGroup(), semantics({ contentDescription: label })]}
-    >
+    <NativeSettingsRows modifiers={[selectableGroup(), semantics({ contentDescription: label })]}>
       {options.map((option) => (
         <Row
           key={option.value}
           verticalAlignment="center"
-          horizontalArrangement={{ spacedBy: 16 }}
+          horizontalArrangement={{ spacedBy: settingsLayout.contentInset }}
           modifiers={[
             fillMaxWidth(),
             selectable(
@@ -286,7 +319,12 @@ export function NativeSettingsChoiceList({
               'radioButton',
             ),
             alpha(disabled ? 0.38 : 1),
-            padding(16, 12, 16, 12),
+            padding(
+              settingsLayout.contentInset,
+              settingsLayout.rowPaddingVertical,
+              settingsLayout.contentInset,
+              settingsLayout.rowPaddingVertical,
+            ),
           ]}
         >
           <RadioButton selected={option.value === value} />
@@ -302,7 +340,7 @@ export function NativeSettingsChoiceList({
           </Column>
         </Row>
       ))}
-    </Column>
+    </NativeSettingsRows>
   );
 }
 
