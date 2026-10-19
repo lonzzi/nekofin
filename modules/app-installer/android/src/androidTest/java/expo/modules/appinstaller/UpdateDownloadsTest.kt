@@ -7,6 +7,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Environment
 import android.os.Bundle
+import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONObject
@@ -28,8 +29,8 @@ class UpdateDownloadsTest {
   private val name = "nekofin-$tag-android-arm64.apk"
   private fun downloads() = UpdateDownloads(context, context.packageName)
 
-  @Before fun reset() { downloads().cancel(); prefs.edit().clear().commit() }
-  @After fun cleanup() { downloads().cancel() }
+  @Before fun reset() { downloads().setPlaying(false); downloads().cancel(); prefs.edit().clear().commit() }
+  @After fun cleanup() { downloads().setPlaying(false); downloads().cancel() }
 
   private fun release(size: Long, sha: String? = null): JSONObject = JSONObject().apply {
     put("tag", tag); put("version", tag.substring(1))
@@ -122,15 +123,32 @@ class UpdateDownloadsTest {
     assertFalse(context.getSystemService(NotificationManager::class.java).activeNotifications.any { it.id == 4127 })
   }
 
+  @Test fun stalePersistedPlaybackDoesNotSuppressTheCompletionNotification() {
+    assertEquals("ready", finishSystemDownload()["status"])
+    // Older versions persisted this flag, which can survive a terminated playback process.
+    prefs.edit().putBoolean("playing", true).commit()
+    downloads().notifyCompleted(prefs.getLong("id", -1))
+    awaitCompletionNotification()
+  }
+
+  private fun awaitCompletionNotification(): android.app.Notification {
+    val manager = context.getSystemService(NotificationManager::class.java)
+    val end = System.currentTimeMillis() + 3000
+    while (manager.activeNotifications.none { it.id == 4127 } && System.currentTimeMillis() < end) Thread.sleep(50)
+    return manager.activeNotifications.first { it.id == 4127 }.notification
+  }
+
   @Test fun completionNotificationIsSilentAndOpensTheUpdatePage() {
     assertEquals("ready", finishSystemDownload()["status"])
     downloads().setPlaying(false)
     downloads().notifyCompleted(prefs.getLong("id", -1))
     val manager = context.getSystemService(NotificationManager::class.java)
-    val end = System.currentTimeMillis() + 3000
-    while (manager.activeNotifications.none { it.id == 4127 } && System.currentTimeMillis() < end) Thread.sleep(50)
-    val notification = manager.activeNotifications.first { it.id == 4127 }.notification
-    assertEquals(NotificationManager.IMPORTANCE_LOW, manager.getNotificationChannel(notification.channelId).importance)
+    val notification = awaitCompletionNotification()
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      assertEquals(NotificationManager.IMPORTANCE_LOW, manager.getNotificationChannel(notification.channelId).importance)
+    }
+    assertNull(notification.sound)
+    assertNull(notification.vibrate)
     notification.contentIntent.send()
     InstrumentationRegistry.getInstrumentation().waitForIdleSync()
     val launchEnd = System.currentTimeMillis() + 3000

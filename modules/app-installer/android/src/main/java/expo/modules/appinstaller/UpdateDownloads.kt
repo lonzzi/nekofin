@@ -165,19 +165,21 @@ internal class UpdateDownloads(private val context: Context, private val expecte
     }
   }
 
-  fun setPlaying(playing: Boolean) {
-    prefs.edit().putBoolean("playing", playing).apply()
-    if (playing) notifications.cancel(NOTIFICATION_ID)
+  fun setPlaying(active: Boolean) {
+    playing = active
+    if (active) notifications.cancel(NOTIFICATION_ID)
   }
 
   fun notifyCompleted(id: Long) = synchronized(lock) {
-    if (prefs.getLong("id", -1) != id || prefs.getBoolean("playing", false)) return@synchronized
+    if (prefs.getLong("id", -1) != id || playing) return@synchronized
     if (snapshot()?.get("status") != "ready" || prefs.getLong("notified", -1) == id) return@synchronized
     if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return@synchronized
-    notifications.createNotificationChannel(NotificationChannel(CHANNEL, "应用更新", NotificationManager.IMPORTANCE_LOW).apply {
-      description = "更新下载完成后提醒安装"
-      setSound(null, null)
-    })
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      notifications.createNotificationChannel(NotificationChannel(CHANNEL, "应用更新", NotificationManager.IMPORTANCE_LOW).apply {
+        description = "更新下载完成后提醒安装"
+        setSound(null, null)
+      })
+    }
     val intent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return@synchronized
     intent.action = Intent.ACTION_VIEW
     intent.data = Uri.parse("nekofin://about")
@@ -188,12 +190,14 @@ internal class UpdateDownloads(private val context: Context, private val expecte
       .setContentTitle("NekoFin 更新已下载")
       .setContentText("点按打开应用，选择是否安装新版本")
       .setContentIntent(pending).setAutoCancel(true).setSilent(true).build()
-    if (prefs.getBoolean("playing", false)) return@synchronized
+    if (playing) return@synchronized
     notifications.notify(NOTIFICATION_ID, notification)
     prefs.edit().putLong("notified", id).apply()
   }
 
   companion object {
+    // Playback stops with the process; a receiver in a new process must not inherit suppression.
+    @Volatile private var playing = false
     private val lock = Any()
     private const val CHANNEL = "nekofin-app-updates"
     private const val NOTIFICATION_ID = 4127

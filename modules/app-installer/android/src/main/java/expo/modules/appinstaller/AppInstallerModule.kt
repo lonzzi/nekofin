@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.Intent
 import android.net.Uri
 import android.net.ConnectivityManager
+import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import expo.modules.kotlin.modules.Module
@@ -31,7 +32,7 @@ class AppInstallerModule : Module() {
       val file = downloads().file(uri)
       val context = requireNotNull(appContext.reactContext)
       val activity = requireNotNull(appContext.currentActivity) { "请返回应用后重试安装。" }
-      if (!context.packageManager.canRequestPackageInstalls()) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
         activity.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
           Uri.parse("package:${context.packageName}")))
         "permission-required"
