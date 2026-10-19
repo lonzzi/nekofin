@@ -6,9 +6,26 @@ export type AppRelease = {
   tag: string;
   version: string;
   url: string;
+  installer: {
+    name: string;
+    url: string;
+    size: number;
+    sha256: string | null;
+  };
 };
 
 export const RELEASES_URL = 'https://github.com/lonzzi/nekofin/releases';
+export const AUTO_DOWNLOAD_UPDATES_KEY = 'appUpdate.autoDownload';
+
+export type InstallerDownload = {
+  release: AppRelease;
+  automatic: boolean;
+  status: 'downloading' | 'ready' | 'error';
+  progress: number;
+  uri?: string;
+  waiting?: string;
+  error?: string;
+};
 
 function isReleaseTag(tag: string) {
   return /^v\d/.test(tag) && tag.trim() === tag && valid(tag.slice(1)) !== null;
@@ -68,17 +85,31 @@ export function selectAppUpdate(
     if (!gt(version, currentVersion)) continue;
 
     const assetName = `nekofin-${tag}-${extension}`;
-    const hasInstaller = release.assets.some(
+    const installer = release.assets.find(
       (asset) =>
         isRecord(asset) &&
         asset.name === assetName &&
         asset.state === 'uploaded' &&
         typeof asset.size === 'number' &&
+        Number.isSafeInteger(asset.size) &&
         asset.size > 0,
     );
-    if (!hasInstaller) continue;
+    if (!isRecord(installer)) continue;
 
-    candidates.push({ tag, version, url: `${RELEASES_URL}/tag/${encodeURIComponent(tag)}` });
+    candidates.push({
+      tag,
+      version,
+      url: `${RELEASES_URL}/tag/${encodeURIComponent(tag)}`,
+      installer: {
+        name: assetName,
+        url: `${RELEASES_URL}/download/${encodeURIComponent(tag)}/${encodeURIComponent(assetName)}`,
+        size: installer.size as number,
+        sha256:
+          typeof installer.digest === 'string' && /^sha256:[a-f0-9]{64}$/i.test(installer.digest)
+            ? installer.digest.slice(7).toLowerCase()
+            : null,
+      },
+    });
   }
 
   return candidates.sort((a, b) => rcompare(a.version, b.version))[0] ?? null;

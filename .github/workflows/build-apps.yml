@@ -61,6 +61,10 @@ on:
         required: false
         default: ''
         type: string
+      ios_build_number:
+        required: false
+        default: ''
+        type: string
       android_runtime:
         required: false
         default: ''
@@ -75,6 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ inputs.platform == 'android' || inputs.platform == 'both' }}
     env:
+      NEKOFIN_IOS_BUILD_NUMBER: ${{ inputs.ios_build_number || '' }}
       EXPO_PUBLIC_DANDANPLAY_API_URL: ${{ secrets.EXPO_PUBLIC_DANDANPLAY_API_URL }}
       NEKOFIN_RELEASE_TAG: ${{ inputs.release_tag || '' }}
       NEKOFIN_OTA_URL: ${{ vars.NEKOFIN_OTA_URL }}
@@ -202,6 +207,7 @@ jobs:
     runs-on: macos-26
     if: ${{ inputs.platform == 'ios' || inputs.platform == 'both' }}
     env:
+      NEKOFIN_IOS_BUILD_NUMBER: ${{ inputs.ios_build_number || '' }}
       EXPO_PUBLIC_DANDANPLAY_API_URL: ${{ secrets.EXPO_PUBLIC_DANDANPLAY_API_URL }}
       NEKOFIN_RELEASE_TAG: ${{ inputs.release_tag || '' }}
       NEKOFIN_OTA_URL: ${{ vars.NEKOFIN_OTA_URL }}
@@ -279,9 +285,15 @@ jobs:
           cp -r build/nekofin.xcarchive/Products/Applications/nekofin.app Payload
           zip -r "$IPA_NAME" Payload
 
+      - name: Extract AltStore and LiveContainer metadata from IPA
+        if: env.NEKOFIN_RELEASE_TAG != ''
+        run: python3 .github/scripts/ios-source-metadata.py "$IPA_NAME" "$NEKOFIN_RELEASE_TAG" "nekofin-${NEKOFIN_RELEASE_TAG}-ios-source.json" --entitlements ios/nekofin/nekofin.entitlements
+
       - name: Upload App Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-${{ inputs.ios_build_type || 'release' }}${{ inputs.build_suffix }}
-          path: ${{ env.IPA_NAME }}
+          path: |
+            ${{ env.IPA_NAME }}
+            *-ios-source.json
           if-no-files-found: error
