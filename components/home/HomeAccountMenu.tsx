@@ -109,6 +109,17 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
               </AccountMenuAction>
             ))}
           </AccountMenu>
+          <AccountMenuAction
+            disabled={!activeServers.length}
+            onPress={() =>
+              router.push({
+                pathname: '/(tabs)/(home)/carousel-libraries',
+                params: { serverId: account?.id ?? homeServerId ?? '' },
+              })
+            }
+          >
+            轮播图媒体库
+          </AccountMenuAction>
           {server ? (
             <AccountMenu title="切换账号">
               <AccountMenu inline title={server.name}>

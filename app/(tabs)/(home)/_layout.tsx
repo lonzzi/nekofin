@@ -23,6 +23,7 @@ export default function HomeLayout() {
         }}
       />
       {GroupedStackRoutes()}
+      <Stack.Screen name="carousel-libraries" options={{ title: '轮播图媒体库' }} />
       <Stack.Screen name="folder/[id]" options={{ title: '查看全部' }} />
       <Stack.Screen name="view-all/[type]" options={{ title: '查看全部' }} />
     </Stack>

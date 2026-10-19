@@ -44,7 +44,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import { usePlaybackSync } from '../../hooks/usePlaybackSync';
 import { Controls } from './Controls';
 import { DanmakuLayer, DanmakuLayerRef } from './DanmakuLayer';
-import { createExternalSubtitleCache, SubtitleCacheLimitError } from './externalSubtitleCache';
+import { createExternalSubtitleCache } from './externalSubtitleCache';
 import { derivePlaybackSourceInfo } from './playbackInfo';
 import {
   acknowledgePlaybackSeek,
@@ -80,6 +80,8 @@ import {
   type SubtitleChoice,
 } from './playerSubtitleMenu';
 import {
+  createExternalTrackRequestCache,
+  externalTrackRequestKey,
   isExternalTrackCommandError,
   loadExternalPlayerTrack,
   loadExternalTracksProgressively,
@@ -183,7 +185,7 @@ export const VideoPlayer = ({
   const externalTrackLoads = useRef<{
     player: ExpoMpvViewRef;
     source: string;
-    requests: Map<string, Promise<number | undefined>>;
+    requests: ReturnType<typeof createExternalTrackRequestCache>;
     subtitleIds: Map<number, number>;
     audioIds: Map<number, number>;
     subtitleCache: ReturnType<typeof createExternalSubtitleCache>;
@@ -943,7 +945,7 @@ export const VideoPlayer = ({
       externalTrackLoads.current = {
         player: targetPlayer,
         source: targetSource,
-        requests: new Map(),
+        requests: createExternalTrackRequestCache(),
         subtitleIds: new Map(),
         audioIds: new Map(),
         subtitleCache: createExternalSubtitleCache({
@@ -962,7 +964,6 @@ export const VideoPlayer = ({
       loadedSourceRef.current === targetSource;
     let cancelled = false;
     const loadTracks = async () => {
-      let subtitleLimitMessage: string | undefined;
       const pending = [
         ...subtitleTracksToLoad(
           externalSubtitles,
@@ -975,23 +976,28 @@ export const VideoPlayer = ({
         })),
         ...externalAudios.map((track) => ({ track, type: 'audio' as const, ids: loads.audioIds })),
       ];
-      const result = await loadExternalTracksProgressively(
+      await loadExternalTracksProgressively(
         pending.map(({ track, type, ids }) => async () => {
-          const key = `${type}:${track.index}:${track.url}`;
-          let request = loads.requests.get(key);
-          if (!request) {
-            request = (async () => {
-              const prepared =
-                type === 'sub' ? await loads.subtitleCache.prepare(track, isActive) : track;
-              if (!prepared || !isActive()) return;
-              return loadExternalPlayerTrack(targetPlayer, type, prepared, isActive);
-            })();
-            loads.requests.set(key, request);
-            void request.catch(() => {
-              // Evict failed requests so selecting the same track can retry.
-              if (loads.requests.get(key) === request) loads.requests.delete(key);
-            });
-          }
+          const key = externalTrackRequestKey(type, track);
+          const request = loads.requests.load(
+            key,
+            async () => {
+              try {
+                const prepared =
+                  type === 'sub' ? await loads.subtitleCache.prepare(track, isActive) : track;
+                if (!prepared || !isActive()) return;
+                return await loadExternalPlayerTrack(targetPlayer, type, prepared, isActive);
+              } catch (error) {
+                console.warn('External player track load failed', {
+                  type,
+                  index: track.index,
+                  error: error instanceof Error ? error.name : 'Unknown error',
+                });
+                throw error;
+              }
+            },
+            { cacheFailures: type === 'sub' },
+          );
           try {
             const id = await request;
             if (id != null) {
@@ -1006,7 +1012,6 @@ export const VideoPlayer = ({
               }
             }
           } catch (error) {
-            if (error instanceof SubtitleCacheLimitError) subtitleLimitMessage = error.message;
             if (type === 'sub' && isActive()) {
               setFailedSubtitleIndices((previous) => new Set([...previous, track.index]));
             }
@@ -1016,11 +1021,6 @@ export const VideoPlayer = ({
         () => refreshMpvTracks(targetPlayer, targetSource),
         () => !cancelled && isActive(),
       );
-      if (result?.failed)
-        Alert.alert(
-          '部分轨道加载失败',
-          subtitleLimitMessage ?? '部分外挂字幕或音轨未能加载，请检查服务器连接后重新播放。',
-        );
     };
     void loadTracks();
     return () => {
@@ -1207,6 +1207,12 @@ export const VideoPlayer = ({
       }
       if (hasServerSubtitleMenu && subtitleMenuSource) {
         if (trackId !== -1 && !menuTracks.subtitle.some((track) => track.index === trackId)) return;
+        const track = externalSubtitles.find((entry) => entry.index === trackId);
+        const loads = externalTrackLoads.current;
+        if (track && loads?.player === player.current && loads.source === loadedSourceRef.current) {
+          // An explicit menu selection retries this failed subtitle, preserving other attempts.
+          loads.requests.retry(externalTrackRequestKey('sub', track));
+        }
         const choice = { itemId, sourceId: subtitleMenuSource.id, index: trackId };
         subtitleChoiceRef.current = choice;
         setSubtitleChoice(choice);
@@ -1244,6 +1250,7 @@ export const VideoPlayer = ({
       hasServerSubtitleMenu,
       subtitleMenuSource,
       menuTracks.subtitle,
+      externalSubtitles,
       itemId,
     ],
   );

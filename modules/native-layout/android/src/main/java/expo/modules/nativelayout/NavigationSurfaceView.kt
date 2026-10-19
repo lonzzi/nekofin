@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.Rect
 import android.os.Build
+import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
@@ -16,7 +17,7 @@ import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.views.ExpoView
 
 /** Never sample a Screen that contains the material itself (a render-node cycle). */
-internal fun findNavigationBlurSource(anchor: View): BlurTarget? {
+internal fun findNavigationBlurSource(anchor: View, allowSurfaceView: Boolean = true): BlurTarget? {
   val ancestors = mutableSetOf<View>()
   var parent = anchor.parent
   while (parent is View) { ancestors.add(parent); parent = parent.parent }
@@ -31,25 +32,47 @@ internal fun findNavigationBlurSource(anchor: View): BlurTarget? {
   // A header's nearest CoordinatorLayout contains its own body as a sibling.
   var level = anchor.parent
   while (level is ViewGroup) {
-    find(level)?.let { return it.navigationBlurSource }
+    find(level)?.let {
+      if (!allowSurfaceView && containsVisibleSurfaceView(it)) return null
+      return it.navigationBlurSource
+    }
     level = level.parent
   }
   return null
 }
 
-/** A popup is a separate window, so its anchor's body is also a safe source. */
+private fun containsVisibleSurfaceView(view: View): Boolean {
+  if (!view.isShown) return false
+  if (view is SurfaceView) return true
+  if (view is ViewGroup) {
+    for (index in 0 until view.childCount) {
+      if (containsVisibleSurfaceView(view.getChildAt(index))) return true
+    }
+  }
+  return false
+}
+
+/** A popup may sample its anchor's body, unless it owns a separately composited Surface. */
 internal fun findPopupBlurSource(anchor: View): BlurTarget? {
   var parent = anchor.parent
   while (parent is View) {
-    if (parent is Screen) return parent.navigationBlurSource
+    if (parent is Screen) {
+      // Replaying this RenderNode in the popup's scaled blur pass also repositions
+      // SurfaceView's live SurfaceControl. The two windows then fight over its transform.
+      if (containsVisibleSurfaceView(parent)) return null
+      return parent.navigationBlurSource
+    }
     parent = parent.parent
   }
-  return findNavigationBlurSource(anchor)
+  return findNavigationBlurSource(anchor, allowSurfaceView = false)
 }
 
 /** The single material adapter for React Native, Compose buttons and popup windows. */
 internal class NavigationMaterialView(context: Context) : FrameLayout(context) {
   var sourceOverride: BlurTarget? = null
+  // SurfaceView cannot be replayed into a blur pass. Player overlays reuse the
+  // same native tint and edge without capturing or transforming the video.
+  var sampleContent = true
   var surfaceColor = Color.WHITE
     set(value) { field = value; glass?.setSurfaceColor(value) }
   var trailingWidth = 0f
@@ -80,8 +103,9 @@ internal class NavigationMaterialView(context: Context) : FrameLayout(context) {
   private fun bindContent() {
     if (!isAttachedToWindow) return
     updateDrawerHost()
-    val source = sourceOverride ?: findNavigationBlurSource(this) ?: return
-    if (source === boundSource) return
+    val source = if (sampleContent) sourceOverride ?: findNavigationBlurSource(this) else null
+    if (source == null && sampleContent) return
+    if (source === boundSource && glass != null) return
     removeAllViews()
     boundSource = source
     glass = NavigationGlassView(context, source).also {
@@ -130,6 +154,12 @@ class NavigationSurfaceView(context: Context, appContext: AppContext) : ExpoView
   var surfaceColor: Int
     get() = material.surfaceColor
     set(value) { material.surfaceColor = value }
+  var sampleContent: Boolean
+    get() = material.sampleContent
+    set(value) { material.sampleContent = value }
+  var cornerRadius: Float
+    get() = material.cornerRadius
+    set(value) { material.cornerRadius = value }
   var trailingWidth: Float
     get() = material.trailingWidth
     set(value) { material.trailingWidth = value }

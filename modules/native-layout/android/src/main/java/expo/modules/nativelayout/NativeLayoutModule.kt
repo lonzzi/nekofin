@@ -58,11 +58,16 @@ class NativeLayoutModule : Module() {
     }
     View(FloatingTabsGestureView::class) {}
     View(NavigationSurfaceView::class) {
+      Prop("sampleContent") { view, value: Boolean -> view.sampleContent = value }
+      Prop("cornerRadius") { view, value: Float -> view.cornerRadius = value }
       Prop("drawer") { view, value: Boolean -> view.drawer = value }
       Prop("trailingWidth") { view, value: Float -> view.trailingWidth = value }
       Prop("trailingGap") { view, value: Float -> view.trailingGap = value }
       OnViewDidUpdateProps { view -> view.updateShape() }
       Prop("surfaceColor") { view, value: Int -> view.surfaceColor = value }
+    }
+    ExpoUIView<MaterialSurfaceProps>("MaterialSurfaceView") {
+      Content { props -> MaterialSurfaceContent(props) }
     }
     ExpoUIView<GlassIconButtonProps>("GlassIconButtonView") {
       val onButtonPressed by Event<Unit>()

@@ -4,23 +4,11 @@ import {
   isLiquidGlassAvailable,
   type GlassEffectStyleConfig,
 } from 'expo-glass-effect';
-import { PropsWithChildren, useEffect, useMemo, useState } from 'react';
-import { AccessibilityInfo, StyleProp, StyleSheet, ViewStyle } from 'react-native';
-import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
+import { useEffect, useMemo, useState } from 'react';
+import { AccessibilityInfo, StyleSheet } from 'react-native';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
-type PlayerGlassSurfaceProps = PropsWithChildren<{
-  contentStyle?: StyleProp<ViewStyle>;
-  fadeProgress: SharedValue<number>;
-  fallbackBackgroundColor?: string;
-  effectStyle?: 'clear' | 'regular';
-  isInteractive?: boolean;
-  pointerEvents?: 'auto' | 'none' | 'box-none' | 'box-only';
-  radius?: number;
-  style?: StyleProp<ViewStyle>;
-  surfaceStyle?: StyleProp<ViewStyle>;
-  tintColor?: string;
-  visible: boolean;
-}>;
+import type { PlayerGlassSurfaceProps } from './PlayerGlassSurface.types';
 
 export function PlayerGlassSurface({
   children,

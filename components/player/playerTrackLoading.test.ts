@@ -2,11 +2,85 @@ import type { ExpoMpvViewRef, TrackInfo } from 'expo-mpv';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  createExternalTrackRequestCache,
+  externalTrackRequestKey,
   isExternalTrackCommandError,
   loadExternalPlayerTrack,
   loadExternalTracksProgressively,
   selectPlayerSubtitleTrack,
 } from './playerTrackLoading';
+
+describe('external track attempts across effect restarts', () => {
+  it('retains a failed attempt until the user explicitly retries', async () => {
+    const cache = createExternalTrackRequestCache();
+    const start = vi.fn(async (): Promise<number> => {
+      throw new Error('HTTP 503');
+    });
+    await expect(cache.load('sub:8', start)).rejects.toThrow('HTTP 503');
+    await expect(cache.load('sub:8', start)).rejects.toThrow('HTTP 503');
+    expect(start).toHaveBeenCalledOnce();
+
+    cache.retry('sub:8');
+    await expect(cache.load('sub:8', start)).rejects.toThrow('HTTP 503');
+    expect(start).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not replace in-flight or successful loads when selecting a subtitle again', async () => {
+    const cache = createExternalTrackRequestCache();
+    let finish!: (id: number) => void;
+    const start = vi.fn(() => new Promise<number>((resolve) => (finish = resolve)));
+    const request = cache.load('sub:8', start);
+    await Promise.resolve();
+    cache.retry('sub:8');
+    expect(cache.load('sub:8', start)).toBe(request);
+    finish(7);
+    await expect(request).resolves.toBe(7);
+    cache.retry('sub:8');
+    await expect(cache.load('sub:8', start)).resolves.toBe(7);
+    expect(start).toHaveBeenCalledOnce();
+  });
+
+  it('retries a failed audio load while coalescing in-flight and successful attempts', async () => {
+    const cache = createExternalTrackRequestCache();
+    const key = externalTrackRequestKey('audio', {
+      index: 8,
+      name: 'Japanese',
+      url: 'https://media.test/audio.flac',
+    });
+    const start = vi.fn().mockRejectedValueOnce(new Error('HTTP 503')).mockResolvedValue(9);
+    const load = () => cache.load(key, start, { cacheFailures: false });
+
+    const failed = load();
+    expect(load()).toBe(failed);
+    await expect(failed).rejects.toThrow('HTTP 503');
+
+    const retried = load();
+    expect(retried).not.toBe(failed);
+    expect(load()).toBe(retried);
+    await expect(retried).resolves.toBe(9);
+    expect(load()).toBe(retried);
+    expect(start).toHaveBeenCalledTimes(2);
+  });
+
+  it('lets other tracks load and scopes retries to the exact type, index and URL', async () => {
+    const cache = createExternalTrackRequestCache();
+    const track = { index: 8, name: 'Chinese', url: 'https://media.test/sub.srt' };
+    const key = externalTrackRequestKey('sub', track);
+    const failed = vi.fn(async (): Promise<number> => {
+      throw new Error('HTTP 404');
+    });
+    const good = vi.fn(async () => 9);
+    await expect(cache.load(key, failed)).rejects.toThrow('HTTP 404');
+    const otherKey = externalTrackRequestKey('audio', track);
+    await expect(cache.load(otherKey, good)).resolves.toBe(9);
+    cache.retry(otherKey);
+    cache.retry(externalTrackRequestKey('sub', { ...track, url: 'https://media.test/new.srt' }));
+    await expect(cache.load(key, failed)).rejects.toThrow('HTTP 404');
+    expect(failed).toHaveBeenCalledOnce();
+    await expect(cache.load(otherKey, good)).resolves.toBe(9);
+    expect(good).toHaveBeenCalledOnce();
+  });
+});
 
 describe('native subtitle selection confirmation', () => {
   const createPlayer = () => ({

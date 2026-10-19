@@ -1,4 +1,5 @@
 import { AvatarImage } from '@/components/AvatarImage';
+import * as ContextMenu from '@/components/ui/ContextMenu';
 import { GlassCard, SafeGlassContainer } from '@/components/ui/GlassCard';
 import { useAppTheme } from '@/lib/theme';
 import type { MediaServerInfo } from '@/services/media/types';
@@ -6,7 +7,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import * as ContextMenu from 'zeego/context-menu';
 
 const ONLINE_GREEN = '#34c759';
 
