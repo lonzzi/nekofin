@@ -139,6 +139,7 @@ fun FunctionalComposableScope.PopupMenuContent(props: PopupMenuProps, onDismiss:
             AndroidView(factory = { NavigationMaterialView(it) }, modifier = Modifier.matchParentSize(),
               update = {
                 it.sourceOverride = blurSource
+                it.sampleContent = blurSource != null
                 it.surfaceColor = surface.toArgb()
                 it.cornerRadius = 18f
                 it.updateShape()

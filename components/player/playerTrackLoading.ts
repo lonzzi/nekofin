@@ -7,6 +7,29 @@ export type ExternalPlayerTrack = {
   url: string;
 };
 
+/** Keep failed attempts too: effect restarts must not retry optional sidecars indefinitely. */
+export function createExternalTrackRequestCache() {
+  const requests = new Map<string, Promise<number | undefined>>();
+  const failures = new Set<string>();
+  return {
+    load(key: string, start: () => Promise<number | undefined>) {
+      const existing = requests.get(key);
+      if (existing) return existing;
+      const request = Promise.resolve().then(start);
+      requests.set(key, request);
+      void request.catch(() => failures.add(key));
+      return request;
+    },
+    retry(key: string) {
+      if (!failures.delete(key)) return;
+      requests.delete(key);
+    },
+  };
+}
+
+export const externalTrackRequestKey = (type: 'sub' | 'audio', track: ExternalPlayerTrack) =>
+  `${type}:${track.index}:${track.url}`;
+
 export async function selectPlayerSubtitleTrack(
   player: Pick<ExpoMpvViewRef, 'setSubtitleTrack' | 'setPropertyString' | 'getCurrentTrackIds'>,
   trackId: number,

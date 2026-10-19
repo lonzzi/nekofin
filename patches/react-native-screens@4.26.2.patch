@@ -1101,9 +1101,9 @@ new file mode 100644
 +import eightbitlab.com.blurview.CroppedBlurTarget
 +
 +/** One content-only GPU material shared by phone bottom tabs and tablet top controls. */
-+class NavigationGlassView(context: Context, source: BlurTarget) : FrameLayout(context) {
++class NavigationGlassView(context: Context, source: BlurTarget?) : FrameLayout(context) {
 +    private val samplePadding = (3 * 20f * 4f + 16 * resources.displayMetrics.density).toInt()
-+    private val sample = CroppedBlurTarget(context, source).apply {
++    private val sample = source?.let { CroppedBlurTarget(context, it) }?.apply {
 +        visibility = View.INVISIBLE
 +        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
 +    }
@@ -1115,7 +1115,7 @@ new file mode 100644
 +        isFocusable = false
 +        outlineProvider = CapsuleOutlineProvider
 +        clipToOutline = true
-+        addView(sample, LayoutParams(0, 0))
++        sample?.let { addView(it, LayoutParams(0, 0)) }
 +        addView(material, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
 +    }
 +
@@ -1134,7 +1134,7 @@ new file mode 100644
 +    fun setTrailingSegment(width: Float, gap: Float) = material.setTrailingSegment(width, gap)
 +
 +    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-+        (sample.layoutParams as LayoutParams).apply {
++        (sample?.layoutParams as? LayoutParams)?.apply {
 +            width = MeasureSpec.getSize(widthMeasureSpec) + samplePadding * 2
 +            height = MeasureSpec.getSize(heightMeasureSpec) + samplePadding * 2
 +            leftMargin = -samplePadding
@@ -1144,12 +1144,12 @@ new file mode 100644
 +    }
 +}
 +
-+private class NavigationGlassBackdrop(context: Context, private val source: CroppedBlurTarget) : View(context) {
++private class NavigationGlassBackdrop(context: Context, private val source: CroppedBlurTarget?) : View(context) {
 +    private var clearColor = Color.WHITE
 +    private val visibleBounds = Rect()
 +    private val updateSnapshot = ViewTreeObserver.OnPreDrawListener {
 +        if (Build.VERSION.SDK_INT >= 31 && isShown && getGlobalVisibleRect(visibleBounds)) {
-+            source.updateBlurredSnapshot(clearColor, drawer)
++            source?.updateBlurredSnapshot(clearColor, drawer)
 +        }
 +        true
 +    }
@@ -1169,7 +1169,7 @@ new file mode 100644
 +
 +    override fun onAttachedToWindow() {
 +        super.onAttachedToWindow()
-+        viewTreeObserver.addOnPreDrawListener(updateSnapshot)
++        if (source != null) viewTreeObserver.addOnPreDrawListener(updateSnapshot)
 +    }
 +
 +    override fun onDetachedFromWindow() {
@@ -1233,8 +1233,8 @@ new file mode 100644
 +        canvas.clipPath(shape)
 +        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
 +            if (canvas.isHardwareAccelerated) {
-+                source.updateBlurredSnapshot(clearColor, drawer)
-+                source.drawBlurredSnapshot(canvas, this)
++                source?.updateBlurredSnapshot(clearColor, drawer)
++                source?.drawBlurredSnapshot(canvas, this)
 +            }
 +        }
 +        canvas.drawColor(tintPaint.color)
