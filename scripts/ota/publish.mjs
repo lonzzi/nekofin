@@ -36,6 +36,7 @@ export function assertCompatibleRuntime(expected, actual) {
     expected.releaseTag !== actual.releaseTag ||
     expected.channel !== actual.channel ||
     expected.url !== actual.url ||
+    (expected.iosBuildNumber ?? '1') !== (actual.iosBuildNumber ?? '1') ||
     ['ios', 'android'].some(
       (platform) => expected.runtimes?.[platform] !== actual.runtimes?.[platform],
     )
@@ -79,6 +80,8 @@ export async function publish({
   );
   mkdirSync(directory, { recursive: true });
   const nativeRuntimes = JSON.parse(readFileSync(nativeRuntimesFile, 'utf8'));
+  // Use the installed binary's build identity for both fingerprinting and JS export.
+  process.env.NEKOFIN_IOS_BUILD_NUMBER = nativeRuntimes.iosBuildNumber ?? '1';
   const certificate = readFileSync('updates/server/ota-certificate.crt', 'utf8');
   const privateKey = readFileSync(privateKeyFile, 'utf8');
   if (!/^(production|preview)-v[0-9A-Za-z.+-]+$/.test(nativeRuntimes.channel))

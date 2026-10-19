@@ -22,6 +22,7 @@ test('blocks changes to either native runtime, channel, signing endpoint or rele
     { ...baseline, channel: 'preview-v0.1.0-beta.1' },
     { ...baseline, url: 'https://another.example/api/manifest' },
     { ...baseline, releaseTag: 'v0.1.0-beta.2' },
+    { ...baseline, iosBuildNumber: '1.0.4' },
   ])
     assert.throws(() => assertCompatibleRuntime(baseline, changed), /new APK\/IPA/);
 });

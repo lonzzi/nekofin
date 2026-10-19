@@ -84,7 +84,12 @@ test('fingerprints build configuration and native sources without capturing clie
 test('tag-driven installer and OTA checkouts share a runtime while native changes stay blocked', async (t) => {
   const root = process.cwd();
   const directory = mkdtempSync(path.join(tmpdir(), 'nekofin-tag-runtime-'));
-  const environmentKeys = ['APP_VARIANT', 'NEKOFIN_RELEASE_TAG', 'NEKOFIN_OTA_URL'];
+  const environmentKeys = [
+    'APP_VARIANT',
+    'NEKOFIN_RELEASE_TAG',
+    'NEKOFIN_OTA_URL',
+    'NEKOFIN_IOS_BUILD_NUMBER',
+  ];
   const previousEnvironment = Object.fromEntries(
     environmentKeys.map((key) => [key, process.env[key]]),
   );
@@ -97,6 +102,7 @@ test('tag-driven installer and OTA checkouts share a runtime while native change
   });
   process.env.APP_VARIANT = 'production';
   process.env.NEKOFIN_RELEASE_TAG = 'v9.8.7-beta.1';
+  process.env.NEKOFIN_IOS_BUILD_NUMBER = '1.0.42';
   delete process.env.NEKOFIN_OTA_URL;
 
   function checkout(name, oldVersion) {
@@ -161,6 +167,7 @@ test('tag-driven installer and OTA checkouts share a runtime while native change
   assert.equal(exp.extra.releaseTag, 'v9.8.7-beta.1');
   assert.equal(exp.updates.requestHeaders['expo-channel-name'], 'production-v9.8.7-beta.1');
   const installedRuntime = await inCheckout(installer, () => resolveRuntimes());
+  assert.equal(installedRuntime.iosBuildNumber, '1.0.42');
   const otaRuntime = await inCheckout(ota, () => resolveRuntimes());
   assert.doesNotThrow(() => assertCompatibleRuntime(installedRuntime, otaRuntime));
   appendFileSync(

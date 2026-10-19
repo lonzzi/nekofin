@@ -28,14 +28,12 @@ jobs:
       sha: ${{ steps.version.outputs.sha }}
       ios_runtime: ${{ steps.runtime.outputs.ios }}
       android_runtime: ${{ steps.runtime.outputs.android }}
+      ios_build_number: ${{ steps.version.outputs.ios_build_number }}
     steps:
       - name: Check out version tag
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'push' && github.sha || format('refs/tags/{0}', inputs.tag) }}
-
-      - name: Test release automation
-        run: node --test .github/scripts/*.test.cjs
 
       - name: Set app version from release tag
         id: version
@@ -43,17 +41,21 @@ jobs:
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           node .github/scripts/release-metadata.cjs "$RELEASE_TAG" --write-version
+          node .github/scripts/ios-build-number.cjs "$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
+      - name: Test release automation
+        run: node --test .github/scripts/*.test.cjs
       - name: Resolve signed native runtime contracts
         id: runtime
         env:
           APP_VARIANT: production
           NEKOFIN_RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+          NEKOFIN_IOS_BUILD_NUMBER: ${{ steps.version.outputs.ios_build_number }}
           NEKOFIN_OTA_URL: ${{ vars.NEKOFIN_OTA_URL }}
           EXPO_PUBLIC_DANDANPLAY_API_URL: ${{ secrets.EXPO_PUBLIC_DANDANPLAY_API_URL }}
         run: |
@@ -78,6 +80,7 @@ jobs:
       release_tag: ${{ needs.prepare.outputs.tag }}
       ios_runtime: ${{ needs.prepare.outputs.ios_runtime }}
       android_runtime: ${{ needs.prepare.outputs.android_runtime }}
+      ios_build_number: ${{ needs.prepare.outputs.ios_build_number }}
     secrets: inherit
 
   publish:
@@ -112,6 +115,7 @@ jobs:
           mkdir -p release
           cp artifacts/android/*.apk "release/nekofin-${RELEASE_TAG}-android-arm64.apk"
           cp artifacts/ios/*.ipa "release/nekofin-${RELEASE_TAG}-ios-unsigned.ipa"
+          cp artifacts/ios/*-ios-source.json "release/nekofin-${RELEASE_TAG}-ios-source.json"
 
       - uses: actions/download-artifact@v4
         with:
@@ -121,12 +125,34 @@ jobs:
       - name: Checksum installers and runtime contracts
         run: |
           cd release
-          sha256sum ./*.apk ./*.ipa ./*-runtimes.json > SHA256SUMS
+          sha256sum ./*.apk ./*.ipa ./*-runtimes.json ./*-ios-source.json > SHA256SUMS
 
       - name: Publish complete release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash .github/scripts/publish-release.sh
+
+  ios-sources:
+    name: Update AltStore and LiveContainer sources
+    needs: [prepare, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: ios-app-sources
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Regenerate sources from every published installer release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .github/scripts/ios-sources.cjs
 
   sync-version:
     name: Sync released version to main

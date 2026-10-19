@@ -45,7 +45,7 @@ Nekofin 帮你连接自建媒体服务器，在手机上浏览电影与剧集、
 - **继续观看**：通过 MPV 播放器同步进度，选择音轨、字幕、倍速和画面比例
 - **调整弹幕**：搜索弹幕，控制字体、透明度、速度、显示区域与密度
 - **切换外观**：使用浅色、暗色或跟随系统主题
-- **应用更新**：自动提醒安装包新版本，在「帮助与关于 → 获取更新」下载并立即应用在线更新；后台自动下载的更新于下次启动生效
+- **应用更新**：「帮助与关于 → 检查更新」同时检查安装包与资源更新，支持自动下载开关；Android 后台下载完成后再提示安装，播放期间延后提醒
 
 ## 开始使用
 
@@ -75,6 +75,7 @@ React Native · Expo · Expo Router · MPV · TypeScript
 
 - **Stable**：[最新正式版](https://github.com/lonzzi/nekofin/releases/latest)
 - **Pre-release**：[版本列表](https://github.com/lonzzi/nekofin/releases)中标记为 Pre-release 的版本
+- **iOS 侧载源**：AltStore Classic 和支持 Sources 的 LiveContainer 可添加[正式版源](https://github.com/lonzzi/nekofin/releases/download/app-sources/stable.json)或 [Beta 源](https://github.com/lonzzi/nekofin/releases/download/app-sources/beta.json)。首次发布包含源功能的新版本后可用，之后随版本发布自动更新。
 
 版本 tag 自动设置构建版本并发布 APK、未签名 IPA 和校验文件；发布成功后自动把版本号同步回 `main`。在线更新通过 GitHub Actions 单独发布，详见[发布流程](docs/releasing.md)。
 

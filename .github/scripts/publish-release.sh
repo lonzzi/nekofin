@@ -20,6 +20,10 @@ runtime_contract="release/nekofin-${RELEASE_TAG}-runtimes.json"
 if [[ -s "$runtime_contract" ]]; then
   assets+=("$runtime_contract")
 fi
+source_metadata="release/nekofin-${RELEASE_TAG}-ios-source.json"
+if [[ -s "$source_metadata" ]]; then
+  assets+=("$source_metadata")
+fi
 for asset in "${assets[@]}"; do
   if [[ ! -s "$asset" ]]; then
     echo "Missing or empty release asset: $asset" >&2

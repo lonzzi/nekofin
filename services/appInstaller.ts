@@ -1,0 +1,89 @@
+import { selectAppUpdate, type AppRelease, type InstallerDownload } from '@/lib/appUpdates';
+import { requireOptionalNativeModule } from 'expo';
+import { Platform } from 'react-native';
+import { prerelease } from 'semver';
+
+type NativeDownload = Omit<InstallerDownload, 'release'> & { release: string };
+type NativeInstaller = {
+  startDownloadAsync: (release: string, automatic: boolean) => Promise<NativeDownload>;
+  getDownloadAsync: () => Promise<NativeDownload | null>;
+  cancelDownloadAsync: () => Promise<void>;
+  setPlaybackActiveAsync: (active: boolean) => Promise<void>;
+  isUnmeteredAsync: () => Promise<boolean>;
+  prepareInstallAsync: (uri: string) => Promise<string>;
+  installApkAsync: (uri: string) => Promise<'opened' | 'permission-required'>;
+};
+const native =
+  Platform.OS === 'android' ? requireOptionalNativeModule<NativeInstaller>('AppInstaller') : null;
+// Older binaries receiving JS must keep a usable browser fallback.
+export const canInstallAppUpdate = typeof native?.startDownloadAsync === 'function';
+
+export function parseInstallerDownload(value: NativeDownload | null): InstallerDownload | null {
+  if (!value) return null;
+  try {
+    const saved: AppRelease = JSON.parse(value.release);
+    const selected = selectAppUpdate(
+      [
+        {
+          tag_name: saved.tag,
+          draft: false,
+          prerelease: !!prerelease(saved.version),
+          assets: [
+            {
+              name: saved.installer.name,
+              size: saved.installer.size,
+              state: 'uploaded',
+              digest: saved.installer.sha256 ? `sha256:${saved.installer.sha256}` : null,
+            },
+          ],
+        },
+      ],
+      '0.0.0-0',
+      'android',
+    );
+    if (
+      !selected ||
+      selected.installer.url !== saved.installer.url ||
+      selected.version !== saved.version ||
+      !['downloading', 'ready', 'error'].includes(value.status) ||
+      !Number.isFinite(value.progress) ||
+      (value.status === 'ready' &&
+        (typeof value.uri !== 'string' || !value.uri.startsWith('file://')))
+    )
+      return null;
+    return { ...value, release: selected, progress: Math.max(0, Math.min(100, value.progress)) };
+  } catch {
+    return null;
+  }
+}
+
+export async function startAppInstallerDownload(release: AppRelease, automatic: boolean) {
+  if (!canInstallAppUpdate) throw new Error('请先从 GitHub 安装新版，以启用后台下载。');
+  const result = parseInstallerDownload(
+    await native!.startDownloadAsync(JSON.stringify(release), automatic),
+  );
+  if (!result) throw new Error('无法保存更新下载任务，请重试。');
+  return result;
+}
+export async function getAppInstallerDownload() {
+  return canInstallAppUpdate ? parseInstallerDownload(await native!.getDownloadAsync()) : null;
+}
+export async function cancelAppInstallerDownload() {
+  if (canInstallAppUpdate) await native!.cancelDownloadAsync();
+}
+export async function setInstallerPlaybackActive(active: boolean) {
+  if (canInstallAppUpdate) await native!.setPlaybackActiveAsync(active);
+}
+export async function installAppUpdate(uri: string) {
+  if (!canInstallAppUpdate) throw new Error('此安装包暂不支持应用内安装，请从 GitHub 获取新版。');
+  try {
+    await native!.prepareInstallAsync(uri);
+    return await native!.installApkAsync(uri);
+  } catch {
+    throw new Error('无法准备安装包，请重新下载或检查系统安装权限后重试。');
+  }
+}
+
+export async function isInstallerNetworkUnmetered() {
+  return canInstallAppUpdate && (await native!.isUnmeteredAsync());
+}

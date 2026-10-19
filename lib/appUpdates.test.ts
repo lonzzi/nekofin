@@ -50,6 +50,7 @@ describe('update selection', () => {
   });
 
   it.each([
+    ['0.1.0-beta.3', ['v0.1.0-beta.4'], '0.1.0-beta.4'],
     ['0.2.0-beta.1', ['v0.2.0-beta.2', 'v0.2.0-beta.10'], '0.2.0-beta.10'],
     ['0.2.0-beta.10', ['v0.2.0-rc.1', 'v0.2.0'], '0.2.0'],
     ['0.2.0-rc.1', ['v0.2.0-beta.10', 'v0.2.0-rc.1'], null],
@@ -103,9 +104,18 @@ describe('update selection', () => {
 
   it('constructs the destination from the repository and selected tag', () => {
     const item = { ...release('v0.2.0'), html_url: 'https://other.example/download' };
-    expect(selectAppUpdate([item], '0.1.0', 'ios')?.url).toBe(
-      'https://github.com/lonzzi/nekofin/releases/tag/v0.2.0',
-    );
+    Object.assign(item.assets[0], {
+      browser_download_url: 'https://other.example/payload',
+      digest: `sha256:${'a'.repeat(64)}`,
+    });
+    const selected = selectAppUpdate([item], '0.1.0', 'ios');
+    expect(selected?.url).toBe('https://github.com/lonzzi/nekofin/releases/tag/v0.2.0');
+    expect(selected?.installer).toEqual({
+      name: 'nekofin-v0.2.0-ios-unsigned.ipa',
+      url: 'https://github.com/lonzzi/nekofin/releases/download/v0.2.0/nekofin-v0.2.0-ios-unsigned.ipa',
+      size: 100,
+      sha256: 'a'.repeat(64),
+    });
   });
 
   it('does not turn missing local version metadata into an update recommendation', () => {

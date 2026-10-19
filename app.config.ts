@@ -3,7 +3,7 @@ import 'tsx/cjs';
 import { ExpoConfig } from '@expo/config';
 
 import { getBuildRuntimeVersion, getOtaChannel, validateOtaURL } from './config/ota';
-import { resolveBuildReleaseTag } from './config/release';
+import { resolveBuildReleaseTag, resolveIosBuildNumber } from './config/release';
 import updatesConfig from './config/updates.json';
 import packageJson from './package.json';
 
@@ -46,7 +46,7 @@ export default ({ config: _config }: { config: ExpoConfig }): ExpoConfig => {
     updates: {
       enabled: !IS_DEV && Boolean(otaURL),
       ...(otaURL ? { url: otaURL } : {}),
-      checkAutomatically: 'ON_LOAD',
+      checkAutomatically: 'NEVER',
       fallbackToCacheTimeout: 0,
       enableBsdiffPatchSupport: false,
       codeSigningCertificate: './updates/server/ota-certificate.crt',
@@ -60,10 +60,12 @@ export default ({ config: _config }: { config: ExpoConfig }): ExpoConfig => {
     scheme: 'nekofin',
     userInterfaceStyle: 'automatic',
     ios: {
+      buildNumber: resolveIosBuildNumber(process.env.NEKOFIN_IOS_BUILD_NUMBER),
       icon: './assets/images/nekofin.icon',
       supportsTablet: true,
       bundleIdentifier: getUniqueIdentifier(),
       infoPlist: {
+        LSApplicationQueriesSchemes: ['altstore', 'livecontainer'],
         UIViewControllerBasedStatusBarAppearance: true,
         NSAppTransportSecurity: {
           NSAllowsArbitraryLoads: true,

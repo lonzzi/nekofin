@@ -1,4 +1,6 @@
-import type { AppRelease } from './appUpdates';
+import { gt } from 'semver';
+
+import type { AppRelease, InstallerDownload } from './appUpdates';
 
 export const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
@@ -12,6 +14,22 @@ export type UpdateSnapshot = {
   status: 'idle' | 'checking' | 'available' | 'current' | 'error';
   release: AppRelease | null;
   error?: string;
+  resourceStatus:
+    | 'unavailable'
+    | 'idle'
+    | 'checking'
+    | 'available'
+    | 'current'
+    | 'downloading'
+    | 'ready'
+    | 'applying'
+    | 'error';
+  resourceError?: string;
+  downloadStatus: 'idle' | 'downloading' | 'ready' | 'installing' | 'error';
+  downloadProgress?: number;
+  downloadError?: string;
+  downloadWaiting?: string;
+  autoDownloadEnabled: boolean;
 };
 
 export type UpdatePromptActions = {
@@ -28,6 +46,21 @@ type Dependencies = {
   showUpdate: (release: AppRelease, actions: UpdatePromptActions) => void;
   showMessage: (title: string, message: string, dismiss: () => void) => void;
   openURL: (url: string) => Promise<unknown>;
+  resources?: {
+    check: () => Promise<boolean>;
+    download: () => Promise<boolean>;
+    apply: () => Promise<void>;
+  };
+  installer?: {
+    start: (release: AppRelease, automatic: boolean) => Promise<InstallerDownload>;
+    refresh: () => Promise<InstallerDownload | null>;
+    cancel: () => Promise<void>;
+    install: (uri: string) => Promise<'opened' | 'permission-required'>;
+  };
+  autoDownloadEnabled?: boolean;
+  canAutoDownloadResources?: () => Promise<boolean>;
+  showResourceUpdate?: (download: () => void, dismiss: () => void) => void;
+  showReady?: (kind: 'package' | 'resources', install: () => void, dismiss: () => void) => void;
   now?: () => number;
 };
 
@@ -38,12 +71,26 @@ export function createAppUpdateController(dependencies: Dependencies) {
   const lastCheckKey = `appUpdate.lastCheckAt.${currentVersion ?? 'unknown'}`;
   const ignoredVersionKey = 'appUpdate.ignoredVersion';
   const listeners = new Set<() => void>();
-  let snapshot: UpdateSnapshot = { status: 'idle', release: null };
+  let snapshot: UpdateSnapshot = {
+    status: 'idle',
+    release: null,
+    resourceStatus: dependencies.resources ? 'idle' : 'unavailable',
+    downloadStatus: 'idle',
+    autoDownloadEnabled: dependencies.autoDownloadEnabled ?? false,
+  };
   let canPrompt = false;
   let promptOpen = false;
   let pending: ((dismiss: () => void) => void) | null = null;
   let inFlight: Promise<void> | null = null;
   let mode: 'automatic' | 'manual' = 'automatic';
+  let operation: Promise<void> | null = null;
+  let refreshing: Promise<void> | null = null;
+  let downloadAutomatic = false;
+  let downloadRevision = 0;
+  const autoAttempted = new Set<string>();
+  const promptedReady = new Set<string>();
+  let autoDecision: Promise<void> | null = null;
+  let installerUri: string | null = null;
 
   function publish(next: UpdateSnapshot) {
     snapshot = next;
@@ -70,6 +117,246 @@ export function createAppUpdateController(dependencies: Dependencies) {
     flush();
   }
 
+  function queueReady(kind: 'package' | 'resources') {
+    if (!dependencies.showReady) return;
+    const key = kind === 'package' ? snapshot.release?.tag : 'resources';
+    if (!key || promptedReady.has(key)) return;
+    pending = (dismiss) => {
+      if (
+        (kind === 'package' && snapshot.downloadStatus !== 'ready') ||
+        (kind === 'resources' && snapshot.resourceStatus !== 'ready')
+      ) {
+        dismiss();
+        return;
+      }
+      promptedReady.add(key);
+      dependencies.showReady!(
+        kind,
+        () => {
+          dismiss();
+          void (kind === 'package' ? installPackage() : applyResources());
+        },
+        dismiss,
+      );
+    };
+    flush();
+  }
+
+  function acceptDownload(download: InstallerDownload | null) {
+    if (!download) return;
+    if (download.automatic && !snapshot.autoDownloadEnabled && download.status === 'downloading') {
+      void cancelDownload().catch(() => {});
+      return;
+    }
+    if (currentVersion && !gt(download.release.version, currentVersion)) {
+      void dependencies.installer?.cancel().catch(() => {});
+      return;
+    }
+    downloadAutomatic = download.automatic;
+    if (download.automatic) autoAttempted.add(download.release.tag);
+    installerUri = download.uri ?? null;
+    const changed =
+      snapshot.release?.tag !== download.release.tag ||
+      snapshot.downloadStatus !== download.status ||
+      snapshot.downloadProgress !== download.progress ||
+      snapshot.downloadWaiting !== download.waiting ||
+      snapshot.downloadError !== download.error;
+    if (changed)
+      publish({
+        ...snapshot,
+        release: download.release,
+        status: 'available',
+        downloadStatus: download.status,
+        downloadProgress: download.progress,
+        downloadWaiting: download.waiting,
+        downloadError: download.error,
+      });
+    if (download.status === 'ready') queueReady('package');
+  }
+
+  function refreshDownload(): Promise<void> {
+    if (!dependencies.installer) {
+      maybeAutoDownload();
+      return Promise.resolve();
+    }
+    if (refreshing) return refreshing;
+    if (operation) return operation;
+    refreshing = dependencies.installer
+      .refresh()
+      .then(acceptDownload)
+      .catch(() => {
+        // An unavailable system service must not interrupt playback or erase a known download.
+      })
+      .finally(() => {
+        refreshing = null;
+        maybeAutoDownload();
+      });
+    return refreshing;
+  }
+
+  function downloadPackage(automatic = false): Promise<void> {
+    if (operation || inFlight || refreshing) return operation ?? inFlight ?? refreshing!;
+    const release = snapshot.release;
+    if (!release || snapshot.downloadStatus === 'downloading') return Promise.resolve();
+    if (snapshot.downloadStatus === 'ready') {
+      queueReady('package');
+      return Promise.resolve();
+    }
+    if (!dependencies.installer) {
+      return dependencies.openURL(release.url).then(
+        () => {},
+        () => {
+          message('无法打开更新页面', '请稍后重试，或在浏览器中访问 GitHub 的 NekoFin 版本页面。');
+        },
+      );
+    }
+    if (automatic) autoAttempted.add(release.tag);
+    downloadAutomatic = automatic;
+    const revision = ++downloadRevision;
+    publish({
+      ...snapshot,
+      downloadStatus: 'downloading',
+      downloadProgress: 0,
+      downloadError: undefined,
+      downloadWaiting: undefined,
+    });
+    operation = Promise.resolve()
+      .then(() => dependencies.installer!.start(release, automatic))
+      .then((download) => {
+        if (revision === downloadRevision) acceptDownload(download);
+      })
+      .catch((error: unknown) => {
+        if (revision !== downloadRevision) return;
+        const description = error instanceof Error ? error.message : '无法开始下载，请稍后重试。';
+        publish({ ...snapshot, downloadStatus: 'error', downloadError: description });
+        if (!automatic) message('下载更新失败', description);
+      })
+      .finally(() => {
+        operation = null;
+      });
+    return operation;
+  }
+
+  async function cancelDownload() {
+    if (!dependencies.installer) return;
+    const revision = ++downloadRevision;
+    if (snapshot.release) autoAttempted.add(snapshot.release.tag);
+    if (operation) await operation;
+    await dependencies.installer.cancel();
+    if (revision !== downloadRevision) return;
+    installerUri = null;
+    publish({
+      ...snapshot,
+      downloadStatus: 'idle',
+      downloadProgress: undefined,
+      downloadWaiting: undefined,
+      downloadError: undefined,
+    });
+  }
+
+  function maybeAutoDownload() {
+    if (!snapshot.autoDownloadEnabled || !canPrompt || inFlight || operation || refreshing) return;
+    const release = snapshot.release;
+    if (release && dependencies.installer) {
+      if (
+        snapshot.downloadStatus === 'idle' &&
+        !autoAttempted.has(release.tag) &&
+        storage.getString(ignoredVersionKey) !== release.version
+      ) {
+        void downloadPackage(true);
+      }
+    } else if (snapshot.resourceStatus === 'available' && !autoDecision) {
+      autoDecision = (dependencies.canAutoDownloadResources?.() ?? Promise.resolve(true))
+        .then((allowed) => {
+          if (
+            allowed &&
+            canPrompt &&
+            snapshot.autoDownloadEnabled &&
+            snapshot.resourceStatus === 'available' &&
+            !operation &&
+            !inFlight
+          )
+            void downloadResources(true);
+        })
+        .catch(() => {})
+        .finally(() => {
+          autoDecision = null;
+        });
+    }
+  }
+
+  function installPackage(): Promise<void> {
+    if (!canPrompt || operation || !dependencies.installer || !installerUri)
+      return operation ?? Promise.resolve();
+    const uri = installerUri;
+    publish({ ...snapshot, downloadStatus: 'installing', downloadError: undefined });
+    operation = Promise.resolve()
+      .then(() => dependencies.installer!.install(uri))
+      .then((result) => {
+        publish({ ...snapshot, downloadStatus: 'ready' });
+        if (result === 'permission-required') {
+          message(
+            '允许安装新版本',
+            '请在系统设置中允许 NekoFin 安装应用，返回后点按“安装新版本”。',
+          );
+        }
+      })
+      .catch((error: unknown) => {
+        const description = error instanceof Error ? error.message : '无法启动安装，请重试。';
+        // A cache cleanup may have removed the file. Retrying downloads and verifies it again.
+        installerUri = null;
+        publish({ ...snapshot, downloadStatus: 'error', downloadError: description });
+        message('安装未开始', description);
+      })
+      .finally(() => {
+        operation = null;
+      });
+    return operation;
+  }
+
+  function downloadResources(automatic = false): Promise<void> {
+    if (operation || inFlight || !dependencies.resources)
+      return operation ?? inFlight ?? Promise.resolve();
+    if (snapshot.resourceStatus === 'ready') {
+      promptedReady.delete('resources');
+      queueReady('resources');
+      return Promise.resolve();
+    }
+    publish({ ...snapshot, resourceStatus: 'downloading', resourceError: undefined });
+    operation = Promise.resolve()
+      .then(() => dependencies.resources!.download())
+      .then((ready) => {
+        publish({ ...snapshot, resourceStatus: ready ? 'ready' : 'current' });
+        if (ready) queueReady('resources');
+        else if (!automatic) message('未发现资源更新', '当前资源已是最新版本。');
+      })
+      .catch((error: unknown) => {
+        const description = error instanceof Error ? error.message : '资源下载失败，请稍后重试。';
+        publish({ ...snapshot, resourceStatus: 'error', resourceError: description });
+        if (!automatic) message('资源更新失败', description);
+      })
+      .finally(() => {
+        operation = null;
+      });
+    return operation;
+  }
+
+  function applyResources(): Promise<void> {
+    if (!canPrompt || operation || !dependencies.resources || snapshot.resourceStatus !== 'ready')
+      return operation ?? Promise.resolve();
+    publish({ ...snapshot, resourceStatus: 'applying' });
+    operation = Promise.resolve()
+      .then(() => dependencies.resources!.apply())
+      .catch(() => {
+        publish({ ...snapshot, resourceStatus: 'ready', resourceError: '重新载入失败，请重试。' });
+        message('暂时无法应用更新', '更新已下载，请稍后重试重新载入应用。');
+      })
+      .finally(() => {
+        operation = null;
+      });
+    return operation;
+  }
+
   function queueRelease(release: AppRelease) {
     pending = (dismiss) =>
       dependencies.showUpdate(release, {
@@ -80,18 +367,18 @@ export function createAppUpdateController(dependencies: Dependencies) {
         },
         open: () => {
           dismiss();
-          void dependencies.openURL(release.url).catch(() => {
-            message(
-              '无法打开更新页面',
-              '请稍后重试，或在浏览器中访问 GitHub 的 NekoFin 版本页面。',
-            );
-          });
+          if (snapshot.downloadStatus === 'ready') {
+            promptedReady.delete(release.tag);
+            queueReady('package');
+          } else void downloadPackage();
         },
       });
     flush();
   }
 
   function check(requestMode: 'automatic' | 'manual'): Promise<void> {
+    if (operation || snapshot.downloadStatus === 'downloading')
+      return operation ?? Promise.resolve();
     if (promptOpen) return Promise.resolve();
     if (inFlight) {
       if (requestMode === 'manual') mode = 'manual';
@@ -107,31 +394,110 @@ export function createAppUpdateController(dependencies: Dependencies) {
 
     mode = requestMode;
     pending = null;
-    publish({ status: 'checking', release: snapshot.release });
+    const checkResources = dependencies.resources;
+    const resourceWasReady = snapshot.resourceStatus === 'ready';
+    publish({
+      ...snapshot,
+      status: 'checking',
+      error: undefined,
+      resourceStatus: checkResources ? 'checking' : snapshot.resourceStatus,
+      resourceError: checkResources ? undefined : snapshot.resourceError,
+    });
     // Also throttle failed automatic attempts so foreground/network churn stays quiet.
     storage.set(lastCheckKey, now());
-    inFlight = Promise.resolve()
-      .then(() => {
+    inFlight = Promise.allSettled([
+      Promise.resolve().then(() => {
         if (!currentVersion) throw new Error('无法读取当前应用版本，请使用正式发布的安装包。');
         return dependencies.fetchUpdate();
-      })
-      .then((release) => {
-        publish({ status: release ? 'available' : 'current', release });
-        if (release) {
-          if (mode === 'manual' || storage.getString(ignoredVersionKey) !== release.version) {
-            queueRelease(release);
+      }),
+      checkResources
+        ? Promise.resolve().then(() => dependencies.resources!.check())
+        : Promise.resolve(null),
+    ])
+      .then(([packageResult, resourceResult]) => {
+        const fetchedRelease = packageResult.status === 'fulfilled' ? packageResult.value : null;
+        // A failed refresh must not hide an installer the user already downloaded.
+        const release =
+          packageResult.status === 'fulfilled' ? packageResult.value : snapshot.release;
+        const error =
+          packageResult.status === 'rejected'
+            ? packageResult.reason instanceof Error
+              ? packageResult.reason.message
+              : '检查安装包更新失败，请稍后重试。'
+            : undefined;
+        const resourceError =
+          resourceResult.status === 'rejected'
+            ? resourceResult.reason instanceof Error
+              ? resourceResult.reason.message
+              : '检查资源更新失败，请稍后重试。'
+            : undefined;
+        const resourceAvailable =
+          resourceWasReady ||
+          (resourceResult.status === 'fulfilled' && resourceResult.value === true);
+        const sameRelease = snapshot.release?.tag === release?.tag;
+        if (!sameRelease) installerUri = null;
+        publish({
+          ...snapshot,
+          status:
+            fetchedRelease || resourceAvailable
+              ? 'available'
+              : error || resourceError
+                ? 'error'
+                : 'current',
+          release,
+          error,
+          resourceStatus: checkResources
+            ? resourceWasReady
+              ? 'ready'
+              : resourceError
+                ? 'error'
+                : resourceAvailable
+                  ? 'available'
+                  : 'current'
+            : snapshot.resourceStatus,
+          resourceError: checkResources ? resourceError : snapshot.resourceError,
+          downloadStatus: sameRelease ? snapshot.downloadStatus : 'idle',
+          downloadError: sameRelease ? snapshot.downloadError : undefined,
+        });
+        const autoPackage = snapshot.autoDownloadEnabled && !!dependencies.installer;
+        if (fetchedRelease && !autoPackage && snapshot.downloadStatus !== 'ready') {
+          if (
+            mode === 'manual' ||
+            storage.getString(ignoredVersionKey) !== fetchedRelease.version
+          ) {
+            queueRelease(fetchedRelease);
           }
-        } else if (mode === 'manual') {
-          message('未发现更新', `当前没有可用的新版本。\n当前版本：v${currentVersion}`);
+        } else if (
+          mode === 'manual' &&
+          resourceAvailable &&
+          !snapshot.autoDownloadEnabled &&
+          dependencies.showResourceUpdate
+        ) {
+          pending = (dismiss) =>
+            dependencies.showResourceUpdate!(() => {
+              dismiss();
+              void downloadResources();
+            }, dismiss);
+          flush();
+        } else if (mode === 'manual' && !fetchedRelease && !resourceAvailable) {
+          if (error || resourceError) {
+            message(
+              '检查更新未完成',
+              [error && `安装包：${error}`, resourceError && `资源：${resourceError}`]
+                .filter(Boolean)
+                .join('\n'),
+            );
+          } else {
+            message(
+              '未发现更新',
+              `当前没有可用的新版本。\n当前版本：v${currentVersion}${!dependencies.resources ? '\n此安装包暂不支持资源更新。' : ''}`,
+            );
+          }
         }
-      })
-      .catch((error: unknown) => {
-        const description = error instanceof Error ? error.message : '检查更新失败，请稍后重试。';
-        publish({ status: 'error', release: null, error: description });
-        if (mode === 'manual') message('检查更新失败', description);
       })
       .finally(() => {
         inFlight = null;
+        maybeAutoDownload();
       });
     return inFlight;
   }
@@ -145,10 +511,22 @@ export function createAppUpdateController(dependencies: Dependencies) {
       };
     },
     checkManually: () => check('manual'),
+    downloadRelease: () => downloadPackage(),
+    installRelease: installPackage,
+    downloadResources: () => downloadResources(),
+    cancelDownload,
+    refreshDownload,
+    setAutoDownloadEnabled(value: boolean) {
+      publish({ ...snapshot, autoDownloadEnabled: value });
+      if (!value && downloadAutomatic && snapshot.downloadStatus === 'downloading')
+        void cancelDownload().catch(() => {});
+      else maybeAutoDownload();
+    },
     setCanPrompt(value: boolean) {
       canPrompt = value;
       if (canPrompt) {
         flush();
+        maybeAutoDownload();
         void check('automatic');
       }
     },

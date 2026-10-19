@@ -28,6 +28,7 @@ export async function resolveRuntimes(projectRoot = process.cwd()) {
   return {
     version: 1,
     releaseTag: exp.extra?.releaseTag ?? `v${exp.version}`,
+    iosBuildNumber: exp.ios.buildNumber,
     channel: exp.updates.requestHeaders['expo-channel-name'],
     url: exp.updates.url,
     runtimes,
