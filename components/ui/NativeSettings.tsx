@@ -39,6 +39,7 @@ import {
   opacity,
   pickerStyle,
   scrollContentBackground,
+  scrollEdgeEffectStyle,
   shapes,
   tag,
   tint,
@@ -77,6 +78,8 @@ export function NativeSettingsForm({
       ? [
           listSectionSpacing('compact'),
           ...(surface === 'sheet' || outer ? [scrollContentBackground('hidden')] : []),
+          // Apply to pages and player sheets whenever SwiftUI recreates the scroll view.
+          scrollEdgeEffectStyle('soft', 'top'),
           tint(theme.colors.tint),
         ]
       : undefined;

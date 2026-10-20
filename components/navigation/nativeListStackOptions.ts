@@ -52,7 +52,8 @@ export function useNativeListStackOptions(backgroundColor: string) {
     // Android lays non-overlay headers outside the content background. A transparent
     // toolbar exposes the outgoing screen until its native transition finishes.
     headerStyle: { backgroundColor: ios ? 'transparent' : backgroundColor },
-    scrollEdgeEffects: { top: 'automatic', bottom: 'automatic' },
+    // Keep the gradual blur: iOS 27 gives "automatic" a distinct, sharper material.
+    scrollEdgeEffects: { top: 'soft', bottom: 'automatic' },
     contentStyle: { backgroundColor },
   } as const;
 }
