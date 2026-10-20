@@ -8,3 +8,20 @@ diff --git a/ios/RNIContextMenu/RNIMenuActionItem.swift b/ios/RNIContextMenu/RNI
        action.subtitle =
             self.actionSubtitle
          ?? self.fallbackActionSubtitle;
+diff --git a/ios/RNIContextMenuView/RNIContextMenuViewContent.swift b/ios/RNIContextMenuView/RNIContextMenuViewContent.swift
+--- a/ios/RNIContextMenuView/RNIContextMenuViewContent.swift
++++ b/ios/RNIContextMenuView/RNIContextMenuViewContent.swift
+@@ -248,6 +248,10 @@
+-  var menuTargetedPreview: UITargetedPreview {
+-    .init(
+-      view: self.menuPreviewTargetView,
++  var menuTargetedPreview: UITargetedPreview? {
++    let targetView = self.menuPreviewTargetView;
++    // Navigation can detach the card before UIKit finishes the menu animation.
++    guard targetView.window != nil else { return nil };
++
++    return .init(
++      view: targetView,
+       parameters: self.menuPreviewParameters
+     );
+   };

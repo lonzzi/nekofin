@@ -8,6 +8,9 @@
       "developmentClient": true,
       "distribution": "internal",
       "environment": "development",
+      "ios": {
+        "image": "macos-tahoe-26.6-xcode-27.0"
+      },
       "env": {
         "APP_VARIANT": "development"
       }
@@ -15,6 +18,9 @@
     "preview": {
       "distribution": "internal",
       "environment": "preview",
+      "ios": {
+        "image": "macos-tahoe-26.6-xcode-27.0"
+      },
       "env": {
         "APP_VARIANT": "preview"
       }
@@ -22,6 +28,9 @@
     "production": {
       "autoIncrement": true,
       "environment": "production",
+      "ios": {
+        "image": "macos-tahoe-26.6-xcode-27.0"
+      },
       "env": {
         "APP_VARIANT": "production"
       },

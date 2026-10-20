@@ -20,6 +20,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { BlurView } from 'expo-blur';
 import React, { useCallback, useMemo } from 'react';
 import {
+  Platform,
   Pressable,
   StyleProp,
   StyleSheet,
@@ -53,6 +54,11 @@ type CardActionMenuRootProps = React.ComponentProps<typeof Menu> & {
 };
 
 const CardActionMenuRoot = Menu as React.ComponentType<CardActionMenuRootProps>;
+
+function consumeCardLongPress() {
+  // The native menu handles the long press. Registering this callback makes
+  // Pressability consume its release instead of also opening details or playback.
+}
 
 function CardActionMenu({
   item,
@@ -267,6 +273,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
           accessibilityLabel={`打开 ${itemTitle}${isPlayed ? '，已观看' : ''}`}
           accessibilityRole="button"
           disabled={disabled}
+          onLongPress={Platform.OS === 'ios' ? consumeCardLongPress : undefined}
           onPress={onPress || openDetails}
           style={StyleSheet.absoluteFill}
         />
@@ -276,6 +283,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
               accessibilityLabel={`播放 ${itemTitle}`}
               accessibilityRole="button"
               disabled={disabled}
+              onLongPress={Platform.OS === 'ios' ? consumeCardLongPress : undefined}
               onPress={handlePlay}
               style={({ pressed }) => [
                 styles.playButtonHitTarget,
@@ -370,6 +378,7 @@ export const SeriesCard = React.memo(function SeriesCard({
       accessibilityRole="button"
       accessibilityLabel={`打开 ${itemTitle}`}
       style={[styles.card, { width: 120 }, style]}
+      onLongPress={Platform.OS === 'ios' ? consumeCardLongPress : undefined}
       onPress={openDetails}
     >
       <ShadowedGlassCard radius={12} surface="transparent">

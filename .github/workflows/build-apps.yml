@@ -204,7 +204,8 @@ jobs:
 
   build-ios:
     name: Build iOS
-    runs-on: macos-26
+    # Linking against iOS 26 makes large titles disappear during interactive pop on iOS 27.
+    runs-on: xcode-27
     if: ${{ inputs.platform == 'ios' || inputs.platform == 'both' }}
     env:
       NEKOFIN_IOS_BUILD_NUMBER: ${{ inputs.ios_build_number || '' }}
@@ -230,7 +231,10 @@ jobs:
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: 'latest'
+          xcode-version: '27.0'
+
+      - name: Verify iOS build SDK
+        run: node .github/scripts/verify-ios-sdk.cjs --toolchain
 
       - name: Install Xcode platforms
         run: |
@@ -278,6 +282,9 @@ jobs:
       - name: Verify iOS installer runtime
         if: env.NEKOFIN_NATIVE_RUNTIME != ''
         run: node .github/scripts/verify-native-runtime.cjs ios build/nekofin.xcarchive/Products/Applications/nekofin.app "$NEKOFIN_NATIVE_RUNTIME"
+
+      - name: Verify iOS installer SDK and scene lifecycle
+        run: node .github/scripts/verify-ios-sdk.cjs --app build/nekofin.xcarchive/Products/Applications/nekofin.app
 
       - name: Package ipa
         run: |

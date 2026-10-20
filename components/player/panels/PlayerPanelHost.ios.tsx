@@ -15,6 +15,7 @@ import {
   presentationBackground,
   presentationDetents,
   presentationDragIndicator,
+  scrollEdgeEffectStyle,
   tint,
 } from '@expo/ui/swift-ui/modifiers';
 
@@ -43,7 +44,11 @@ export function PlayerPanelHost(props: PlayerPanelHostProps) {
           ]}
         >
           <Toolbar
-            modifiers={[navigationTitle(panel.title), navigationBarTitleDisplayMode('inline')]}
+            modifiers={[
+              navigationTitle(panel.title),
+              navigationBarTitleDisplayMode('inline'),
+              scrollEdgeEffectStyle('soft', 'top'),
+            ]}
           >
             {panel.children}
             <Toolbar.Content>

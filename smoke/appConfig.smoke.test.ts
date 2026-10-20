@@ -40,4 +40,17 @@ describe('app config smoke', () => {
     expect(packageJson.default.name).toBe('expo-mpv');
     expect(moduleConfig.default.platforms).toEqual(expect.arrayContaining(['android', 'apple']));
   });
+
+  it('enables the scene lifecycle required by iOS 27 SDK builds', () => {
+    const buildProperties = getConfig().plugins?.find(
+      (plugin) => Array.isArray(plugin) && plugin[0] === 'expo-build-properties',
+    );
+
+    expect(buildProperties).toEqual([
+      'expo-build-properties',
+      expect.objectContaining({
+        ios: expect.objectContaining({ enableSceneSupport: true }),
+      }),
+    ]);
+  });
 });
