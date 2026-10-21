@@ -5,6 +5,7 @@ import type { ColorValue } from 'react-native';
 type PopupMenuProps = PropsWithChildren<{
   expanded: boolean;
   onDismissRequest: () => void;
+  onDismissed?: () => void;
   color: ColorValue;
   textColor: ColorValue;
   alignEnd?: boolean;

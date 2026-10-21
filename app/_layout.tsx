@@ -151,22 +151,22 @@ function RootNavigation() {
   return (
     <ThemeProvider value={navigationTheme}>
       <Stack
-        screenListeners={(props) => {
-          const listeners = stackScreenListeners(props);
-          return {
-            ...listeners,
-            transitionEnd: (event) => {
-              listeners.transitionEnd(event);
-              // The popped player's listeners may already be removed. The returning
-              // screen remains mounted and reports completion of the same transition.
-              if (event.data.closing || !deferOrientationRestore.current) return;
-              deferOrientationRestore.current = false;
-              void ScreenOrientation.lockAsync(desiredOrientationLock.current).catch((error) => {
-                console.warn('Failed to restore the route orientation', error);
-              });
-            },
-          };
-        }}
+        screenListeners={stackScreenListeners}
+        unstable_nativeProps={
+          Platform.OS === 'android'
+            ? {
+                // A retained screen has no enter animation, and the popped route's
+                // listeners are removed. The stack still reports the completed pop.
+                onFinishTransitioning: () => {
+                  if (!deferOrientationRestore.current) return;
+                  deferOrientationRestore.current = false;
+                  void ScreenOrientation.lockAsync(desiredOrientationLock.current).catch((error) =>
+                    console.warn('Failed to restore the route orientation', error),
+                  );
+                },
+              }
+            : undefined
+        }
         screenOptions={{
           ...platformHeaderOptions,
           ...nativeStatusBarOptions(appTheme.isDark),
@@ -180,6 +180,9 @@ function RootNavigation() {
         <Stack.Screen
           name="player"
           options={{
+            // Keep the browsing screen attached and laid out behind the opaque player.
+            // Reattaching its full view hierarchy during Android's pop stalls the animation.
+            presentation: Platform.OS === 'android' ? 'transparentModal' : undefined,
             headerShown: false,
             animation: 'none',
             orientation:

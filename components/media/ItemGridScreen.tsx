@@ -1,6 +1,7 @@
 import { EpisodeCard, SeriesCard } from '@/components/media/Card';
 import { useFloatingTabBarInset } from '@/components/navigation/FloatingTabBarInset';
 import { NativeListTitle } from '@/components/navigation/NativeListTitle';
+import { useContentDimensions } from '@/hooks/useContentDimensions';
 import { useGridLayout } from '@/hooks/useGridLayout';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { MediaFilters } from '@/hooks/useMediaFilters';
@@ -31,6 +32,7 @@ import { EmptyState, type EmptyStateProps } from '../ui/EmptyState';
 import { FilterButton, FilterRow } from '../ui/FilterControls';
 import { SafeAreaRefreshControl } from '../ui/SafeAreaRefreshControl';
 import { SkeletonItemGrid } from '../ui/Skeleton';
+import { getMediaGridListConfig } from './gridPerformanceConfig';
 import {
   createItemGridSections,
   dedupeMediaItems,
@@ -38,6 +40,7 @@ import {
   groupMediaItems,
 } from './itemGridData';
 import { getSourcedMediaKey, type GetMediaItemSource } from './mediaSource';
+import { getMediaRailListConfig } from './railPerformanceConfig';
 
 export type ItemGridScreenProps = {
   title: string;
@@ -77,6 +80,7 @@ export function ItemGridScreen({
   const backgroundColor = theme.colors.background;
   const { numColumns, itemWidth, gap } = useGridLayout(type, layout === 'grid' ? 160 : undefined);
   const episodeLayout = useGridLayout('episode');
+  const viewport = useContentDimensions();
 
   const { currentServer } = useMediaServers();
   const mediaAdapter = useMediaAdapter();
@@ -90,6 +94,24 @@ export function ItemGridScreen({
   const isFetchingNextPage = query ? query.isFetchingNextPage : false;
 
   const useThreeCols = type === 'series';
+  const cardCopyHeight =
+    (theme.typography.bodyEmphasized.lineHeight + theme.typography.footnote.lineHeight) *
+      viewport.fontScale +
+    theme.spacing.lg * 2;
+  const posterRowHeight = itemWidth * 1.5 + cardCopyHeight;
+  const episodeRowHeight = episodeLayout.itemWidth * (9 / 16) + cardCopyHeight;
+  const gridBatching =
+    Platform.OS === 'android'
+      ? getMediaGridListConfig({
+          viewportHeight: viewport.height,
+          rowHeight:
+            layout === 'grid'
+              ? Math.min(posterRowHeight, episodeRowHeight)
+              : useThreeCols
+                ? posterRowHeight
+                : itemWidth * (9 / 16) + cardCopyHeight,
+        })
+      : {};
 
   const items = useMemo(() => {
     if (dataProp) {
@@ -358,6 +380,14 @@ export function ItemGridScreen({
             </Text>
           )}
           <FlatList
+            {...(Platform.OS === 'android'
+              ? getMediaRailListConfig({
+                  viewportWidth: viewport.width,
+                  cardWidth: groupItemWidth,
+                  gap: theme.spacing.lg,
+                  horizontalPadding: theme.spacing.page,
+                })
+              : {})}
             data={group.items}
             renderItem={({ item }) => renderMediaCard(item, groupItemWidth)}
             keyExtractor={keyExtractor}
@@ -377,7 +407,15 @@ export function ItemGridScreen({
         </View>
       );
     },
-    [episodeLayout.itemWidth, itemWidth, theme, keyExtractor, handleEndReached, renderMediaCard],
+    [
+      episodeLayout.itemWidth,
+      itemWidth,
+      theme,
+      keyExtractor,
+      handleEndReached,
+      renderMediaCard,
+      viewport.width,
+    ],
   );
 
   if ((query || dataState) && isLoading) {
@@ -432,6 +470,7 @@ export function ItemGridScreen({
       <>
         <NativeListTitle>{title}</NativeListTitle>
         <SectionList
+          {...gridBatching}
           sections={gridSections}
           keyExtractor={(row) => keyExtractor(row[0], 0)}
           renderItem={({ item: row, section }) => (
@@ -489,6 +528,7 @@ export function ItemGridScreen({
       <>
         <NativeListTitle>{title}</NativeListTitle>
         <FlatList
+          {...gridBatching}
           data={groupedItems[0].items}
           renderItem={renderItem}
           keyExtractor={keyExtractor}

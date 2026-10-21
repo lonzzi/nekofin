@@ -124,6 +124,19 @@ internal class NavigationMaterialView(context: Context) : FrameLayout(context) {
       // Keep native Drawer animation and outside-tap dismissal with a light scrim.
       host.setScrimColor(Color.argb(20, 0, 0, 0))
       nativeDrawer = host
+      host.post {
+        if (nativeDrawer !== host || !host.isAttachedToWindow || host.width == 0 || host.height == 0) return@post
+        // DrawerLayout resets its first-layout flag whenever the native stack
+        // reattaches it. Fabric can reuse unchanged bounds without another layout,
+        // leaving openDrawer() to update flags while the drawer stays offscreen.
+        // Complete that layout using the existing Yoga bounds before user input.
+        host.forceLayout()
+        host.measure(
+          View.MeasureSpec.makeMeasureSpec(host.width, View.MeasureSpec.EXACTLY),
+          View.MeasureSpec.makeMeasureSpec(host.height, View.MeasureSpec.EXACTLY),
+        )
+        host.layout(host.left, host.top, host.right, host.bottom)
+      }
     }
     if (Build.VERSION.SDK_INT < 29) return
     // Android permits at most 200dp per edge. Keep system back outside this
