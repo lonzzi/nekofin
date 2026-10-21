@@ -71,12 +71,14 @@ export const MenuView = forwardRef<MenuComponentRef, Props>(function MenuView(
       ? createAppTheme({ colorScheme: themeVariant })
       : appTheme;
   const [expanded, setExpanded] = useState(false);
+  const [menuMounted, setMenuMounted] = useState(false);
   const isOpen = useRef(false);
   const closeCallback = useRef(onCloseMenu);
   closeCallback.current = onCloseMenu;
   const open = () => {
     if (isOpen.current) return;
     isOpen.current = true;
+    setMenuMounted(true);
     setExpanded(true);
     onOpenMenu?.();
   };
@@ -182,15 +184,18 @@ export const MenuView = forwardRef<MenuComponentRef, Props>(function MenuView(
           accessibilityState={{ ...accessibilityState, expanded }}
         >
           {children}
-          {expanded ? (
+          {menuMounted ? (
             <Host
               pointerEvents="none"
               style={StyleSheet.absoluteFill}
               colorScheme={theme.colorScheme}
             >
               <PopupMenu
-                expanded
+                expanded={expanded}
                 onDismissRequest={close}
+                onDismissed={() => {
+                  if (!isOpen.current) setMenuMounted(false);
+                }}
                 color={theme.colors.background}
                 textColor={theme.colors.text}
                 alignEnd={isAnchoredToRight}

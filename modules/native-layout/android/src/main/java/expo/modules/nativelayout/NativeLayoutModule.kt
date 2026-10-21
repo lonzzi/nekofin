@@ -75,7 +75,9 @@ class NativeLayoutModule : Module() {
     }
     ExpoUIView<PopupMenuProps>("PopupMenuView") {
       val onDismissRequest by Event<Unit>()
-      Content { props -> PopupMenuContent(props) { onDismissRequest(Unit) } }
+      val onDismissed by Event<Unit>()
+      Content { props -> PopupMenuContent(props,
+        onDismiss = { onDismissRequest(Unit) }, onDismissed = { onDismissed(Unit) }) }
     }
     ExpoUIView<PopupMenuItemProps>("PopupMenuItemView") {
       val onItemPressed by Event<Unit>()

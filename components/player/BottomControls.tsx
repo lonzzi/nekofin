@@ -12,7 +12,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PlaybackInfoBadges } from './PlaybackInfoBadges';
 import { PlayerActionBar } from './PlayerActionBar';
 import { usePlayer } from './PlayerContext';
-import { PlayerGlassSurface } from './PlayerGlassSurface';
 import { PlayerProgressSlider } from './PlayerProgressSlider';
 import { TransportControls } from './TransportControls';
 import { useOverlayInsets } from './useOverlayInsets';
@@ -113,24 +112,16 @@ export function BottomControls() {
             {formattedCurrentTime} / {formattedDuration}
           </Animated.Text>
         </View>
-        {Platform.OS === 'android' ? (
-          <PlayerGlassSurface
-            fadeProgress={fadeAnim}
-            visible={showControls}
-            radius={22}
-            style={styles.androidProgressSurface}
-            contentStyle={styles.androidProgressContent}
-          >
-            {progressSlider}
-          </PlayerGlassSurface>
-        ) : (
-          <Animated.View
-            pointerEvents={showControls ? 'auto' : 'none'}
-            style={[styles.progressSlider, fadeAnimatedStyle]}
-          >
-            {progressSlider}
-          </Animated.View>
-        )}
+        <Animated.View
+          pointerEvents={showControls ? 'auto' : 'none'}
+          style={[
+            styles.progressSlider,
+            Platform.OS === 'android' && styles.androidProgressSlider,
+            fadeAnimatedStyle,
+          ]}
+        >
+          {progressSlider}
+        </Animated.View>
         <View pointerEvents="box-none" style={styles.bottomRow}>
           <TransportControls />
           <View pointerEvents="box-none" style={styles.actionRow}>
@@ -160,8 +151,7 @@ const styles = StyleSheet.create({
     columnGap: 8,
     rowGap: 2,
   },
-  androidProgressSurface: { height: 44, marginVertical: 6 },
-  androidProgressContent: { height: 44, paddingHorizontal: 14 },
+  androidProgressSlider: { marginVertical: 6, paddingHorizontal: 14 },
   progressSlider: {
     height: 44,
   },
