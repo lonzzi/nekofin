@@ -57,7 +57,7 @@ Download an available build from [GitHub Releases](https://github.com/lonzzi/nek
 
 ## Local development
 
-Requires Bun and Xcode 27 or later. The project includes a native player and Expo native modules, so use a development client to build and run it.
+Requires Bun, plus Xcode for iOS builds. Xcode 27 or later is recommended: apps built with older Xcode versions may have compatibility issues on iOS 27. The project includes a native player and Expo native modules, so use a development client to build and run it.
 
 ```sh
 bun install
