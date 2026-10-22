@@ -224,7 +224,7 @@ export function ItemGridScreen({
         >
           <FilterRow spacing={theme.spacing.sm}>
             <FilterButton
-              label={tr('media.genre')}
+              label={tr('media.type')}
               title={tr('media.chooseType')}
               options={[
                 { label: tr('common.all'), value: '', active: !selectedItemType },
