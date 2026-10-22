@@ -2,6 +2,7 @@ import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
+import { toast } from '@/lib/toast';
 import { createMediaAdapterWithApi, createMediaApiFromServerInfo } from '@/services/media';
 import { updateCachedMediaItemUserData } from '@/services/media/cache';
 import { mediaQueryKeys } from '@/services/media/queryKeys';
@@ -82,6 +83,7 @@ export function useMediaActions(item: MediaItem, serverOverride?: MediaServerInf
       setLocalUserData(previousUserData);
       updateCachedUserData(() => previousUserData);
       console.error(errorLabel, error);
+      toast.error(errorLabel);
     } finally {
       setIsUpdating(false);
     }

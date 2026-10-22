@@ -15,6 +15,7 @@ import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
+import { toast } from '@/lib/toast';
 import { getHiddenUserViews, toggleUserViewHidden } from '@/lib/utils/userViewConfig';
 import { createMediaAdapterWithApi, createMediaApiFromServerInfo } from '@/services/media';
 import { serverUserViewsQueryOptions } from '@/services/media/queryOptions';
@@ -27,7 +28,6 @@ function ServerConfigScreen() {
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
   const { servers, removeServer } = useMediaServers();
   const router = useTracedRouter('server-config');
-  const [connection, setConnection] = useState('');
   const [checking, setChecking] = useState(false);
 
   const server = useMemo(() => servers.find((s) => s.id === serverId), [servers, serverId]);
@@ -117,24 +117,22 @@ function ServerConfigScreen() {
               </SettingsActionTitle>
             }
             busy={checking}
-            subtitle={connection ? <SettingsSubtitle primary={connection} lines={3} /> : undefined}
             onPress={() => {
               if (checking) return;
               setChecking(true);
-              setConnection('');
               void Promise.all([
                 serverAdapter!.getSystemInfo(),
                 serverAdapter!.getUserInfo({ userId: server.userId }),
               ])
                 .then(([system]) =>
-                  setConnection(
+                  toast.success(
                     tr('server.connectedDescription', {
                       value: system.serverName || server.name,
                       value2: system.version ? ` · ${system.version}` : '',
                     }),
                   ),
                 )
-                .catch(() => setConnection(tr('server.connectionFailedNetworkOrSignIn')))
+                .catch(() => toast.error(tr('server.connectionFailedNetworkOrSignIn')))
                 .finally(() => setChecking(false));
             }}
           />

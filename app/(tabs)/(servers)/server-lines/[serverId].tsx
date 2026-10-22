@@ -18,9 +18,9 @@ import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
 import { getConnectionPolicy, getServerConnections } from '@/lib/serverConnections';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
+import { toast } from '@/lib/toast';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Alert } from 'react-native';
 
 function ServerLinesScreen() {
   const { t: tr } = useTranslation();
@@ -39,10 +39,9 @@ function ServerLinesScreen() {
     try {
       await action();
     } catch (error) {
-      Alert.alert(
-        tr('server.connectionUpdateFailed'),
-        error instanceof Error ? error.message : tr('server.checkNetworkAndRetry'),
-      );
+      toast.error(tr('server.connectionUpdateFailed'), {
+        description: error instanceof Error ? error.message : tr('server.checkNetworkAndRetry'),
+      });
     } finally {
       busyRef.current = false;
       setPending(null);

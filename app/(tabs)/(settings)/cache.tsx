@@ -21,6 +21,7 @@ import {
   getPersistedQueryCacheBytes,
 } from '@/lib/queryPersistence';
 import { useAppTheme } from '@/lib/theme';
+import { toast } from '@/lib/toast';
 import { clearSubtitleCache, SUBTITLE_CACHE_PATH } from '@/services/media/subtitleCache';
 import {
   clearSubtitleFontCache,
@@ -185,12 +186,12 @@ export default function CacheSettingsScreen() {
       setClearingTarget(target);
       try {
         await action();
+        toast.success(tr('cache.cleanupComplete'));
       } catch (error) {
         console.warn('Failed to clear cache', target, error);
-        Alert.alert(
-          tr('cache.cleanupFailed'),
-          error instanceof Error ? error.message : tr('common.tryAgainLater'),
-        );
+        toast.error(tr('cache.cleanupFailed'), {
+          description: error instanceof Error ? error.message : tr('common.tryAgainLater'),
+        });
       } finally {
         clearingRef.current = false;
         setClearingTarget(null);

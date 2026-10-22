@@ -11,6 +11,7 @@ import {
 import { SettingsActionTitle, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { useDanmakuSources } from '@/lib/contexts/DanmakuSourcesContext';
 import { useTranslation } from '@/lib/i18n';
+import { toast } from '@/lib/toast';
 import { normalizeDanmakuApiUrl } from '@/services/danmakuSources';
 import { useNativeState, type TextInputRef } from '@expo/ui';
 import { randomUUID } from 'expo-crypto';
@@ -65,6 +66,7 @@ export default function DanmakuSourceEditor() {
           : [...current.customSources, source],
       }));
       router.back();
+      toast.success(tr('danmaku.apiSaved'));
     } catch (error) {
       setError({
         field: 'address',
@@ -122,6 +124,8 @@ export default function DanmakuSourceEditor() {
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
+            returnKeyType="done"
+            onSubmitEditing={save}
             testID="danmaku-api-url"
           />
           <NativeSettingsSwitch
@@ -149,6 +153,7 @@ export default function DanmakuSourceEditor() {
                           customSources: current.customSources.filter((source) => source.id !== id),
                         }));
                         router.back();
+                        toast.success(tr('danmaku.apiDeleted'));
                       },
                     },
                   ],

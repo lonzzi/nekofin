@@ -7,9 +7,11 @@ import { ServerFormField, ServerFormSection } from '@/components/servers/ServerF
 import { ServerFormScrollView } from '@/components/servers/ServerFormScrollView';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
+import { buildConnectionAddress } from '@/lib/serverConnection';
 import { getServerConnections } from '@/lib/serverConnections';
 import { layout, useAppTheme } from '@/lib/theme';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
+import { toast } from '@/lib/toast';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Alert, Platform, Text } from 'react-native';
@@ -45,12 +47,31 @@ function ServerLineScreen() {
     try {
       await action();
       router.back();
+      toast.success(
+        key === 'remove'
+          ? tr('server.connectionDeleted')
+          : key === 'switch'
+            ? tr('server.connectionSwitched')
+            : tr('server.connectionSaved'),
+      );
     } catch (error) {
-      setError(error instanceof Error ? error.message : tr('server.connectionFailedUrlAndNetwork'));
+      toast.error(tr('server.connectionOperationFailed'), {
+        description:
+          error instanceof Error ? error.message : tr('server.connectionFailedUrlAndNetwork'),
+      });
     } finally {
       busyRef.current = false;
       setPending(null);
     }
+  };
+  const save = () => {
+    try {
+      buildConnectionAddress(address);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : tr('server.checkUrl'));
+      return;
+    }
+    void run('save', () => saveConnection(serverId, name, address, connectionId));
   };
   return (
     <>
@@ -73,9 +94,7 @@ function ServerLineScreen() {
             icon={getNativeToolbarIcon('save', 'checkmark')}
             accessibilityLabel={tr('server.saveConnection')}
             disabled={busy || missing || !address.trim()}
-            onPress={() =>
-              void run('save', () => saveConnection(serverId, name, address, connectionId))
-            }
+            onPress={save}
             variant="done"
           >
             {tr('common.save')}
@@ -104,7 +123,10 @@ function ServerLineScreen() {
               label={tr('server.connectionUrl')}
               placeholder="https://media.example.com:8097"
               defaultValue={address}
-              onChangeText={setAddress}
+              onChangeText={(value) => {
+                setAddress(value);
+                setError('');
+              }}
               keyboardType="url"
               autoComplete="url"
               textContentType="URL"

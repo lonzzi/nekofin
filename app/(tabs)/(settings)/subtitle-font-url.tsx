@@ -9,11 +9,12 @@ import {
 } from '@/components/ui/NativeSettings';
 import { SettingsTitle } from '@/components/ui/SettingsVisual';
 import { useTranslation } from '@/lib/i18n';
+import { toast } from '@/lib/toast';
 import { importCustomSubtitleFont, normalizeFontUrl } from '@/services/customSubtitleFonts';
 import { useNativeState } from '@expo/ui';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Keyboard, Platform } from 'react-native';
+import { Keyboard, Platform } from 'react-native';
 
 export default function SubtitleFontUrl() {
   const { t: tr } = useTranslation();
@@ -36,13 +37,15 @@ export default function SubtitleFontUrl() {
         name = decodeURIComponent(new URL(uri).pathname.split('/').at(-1) ?? '');
       } catch {}
       await importCustomSubtitleFont({ uri, name, signal: controller.signal });
-      if (!controller.signal.aborted) router.back();
+      if (!controller.signal.aborted) {
+        router.back();
+        toast.success(tr('fonts.imported'));
+      }
     } catch (error) {
       if (!controller.signal.aborted)
-        Alert.alert(
-          tr('fonts.importFailed'),
-          error instanceof Error ? error.message : tr('fonts.checkUrl'),
-        );
+        toast.error(tr('fonts.importFailed'), {
+          description: error instanceof Error ? error.message : tr('fonts.checkUrl'),
+        });
     } finally {
       if (!controller.signal.aborted) setBusy(false);
       if (operation.current === controller) operation.current = null;
@@ -74,6 +77,8 @@ export default function SubtitleFontUrl() {
             onChangeText={setUrl}
             placeholder="https://example.com/font.ttf"
             keyboardType="url"
+            returnKeyType="done"
+            onSubmitEditing={() => void save()}
             autoCapitalize="none"
             autoCorrect={false}
           />

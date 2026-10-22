@@ -4,11 +4,12 @@ import { useTranslation } from '@/lib/i18n';
 import { groupServerAccounts } from '@/lib/serverAccounts';
 import { getConnectionPolicy, getServerConnections } from '@/lib/serverConnections';
 import { useAppTheme } from '@/lib/theme';
+import { toast } from '@/lib/toast';
 import { getCachedToolbarAvatar, getToolbarAvatar } from '@/modules/toolbar-avatar';
 import type { MediaServerInfo } from '@/services/media/types';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
 
 import { AccountMenu, AccountMenuAction, AccountToolbar } from './AccountMenu';
 
@@ -194,12 +195,12 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
                       setSwitching(true);
                       void switchConnection(server.id, line.id)
                         .catch((error) =>
-                          Alert.alert(
-                            tr('server.connectionSwitchFailed'),
-                            error instanceof Error
-                              ? error.message
-                              : tr('server.checkConnectionUrlAndNetwork'),
-                          ),
+                          toast.error(tr('server.connectionSwitchFailed'), {
+                            description:
+                              error instanceof Error
+                                ? error.message
+                                : tr('server.checkConnectionUrlAndNetwork'),
+                          }),
                         )
                         .finally(() => {
                           switchingRef.current = false;

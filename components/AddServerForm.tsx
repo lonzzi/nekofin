@@ -8,6 +8,7 @@ import {
 } from '@/lib/serverAccounts';
 import { buildConnectionAddress } from '@/lib/serverConnection';
 import { connectToMediaServer } from '@/lib/serverConnections';
+import { toast } from '@/lib/toast';
 import { getMediaAdapter } from '@/services/media';
 import type { MediaServerInfo, MediaServerType } from '@/services/media/types';
 import { useEffect, useRef, useState } from 'react';
@@ -120,19 +121,20 @@ export function AddServerForm({ serverType, existingServer, accountServer, onSuc
         if (mounted.current) {
           setValues((previous) => ({ ...previous, password: '' }));
           onSuccess?.();
+          toast.success(existingServer ? tr('server.accountUpdated') : tr('server.accountAdded'));
         }
       }
     } catch (error) {
       if (mounted.current)
-        setError(
-          connection
+        toast.error(connection ? tr('server.signInFailed') : tr('server.connectionFailed'), {
+          description: connection
             ? error instanceof ServerAccountError
               ? error.message
               : tr('server.signInFailedDescription')
             : error instanceof Error
               ? error.message
               : tr('server.connectionFailedServerUrlAndNetwork'),
-        );
+        });
     } finally {
       busyRef.current = false;
       if (mounted.current) setBusy(false);

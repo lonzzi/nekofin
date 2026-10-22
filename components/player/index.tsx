@@ -11,6 +11,7 @@ import { t as tr, useTranslation } from '@/lib/i18n';
 import { preferredTrackId } from '@/lib/playbackPreferences';
 import { generateDeviceProfile } from '@/lib/profiles/native';
 import { storage } from '@/lib/storage';
+import { toast } from '@/lib/toast';
 import { formatBitrate, getDeviceId, ticksToMilliseconds, ticksToSeconds } from '@/lib/utils';
 import { resolveDanmakuSelection, type DanmakuCommentsData } from '@/services/danmaku';
 import { danmakuSourcesKey } from '@/services/danmakuSources';
@@ -802,7 +803,9 @@ export const VideoPlayer = ({
           manualTrackChoice.current.subtitle = true;
           rememberedTrackChoice.current.subtitle = undefined;
           setFailedSubtitleIndices((previous) => new Set([...previous, chosenSubtitle]));
-          Alert.alert(tr('player.subtitleSwitchFailed'), tr('player.reselectSubtitle'));
+          toast.error(tr('player.subtitleSwitchFailed'), {
+            description: tr('player.reselectSubtitle'),
+          });
         }
         console.warn('refreshMpvTracks error:', e);
       }
@@ -1198,7 +1201,9 @@ export const VideoPlayer = ({
         await refreshMpvTracks(targetPlayer, targetSource);
       } catch {
         if (player.current === targetPlayer)
-          Alert.alert(tr('player.audioTrackSwitchFailed'), tr('player.reselectAudioTrack'));
+          toast.error(tr('player.audioTrackSwitchFailed'), {
+            description: tr('player.reselectAudioTrack'),
+          });
       }
     },
     [refreshMpvTracks, usesServerTracks, changeServerTrack, mpvTracks],
@@ -1247,7 +1252,9 @@ export const VideoPlayer = ({
         await refreshMpvTracks(targetPlayer, targetSource);
       } catch {
         if (player.current === targetPlayer)
-          Alert.alert(tr('player.subtitleSwitchFailed'), tr('player.reselectSubtitle'));
+          toast.error(tr('player.subtitleSwitchFailed'), {
+            description: tr('player.reselectSubtitle'),
+          });
       }
     },
     [

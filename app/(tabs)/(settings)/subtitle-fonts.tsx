@@ -14,6 +14,7 @@ import {
 import { useCustomSubtitleFonts } from '@/hooks/useCustomSubtitleFonts';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
+import { toast } from '@/lib/toast';
 import {
   importCustomSubtitleFont,
   removeCustomSubtitleFont,
@@ -59,9 +60,11 @@ export default function SubtitleFontSettings() {
       await action(controller.signal);
     } catch (error) {
       if (!controller.signal.aborted)
-        Alert.alert(
+        toast.error(
           key === 'server' ? tr('fonts.loadServerFontsFailed') : tr('fonts.importFailed'),
-          error instanceof Error ? error.message : tr('fonts.tryAgainLater'),
+          {
+            description: error instanceof Error ? error.message : tr('fonts.tryAgainLater'),
+          },
         );
     } finally {
       if (!controller.signal.aborted) setPending(null);
@@ -79,6 +82,7 @@ export default function SubtitleFontSettings() {
       const asset = result.assets[0];
       try {
         await importCustomSubtitleFont({ uri: asset.uri, name: asset.name, signal });
+        if (!signal.aborted) toast.success(tr('fonts.imported'));
       } finally {
         const temporary = new File(asset.uri);
         if (temporary.exists) temporary.delete();
@@ -241,8 +245,11 @@ export default function SubtitleFontSettings() {
                             onPress: () => {
                               try {
                                 removeCustomSubtitleFont(font.id);
+                                toast.success(tr('fonts.deleted'));
                               } catch {
-                                Alert.alert(tr('fonts.deleteFailed'), tr('fonts.tryAgainLater'));
+                                toast.error(tr('fonts.deleteFailed'), {
+                                  description: tr('fonts.tryAgainLater'),
+                                });
                               }
                             },
                           },

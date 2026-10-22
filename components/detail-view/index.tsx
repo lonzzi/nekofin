@@ -17,6 +17,7 @@ import useRefresh from '@/hooks/useRefresh';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
 import { useAppTheme, useMediaHeroHeight } from '@/lib/theme';
+import { toast } from '@/lib/toast';
 import { detailArtworkQueryOptions, getDetailArtwork } from '@/services/media/detailArtwork';
 import { mediaQueryKeys } from '@/services/media/queryKeys';
 import { itemDetailQueryOptions } from '@/services/media/queryOptions';
@@ -24,7 +25,7 @@ import { useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query'
 import { LinearGradient } from 'expo-linear-gradient';
 import { openBrowserAsync } from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Platform, Share, Text, View } from 'react-native';
+import { Platform, Share, Text, View } from 'react-native';
 
 import { ItemImage } from '../ItemImage';
 import { SafeAreaRefreshControl } from '../ui/SafeAreaRefreshControl';
@@ -153,6 +154,9 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
       markCurrentServerMediaStale();
     } catch (error) {
       console.error('Failed to update favorite', error);
+      toast.error(
+        nextIsFavorite ? tr('media.addFavoriteFailed') : tr('media.removeFavoriteFailed'),
+      );
     } finally {
       setPendingFavoriteItemIds((pendingIds) => {
         const nextPendingIds = new Set(pendingIds);
@@ -176,7 +180,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
       try {
         await openBrowserAsync(url, { controlsColor: theme.colors.tint });
       } catch {
-        Alert.alert(tr('media.openPageFailed'), tr('fonts.tryAgainLater'));
+        toast.error(tr('media.openPageFailed'), { description: tr('fonts.tryAgainLater') });
       }
     },
     [theme.colors.tint, tr],
@@ -198,7 +202,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
         },
       );
     } catch {
-      Alert.alert(tr('media.shareFailed'), tr('fonts.tryAgainLater'));
+      toast.error(tr('media.shareFailed'), { description: tr('fonts.tryAgainLater') });
     }
   }, [externalInfo, theme.colors.tint, tr]);
   const toolbar = (

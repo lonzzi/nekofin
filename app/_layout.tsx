@@ -2,6 +2,7 @@ import { PLAYER_LAB_AVAILABLE } from '@/components/dev/player-lab/PlayerLabEntry
 import { nativeStatusBarOptions } from '@/components/navigation/nativeStackConfig';
 import { platformHeaderOptions } from '@/components/navigation/platformHeaderOptions';
 import { PerformanceOverlay } from '@/components/performance/PerformanceOverlay';
+import { ToastHost } from '@/components/ui/ToastHost';
 import { useIsTablet } from '@/hooks/useIsTablet';
 import { AppUpdateProvider } from '@/lib/contexts/AppUpdateContext';
 import { DanmakuSettingsProvider } from '@/lib/contexts/DanmakuSettingsContext';
@@ -80,6 +81,7 @@ export default function RootLayout() {
                     <AppUpdateProvider>
                       <RootNavigation />
                       <PerformanceOverlay />
+                      <ToastHost />
                     </AppUpdateProvider>
                   </PerformanceMonitorProvider>
                 </DanmakuSettingsProvider>
