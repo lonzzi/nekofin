@@ -1430,6 +1430,8 @@ export const VideoPlayer = ({
             if (!isPlaybackContextActive(playbackContext)) return;
             isPlayerReadyRef.current = true;
             loadedSourceRef.current = playbackSourceUrl;
+            // Keep plain-text subtitles inside the video instead of the letterbox area.
+            void player.current?.setPropertyString('sub-use-margins', 'no');
             // mpv can report `isPlaying` while it is still opening the source.
             // Resume only after file-loaded, when seek commands are accepted.
             if (!hasInitialSeeked.current) {
