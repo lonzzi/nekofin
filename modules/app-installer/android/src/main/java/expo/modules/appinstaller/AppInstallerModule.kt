@@ -18,6 +18,7 @@ class AppInstallerModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Name("AppInstaller")
+    Function("setLocalizedStrings") { json: String -> downloads().setLocalizedStrings(json) }
     AsyncFunction("startDownloadAsync") { json: String, automatic: Boolean -> downloads().start(json, automatic) }
     AsyncFunction("getDownloadAsync") { downloads().snapshot() }
     AsyncFunction("cancelDownloadAsync") { downloads().cancel() }
@@ -31,7 +32,7 @@ class AppInstallerModule : Module() {
     AsyncFunction("installApkAsync") { uri: String ->
       val file = downloads().file(uri)
       val context = requireNotNull(appContext.reactContext)
-      val activity = requireNotNull(appContext.currentActivity) { "请返回应用后重试安装。" }
+      val activity = requireNotNull(appContext.currentActivity) { downloads().text("updates.returnToAppToInstall", "请返回应用后重试安装。") }
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
         activity.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
           Uri.parse("package:${context.packageName}")))

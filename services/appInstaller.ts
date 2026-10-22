@@ -1,4 +1,5 @@
 import { selectAppUpdate, type AppRelease, type InstallerDownload } from '@/lib/appUpdates';
+import { t as tr } from '@/lib/i18n';
 import { requireOptionalNativeModule } from 'expo';
 import { Platform } from 'react-native';
 import { prerelease } from 'semver';
@@ -58,11 +59,11 @@ export function parseInstallerDownload(value: NativeDownload | null): InstallerD
 }
 
 export async function startAppInstallerDownload(release: AppRelease, automatic: boolean) {
-  if (!canInstallAppUpdate) throw new Error('请先从 GitHub 安装新版，以启用后台下载。');
+  if (!canInstallAppUpdate) throw new Error(tr('updates.backgroundDownloadBuildRequired'));
   const result = parseInstallerDownload(
     await native!.startDownloadAsync(JSON.stringify(release), automatic),
   );
-  if (!result) throw new Error('无法保存更新下载任务，请重试。');
+  if (!result) throw new Error(tr('updates.saveDownloadFailed'));
   return result;
 }
 export async function getAppInstallerDownload() {
@@ -75,12 +76,12 @@ export async function setInstallerPlaybackActive(active: boolean) {
   if (canInstallAppUpdate) await native!.setPlaybackActiveAsync(active);
 }
 export async function installAppUpdate(uri: string) {
-  if (!canInstallAppUpdate) throw new Error('此安装包暂不支持应用内安装，请从 GitHub 获取新版。');
+  if (!canInstallAppUpdate) throw new Error(tr('updates.inAppInstallationUnsupported'));
   try {
     await native!.prepareInstallAsync(uri);
     return await native!.installApkAsync(uri);
   } catch {
-    throw new Error('无法准备安装包，请重新下载或检查系统安装权限后重试。');
+    throw new Error(tr('updates.prepareInstallerFailed'));
   }
 }
 

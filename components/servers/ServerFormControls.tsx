@@ -1,4 +1,5 @@
 import { settingsLayout } from '@/components/ui/settingsLayout';
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRef, useState } from 'react';
@@ -19,6 +20,7 @@ export function ServerFormField({
   password,
   ...props
 }: Omit<TextInputProps, 'value'> & { label: string; password?: boolean }) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const [visible, setVisible] = useState(false);
   // Keep native typing/IME composition intact. Form steps key inputs by their field name.
@@ -44,7 +46,7 @@ export function ServerFormField({
         {password ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={visible ? '隐藏密码' : '显示密码'}
+            accessibilityLabel={visible ? tr('server.hidePassword') : tr('server.showPassword')}
             disabled={props.editable === false}
             hitSlop={8}
             onPress={() => setVisible((previous) => !previous)}

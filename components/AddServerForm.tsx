@@ -1,5 +1,6 @@
 import { NativeServerForm } from '@/components/servers/NativeServerForm';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import {
   assertSameServerAccount,
   isSameMediaServer,
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function AddServerForm({ serverType, existingServer, accountServer, onSuccess }: Props) {
+  const { t: tr } = useTranslation();
   const { addServer, updateServer } = useMediaServers();
   const source = existingServer ?? accountServer;
   const type = source?.type ?? serverType;
@@ -62,9 +64,9 @@ export function AddServerForm({ serverType, existingServer, accountServer, onSuc
     let address: string;
     try {
       address = buildConnectionAddress(values.address);
-      if (connection && !values.username.trim()) throw new Error('请输入用户名');
+      if (connection && !values.username.trim()) throw new Error(tr('server.enterUsername'));
     } catch (error) {
-      setError(error instanceof Error ? error.message : '请检查服务器地址');
+      setError(error instanceof Error ? error.message : tr('server.checkUrl'));
       return;
     }
     Keyboard.dismiss();
@@ -88,7 +90,7 @@ export function AddServerForm({ serverType, existingServer, accountServer, onSuc
               remoteServerId: info.id,
             })
           )
-            throw new ServerAccountError('服务器身份已变化，请返回后重新添加服务器。');
+            throw new ServerAccountError(tr('server.identityChanged'));
         }
         const params = {
           address: connection.address,
@@ -107,7 +109,7 @@ export function AddServerForm({ serverType, existingServer, accountServer, onSuc
               await updateServer(existingServer.id, authenticated);
             } else {
               if (accountServer && !isSameMediaServer(accountServer, authenticated))
-                throw new ServerAccountError('登录结果来自其他服务器，请重新添加服务器。');
+                throw new ServerAccountError(tr('server.signInServerMismatch'));
               await addServer({
                 ...authenticated,
                 ...(accountServer ? { connections: accountServer.connections } : {}),
@@ -126,10 +128,10 @@ export function AddServerForm({ serverType, existingServer, accountServer, onSuc
           connection
             ? error instanceof ServerAccountError
               ? error.message
-              : '登录失败，请检查用户名、密码和网络后重试。'
+              : tr('server.signInFailedDescription')
             : error instanceof Error
               ? error.message
-              : '连接失败，请检查服务器地址和网络。',
+              : tr('server.connectionFailedServerUrlAndNetwork'),
         );
     } finally {
       busyRef.current = false;

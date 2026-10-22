@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/NativeSettings';
 import { SettingsActionTitle, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { useDanmakuSources } from '@/lib/contexts/DanmakuSourcesContext';
+import { useTranslation } from '@/lib/i18n';
 import { normalizeDanmakuApiUrl } from '@/services/danmakuSources';
 import { useNativeState, type TextInputRef } from '@expo/ui';
 import { randomUUID } from 'expo-crypto';
@@ -18,6 +19,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, BackHandler, Keyboard, Platform } from 'react-native';
 
 export default function DanmakuSourceEditor() {
+  const { t: tr } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { sourceSettings, setSourceSettings } = useDanmakuSources();
@@ -42,7 +44,7 @@ export default function DanmakuSourceEditor() {
   }, []);
   const save = () => {
     if (!name.trim()) {
-      setError({ field: 'name', message: '请输入 API 名称' });
+      setError({ field: 'name', message: tr('danmaku.enterApiName') });
       nameRef.current?.focus();
       return;
     }
@@ -53,7 +55,7 @@ export default function DanmakuSourceEditor() {
           (source) => source.id !== id && source.baseUrl === baseUrl,
         )
       ) {
-        throw new Error('这个 API 地址已经添加过了');
+        throw new Error(tr('danmaku.duplicateApiUrl'));
       }
       const source = { id: existing?.id ?? randomUUID(), name: name.trim(), baseUrl, enabled };
       setSourceSettings((current) => ({
@@ -66,48 +68,50 @@ export default function DanmakuSourceEditor() {
     } catch (error) {
       setError({
         field: 'address',
-        message: error instanceof Error ? error.message : '请检查 API 地址',
+        message: error instanceof Error ? error.message : tr('danmaku.checkApiUrl'),
       });
       addressRef.current?.focus();
     }
   };
   return (
     <>
-      <OuterTitle>{existing ? '编辑弹幕 API' : '添加弹幕 API'}</OuterTitle>
+      <OuterTitle>{existing ? tr('danmaku.editApi') : tr('danmaku.addApi')}</OuterTitle>
       <HeaderToolbar placement="right">
         <HeaderButton
-          accessibilityLabel="保存弹幕 API"
+          accessibilityLabel={tr('danmaku.saveApi')}
           icon={Platform.OS === 'ios' ? undefined : getNativeToolbarIcon('save', 'checkmark')}
           disabled={!name.trim() || !address.trim()}
           onPress={save}
           variant="done"
         >
-          保存
+          {tr('common.save')}
         </HeaderButton>
       </HeaderToolbar>
       <NativeSettingsForm testID="danmaku-api-editor">
         <NativeSettingsSection
-          title="名称"
+          title={tr('common.name')}
           footer={error?.field === 'name' ? error.message : undefined}
         >
           <NativeSettingsTextField
-            label="API 名称"
+            label={tr('danmaku.apiName')}
             ref={nameRef}
             value={nameState}
             onChangeText={(text) => {
               setName(text);
               if (error?.field === 'name') setError(null);
             }}
-            placeholder="例如：家里的弹幕 API"
+            placeholder={tr('danmaku.apiNamePlaceholder')}
             testID="danmaku-api-name"
           />
         </NativeSettingsSection>
         <NativeSettingsSection
-          title="API 地址"
-          footer={error?.field === 'address' ? error.message : '弹弹 Play 兼容接口，可包含 Token。'}
+          title={tr('danmaku.apiUrl')}
+          footer={
+            error?.field === 'address' ? error.message : tr('danmaku.apiCompatibilityDescription')
+          }
         >
           <NativeSettingsTextField
-            label="API 地址"
+            label={tr('danmaku.apiUrl')}
             ref={addressRef}
             value={addressState}
             onChangeText={(text) => {
@@ -121,7 +125,7 @@ export default function DanmakuSourceEditor() {
             testID="danmaku-api-url"
           />
           <NativeSettingsSwitch
-            title={<SettingsTitle>启用此 API</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.enableApi')}</SettingsTitle>}
             value={enabled}
             onValueChange={setEnabled}
           />
@@ -129,22 +133,26 @@ export default function DanmakuSourceEditor() {
         {existing ? (
           <NativeSettingsSection>
             <NativeSettingsItem
-              title={<SettingsActionTitle>删除 API</SettingsActionTitle>}
+              title={<SettingsActionTitle>{tr('danmaku.deleteApi')}</SettingsActionTitle>}
               onPress={() =>
-                Alert.alert('删除 API', '确定删除“' + existing.name + '”？', [
-                  { text: '取消', style: 'cancel' },
-                  {
-                    text: '删除',
-                    style: 'destructive',
-                    onPress: () => {
-                      setSourceSettings((current) => ({
-                        ...current,
-                        customSources: current.customSources.filter((source) => source.id !== id),
-                      }));
-                      router.back();
+                Alert.alert(
+                  tr('danmaku.deleteApi'),
+                  tr('common.deleteNamedConfirmation', { name: existing.name }),
+                  [
+                    { text: tr('common.cancel'), style: 'cancel' },
+                    {
+                      text: tr('common.delete'),
+                      style: 'destructive',
+                      onPress: () => {
+                        setSourceSettings((current) => ({
+                          ...current,
+                          customSources: current.customSources.filter((source) => source.id !== id),
+                        }));
+                        router.back();
+                      },
                     },
-                  },
-                ])
+                  ],
+                )
               }
             />
           </NativeSettingsSection>

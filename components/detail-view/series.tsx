@@ -1,5 +1,6 @@
 import { getMediaRailListConfig } from '@/components/media/railPerformanceConfig';
 import { useContentDimensions, useLargeContentLayout } from '@/hooks/useContentDimensions';
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import { MediaItem, MediaPerson } from '@/services/media/types';
 import { FlatList, Platform, Text, View } from 'react-native';
@@ -22,6 +23,7 @@ export const SeriesModeContent = ({
   similarItems: MediaItem[];
   item: MediaItem;
 }) => {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const textColor = theme.colors.text;
   const { width } = useContentDimensions();
@@ -47,7 +49,9 @@ export const SeriesModeContent = ({
 
       {nextUpItems.length > 0 && (
         <View style={detailViewStyles.sectionBlock}>
-          <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>接下来</Text>
+          <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>
+            {tr('home.upNext')}
+          </Text>
           <FlatList
             {...railBatching(theme.layout.mediaRail.episodeCardWidth - theme.spacing.xl)}
             horizontal
@@ -66,7 +70,9 @@ export const SeriesModeContent = ({
 
       {seasons && seasons.length > 0 && (
         <View style={detailViewStyles.sectionBlock}>
-          <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>季度</Text>
+          <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>
+            {tr('media.seasonNumber')}
+          </Text>
           <FlatList
             {...railBatching(theme.layout.mediaRail.posterCardWidth)}
             horizontal

@@ -1,4 +1,5 @@
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
+import { t as tr, useTranslation } from '@/lib/i18n';
 import { layout, radius, spacing, typography, useAppTheme } from '@/lib/theme';
 import { formatChineseDurationFromTicks, formatRating } from '@/lib/utils';
 import {
@@ -43,7 +44,9 @@ function compactList(values?: (string | null | undefined)[] | null, limit = 4) {
   const clean = values?.map((value) => value?.trim()).filter((value): value is string => !!value);
   if (!clean?.length) return '';
   const visible = clean.slice(0, limit).join(', ');
-  return clean.length > limit ? `${visible} 等 ${clean.length} 项` : visible;
+  return clean.length > limit
+    ? tr('common.visibleItemSummary', { visible: visible, count: clean.length })
+    : visible;
 }
 
 export const PlayButton = ({
@@ -55,13 +58,16 @@ export const PlayButton = ({
   selection?: PlaybackSelection;
   containerStyle?: StyleProp<ViewStyle>;
 }) => {
+  const { t: tr } = useTranslation();
   const router = useTracedRouter('detail-play');
   const theme = useAppTheme();
   const accentColor = theme.colors.tint;
   const useLiquidGlass = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
   const textColor = useLiquidGlass ? accentColor : theme.colors.inverseText;
   const durationLabel = formatChineseDurationFromTicks(item.runTimeTicks, { largest: 2 });
-  const buttonLabel = durationLabel ? `播放 · ${durationLabel}` : '播放';
+  const buttonLabel = durationLabel
+    ? tr('player.playWithDuration', { durationLabel: durationLabel })
+    : tr('player.play');
 
   const progressPercent = useMemo(() => {
     const pct = item.userData?.playedPercentage ?? (item.userData?.played ? 100 : 0);
@@ -179,6 +185,7 @@ export const ItemOverview = ({
   item: MediaItem;
   showEmptyPlaceholder?: boolean;
 }) => {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const textColor = theme.colors.text;
   const [isOverviewPresented, setIsOverviewPresented] = useState(false);
@@ -205,7 +212,7 @@ export const ItemOverview = ({
     return (
       <View style={detailViewStyles.overviewContainer}>
         <Text style={[detailViewStyles.overview, { color: theme.colors.textTertiary }]}>
-          暂无简介
+          {tr('media.noOverview')}
         </Text>
       </View>
     );
@@ -233,9 +240,11 @@ export const ItemOverview = ({
           <Pressable
             onPress={handleShowMore}
             accessibilityRole="button"
-            accessibilityLabel="查看更多剧情简介"
+            accessibilityLabel={tr('media.readFullOverview')}
           >
-            <Text style={[detailViewStyles.overview, { color: accentColor }]}>查看更多</Text>
+            <Text style={[detailViewStyles.overview, { color: accentColor }]}>
+              {tr('media.readMore')}
+            </Text>
           </Pressable>
         ) : null}
       </View>
@@ -250,6 +259,7 @@ export const ItemOverview = ({
 };
 
 export const ItemInfoList = ({ item }: { item: MediaItem }) => {
+  const { t: tr } = useTranslation();
   const infoRows = useMemo(() => {
     const primary = item?.genres && item.genres.length > 0 ? item.genres : undefined;
     const genreText = primary ? primary.join(', ') : '';
@@ -271,33 +281,37 @@ export const ItemInfoList = ({ item }: { item: MediaItem }) => {
       { largest: 2 },
     );
     const ratingParts = [
-      typeof item.communityRating === 'number' ? `用户 ${formatRating(item.communityRating)}` : '',
-      typeof item.criticRating === 'number' ? `影评 ${item.criticRating}` : '',
+      typeof item.communityRating === 'number'
+        ? tr('server.userWithIndex', { value: formatRating(item.communityRating) })
+        : '',
+      typeof item.criticRating === 'number'
+        ? tr('media.criticRating', { criticRating: item.criticRating })
+        : '',
     ].filter(Boolean);
     const countText =
       item.recursiveItemCount || item.childCount
-        ? `${item.recursiveItemCount ?? item.childCount} 集`
+        ? tr('media.episodeCount', { value: item.recursiveItemCount ?? item.childCount })
         : '';
 
     return [
-      { label: '首播', value: formatDetailDate(item.premiereDate) },
-      { label: '时长', value: runtimeText },
-      { label: '评分', value: ratingParts.join(' · ') },
-      { label: '分级', value: item.officialRating ?? '' },
+      { label: tr('media.premiere'), value: formatDetailDate(item.premiereDate) },
+      { label: tr('media.duration'), value: runtimeText },
+      { label: tr('media.rating'), value: ratingParts.join(' · ') },
+      { label: tr('media.certification'), value: item.officialRating ?? '' },
       {
-        label: '原名',
+        label: tr('media.originalTitle'),
         value: item.originalTitle && item.originalTitle !== item.name ? item.originalTitle : '',
       },
-      { label: '类型', value: genreText || fallback.join(', ') },
-      { label: '标语', value: compactList(item.taglines, 2) },
-      { label: '地区', value: compactList(item.productionLocations, 3) },
-      { label: '标签', value: compactList(item.tags, 4) },
-      { label: '集数', value: countText },
-      { label: '导演', value: directorText },
-      { label: '编剧', value: writerText },
-      { label: '工作室', value: studioText },
+      { label: tr('media.genre'), value: genreText || fallback.join(', ') },
+      { label: tr('media.tagline'), value: compactList(item.taglines, 2) },
+      { label: tr('media.region'), value: compactList(item.productionLocations, 3) },
+      { label: tr('media.tags'), value: compactList(item.tags, 4) },
+      { label: tr('player.episodes'), value: countText },
+      { label: tr('media.director'), value: directorText },
+      { label: tr('media.writer'), value: writerText },
+      { label: tr('media.studios'), value: studioText },
     ].filter((row) => row.value);
-  }, [item]);
+  }, [item, tr]);
 
   if (infoRows.length === 0) return null;
 

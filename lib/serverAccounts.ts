@@ -1,3 +1,4 @@
+import { t as tr } from '@/lib/i18n';
 import type { MediaServerInfo } from '@/services/media/types';
 
 import { getServerConnections } from './serverConnections';
@@ -73,5 +74,5 @@ export function assertSameServerAccount(
   authenticated: Omit<MediaServerInfo, 'id' | 'createdAt'>,
 ) {
   if (existing.userId !== authenticated.userId || !isSameMediaServer(existing, authenticated))
-    throw new ServerAccountError('请使用原账号重新登录；如需使用其他账号，请选择“添加账号”。');
+    throw new ServerAccountError(tr('server.originalAccountSignInHint'));
 }

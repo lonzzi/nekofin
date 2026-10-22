@@ -12,6 +12,7 @@ import {
   SettingsValue,
 } from '@/components/ui/SettingsVisual';
 import { TEMPORARY_FILE_CACHE_KEYS } from '@/lib/cachePolicy';
+import { useTranslation } from '@/lib/i18n';
 import { getStoredPerformanceLogBytes } from '@/lib/performance/performanceLogStorage';
 import { usePerformanceMonitorActions } from '@/lib/performance/PerformanceMonitorContext';
 import {
@@ -137,6 +138,7 @@ async function measureFileCacheSizes(): Promise<FileCacheSizes> {
 }
 
 export default function CacheSettingsScreen() {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const queryClient = useQueryClient();
   const { clear: clearDiagnosticsCache } = usePerformanceMonitorActions();
@@ -185,14 +187,17 @@ export default function CacheSettingsScreen() {
         await action();
       } catch (error) {
         console.warn('Failed to clear cache', target, error);
-        Alert.alert('清理失败', error instanceof Error ? error.message : '请稍后再试。');
+        Alert.alert(
+          tr('cache.cleanupFailed'),
+          error instanceof Error ? error.message : tr('common.tryAgainLater'),
+        );
       } finally {
         clearingRef.current = false;
         setClearingTarget(null);
         refresh();
       }
     },
-    [refresh],
+    [refresh, tr],
   );
 
   const clearMediaCache = useCallback(() => {
@@ -241,27 +246,27 @@ export default function CacheSettingsScreen() {
     diagnosticBytes;
 
   const sizeLabel = useCallback(
-    (bytes: number) => (measuring ? '计算中' : formatStorageBytes(bytes)),
-    [measuring],
+    (bytes: number) => (measuring ? tr('cache.calculating') : formatStorageBytes(bytes)),
+    [measuring, tr],
   );
 
   const clearingLabel = useCallback(
     (target: ClearTarget) =>
       target === 'download'
         ? clearingTarget === target
-          ? '删除中'
-          : '删除'
+          ? tr('common.deleting')
+          : tr('common.delete')
         : clearingTarget === target
-          ? '清理中'
-          : '清理',
-    [clearingTarget],
+          ? tr('cache.cleaning')
+          : tr('cache.clear'),
+    [clearingTarget, tr],
   );
 
   return (
     <>
-      <OuterTitle>存储管理</OuterTitle>
+      <OuterTitle>{tr('settings.storage')}</OuterTitle>
       <NativeSettingsForm testID="cache-settings-form">
-        <NativeSettingsSection title="本机空间">
+        <NativeSettingsSection title={tr('cache.onDeviceStorage')}>
           <Column
             spacing={14}
             style={{ padding: Platform.OS === 'android' ? settingsLayout.contentInset : 8 }}
@@ -274,13 +279,13 @@ export default function CacheSettingsScreen() {
                   : undefined
               }
             >
-              {measuring ? '计算中…' : formatStorageBytes(totalBytes)}
+              {measuring ? tr('cache.calculatingProgress') : formatStorageBytes(totalBytes)}
             </NativeText>
             <NativeText
               textStyle={{ color: theme.colors.textSecondary, fontSize: 14 }}
               modifiers={Platform.OS === 'ios' ? [font({ textStyle: 'footnote' })] : undefined}
             >
-              已统计的本地文件与缓存
+              {tr('cache.measuredStorageDescription')}
             </NativeText>
             <RNHostView matchContents={{ vertical: true }}>
               <View
@@ -311,16 +316,19 @@ export default function CacheSettingsScreen() {
               textStyle={{ fontSize: 12, color: theme.colors.textSecondary }}
               modifiers={Platform.OS === 'ios' ? [font({ textStyle: 'footnote' })] : undefined}
             >
-              {`临时数据 ${formatStorageBytes(totalBytes - fileCacheSizes.download)} · 本地下载 ${formatStorageBytes(fileCacheSizes.download)}`}
+              {tr('cache.storageSummary', {
+                size: formatStorageBytes(totalBytes - fileCacheSizes.download),
+                size2: formatStorageBytes(fileCacheSizes.download),
+              })}
             </NativeText>
           </Column>
         </NativeSettingsSection>
-        <NativeSettingsSection title="临时数据">
+        <NativeSettingsSection title={tr('cache.temporaryData')}>
           <NativeSettingsItem
             testID="cache-row-video"
             disabled={!!clearingTarget}
             busy={clearingTarget === 'video'}
-            title={<SettingsTitle>视频缓存</SettingsTitle>}
+            title={<SettingsTitle>{tr('cache.video')}</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.video)} />}
             trailing={<SettingsValue label={clearingLabel('video')} tone="danger" />}
             onPress={() => void clearTarget('video', () => clearCacheUris(cacheUriGroups.video))}
@@ -329,7 +337,7 @@ export default function CacheSettingsScreen() {
             testID="cache-row-image"
             disabled={!!clearingTarget}
             busy={clearingTarget === 'image'}
-            title={<SettingsTitle>图片缓存</SettingsTitle>}
+            title={<SettingsTitle>{tr('cache.images')}</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.image)} />}
             trailing={<SettingsValue label={clearingLabel('image')} tone="danger" />}
             onPress={() => void clearTarget('image', clearImageCache)}
@@ -338,7 +346,7 @@ export default function CacheSettingsScreen() {
             testID="cache-row-subtitle"
             disabled={!!clearingTarget}
             busy={clearingTarget === 'subtitle'}
-            title={<SettingsTitle>字幕与字体缓存</SettingsTitle>}
+            title={<SettingsTitle>{tr('cache.subtitlesAndFonts')}</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.subtitle)} />}
             trailing={<SettingsValue label={clearingLabel('subtitle')} tone="danger" />}
             onPress={() => void clearTarget('subtitle', clearSubtitleFiles)}
@@ -347,7 +355,7 @@ export default function CacheSettingsScreen() {
             testID="cache-row-temporary"
             disabled={!!clearingTarget}
             busy={clearingTarget === 'temporary'}
-            title={<SettingsTitle>临时缓存</SettingsTitle>}
+            title={<SettingsTitle>{tr('cache.temporaryCache')}</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.temporary)} />}
             trailing={<SettingsValue label={clearingLabel('temporary')} tone="danger" />}
             onPress={() =>
@@ -356,22 +364,22 @@ export default function CacheSettingsScreen() {
           />
         </NativeSettingsSection>
 
-        <NativeSettingsSection title="本地内容">
+        <NativeSettingsSection title={tr('cache.localContent')}>
           <NativeSettingsItem
             testID="cache-row-download"
             disabled={!!clearingTarget}
             busy={clearingTarget === 'download'}
-            title={<SettingsTitle>本地下载文件</SettingsTitle>}
+            title={<SettingsTitle>{tr('cache.downloadedFiles')}</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={sizeLabel(fileCacheSizes.download)} />}
             trailing={<SettingsValue label={clearingLabel('download')} tone="danger" />}
             onPress={() =>
               Alert.alert(
-                '删除本地下载文件？',
-                '这些文件不会包含在临时缓存清理中。删除后需要重新下载。',
+                tr('cache.deleteDownloadsConfirmation'),
+                tr('cache.downloadedFilesDescription'),
                 [
-                  { text: '取消', style: 'cancel' },
+                  { text: tr('common.cancel'), style: 'cancel' },
                   {
-                    text: '删除',
+                    text: tr('common.delete'),
                     style: 'destructive',
                     onPress: () =>
                       void clearTarget('download', () => clearCacheUris(cacheUriGroups.download)),
@@ -381,16 +389,16 @@ export default function CacheSettingsScreen() {
             }
           />
         </NativeSettingsSection>
-        <NativeSettingsSection title="应用数据">
+        <NativeSettingsSection title={tr('cache.appData')}>
           <NativeSettingsItem
             testID="cache-row-media"
             disabled={!!clearingTarget}
             busy={clearingTarget === 'media'}
-            title={<SettingsTitle>媒体库缓存</SettingsTitle>}
+            title={<SettingsTitle>{tr('cache.libraries')}</SettingsTitle>}
             subtitle={
               <SettingsSubtitle
                 primary={formatStorageBytes(queryCacheBytes)}
-                secondary="清理后将从服务器重新加载媒体库。"
+                secondary={tr('cache.libraryReloadDescription')}
               />
             }
             trailing={<SettingsValue label={clearingLabel('media')} tone="danger" />}
@@ -400,19 +408,19 @@ export default function CacheSettingsScreen() {
             testID="cache-row-diagnostics"
             disabled={!!clearingTarget}
             busy={clearingTarget === 'diagnostics'}
-            title={<SettingsTitle>诊断日志</SettingsTitle>}
+            title={<SettingsTitle>{tr('diagnostics.logs')}</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={formatStorageBytes(diagnosticBytes)} />}
             trailing={<SettingsValue label={clearingLabel('diagnostics')} tone="danger" />}
             onPress={() => void clearTarget('diagnostics', clearDiagnosticsCache)}
           />
         </NativeSettingsSection>
 
-        <NativeSettingsSection title="总览与清理">
+        <NativeSettingsSection title={tr('cache.overviewAndCleanup')}>
           <NativeSettingsItem
-            title={<SettingsTitle>本地数据总量</SettingsTitle>}
+            title={<SettingsTitle>{tr('cache.totalLocalData')}</SettingsTitle>}
             trailing={
               <SettingsValue
-                label={measuring ? '计算中' : formatStorageBytes(totalBytes)}
+                label={measuring ? tr('cache.calculating') : formatStorageBytes(totalBytes)}
                 tone="muted"
               />
             }
@@ -422,10 +430,10 @@ export default function CacheSettingsScreen() {
             busy={clearingTarget === 'all'}
             title={
               <SettingsActionTitle>
-                {clearingTarget === 'all' ? '清理中' : '清理临时缓存'}
+                {clearingTarget === 'all' ? tr('cache.cleaning') : tr('cache.clearTemporary')}
               </SettingsActionTitle>
             }
-            subtitle={<SettingsSubtitle primary="保留本地下载文件、账号与偏好设置。" />}
+            subtitle={<SettingsSubtitle primary={tr('cache.preserveDownloadsDescription')} />}
             onPress={() => void clearTarget('all', clearAllCaches)}
           />
         </NativeSettingsSection>

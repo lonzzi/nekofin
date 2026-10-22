@@ -1,3 +1,4 @@
+import { t as tr } from '@/lib/i18n';
 import {
   parsePlaybackQuality,
   playbackQualityOptions,
@@ -25,8 +26,18 @@ const QUALITY_PREFIX = 'playback:quality:';
 export const PLAYER_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
 
 export const PLAYER_ASPECT_OPTIONS = [
-  { label: '自适应', value: 'fit' },
-  { label: '铺满屏幕', value: 'fill' },
+  {
+    get label() {
+      return tr('player.aspectFit');
+    },
+    value: 'fit',
+  },
+  {
+    get label() {
+      return tr('player.aspectFill');
+    },
+    value: 'fill',
+  },
   { label: '16:9', value: '16:9' },
   { label: '4:3', value: '4:3' },
 ] as const;
@@ -65,17 +76,20 @@ const normalizeTracks = (tracks: TrackInfo[] | undefined, fallbackLabel: string)
 const trackAction = (prefix: string, track: TrackInfo, selectedTrack?: TrackInfo): MenuAction => ({
   id: `${prefix}${track.index}`,
   state: selectedState(track.index === selectedTrack?.index),
-  subtitle: track.failed ? '加载失败，点按重试' : track.language?.toUpperCase(),
+  subtitle: track.failed ? tr('common.loadFailedTapToRetry') : track.language?.toUpperCase(),
   title: track.name,
 });
 
-export function deriveDanmakuMenuActions({
-  commentCount,
-  enabled,
-}: {
-  commentCount: number;
-  enabled: boolean;
-}): MenuAction[] {
+export function deriveDanmakuMenuActions(
+  {
+    commentCount,
+    enabled,
+  }: {
+    commentCount: number;
+    enabled: boolean;
+  },
+  translate = tr,
+): MenuAction[] {
   const safeCommentCount = Number.isFinite(commentCount)
     ? Math.max(0, Math.floor(commentCount))
     : 0;
@@ -84,16 +98,16 @@ export function deriveDanmakuMenuActions({
     {
       id: PLAYER_MENU_ACTION_IDS.danmakuToggle,
       state: selectedState(enabled),
-      title: '显示弹幕',
+      title: translate('danmaku.showComments'),
     },
     {
       id: PLAYER_MENU_ACTION_IDS.danmakuSettings,
-      subtitle: `当前 ${safeCommentCount} 条`,
-      title: '弹幕设置',
+      subtitle: translate('danmaku.currentCount', { count: safeCommentCount }),
+      title: translate('danmaku.settings'),
     },
     {
       id: PLAYER_MENU_ACTION_IDS.danmakuSearch,
-      title: '搜索匹配弹幕',
+      title: translate('danmaku.findMatchingComments'),
     },
   ];
 }
@@ -103,32 +117,33 @@ export function deriveTrackMenuActions(
   selectedTracks?: MediaTrack,
   mediaSources: MediaSource[] = [],
   selectedMediaSourceId?: string | null,
+  translate = tr,
 ): MenuAction[] {
-  const audioTracks = normalizeTracks(tracks?.audio, '音轨');
-  const subtitleTracks = normalizeTracks(tracks?.subtitle, '字幕');
+  const audioTracks = normalizeTracks(tracks?.audio, translate('player.audioTrack'));
+  const subtitleTracks = normalizeTracks(tracks?.subtitle, translate('player.subtitles'));
   const selectedSubtitle = selectedTracks?.subtitle;
   const selectedAudio = selectedTracks?.audio;
   const selectedSubtitleTitle = selectedSubtitle
     ? subtitleTracks.find((track) => track.index === selectedSubtitle.index)?.name ||
       selectedSubtitle.name.trim() ||
-      `字幕 ${selectedSubtitle.index}`
-    : '关闭字幕';
+      translate('player.subtitleByIndex', { index: selectedSubtitle.index })
+    : translate('player.disableSubtitles');
   const selectedAudioTitle = selectedAudio
     ? audioTracks.find((track) => track.index === selectedAudio.index)?.name ||
       selectedAudio.name.trim() ||
-      `音轨 ${selectedAudio.index}`
+      translate('player.audioTrackByIndex', { index: selectedAudio.index })
     : audioTracks.length
-      ? '默认音轨'
-      : '暂无可用音轨';
+      ? translate('player.defaultAudioTrack')
+      : translate('player.noAudioTracks');
 
   const audioActions: MenuAction[] = audioTracks.length
     ? audioTracks.map((track) => trackAction(AUDIO_PREFIX, track, selectedAudio))
-    : [{ attributes: { disabled: true }, title: '暂无可用音轨' }];
+    : [{ attributes: { disabled: true }, title: translate('player.noAudioTracks') }];
   const subtitleActions: MenuAction[] = [
     {
       id: `${SUBTITLE_PREFIX}-1`,
       state: selectedState(!selectedSubtitle || selectedSubtitle.index === -1),
-      title: '关闭字幕',
+      title: translate('player.disableSubtitles'),
     },
     ...subtitleTracks.map((track) => trackAction(SUBTITLE_PREFIX, track, selectedSubtitle)),
   ];
@@ -137,7 +152,7 @@ export function deriveTrackMenuActions(
     mediaSources.length > 1
       ? [
           {
-            title: '视频版本',
+            title: translate('player.videoVersion'),
             subactions: mediaSources
               .filter((source) => source.id)
               .map((source, index) => ({
@@ -153,16 +168,22 @@ export function deriveTrackMenuActions(
     ...versionActions,
     {
       subactions: subtitleActions,
-      title: `字幕 · ${selectedSubtitleTitle}`,
+      title: translate('player.selectedSubtitle', {
+        selectedSubtitleTitle: selectedSubtitleTitle,
+      }),
     },
     {
       subactions: audioActions,
-      title: `音轨 · ${selectedAudioTitle}`,
+      title: translate('player.selectedAudioTrack', { selectedAudioTitle: selectedAudioTitle }),
     },
   ];
 }
 
-export function derivePlaybackMenuActions(rate: number, aspectRatio = 'fit'): MenuAction[] {
+export function derivePlaybackMenuActions(
+  rate: number,
+  aspectRatio = 'fit',
+  translate = tr,
+): MenuAction[] {
   const aspectLabel =
     PLAYER_ASPECT_OPTIONS.find((option) => option.value === aspectRatio)?.label ?? aspectRatio;
 
@@ -171,9 +192,11 @@ export function derivePlaybackMenuActions(rate: number, aspectRatio = 'fit'): Me
       subactions: PLAYER_RATES.map((value) => ({
         id: `${RATE_PREFIX}${value}`,
         state: selectedState(value === rate),
-        title: value === 1 ? '正常' : `${value}×`,
+        title: value === 1 ? translate('player.normalSpeed') : `${value}×`,
       })),
-      title: `播放速度 · ${rate === 1 ? '正常' : `${rate}×`}`,
+      title: translate('player.selectedPlaybackSpeed', {
+        value: rate === 1 ? translate('player.normalSpeed') : `${rate}×`,
+      }),
     },
     {
       subactions: PLAYER_ASPECT_OPTIONS.map((option) => ({
@@ -181,15 +204,18 @@ export function derivePlaybackMenuActions(rate: number, aspectRatio = 'fit'): Me
         state: selectedState(option.value === aspectRatio),
         title: option.label,
       })),
-      title: `画面比例 · ${aspectLabel}`,
+      title: translate('player.selectedAspectRatio', { aspectLabel: aspectLabel }),
     },
   ];
 }
 
-export function deriveQualityMenuActions(quality: PlaybackQuality = 'auto'): MenuAction[] {
+export function deriveQualityMenuActions(
+  quality: PlaybackQuality = 'auto',
+  translate = tr,
+): MenuAction[] {
   return playbackQualityOptions.map((option) => ({
     id: `${QUALITY_PREFIX}${option.id}`,
-    title: option.id === 'auto' ? '自动（跟随播放设置）' : option.title,
+    title: option.id === 'auto' ? translate('player.usePlaybackSettings') : option.title,
     state: selectedState(option.id === quality),
   }));
 }

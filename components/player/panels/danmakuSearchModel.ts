@@ -1,3 +1,4 @@
+import { t as tr } from '@/lib/i18n';
 import type { DanmakuEpisodeSelection, SourcedDanmakuAnime } from '@/services/danmaku';
 import { danmakuTitleSeason } from '@/services/danmakuMatching';
 
@@ -21,7 +22,7 @@ export function danmakuSeasonOptions(entries: readonly SourcedDanmakuAnime[]) {
     counts.set(key, (counts.get(key) ?? 0) + 1);
   });
   return [
-    { value: 'all', title: '全部季度 / 版本' },
+    { value: 'all', title: tr('media.allSeasonsAndVersions') },
     ...[...counts]
       .sort(([a], [b]) => {
         if (a === 'unspecified') return 1;
@@ -31,7 +32,11 @@ export function danmakuSeasonOptions(entries: readonly SourcedDanmakuAnime[]) {
       .map(([key, count]) => ({
         value: key,
         title:
-          (key === 'unspecified' ? '未标注季度 / 特别篇' : '第 ' + key + ' 季') + ' · ' + count,
+          (key === 'unspecified'
+            ? tr('media.unspecifiedSeasonOrSpecials')
+            : tr('media.seasonByKey', { key: key })) +
+          ' · ' +
+          count,
       })),
   ];
 }

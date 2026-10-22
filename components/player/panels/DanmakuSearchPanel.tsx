@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/NativeSettings';
 import { SettingsSubtitle, SettingsSymbol, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { useDanmakuSources } from '@/lib/contexts/DanmakuSourcesContext';
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import { getAnimeEpisodes, type DandanEpisode } from '@/services/dandanplay';
 import {
@@ -113,6 +114,7 @@ export function DanmakuSearchPanel({
   onLoaded,
   onNavigationChange,
 }: DanmakuSearchPanelProps) {
+  const { t: tr } = useTranslation();
   const { currentItem } = usePlayer();
   const { sources } = useDanmakuSources();
   const apiKey = danmakuSourcesKey(sources);
@@ -165,15 +167,15 @@ export function DanmakuSearchPanel({
   useEffect(() => {
     onNavigationChange({
       title: editingSources
-        ? '搜索 API'
+        ? tr('danmaku.searchApis')
         : selectedAnime
-          ? '选择剧集'
+          ? tr('danmaku.chooseEpisode')
           : showResults
-            ? '选择季度 / 版本'
-            : '搜索弹幕',
+            ? tr('danmaku.chooseSeasonOrVersion')
+            : tr('danmaku.findComments'),
       canGoBack: editingSources || !!selectedAnime || showResults,
     });
-  }, [editingSources, onNavigationChange, selectedAnime, showResults]);
+  }, [editingSources, onNavigationChange, selectedAnime, showResults, tr]);
   useEffect(() => {
     setApiIds(sources.filter((source) => source.enabled).map((source) => source.id));
     setAnimes([]);
@@ -210,10 +212,10 @@ export function DanmakuSearchPanel({
       setAnimes(result.animes);
       setShowResults(result.animes.length > 0);
       if (result.failedSources.length)
-        setError(result.failedSources.join('、') + ' 暂不可用，其他结果仍可选择');
-      else if (!result.animes.length) setError('没有找到匹配结果，换个关键词试试');
+        setError(tr('danmaku.resultUnavailable', { value: result.failedSources.join('、') }));
+      else if (!result.animes.length) setError(tr('search.noMatchesTryAnotherKeyword'));
     } catch {
-      if (requestId.current === request.id) setError('搜索失败，请检查网络后重试');
+      if (requestId.current === request.id) setError(tr('search.failedCheckNetwork'));
     } finally {
       if (requestId.current === request.id) setLoading(false);
     }
@@ -235,7 +237,7 @@ export function DanmakuSearchPanel({
       setSelectedAnime(loaded);
       setAnimes((current) => current.map((result) => (result.key === entry.key ? loaded : result)));
     } catch {
-      if (requestId.current === request.id) setError('剧集加载失败，请返回后重试');
+      if (requestId.current === request.id) setError(tr('media.episodeLoadFailed'));
     } finally {
       if (requestId.current === request.id) setLoading(false);
     }
@@ -249,14 +251,20 @@ export function DanmakuSearchPanel({
       const data = await episodeLoader.load(entry, request.signal, true);
       if (requestId.current !== request.id) return;
       if (!data.tracks?.some((track) => track.comments.length)) {
-        setError(data.failedSources?.length ? '弹幕加载失败，请稍后重试' : '所选剧集暂无弹幕');
+        setError(
+          data.failedSources?.length
+            ? tr('danmaku.loadFailedRetry')
+            : tr('danmaku.noCommentsForEpisode'),
+        );
         return;
       }
       onCommentsLoaded(data);
-      AccessibilityInfo.announceForAccessibility('已加载 ' + data.comments.length + ' 条弹幕');
+      AccessibilityInfo.announceForAccessibility(
+        tr('danmaku.loadedCount', { count: data.comments.length }),
+      );
       onLoaded();
     } catch {
-      if (requestId.current === request.id) setError('弹幕加载失败，请稍后重试');
+      if (requestId.current === request.id) setError(tr('danmaku.loadFailedRetry'));
     } finally {
       if (requestId.current === request.id) {
         setLoading(false);
@@ -266,7 +274,7 @@ export function DanmakuSearchPanel({
   };
 
   const errorSection = error ? (
-    <NativeSettingsSection title="提示">
+    <NativeSettingsSection title={tr('common.notice')}>
       <NativeSettingsItem
         leading={<SettingsSymbol name="exclamationmark.triangle" tone="danger" />}
         title={<SettingsTitle>{error}</SettingsTitle>}
@@ -280,11 +288,14 @@ export function DanmakuSearchPanel({
   const playingEpisode = currentItem?.type === 'Movie' ? undefined : currentItem?.indexNumber;
   const playingContext =
     currentItem?.type === 'Movie'
-      ? '当前播放：' + currentItem.name
-      : '当前播放：第 ' +
-        (currentItem?.parentIndexNumber ?? 1) +
-        ' 季' +
-        (playingEpisode == null ? '' : ' · 第 ' + playingEpisode + ' 集');
+      ? tr('player.nowPlayingTitle', { name: currentItem.name })
+      : tr('player.nowPlayingSeason', {
+          value: currentItem?.parentIndexNumber ?? 1,
+          value2:
+            playingEpisode == null
+              ? ''
+              : tr('player.currentEpisodeSuffix', { playingEpisode: playingEpisode }),
+        });
 
   const episodeRow = (episode: DandanEpisode, sameNumber = false) => {
     if (!selectedAnime) return null;
@@ -306,8 +317,8 @@ export function DanmakuSearchPanel({
     return (
       <NativeSettingsForm hosted surface="sheet" testID="player-danmaku-search-sources">
         <NativeSettingsSection
-          title="搜索 API · 可多选"
-          footer="返回后搜索选中的 API，再点按对应剧集加载弹幕。"
+          title={tr('danmaku.searchApisMultipleSelection')}
+          footer={tr('danmaku.returnToSearchHint')}
         >
           {sources
             .filter((source) => source.enabled)
@@ -328,7 +339,7 @@ export function DanmakuSearchPanel({
               />
             ))}
           {!sources.some((source) => source.enabled) ? (
-            <NativeSettingsItem title={<SearchTitle>请先在设置中启用弹幕 API</SearchTitle>} />
+            <NativeSettingsItem title={<SearchTitle>{tr('danmaku.enableApiFirst')}</SearchTitle>} />
           ) : null}
         </NativeSettingsSection>
       </NativeSettingsForm>
@@ -343,7 +354,7 @@ export function DanmakuSearchPanel({
         <NativeSettingsSection footer={selectedAnime.source.name + ' · ' + playingContext}>
           {versions.length > 1 ? (
             <SearchPicker
-              title="季度 / 版本"
+              title={tr('media.seasonOrVersion')}
               value={selectedAnime.key}
               options={versions.map((entry) => ({
                 value: entry.key,
@@ -363,18 +374,24 @@ export function DanmakuSearchPanel({
         </NativeSettingsSection>
         {errorSection}
         {sameNumber ? (
-          <NativeSettingsSection title="当前集号">
+          <NativeSettingsSection title={tr('danmaku.currentEpisodeNumber')}>
             {episodeRow(sameNumber, true)}
           </NativeSettingsSection>
         ) : null}
         <NativeSettingsSection
-          title={loading ? '正在加载…' : '全部剧集 · ' + selectedAnime.anime.episodes.length}
+          title={
+            loading
+              ? tr('common.loading')
+              : tr('media.allEpisodesWithCount', { count: selectedAnime.anime.episodes.length })
+          }
         >
           {selectedAnime.anime.episodes
             .filter((episode) => String(episode.episodeId) !== String(sameNumber?.episodeId))
             .map((episode) => episodeRow(episode))}
           {!loading && !selectedAnime.anime.episodes.length ? (
-            <NativeSettingsItem title={<SettingsTitle>这个条目没有可用剧集</SettingsTitle>} />
+            <NativeSettingsItem
+              title={<SettingsTitle>{tr('media.itemHasNoEpisodes')}</SettingsTitle>}
+            />
           ) : null}
         </NativeSettingsSection>
       </NativeSettingsForm>
@@ -395,8 +412,11 @@ export function DanmakuSearchPanel({
           return entries.length ? (
             <NativeSettingsSection
               key={source.id}
-              title={source.name + ' · ' + entries.length + ' 个季度 / 版本'}
-              footer="先确认季度、前后篇或特别篇，再选择剧集。"
+              title={tr('media.seasonVersionCount', {
+                name: source.name,
+                count: entries.length,
+              })}
+              footer={tr('danmaku.verifySeasonHint')}
             >
               {entries.map((entry) => {
                 const leaf = danmakuLeafSelection(entry);
@@ -424,12 +444,10 @@ export function DanmakuSearchPanel({
                     title={<SearchTitle>{entry.anime.animeTitle}</SearchTitle>}
                     subtitle={
                       <SettingsSubtitle
-                        primary={
-                          entry.anime.typeDescription +
-                          ' · ' +
-                          (entry.anime.episodes.length || entry.anime.episodeCount || 0) +
-                          ' 个条目'
-                        }
+                        primary={tr('media.itemCountByType', {
+                          typeDescription: entry.anime.typeDescription,
+                          value: entry.anime.episodes.length || entry.anime.episodeCount || 0,
+                        })}
                       />
                     }
                     disclosure
@@ -449,7 +467,7 @@ export function DanmakuSearchPanel({
         {seasonOptions.length > 2 ? (
           <NativeSettingsSection>
             <SearchPicker
-              title="季度"
+              title={tr('media.seasonNumber')}
               value={season}
               options={seasonOptions}
               onValueChange={setSeason}
@@ -463,7 +481,7 @@ export function DanmakuSearchPanel({
 
   return (
     <NativeSettingsForm hosted surface="sheet" testID="player-danmaku-search">
-      <NativeSettingsSection title="搜索番剧">
+      <NativeSettingsSection title={tr('danmaku.searchSeries')}>
         <Row
           alignment="center"
           spacing={12}
@@ -482,7 +500,7 @@ export function DanmakuSearchPanel({
               setSeason('all');
             }}
             onSubmitEditing={(submitted) => void handleSearch(submitted)}
-            placeholder="输入番剧或电影名称"
+            placeholder={tr('danmaku.enterSeriesOrMovieTitle')}
             autoCapitalize="none"
             autoCorrect={false}
             returnKeyType="search"
@@ -499,14 +517,14 @@ export function DanmakuSearchPanel({
       </NativeSettingsSection>
       <NativeSettingsSection footer={playingContext}>
         <NativeSettingsItem
-          title={<SettingsTitle>搜索范围</SettingsTitle>}
+          title={<SettingsTitle>{tr('search.scope')}</SettingsTitle>}
           subtitle={
             <SettingsSubtitle
               primary={
                 sources
                   .filter((source) => apiIds.includes(source.id))
                   .map((source) => source.name)
-                  .join('、') || '请至少选择一个 API'
+                  .join('、') || tr('danmaku.selectAtLeastOneApi')
               }
               lines={2}
             />
@@ -523,7 +541,9 @@ export function DanmakuSearchPanel({
         <NativeSettingsSection>
           <NativeSettingsItem
             title={
-              <SettingsTitle>{'查看上次结果 · ' + animes.length + ' 个季度 / 版本'}</SettingsTitle>
+              <SettingsTitle>
+                {tr('danmaku.previousResultsSummary', { count: animes.length })}
+              </SettingsTitle>
             }
             disclosure
             onPress={() => setShowResults(true)}

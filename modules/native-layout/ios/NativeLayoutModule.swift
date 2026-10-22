@@ -25,6 +25,9 @@ public class NativeLayoutModule: Module {
       Prop("servers") { (view: TabSidebarView, servers: [SidebarServer]) in
         view.servers = servers
       }
+      Prop("serversTitle") { (view: TabSidebarView, title: String) in
+        view.serversTitle = title
+      }
       Prop("selectedServerId") { (view: TabSidebarView, id: String) in
         view.selectedServerId = id
       }
@@ -44,6 +47,7 @@ struct SidebarServer: Record {
 final class TabSidebarView: ExpoView {
   let onServerSelected = EventDispatcher()
   var servers: [SidebarServer] = [] { didSet { invalidateContent() } }
+  var serversTitle = "" { didSet { invalidateContent() } }
   var selectedServerId = "" { didSet { invalidateContent() } }
   private weak var tabs: UITabBarController?
   private var needsContentUpdate = true
@@ -95,7 +99,7 @@ final class TabSidebarView: ExpoView {
         .padding(.vertical, 8)
     }
     controller.sidebar.footerContentConfiguration = servers.isEmpty ? nil : UIHostingConfiguration {
-      SidebarServerShortcuts(servers: servers, selectedID: selectedServerId) { [weak self] id in
+      SidebarServerShortcuts(servers: servers, selectedID: selectedServerId, title: serversTitle) { [weak self] id in
         self?.onServerSelected(["id": id])
       }
     }
@@ -105,11 +109,12 @@ final class TabSidebarView: ExpoView {
 private struct SidebarServerShortcuts: View {
   let servers: [SidebarServer]
   let selectedID: String
+  let title: String
   let select: (String) -> Void
 
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
-      Text("服务器")
+      Text(title)
         .font(.subheadline.weight(.semibold))
         .foregroundStyle(.secondary)
         .padding(.top, 20)

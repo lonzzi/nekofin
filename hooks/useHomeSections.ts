@@ -2,6 +2,7 @@ import { useHiddenUserViews } from '@/hooks/useHiddenUserViews';
 import { useHomeCarouselLibraries } from '@/hooks/useHomeCarouselLibraries';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
+import { useTranslation } from '@/lib/i18n';
 import { homeCarouselLibraryIds, visibleHomeLibraryIds } from '@/services/media/homeVisibility';
 import {
   homeLatestByFolderQueryOptions,
@@ -17,6 +18,7 @@ import { useMemo } from 'react';
 export type HomeSection = {
   key: string;
   title: string;
+  folderName?: string;
   items: MediaItem[];
   type?: 'latest' | 'nextup' | 'resume' | 'userview';
 };
@@ -26,6 +28,7 @@ export type HomeSectionWithStatus = HomeSection & { isLoading: boolean };
 const HOME_LATEST_SECTION_LIMIT = 4;
 
 export function useHomeSections(currentServer: MediaServerInfo | null) {
+  const { t: tr } = useTranslation();
   const mediaAdapter = useMediaAdapter();
   const currentServerId = currentServer?.id;
   const queryClient = useQueryClient();
@@ -103,34 +106,34 @@ export function useHomeSections(currentServer: MediaServerInfo | null) {
   const resumeSection = useMemo<HomeSectionWithStatus>(
     () => ({
       key: 'resume',
-      title: '继续观看',
+      title: tr('home.continueWatching'),
       items: resumeQuery.data ?? [],
       type: 'resume',
       isLoading: allUserViewQuery.isLoading || resumeQuery.isLoading,
     }),
-    [resumeQuery.data, resumeQuery.isLoading, allUserViewQuery.isLoading],
+    [resumeQuery.data, resumeQuery.isLoading, allUserViewQuery.isLoading, tr],
   );
 
   const nextUpSection = useMemo<HomeSectionWithStatus>(
     () => ({
       key: 'nextup',
-      title: '接下来',
+      title: tr('home.upNext'),
       items: nextUpQuery.data ?? [],
       type: 'nextup',
       isLoading: allUserViewQuery.isLoading || nextUpQuery.isLoading,
     }),
-    [nextUpQuery.data, nextUpQuery.isLoading, allUserViewQuery.isLoading],
+    [nextUpQuery.data, nextUpQuery.isLoading, allUserViewQuery.isLoading, tr],
   );
 
   const userViewSection = useMemo<HomeSectionWithStatus>(
     () => ({
       key: 'userview',
-      title: '媒体库',
+      title: tr('media.libraries'),
       items: userViewQuery.data ?? [],
       type: 'userview',
       isLoading: userViewQuery.isPending,
     }),
-    [userViewQuery.data, userViewQuery.isPending],
+    [userViewQuery.data, userViewQuery.isPending, tr],
   );
 
   const latestSections = useMemo<HomeSectionWithStatus[]>(
@@ -141,13 +144,14 @@ export function useHomeSections(currentServer: MediaServerInfo | null) {
 
         return {
           key: `latest_${folder.folderId}`,
-          title: `最近添加的 ${folder.name}`,
+          title: tr('home.recentlyAddedInNamedLibrary', { name: folder.name }),
+          folderName: folder.name,
           items,
           type: 'latest',
           isLoading: query?.isPending ?? false,
         } satisfies HomeSectionWithStatus;
       }),
-    [visibleLatestFolders, latestQueries],
+    [visibleLatestFolders, latestQueries, tr],
   );
 
   const sections = useMemo<HomeSectionWithStatus[]>(

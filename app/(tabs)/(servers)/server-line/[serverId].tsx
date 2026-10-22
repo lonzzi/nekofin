@@ -6,6 +6,7 @@ import { ServerFormButton } from '@/components/servers/ServerFormButton';
 import { ServerFormField, ServerFormSection } from '@/components/servers/ServerFormControls';
 import { ServerFormScrollView } from '@/components/servers/ServerFormScrollView';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import { getServerConnections } from '@/lib/serverConnections';
 import { layout, useAppTheme } from '@/lib/theme';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
@@ -16,6 +17,7 @@ import { Alert, Platform, Text } from 'react-native';
 type PendingAction = 'save' | 'switch' | 'remove';
 
 function ServerLineScreen() {
+  const { t: tr } = useTranslation();
   const { serverId, connectionId } = useLocalSearchParams<{
     serverId: string;
     connectionId?: string;
@@ -44,7 +46,7 @@ function ServerLineScreen() {
       await action();
       router.back();
     } catch (error) {
-      setError(error instanceof Error ? error.message : '连接失败，请检查地址和网络');
+      setError(error instanceof Error ? error.message : tr('server.connectionFailedUrlAndNetwork'));
     } finally {
       busyRef.current = false;
       setPending(null);
@@ -52,27 +54,31 @@ function ServerLineScreen() {
   };
   return (
     <>
-      <OuterScreenOptions title={connectionId ? '编辑线路' : '添加线路'} large={false} grouped />
+      <OuterScreenOptions
+        title={connectionId ? tr('server.editConnection') : tr('server.addConnection')}
+        large={false}
+        grouped
+      />
       <HeaderToolbar placement="right">
         {pending === 'save' ? (
           Platform.OS === 'ios' ? (
             <Stack.Toolbar.View>
-              <HeaderActionProgress label="正在验证并保存线路" />
+              <HeaderActionProgress label={tr('server.verifyingAndSavingConnection')} />
             </Stack.Toolbar.View>
           ) : (
-            <HeaderActionProgress label="正在验证并保存线路" />
+            <HeaderActionProgress label={tr('server.verifyingAndSavingConnection')} />
           )
         ) : (
           <HeaderButton
             icon={getNativeToolbarIcon('save', 'checkmark')}
-            accessibilityLabel="保存线路"
+            accessibilityLabel={tr('server.saveConnection')}
             disabled={busy || missing || !address.trim()}
             onPress={() =>
               void run('save', () => saveConnection(serverId, name, address, connectionId))
             }
             variant="done"
           >
-            保存
+            {tr('common.save')}
           </HeaderButton>
         )}
       </HeaderToolbar>
@@ -83,19 +89,19 @@ function ServerLineScreen() {
         style={{ backgroundColor: theme.colors.backgroundGrouped }}
       >
         <Text style={[theme.typography.footnote, { color: theme.colors.textSecondary }]}>
-          {missing ? '服务器或线路已不存在，请返回重试。' : `${server.name} · ${server.username}`}
+          {missing ? tr('server.connectionNoLongerExists') : `${server.name} · ${server.username}`}
         </Text>
         {!missing ? (
-          <ServerFormSection footer="使用同一服务器的完整地址。">
+          <ServerFormSection footer={tr('server.connectionUrlHint')}>
             <ServerFormField
-              label="线路名称"
-              placeholder="例如：家中 Wi-Fi、外网"
+              label={tr('server.connectionName')}
+              placeholder={tr('server.connectionNamePlaceholder')}
               defaultValue={name}
               onChangeText={setName}
               editable={!busy}
             />
             <ServerFormField
-              label="线路地址"
+              label={tr('server.connectionUrl')}
               placeholder="https://media.example.com:8097"
               defaultValue={address}
               onChangeText={setAddress}
@@ -114,7 +120,13 @@ function ServerLineScreen() {
         {line ? (
           <>
             <ServerFormButton
-              title={pending === 'switch' ? '正在连接…' : active ? '正在使用此线路' : '使用此线路'}
+              title={
+                pending === 'switch'
+                  ? tr('server.connecting')
+                  : active
+                    ? tr('server.currentConnection')
+                    : tr('server.useConnection')
+              }
               variant="text"
               color={theme.colors.tint}
               busy={pending === 'switch'}
@@ -122,16 +134,18 @@ function ServerLineScreen() {
               onPress={() => void run('switch', () => switchConnection(serverId, line.id))}
             />
             <ServerFormButton
-              title={pending === 'remove' ? '正在删除…' : '删除线路'}
+              title={
+                pending === 'remove' ? tr('common.deletingProgress') : tr('server.deleteConnection')
+              }
               variant="text"
               color={theme.colors.danger}
               busy={pending === 'remove'}
               disabled={busy || active}
               onPress={() =>
-                Alert.alert('删除线路？', line.name, [
-                  { text: '取消', style: 'cancel' },
+                Alert.alert(tr('server.deleteConnectionConfirmation'), line.name, [
+                  { text: tr('common.cancel'), style: 'cancel' },
                   {
-                    text: '删除',
+                    text: tr('common.delete'),
                     style: 'destructive',
                     onPress: () => void run('remove', () => removeConnection(serverId, line.id)),
                   },
@@ -140,7 +154,7 @@ function ServerLineScreen() {
             />
             {active ? (
               <Text style={[theme.typography.footnote, { color: theme.colors.textSecondary }]}>
-                删除前请先切换到其他线路。
+                {tr('server.cannotDeleteActiveConnection')}
               </Text>
             ) : null}
           </>

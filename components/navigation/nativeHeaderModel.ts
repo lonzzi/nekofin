@@ -1,3 +1,4 @@
+import { t as tr } from '@/lib/i18n';
 import type { Href } from 'expo-router';
 
 export type AndroidToolbarDrawable =
@@ -31,14 +32,18 @@ export const NATIVE_HEADER_ACTIONS = {
       androidDrawable: 'film',
       iosIcon: 'film',
       key: 'library',
-      label: '媒体库',
+      get label() {
+        return tr('media.libraries');
+      },
       route: '/(tabs)/(servers)/library',
     },
     {
       androidDrawable: 'search',
       iosIcon: 'magnifyingglass',
       key: 'search',
-      label: '服务器内搜索',
+      get label() {
+        return tr('search.thisServer');
+      },
       route: '/(tabs)/(servers)/server-search',
     },
   ],
@@ -47,14 +52,18 @@ export const NATIVE_HEADER_ACTIONS = {
       androidDrawable: 'search',
       iosIcon: 'magnifyingglass',
       key: 'search',
-      label: '服务器内搜索',
+      get label() {
+        return tr('search.thisServer');
+      },
       route: '/(tabs)/(servers)/server-search',
     },
     {
       androidDrawable: 'heart',
       iosIcon: 'heart',
       key: 'favorites',
-      label: '收藏',
+      get label() {
+        return tr('navigation.favorites');
+      },
       route: '/(tabs)/(servers)/favorites',
     },
   ],
@@ -65,24 +74,32 @@ export const DETAIL_TOOLBAR_STATES = {
     off: {
       androidDrawable: 'heartOutline',
       iosIcon: 'heart',
-      label: '添加收藏',
+      get label() {
+        return tr('media.addToFavorites');
+      },
     },
     on: {
       androidDrawable: 'heart',
       iosIcon: 'heart.fill',
-      label: '取消收藏',
+      get label() {
+        return tr('media.removeFavorite');
+      },
     },
   },
   watched: {
     off: {
       androidDrawable: 'checkmarkCircleOutline',
       iosIcon: 'checkmark',
-      label: '标记为已观看',
+      get label() {
+        return tr('media.markAsWatched');
+      },
     },
     on: {
       androidDrawable: 'checkmarkCircle',
       iosIcon: 'checkmark',
-      label: '标记为未观看',
+      get label() {
+        return tr('media.markAsUnwatched');
+      },
     },
   },
 } as const satisfies Record<
@@ -93,7 +110,9 @@ export const DETAIL_TOOLBAR_STATES = {
 export const ADD_SERVER_TOOLBAR_ACTION = {
   androidDrawable: 'add',
   iosIcon: 'plus',
-  label: '添加媒体账号',
+  get label() {
+    return tr('server.addMediaAccount');
+  },
 } as const;
 
 export const ADD_SERVER_MENU_ACTIONS = [
@@ -103,8 +122,8 @@ export const ADD_SERVER_MENU_ACTIONS = [
 
 export function getAddServerSavePresentation(isSaving: boolean) {
   return {
-    accessibilityLabel: isSaving ? '正在保存服务器' : '保存服务器',
+    accessibilityLabel: isSaving ? tr('server.savingServer') : tr('server.saveServer'),
     disabled: isSaving,
-    label: isSaving ? '保存中…' : '保存',
+    label: isSaving ? tr('common.saving') : tr('common.save'),
   } as const;
 }

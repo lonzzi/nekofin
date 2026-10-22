@@ -1,3 +1,5 @@
+import { t as tr } from '@/lib/i18n';
+
 import type { MediaItem, MediaServerInfo } from './types';
 
 export const AGGREGATE_HOME_SECTIONS = ['resume', 'nextup', 'latest'] as const;
@@ -23,7 +25,7 @@ export function groupAggregateLatestFolders(
       const key = `latest:${folder.collectionType ?? ''}:${folder.name ?? ''}`;
       const group = groups.get(key) ?? {
         key,
-        title: `最近添加的 ${folder.name ?? ''}`,
+        title: tr('home.recentlyAddedInLibrary', { value: folder.name ?? '' }),
         folders: [],
       };
       group.folders.push({ server, folder });

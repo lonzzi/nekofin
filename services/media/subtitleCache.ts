@@ -1,3 +1,4 @@
+import { t as tr } from '@/lib/i18n';
 import { CryptoDigestAlgorithm, digestStringAsync, randomUUID } from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
 
@@ -40,7 +41,9 @@ export function createSubtitleCacheStore({
   const metadataFor = (key: string) => new File(directory, `${key}.json`);
   const sessionLimitError = () =>
     new SubtitleCacheLimitError(
-      `本次播放的字幕缓存不能超过 ${Math.ceil(maxSessionBytes / 1024 / 1024)} MB，请退出播放后重试。`,
+      tr('player.subtitleCacheSizeLimit', {
+        size: Math.ceil(maxSessionBytes / 1024 / 1024),
+      }),
     );
   const remove = (file: File) => {
     if (file.exists) file.delete();
@@ -123,7 +126,9 @@ export function createSubtitleCacheStore({
     const exceeded = (size: number) =>
       size > maxFileBytes
         ? new SubtitleCacheLimitError(
-            `单个字幕文件不能超过 ${Math.ceil(maxFileBytes / 1024 / 1024)} MB。`,
+            tr('player.subtitleFileSizeLimit', {
+              size: Math.ceil(maxFileBytes / 1024 / 1024),
+            }),
           )
         : sessionLimitError();
     try {

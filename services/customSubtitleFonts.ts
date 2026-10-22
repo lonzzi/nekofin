@@ -1,3 +1,4 @@
+import { t as tr } from '@/lib/i18n';
 import { storage } from '@/lib/storage';
 import { randomUUID } from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
@@ -21,7 +22,7 @@ export type CustomSubtitleFonts = {
 };
 const root = () => new Directory(Paths.document, CUSTOM_SUBTITLE_FONTS_PATH);
 function checkAborted(signal: AbortSignal) {
-  if (signal.aborted) throw new Error('已取消导入');
+  if (signal.aborted) throw new Error(tr('fonts.importCanceled'));
 }
 
 export function parseCustomSubtitleFonts(value?: string): CustomSubtitleFonts {
@@ -94,13 +95,13 @@ export function normalizeFontUrl(value: string) {
     url.hash = '';
     return url.toString();
   } catch {
-    throw new Error('请输入 HTTP 或 HTTPS 字体文件直链');
+    throw new Error(tr('fonts.httpUrlRequired'));
   }
 }
 
 function extension(file: File) {
   if (!file.exists || file.size < 12 || file.size > SUBTITLE_FONT_MAX_BYTES)
-    throw new Error('字体文件为空或超过 32 MB');
+    throw new Error(tr('fonts.emptyOrOversizedFile'));
   const handle = file.open();
   try {
     const signature = [...handle.readBytes(4)].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -112,7 +113,7 @@ function extension(file: File) {
       '774f4646': 'woff',
       '774f4632': 'woff2',
     }[signature];
-    if (!format) throw new Error('请选择 TTF、OTF、TTC、WOFF 或 WOFF2 字体文件');
+    if (!format) throw new Error(tr('fonts.chooseSupportedFile'));
     return format;
   } finally {
     handle.close();
@@ -141,11 +142,11 @@ async function downloadFont(
         }
       },
     });
-    if (oversized) throw new Error('字体文件不能超过 32 MB');
+    if (oversized) throw new Error(tr('fonts.fileSizeLimit'));
   } catch {
-    if (oversized) throw new Error('字体文件不能超过 32 MB');
+    if (oversized) throw new Error(tr('fonts.fileSizeLimit'));
     checkAborted(signal);
-    throw new Error('字体下载失败，请检查链接或服务器权限');
+    throw new Error(tr('fonts.downloadFailed'));
   } finally {
     signal.removeEventListener('abort', abort);
   }
@@ -157,7 +158,7 @@ export async function importCustomSubtitleFont(input: {
   signal?: AbortSignal;
   headers?: Record<string, string>;
 }) {
-  if (read().fonts.length >= 32) throw new Error('最多保留 32 个字体，请先删除不再使用的字体');
+  if (read().fonts.length >= 32) throw new Error(tr('fonts.fontCountLimit'));
   const directory = root();
   directory.create({ intermediates: true, idempotent: true });
   const id = randomUUID();
@@ -174,7 +175,7 @@ export async function importCustomSubtitleFont(input: {
     checkAborted(controller.signal);
     if (/^(file|content):\/\//.test(input.uri)) {
       const source = new File(input.uri);
-      if (source.size > SUBTITLE_FONT_MAX_BYTES) throw new Error('字体文件不能超过 32 MB');
+      if (source.size > SUBTITLE_FONT_MAX_BYTES) throw new Error(tr('fonts.fileSizeLimit'));
       await source.copy(partial);
     } else {
       await downloadFont(normalizeFontUrl(input.uri), partial, controller.signal, input.headers);
@@ -185,7 +186,7 @@ export async function importCustomSubtitleFont(input: {
       try {
         await decodeWoff2(partial.uri, decoded.uri);
       } catch {
-        throw new Error('无法识别这个字体，请使用完整有效的字体文件');
+        throw new Error(tr('fonts.invalidFontFile'));
       }
     }
     const canonical = format === 'woff2' ? decoded : partial;
@@ -194,7 +195,7 @@ export async function importCustomSubtitleFont(input: {
     try {
       families = await fontFamilies(canonical.uri);
     } catch {
-      throw new Error('无法识别这个字体，请使用完整有效的字体文件');
+      throw new Error(tr('fonts.invalidFontFile'));
     }
     checkAborted(controller.signal);
     const font: CustomSubtitleFont = {
@@ -212,7 +213,7 @@ export async function importCustomSubtitleFont(input: {
     return font;
   } catch (error) {
     if (controller.signal.aborted && !input.signal?.aborted)
-      throw new Error('字体导入超时，请检查网络后重试');
+      throw new Error(tr('fonts.importTimedOut'));
     throw error;
   } finally {
     clearTimeout(timeout);

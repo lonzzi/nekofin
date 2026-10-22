@@ -7,11 +7,13 @@ import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useAggregateHome } from '@/hooks/useAggregateHome';
 import useRefresh from '@/hooks/useRefresh';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import { useMemo } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 export default function AggregateHomeScreen() {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const router = useTracedRouter('aggregate-home');
   const { activeServers: servers, isInitialized, homeServerId } = useMediaServers();
@@ -36,9 +38,9 @@ export default function AggregateHomeScreen() {
             size={48}
             color={theme.colors.textTertiary}
           />
-          <ThemedText style={theme.typography.title3}>还没有媒体账号</ThemedText>
+          <ThemedText style={theme.typography.title3}>{tr('server.noMediaAccountsYet')}</ThemedText>
           <ThemedText style={[theme.typography.footnote, { color: theme.colors.textSecondary }]}>
-            添加 Jellyfin 或 Emby 账号以开始使用
+            {tr('server.addAccountDescription')}
           </ThemedText>
           <Pressable
             onPress={() => router.push('/(tabs)/(servers)')}
@@ -53,7 +55,7 @@ export default function AggregateHomeScreen() {
             <ThemedText
               style={[theme.typography.bodyEmphasized, { color: theme.colors.inverseText }]}
             >
-              添加媒体账号
+              {tr('server.addMediaAccount')}
             </ThemedText>
           </Pressable>
         </ThemedView>
@@ -97,10 +99,10 @@ export default function AggregateHomeScreen() {
               <Text
                 style={[theme.typography.footnote, { color: theme.colors.textSecondary, flex: 1 }]}
               >
-                {home.failedServers.join('、')} 的部分内容暂时无法载入
+                {tr('home.partialContentUnavailable', { value: home.failedServers.join('、') })}
               </Text>
               <Pressable onPress={() => void home.refetch()} style={{ paddingVertical: 12 }}>
-                <Text style={{ color: theme.colors.tint }}>重试</Text>
+                <Text style={{ color: theme.colors.tint }}>{tr('common.retry')}</Text>
               </Pressable>
             </View>
           ) : undefined

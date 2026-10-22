@@ -15,6 +15,7 @@ import { DetailBundle, useDetailBundle } from '@/hooks/useDetailBundle';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import useRefresh from '@/hooks/useRefresh';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme, useMediaHeroHeight } from '@/lib/theme';
 import { detailArtworkQueryOptions, getDetailArtwork } from '@/services/media/detailArtwork';
 import { mediaQueryKeys } from '@/services/media/queryKeys';
@@ -48,6 +49,7 @@ export type DetailViewProps = {
 };
 
 function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
+  const { t: tr } = useTranslation();
   const { currentServer } = useMediaServers();
   const queryClient = useQueryClient();
   const theme = useAppTheme();
@@ -150,7 +152,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
       );
       markCurrentServerMediaStale();
     } catch (error) {
-      console.error(nextIsFavorite ? '添加收藏失败:' : '取消收藏失败:', error);
+      console.error('Failed to update favorite', error);
     } finally {
       setPendingFavoriteItemIds((pendingIds) => {
         const nextPendingIds = new Set(pendingIds);
@@ -165,6 +167,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
     markCurrentServerMediaStale,
     mediaAdapter,
     pendingFavoriteItemIds,
+    tr,
   ]);
 
   const favoritePresentation = DETAIL_TOOLBAR_STATES.favorite[isFavorite ? 'on' : 'off'];
@@ -173,10 +176,10 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
       try {
         await openBrowserAsync(url, { controlsColor: theme.colors.tint });
       } catch {
-        Alert.alert('无法打开页面', '请稍后重试');
+        Alert.alert(tr('media.openPageFailed'), tr('fonts.tryAgainLater'));
       }
     },
-    [theme.colors.tint],
+    [theme.colors.tint, tr],
   );
   const handleShare = useCallback(async () => {
     if (!externalInfo) return;
@@ -188,12 +191,16 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
               title: externalInfo.title,
               message: `${externalInfo.title}\n${externalInfo.shareUrl}`,
             },
-        { subject: externalInfo.title, dialogTitle: '分享影片信息', tintColor: theme.colors.tint },
+        {
+          subject: externalInfo.title,
+          dialogTitle: tr('media.share'),
+          tintColor: theme.colors.tint,
+        },
       );
     } catch {
-      Alert.alert('无法分享', '请稍后重试');
+      Alert.alert(tr('media.shareFailed'), tr('fonts.tryAgainLater'));
     }
-  }, [externalInfo, theme.colors.tint]);
+  }, [externalInfo, theme.colors.tint, tr]);
   const toolbar = (
     <HeaderToolbar key={currentItemId ?? 'loading'} placement="right">
       {currentItemId ? (
@@ -212,7 +219,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
       ) : null}
       {externalInfo ? (
         <HeaderMenu
-          accessibilityLabel="更多影片操作"
+          accessibilityLabel={tr('media.moreActions')}
           icon={DETAIL_MORE_MENU_ICONS.more}
           tintColor={textColor}
         >
@@ -228,7 +235,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
             ))}
           </HeaderMenu>
           <HeaderMenuAction icon={DETAIL_MORE_MENU_ICONS.share} onPress={() => void handleShare()}>
-            分享影片信息
+            {tr('media.share')}
           </HeaderMenuAction>
         </HeaderMenu>
       ) : null}

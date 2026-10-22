@@ -1,3 +1,4 @@
+import { t as tr } from '@/lib/i18n';
 import { playbackQualityOptions } from '@/services/media/playbackQuality';
 import {
   playbackSourceLabel,
@@ -50,7 +51,7 @@ export function createDetailPlaybackMenu(
   }
   if (audio.length) {
     actions.push({
-      title: audioTrack ? playbackTrackLabel(audioTrack) : '暂无可用音轨',
+      title: audioTrack ? playbackTrackLabel(audioTrack) : tr('player.noAudioTracks'),
       image: platform === 'ios' ? 'waveform' : 'ic_lock_silent_mode_off',
       subactions: audio.map((stream) =>
         option(
@@ -64,10 +65,10 @@ export function createDetailPlaybackMenu(
   }
   if (subtitles.length) {
     actions.push({
-      title: subtitleTrack ? playbackTrackLabel(subtitleTrack) : '关闭字幕',
+      title: subtitleTrack ? playbackTrackLabel(subtitleTrack) : tr('player.disableSubtitles'),
       image: platform === 'ios' ? 'captions.bubble' : 'ic_menu_edit',
       subactions: [
-        option('subtitle:-1', '关闭字幕', !subtitleTrack, {
+        option('subtitle:-1', tr('player.disableSubtitles'), !subtitleTrack, {
           ...selected,
           subtitleStreamIndex: -1,
         }),

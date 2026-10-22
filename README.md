@@ -71,6 +71,8 @@ bun run test
 
 React Native · Expo · Expo Router · MPV · TypeScript
 
+国际化使用 `i18next`、`react-i18next` 和原生 `expo-localization`，支持简体中文、English 及跟随系统。可在「设置 → 语言」切换，也可使用系统的应用语言设置。文案资源位于 `lib/i18n/locales/`，使用按业务分组的英文语义 key（如 `common.save`、`settings.language`、`player.subtitleSwitchFailed`），动态内容使用具名插值。资源采用扁平的点号 key，`en.json` 定义 key 类型；组件通过 `useTranslation()` 订阅语言变化，服务与模型通过 `lib/i18n` 的 `t()` 翻译。修改文案时同步更新两份资源，key 格式、资源与插值完整性由测试检查。
+
 ## 下载
 
 - **Stable**：[最新正式版](https://github.com/lonzzi/nekofin/releases/latest)

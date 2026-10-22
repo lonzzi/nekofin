@@ -8,18 +8,45 @@ import {
 } from '@/components/ui/NativeSettings';
 import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { useCustomSubtitleFonts } from '@/hooks/useCustomSubtitleFonts';
+import { t as tr, useTranslation } from '@/lib/i18n';
 import { storage } from '@/lib/storage';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 
 const languages = [
-  { title: '跟随影片', value: 'auto' },
-  { title: '中文', value: 'zh' },
-  { title: '英语', value: 'en' },
-  { title: '日语', value: 'ja' },
-  { title: '韩语', value: 'ko' },
+  {
+    get title() {
+      return tr('player.useMediaDefault');
+    },
+    value: 'auto',
+  },
+  {
+    get title() {
+      return tr('settings.languageChinese');
+    },
+    value: 'zh',
+  },
+  {
+    get title() {
+      return tr('settings.languageEnglish');
+    },
+    value: 'en',
+  },
+  {
+    get title() {
+      return tr('settings.languageJapanese');
+    },
+    value: 'ja',
+  },
+  {
+    get title() {
+      return tr('settings.languageKorean');
+    },
+    value: 'ko',
+  },
 ];
 export default function AudioSettings() {
+  const { t: tr } = useTranslation();
   const router = useRouter();
   const { selected } = useCustomSubtitleFonts();
   const [audio, setAudio] = useState(storage.getString('playback.audioLanguage') ?? 'auto');
@@ -29,11 +56,11 @@ export default function AudioSettings() {
   const [enabled, setEnabled] = useState(storage.getBoolean('playback.subtitlesEnabled') ?? true);
   return (
     <>
-      <OuterTitle>音频与字幕</OuterTitle>
+      <OuterTitle>{tr('settings.audioAndSubtitles')}</OuterTitle>
       <NativeSettingsForm>
-        <NativeSettingsSection title="音频">
+        <NativeSettingsSection title={tr('media.audio')}>
           <NativeSettingsPicker
-            title={<SettingsTitle>首选音轨语言</SettingsTitle>}
+            title={<SettingsTitle>{tr('player.preferredAudioLanguage')}</SettingsTitle>}
             value={audio}
             options={languages}
             onValueChange={(v) => {
@@ -43,11 +70,11 @@ export default function AudioSettings() {
           />
         </NativeSettingsSection>
         <NativeSettingsSection
-          title="字幕"
-          footer={!enabled ? '开启“默认显示字幕”后可设置首选语言。' : undefined}
+          title={tr('player.subtitles')}
+          footer={!enabled ? tr('player.enableSubtitlesToChooseLanguageHint') : undefined}
         >
           <NativeSettingsSwitch
-            title={<SettingsTitle>默认显示字幕</SettingsTitle>}
+            title={<SettingsTitle>{tr('player.showSubtitlesByDefault')}</SettingsTitle>}
             value={enabled}
             onValueChange={(v) => {
               setEnabled(v);
@@ -55,7 +82,7 @@ export default function AudioSettings() {
             }}
           />
           <NativeSettingsPicker
-            title={<SettingsTitle>首选字幕语言</SettingsTitle>}
+            title={<SettingsTitle>{tr('player.preferredSubtitleLanguage')}</SettingsTitle>}
             value={subtitle}
             disabled={!enabled}
             options={languages}
@@ -65,10 +92,12 @@ export default function AudioSettings() {
             }}
           />
         </NativeSettingsSection>
-        <NativeSettingsSection title="字体">
+        <NativeSettingsSection title={tr('fonts.font')}>
           <NativeSettingsItem
-            title={<SettingsTitle>字幕字体</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary={selected?.family ?? '跟随字幕与服务器'} />}
+            title={<SettingsTitle>{tr('fonts.subtitleFonts')}</SettingsTitle>}
+            subtitle={
+              <SettingsSubtitle primary={selected?.family ?? tr('fonts.useSubtitleOrServerFont')} />
+            }
             disclosure
             onPress={() => router.push('/subtitle-fonts')}
           />

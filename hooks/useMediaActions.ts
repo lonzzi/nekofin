@@ -1,6 +1,7 @@
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import { createMediaAdapterWithApi, createMediaApiFromServerInfo } from '@/services/media';
 import { updateCachedMediaItemUserData } from '@/services/media/cache';
 import { mediaQueryKeys } from '@/services/media/queryKeys';
@@ -9,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 
 export function useMediaActions(item: MediaItem, serverOverride?: MediaServerInfo) {
+  const { t: tr } = useTranslation();
   const router = useTracedRouter('media-actions');
   const queryClient = useQueryClient();
   const { currentServer, setCurrentServer } = useMediaServers();
@@ -89,21 +91,21 @@ export function useMediaActions(item: MediaItem, serverOverride?: MediaServerInf
     runOptimisticUpdate(
       { isFavorite: true },
       (ctx) => mediaAdapter.addFavoriteItem(ctx),
-      '添加收藏失败:',
+      tr('media.addFavoriteFailed'),
     );
 
   const handleMarkAsWatched = () =>
     runOptimisticUpdate(
       { played: true, playedPercentage: 100 },
       (ctx) => mediaAdapter.markItemPlayed({ ...ctx, datePlayed: new Date().toISOString() }),
-      '标记为已看失败:',
+      tr('media.markWatchedFailed'),
     );
 
   const handleMarkAsUnwatched = () =>
     runOptimisticUpdate(
       { played: false, playedPercentage: 0 },
       (ctx) => mediaAdapter.markItemUnplayed(ctx),
-      '标记为未看失败:',
+      tr('media.markUnwatchedFailed'),
     );
 
   return {

@@ -8,6 +8,7 @@ import { DanmakuSettingsProvider } from '@/lib/contexts/DanmakuSettingsContext';
 import { DanmakuSourcesProvider } from '@/lib/contexts/DanmakuSourcesContext';
 import { MediaServerProvider } from '@/lib/contexts/MediaServerContext';
 import { ThemePreferenceProvider } from '@/lib/contexts/ThemePreferenceContext';
+import { LanguageProvider } from '@/lib/i18n/LanguageProvider';
 import {
   PerformanceMonitorProvider,
   PerformanceRouteObserver,
@@ -70,20 +71,22 @@ export default function RootLayout() {
       }}
     >
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <ThemePreferenceProvider>
-          <MediaServerProvider>
-            <DanmakuSourcesProvider>
-              <DanmakuSettingsProvider>
-                <PerformanceMonitorProvider>
-                  <AppUpdateProvider>
-                    <RootNavigation />
-                    <PerformanceOverlay />
-                  </AppUpdateProvider>
-                </PerformanceMonitorProvider>
-              </DanmakuSettingsProvider>
-            </DanmakuSourcesProvider>
-          </MediaServerProvider>
-        </ThemePreferenceProvider>
+        <LanguageProvider>
+          <ThemePreferenceProvider>
+            <MediaServerProvider>
+              <DanmakuSourcesProvider>
+                <DanmakuSettingsProvider>
+                  <PerformanceMonitorProvider>
+                    <AppUpdateProvider>
+                      <RootNavigation />
+                      <PerformanceOverlay />
+                    </AppUpdateProvider>
+                  </PerformanceMonitorProvider>
+                </DanmakuSettingsProvider>
+              </DanmakuSourcesProvider>
+            </MediaServerProvider>
+          </ThemePreferenceProvider>
+        </LanguageProvider>
       </GestureHandlerRootView>
     </PersistQueryClientProvider>
   );

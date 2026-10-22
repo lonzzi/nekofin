@@ -8,6 +8,7 @@ import { MediaFilters } from '@/hooks/useMediaFilters';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import useRefresh from '@/hooks/useRefresh';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { t as tr, useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import { availableFiltersQueryOptions } from '@/services/media/queryOptions';
 import { MediaItem, MediaItemType, MediaSortBy } from '@/services/media/types';
@@ -72,8 +73,9 @@ export function ItemGridScreen({
   getItemSource,
   showServerSource = true,
   dataState,
-  emptyState = { title: '暂无内容' },
+  emptyState = { title: tr('media.noContent') },
 }: ItemGridScreenProps) {
+  const { t: tr } = useTranslation();
   const insets = useSafeAreaInsets();
   const tabBarInset = useFloatingTabBarInset();
   const theme = useAppTheme();
@@ -127,8 +129,8 @@ export function ItemGridScreen({
   }, [dataProp, queryData, getItemSource]);
 
   const groupedItems = useMemo(() => {
-    return groupMediaItems(items, disableGrouping);
-  }, [items, disableGrouping]);
+    return groupMediaItems(items, disableGrouping, tr);
+  }, [items, disableGrouping, tr]);
 
   const gridSections = useMemo(
     () => createItemGridSections(groupedItems, numColumns, episodeLayout.numColumns),
@@ -222,37 +224,37 @@ export function ItemGridScreen({
         >
           <FilterRow spacing={theme.spacing.sm}>
             <FilterButton
-              label="类型"
-              title="选择类型"
+              label={tr('media.genre')}
+              title={tr('media.chooseType')}
               options={[
-                { label: '全部', value: '', active: !selectedItemType },
+                { label: tr('common.all'), value: '', active: !selectedItemType },
                 {
-                  label: '电影',
+                  label: tr('media.movies'),
                   value: 'Movie',
                   active: selectedItemType === 'Movie',
                 },
                 {
-                  label: '剧集',
+                  label: tr('media.series'),
                   value: 'Series',
                   active: selectedItemType === 'Series',
                 },
                 {
-                  label: '单集',
+                  label: tr('media.episodes'),
                   value: 'Episode',
                   active: selectedItemType === 'Episode',
                 },
                 {
-                  label: '文件夹',
+                  label: tr('media.folders'),
                   value: 'Folder',
                   active: selectedItemType === 'Folder',
                 },
                 {
-                  label: '合集',
+                  label: tr('media.collections'),
                   value: 'BoxSet',
                   active: selectedItemType === 'BoxSet',
                 },
                 {
-                  label: '播放列表',
+                  label: tr('media.playlists'),
                   value: 'Playlist',
                   active: selectedItemType === 'Playlist',
                 },
@@ -262,10 +264,10 @@ export function ItemGridScreen({
               }
             />
             <FilterButton
-              label="年份"
-              title="选择年份"
+              label={tr('media.year')}
+              title={tr('media.chooseYear')}
               options={[
-                { label: '不限' },
+                { label: tr('common.any') },
                 ...(availableFilters?.years ?? []).map((y) => ({
                   label: String(y),
                   value: String(y),
@@ -275,10 +277,10 @@ export function ItemGridScreen({
               onSelect={(v) => patchFilters({ year: v ? Number(v) : undefined })}
             />
             <FilterButton
-              label="标签"
-              title="选择标签"
+              label={tr('media.tags')}
+              title={tr('media.chooseTags')}
               options={[
-                { label: '不限' },
+                { label: tr('common.any') },
                 ...(availableFilters?.tags ?? []).map((t) => ({
                   label: t,
                   value: t,
@@ -288,41 +290,41 @@ export function ItemGridScreen({
               onSelect={(v) => patchFilters({ tags: v ? [v] : undefined })}
             />
             <FilterButton
-              label="排序"
-              title="选择排序依据"
+              label={tr('media.sort')}
+              title={tr('media.sortBy')}
               options={[
                 {
-                  label: '名称',
+                  label: tr('common.name'),
                   value: 'SortName',
                   active: (filters?.sortBy?.[0] ?? 'SortName') === 'SortName',
                 },
                 {
-                  label: '随机',
+                  label: tr('media.sortRandom'),
                   value: 'Random',
                   active: (filters?.sortBy?.[0] ?? '') === 'Random',
                 },
                 {
-                  label: '公众评分',
+                  label: tr('media.communityRating'),
                   value: 'CommunityRating',
                   active: (filters?.sortBy?.[0] ?? '') === 'CommunityRating',
                 },
                 {
-                  label: '剧集添加日期',
+                  label: tr('media.dateAdded'),
                   value: 'DateCreated',
                   active: (filters?.sortBy?.[0] ?? '') === 'DateCreated',
                 },
                 {
-                  label: '播放日期',
+                  label: tr('media.datePlayed'),
                   value: 'DatePlayed',
                   active: (filters?.sortBy?.[0] ?? '') === 'DatePlayed',
                 },
                 {
-                  label: '家长分级',
+                  label: tr('media.parentalRating'),
                   value: 'OfficialRating',
                   active: (filters?.sortBy?.[0] ?? '') === 'OfficialRating',
                 },
                 {
-                  label: '发行日期',
+                  label: tr('media.releaseDate'),
                   value: 'PremiereDate',
                   active: (filters?.sortBy?.[0] ?? '') === 'PremiereDate',
                 },
@@ -330,16 +332,16 @@ export function ItemGridScreen({
               onSelect={(v) => patchFilters({ sortBy: v ? [v as MediaSortBy] : filters?.sortBy })}
             />
             <FilterButton
-              label="顺序"
-              title="选择排序顺序"
+              label={tr('media.order')}
+              title={tr('media.chooseSortOrder')}
               options={[
                 {
-                  label: '降序',
+                  label: tr('media.sortDescending'),
                   value: 'Descending',
                   active: (filters?.sortOrder ?? 'Descending') === 'Descending',
                 },
                 {
-                  label: '升序',
+                  label: tr('media.sortAscending'),
                   value: 'Ascending',
                   active: (filters?.sortOrder ?? 'Descending') === 'Ascending',
                 },
@@ -360,6 +362,7 @@ export function ItemGridScreen({
     patchFilters,
     theme.spacing.page,
     theme.spacing.sm,
+    tr,
   ]);
 
   const renderGroupSection = useCallback(
@@ -442,7 +445,7 @@ export function ItemGridScreen({
                 { color: theme.colors.text, marginBottom: theme.spacing.xl },
               ]}
             >
-              加载失败，请重试
+              {tr('common.loadFailedRetry')}
             </Text>
             <Pressable
               style={{
@@ -456,7 +459,7 @@ export function ItemGridScreen({
               }}
             >
               <Text style={[theme.typography.bodyEmphasized, { color: theme.colors.inverseText }]}>
-                重试
+                {tr('common.retry')}
               </Text>
             </Pressable>
           </View>
@@ -554,7 +557,7 @@ export function ItemGridScreen({
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={[theme.typography.body, { color: theme.colors.textSecondary }]}>
-                暂无内容
+                {tr('media.noContent')}
               </Text>
             </View>
           }

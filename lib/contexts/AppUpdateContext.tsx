@@ -5,6 +5,7 @@ import {
   resolveInstalledRelease,
 } from '@/lib/appUpdates';
 import { downloadHotUpdate } from '@/lib/hotUpdates';
+import { t as tr, useTranslation } from '@/lib/i18n';
 import { getIosSourceLink, getIosUpdateSource, type IosUpdateTool } from '@/lib/iosUpdateSources';
 import { getNativeReleaseTag, isProductionBuild } from '@/lib/otaConfig';
 import { storage } from '@/lib/storage';
@@ -51,6 +52,8 @@ type AppUpdateContextValue = UpdateSnapshot & {
 const AppUpdateContext = createContext<AppUpdateContextValue | null>(null);
 
 export function AppUpdateProvider({ children }: { children: ReactNode }) {
+  // The controller survives locale changes; its callbacks use the live global translator.
+  useTranslation();
   const pathname = usePathname();
   const updates = Updates.useUpdates();
   const pendingResource = useRef(updates.isUpdatePending);
@@ -67,20 +70,24 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
     try {
       await Linking.openURL(getIosSourceLink(tool, currentVersion));
     } catch {
-      Alert.alert('无法打开侧载工具', '请确认已安装支持源的版本，也可分享源地址后手动添加。', [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '分享源地址',
-          onPress: () => {
-            void Share.share({ message: getIosUpdateSource(currentVersion) });
+      Alert.alert(
+        tr('updates.openSideloadingAppFailed'),
+        tr('about.sourceAppUnsupportedDescription'),
+        [
+          { text: tr('common.cancel'), style: 'cancel' },
+          {
+            text: tr('media.shareSourceUrl'),
+            onPress: () => {
+              void Share.share({ message: getIosUpdateSource(currentVersion) });
+            },
           },
-        },
-      ]);
+        ],
+      );
     }
   }
   function openUpdateURL(url: string) {
     if (Platform.OS !== 'ios') return Linking.openURL(url);
-    Alert.alert('选择更新方式', '通过已安装的侧载工具打开 NekoFin 源，或从 GitHub 下载 IPA。', [
+    Alert.alert(tr('updates.chooseUpdateMethod'), tr('updates.iosSourceDescription'), [
       {
         text: 'AltStore Classic',
         onPress: () => {
@@ -94,14 +101,14 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
         },
       },
       {
-        text: 'GitHub 下载',
+        text: tr('updates.downloadFromGithub'),
         onPress: () => {
           void Linking.openURL(url).catch(() =>
-            Alert.alert('无法打开 GitHub', '请检查网络后重试。'),
+            Alert.alert(tr('about.openGithubFailed'), tr('common.checkNetworkAndRetry')),
           );
         },
       },
-      { text: '取消', style: 'cancel' },
+      { text: tr('common.cancel'), style: 'cancel' },
     ]);
     return Promise.resolve();
   }
@@ -135,7 +142,7 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
       },
       fetchUpdate: () => {
         if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
-          return Promise.reject(new Error('请在 iOS 或 Android 应用中检查更新。'));
+          return Promise.reject(new Error(tr('updates.nativeAppRequired')));
         }
         return fetchAppUpdate(currentVersion!, Platform.OS);
       },
@@ -168,22 +175,25 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
       showUpdate: (release, actions) => {
         const installation =
           Platform.OS === 'ios'
-            ? '可通过 AltStore Classic、LiveContainer 源或 GitHub 更新。'
+            ? tr('updates.iosUpdateDescription')
             : canInstallAppUpdate
-              ? '在应用中下载新版 APK，下载完成后可选择是否安装。'
-              : '前往发布页面下载新版 APK，安装后可使用应用内下载安装。';
+              ? tr('updates.androidUpdateDescription')
+              : tr('updates.newBuildRequiredDescription');
         Alert.alert(
-          `发现新版本 v${release.version}`,
-          `当前版本：v${currentVersion}\n${installation}`,
+          tr('updates.versionAvailable', { version: release.version }),
+          tr('updates.currentVersionAndInstallation', {
+            currentVersion: currentVersion,
+            installation: installation,
+          }),
           [
-            { text: '忽略此版本', onPress: actions.ignore },
-            { text: '稍后提醒', style: 'cancel', onPress: actions.later },
+            { text: tr('updates.skipVersion'), onPress: actions.ignore },
+            { text: tr('updates.remindLater'), style: 'cancel', onPress: actions.later },
             {
               text: canInstallAppUpdate
-                ? '下载更新'
+                ? tr('updates.downloadUpdate')
                 : Platform.OS === 'ios'
-                  ? '选择更新方式'
-                  : '前往 GitHub',
+                  ? tr('updates.chooseUpdateMethod')
+                  : tr('about.openGithub'),
               onPress: actions.open,
             },
           ],
@@ -192,26 +202,31 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
       },
       showResourceUpdate: (download, dismiss) =>
         Alert.alert(
-          '发现资源更新',
-          '可在应用中下载，下载完成后可选择是否重新载入。',
+          tr('updates.appResourceAvailable'),
+          tr('updates.resourceDownloadDescription'),
           [
-            { text: '稍后', style: 'cancel', onPress: dismiss },
-            { text: '下载更新', onPress: download },
+            { text: tr('common.later'), style: 'cancel', onPress: dismiss },
+            { text: tr('updates.downloadUpdate'), onPress: download },
           ],
           { cancelable: true, onDismiss: dismiss },
         ),
       showReady: (kind, install, dismiss) =>
         Alert.alert(
-          '更新已下载',
-          kind === 'package' ? '是否现在安装新版本？' : '是否现在重新载入以应用资源更新？',
+          tr('updates.downloaded'),
+          kind === 'package'
+            ? tr('updates.installNowConfirmation')
+            : tr('updates.reloadNowConfirmation'),
           [
-            { text: '稍后', style: 'cancel', onPress: dismiss },
-            { text: kind === 'package' ? '安装' : '重新载入', onPress: install },
+            { text: tr('common.later'), style: 'cancel', onPress: dismiss },
+            {
+              text: kind === 'package' ? tr('updates.install') : tr('player.reload'),
+              onPress: install,
+            },
           ],
           { cancelable: true, onDismiss: dismiss },
         ),
       showMessage: (title, message, dismiss) =>
-        Alert.alert(title, message, [{ text: '好', onPress: dismiss }], {
+        Alert.alert(title, message, [{ text: tr('common.ok'), onPress: dismiss }], {
           cancelable: true,
           onDismiss: dismiss,
         }),
@@ -279,8 +294,8 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
         resourceVersion: !Updates.isEnabled
           ? null
           : Updates.isEmbeddedLaunch
-            ? '随安装包提供'
-            : (Updates.updateId?.slice(0, 8) ?? '已更新'),
+            ? tr('common.bundled')
+            : (Updates.updateId?.slice(0, 8) ?? tr('updates.updated')),
       }}
     >
       {children}

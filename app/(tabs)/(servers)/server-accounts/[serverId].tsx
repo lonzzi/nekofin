@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/NativeSettings';
 import { SettingsActionTitle, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import { groupServerAccounts, isSameMediaServer } from '@/lib/serverAccounts';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import type { MediaServerInfo } from '@/services/media/types';
@@ -15,6 +16,7 @@ import { useState } from 'react';
 import { Alert } from 'react-native';
 
 function ServerAccountsScreen() {
+  const { t: tr } = useTranslation();
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
   const { servers, activeServers, selectServerAccount, removeServer } = useMediaServers();
   const router = useRouter();
@@ -32,12 +34,15 @@ function ServerAccountsScreen() {
   const anchor = active ?? accounts[0];
   const remove = (account: MediaServerInfo) =>
     Alert.alert(
-      '移除此账号？',
-      `${account.name} / ${account.username}\n仅从此设备移除，不会删除服务器上的账号。`,
+      tr('server.removeAccountConfirmationTitle'),
+      tr('server.removeAccountServerUnchangedNote', {
+        name: account.name,
+        username: account.username,
+      }),
       [
-        { text: '取消', style: 'cancel' },
+        { text: tr('common.cancel'), style: 'cancel' },
         {
-          text: '移除',
+          text: tr('common.remove'),
           style: 'destructive',
           onPress: () => {
             const next = accounts.find((item) => item.id !== account.id);
@@ -51,13 +56,16 @@ function ServerAccountsScreen() {
     );
   return (
     <>
-      <OuterScreenOptions title="服务器账号" />
+      <OuterScreenOptions title={tr('server.accounts')} />
       <NativeSettingsForm testID="server-accounts-form">
         {anchor ? (
           <>
-            <NativeSettingsSection title={`${anchor.name} · 切换账号`} footer="点按账号即可切换。">
+            <NativeSettingsSection
+              title={tr('server.switchNamedAccount', { name: anchor.name })}
+              footer={tr('server.switchAccountHint')}
+            >
               <NativeSettingsChoiceList
-                label="切换账号"
+                label={tr('server.switchAccount')}
                 value={active?.id ?? anchor.id}
                 options={accounts.map((account) => ({
                   title: account.username,
@@ -69,7 +77,9 @@ function ServerAccountsScreen() {
                 }}
               />
               <NativeSettingsItem
-                title={<SettingsActionTitle tone="accent">添加账号</SettingsActionTitle>}
+                title={
+                  <SettingsActionTitle tone="accent">{tr('server.addAccount')}</SettingsActionTitle>
+                }
                 disclosure
                 onPress={() =>
                   router.push({
@@ -82,7 +92,7 @@ function ServerAccountsScreen() {
             {accounts.map((account) => (
               <NativeSettingsSection key={account.id} title={account.username}>
                 <NativeSettingsItem
-                  title={<SettingsTitle>账号设置</SettingsTitle>}
+                  title={<SettingsTitle>{tr('server.accountSettings')}</SettingsTitle>}
                   disclosure
                   onPress={() =>
                     router.push({
@@ -92,7 +102,7 @@ function ServerAccountsScreen() {
                   }
                 />
                 <NativeSettingsItem
-                  title={<SettingsActionTitle>移除此账号</SettingsActionTitle>}
+                  title={<SettingsActionTitle>{tr('server.removeAccount')}</SettingsActionTitle>}
                   onPress={() => remove(account)}
                 />
               </NativeSettingsSection>
@@ -100,7 +110,7 @@ function ServerAccountsScreen() {
           </>
         ) : (
           <NativeSettingsSection>
-            <NativeSettingsItem title={<SettingsTitle>服务器不存在</SettingsTitle>} />
+            <NativeSettingsItem title={<SettingsTitle>{tr('server.notFound')}</SettingsTitle>} />
           </NativeSettingsSection>
         )}
       </NativeSettingsForm>

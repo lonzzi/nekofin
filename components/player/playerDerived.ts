@@ -1,3 +1,4 @@
+import { t as tr } from '@/lib/i18n';
 import { ticksToMilliseconds } from '@/lib/utils/duration';
 import type { MediaItem } from '@/services/media/types';
 
@@ -61,7 +62,7 @@ export function deriveMpvTracks(
           name:
             stream?.DisplayTitle?.trim() ||
             fallback ||
-            `${type === 'Audio' ? '音轨' : '字幕'} ${track.id}`,
+            `${type === 'Audio' ? tr('player.audioTrack') : tr('player.subtitles')} ${track.id}`,
           language: stream?.Language?.trim() || track.lang || undefined,
         };
       });
@@ -75,7 +76,10 @@ export function deriveTracks(mediaStreams: RawMediaStream[] = []) {
     .map((s) => ({
       index: s.Index ?? 0,
       name:
-        s.DisplayTitle?.trim() || s.Title?.trim() || s.Language?.trim() || `音轨 ${s.Index ?? 0}`,
+        s.DisplayTitle?.trim() ||
+        s.Title?.trim() ||
+        s.Language?.trim() ||
+        tr('player.audioTrackByValue', { value: s.Index ?? 0 }),
       language: s.Language ?? undefined,
     }));
 
@@ -84,7 +88,10 @@ export function deriveTracks(mediaStreams: RawMediaStream[] = []) {
     .map((s) => ({
       index: s.Index ?? 0,
       name:
-        s.DisplayTitle?.trim() || s.Title?.trim() || s.Language?.trim() || `字幕 ${s.Index ?? 0}`,
+        s.DisplayTitle?.trim() ||
+        s.Title?.trim() ||
+        s.Language?.trim() ||
+        tr('player.subtitleByValue', { value: s.Index ?? 0 }),
       language: s.Language ?? undefined,
     }));
 

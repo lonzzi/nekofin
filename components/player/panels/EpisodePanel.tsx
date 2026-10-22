@@ -3,6 +3,7 @@ import { getImagePreferenceOptions } from '@/components/media/cardHelpers';
 import { NativeSettingsItem } from '@/components/ui/NativeSettings';
 import { SettingsSubtitle, SettingsSymbol, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import { formatDurationFromTicks } from '@/lib/utils';
 import type { MediaItem } from '@/services/media/types';
@@ -68,12 +69,15 @@ const EpisodeNativeRow = memo(function EpisodeNativeRow({
   current,
   onSelectEpisode,
 }: EpisodeNativeRowProps) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const [artworkVisible, setArtworkVisible] = useState(Platform.OS !== 'ios');
   const handlePress = useCallback(() => onSelectEpisode(id), [id, onSelectEpisode]);
   const handleArtworkAppear = useCallback(() => setArtworkVisible(true), []);
   const handleArtworkDisappear = useCallback(() => setArtworkVisible(false), []);
-  const rowLabel = [title, metadata, current ? '正在播放' : null].filter(Boolean).join('，');
+  const rowLabel = [title, metadata, current ? tr('player.nowPlaying') : null]
+    .filter(Boolean)
+    .join('，');
   const modifiers =
     Platform.OS === 'ios'
       ? [
@@ -171,13 +175,14 @@ const EpisodeNativeRow = memo(function EpisodeNativeRow({
 });
 
 function EpisodeEmptyState() {
+  const { t: tr } = useTranslation();
   if (supportsNativeScrollPosition) {
     return (
       <ContentUnavailableView
-        description="播放器还没有拿到当前季度的剧集数据"
+        description={tr('media.seasonEpisodesUnavailable')}
         modifiers={[frame({ maxHeight: Infinity, maxWidth: Infinity })]}
         systemImage="rectangle.stack"
-        title="暂无可用剧集"
+        title={tr('media.noEpisodes')}
       />
     );
   }
@@ -185,10 +190,10 @@ function EpisodeEmptyState() {
   if (Platform.OS === 'ios') {
     return (
       <SwiftList testID="player-episode-panel">
-        <SwiftSection title="剧集">
+        <SwiftSection title={tr('media.series')}>
           <NativeSettingsItem
-            title={<SettingsTitle>暂无可用剧集</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="播放器还没有拿到当前季度的剧集数据" />}
+            title={<SettingsTitle>{tr('media.noEpisodes')}</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={tr('media.seasonEpisodesUnavailable')} />}
           />
         </SwiftSection>
       </SwiftList>
@@ -198,14 +203,15 @@ function EpisodeEmptyState() {
   return (
     <NativeList testID="player-episode-panel">
       <NativeSettingsItem
-        title={<SettingsTitle>暂无可用剧集</SettingsTitle>}
-        subtitle={<SettingsSubtitle primary="播放器还没有拿到当前季度的剧集数据" />}
+        title={<SettingsTitle>{tr('media.noEpisodes')}</SettingsTitle>}
+        subtitle={<SettingsSubtitle primary={tr('media.seasonEpisodesUnavailable')} />}
       />
     </NativeList>
   );
 }
 
 export function EpisodePanel({ episodes, currentItemId, onSelectEpisode }: EpisodePanelProps) {
+  const { t: tr } = useTranslation();
   const mediaAdapter = useMediaAdapter();
   const rows = useMemo<EpisodeRowModel[]>(
     () =>
@@ -291,8 +297,10 @@ export function EpisodePanel({ episodes, currentItemId, onSelectEpisode }: Episo
 
     return (
       <SwiftList testID="player-episode-panel">
-        {currentRowNode ? <SwiftSection title="正在播放">{currentRowNode}</SwiftSection> : null}
-        <SwiftSection title={currentRowNode ? '全部剧集' : undefined}>
+        {currentRowNode ? (
+          <SwiftSection title={tr('player.nowPlaying')}>{currentRowNode}</SwiftSection>
+        ) : null}
+        <SwiftSection title={currentRowNode ? tr('media.allEpisodes') : undefined}>
           {remainingRowNodes}
         </SwiftSection>
       </SwiftList>

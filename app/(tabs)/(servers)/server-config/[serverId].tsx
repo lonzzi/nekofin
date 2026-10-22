@@ -13,6 +13,7 @@ import {
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import { getHiddenUserViews, toggleUserViewHidden } from '@/lib/utils/userViewConfig';
 import { createMediaAdapterWithApi, createMediaApiFromServerInfo } from '@/services/media';
@@ -22,6 +23,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 
 function ServerConfigScreen() {
+  const { t: tr } = useTranslation();
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
   const { servers, removeServer } = useMediaServers();
   const router = useTracedRouter('server-config');
@@ -64,7 +66,7 @@ function ServerConfigScreen() {
       <>
         <NativeSettingsForm testID="server-config-missing-form">
           <NativeSettingsSection>
-            <NativeSettingsItem title={<SettingsTitle>服务器不存在</SettingsTitle>} />
+            <NativeSettingsItem title={<SettingsTitle>{tr('server.notFound')}</SettingsTitle>} />
           </NativeSettingsSection>
         </NativeSettingsForm>
       </>
@@ -73,9 +75,9 @@ function ServerConfigScreen() {
 
   return (
     <>
-      <OuterScreenOptions title="服务器设置" />
+      <OuterScreenOptions title={tr('server.settings')} />
       <NativeSettingsForm testID="server-config-form">
-        <NativeSettingsSection title="连接与账号">
+        <NativeSettingsSection title={tr('server.connectionAndAccounts')}>
           <NativeSettingsItem
             title={<SettingsTitle>{server.name}</SettingsTitle>}
             subtitle={
@@ -85,7 +87,7 @@ function ServerConfigScreen() {
             }
           />
           <NativeSettingsItem
-            title={<SettingsTitle>服务器账号</SettingsTitle>}
+            title={<SettingsTitle>{tr('server.accounts')}</SettingsTitle>}
             disclosure
             onPress={() =>
               router.push({
@@ -95,11 +97,11 @@ function ServerConfigScreen() {
             }
           />
           <NativeSettingsItem
-            title={<SettingsTitle>服务器地址</SettingsTitle>}
+            title={<SettingsTitle>{tr('server.url')}</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={server.address} lines={3} />}
           />
           <NativeSettingsItem
-            title={<SettingsTitle>服务器线路</SettingsTitle>}
+            title={<SettingsTitle>{tr('server.connections')}</SettingsTitle>}
             disclosure
             onPress={() =>
               router.push({
@@ -111,7 +113,7 @@ function ServerConfigScreen() {
           <NativeSettingsItem
             title={
               <SettingsActionTitle tone="accent">
-                {checking ? '正在检查连接…' : '测试连接'}
+                {checking ? tr('server.checkingConnection') : tr('server.testConnection')}
               </SettingsActionTitle>
             }
             busy={checking}
@@ -126,15 +128,18 @@ function ServerConfigScreen() {
               ])
                 .then(([system]) =>
                   setConnection(
-                    `连接正常 · ${system.serverName || server.name}${system.version ? ` · ${system.version}` : ''}`,
+                    tr('server.connectedDescription', {
+                      value: system.serverName || server.name,
+                      value2: system.version ? ` · ${system.version}` : '',
+                    }),
                   ),
                 )
-                .catch(() => setConnection('连接失败，请检查网络或重新登录。'))
+                .catch(() => setConnection(tr('server.connectionFailedNetworkOrSignIn')))
                 .finally(() => setChecking(false));
             }}
           />
           <NativeSettingsItem
-            title={<SettingsTitle>编辑连接或重新登录</SettingsTitle>}
+            title={<SettingsTitle>{tr('server.editConnectionOrSignIn')}</SettingsTitle>}
             disclosure
             onPress={() =>
               router.push({
@@ -144,13 +149,18 @@ function ServerConfigScreen() {
             }
           />
         </NativeSettingsSection>
-        <NativeSettingsSection title="显示在首页的媒体库">
+        <NativeSettingsSection title={tr('home.visibleLibraries')}>
           {userViewQuery.isPending ? (
-            <NativeSettingsItem title={<SettingsTitle>正在加载媒体库…</SettingsTitle>} busy />
+            <NativeSettingsItem
+              title={<SettingsTitle>{tr('media.loadingLibraries')}</SettingsTitle>}
+              busy
+            />
           ) : userViewQuery.isError ? (
             <NativeSettingsItem
               title={
-                <SettingsActionTitle tone="accent">媒体库加载失败，点按重试</SettingsActionTitle>
+                <SettingsActionTitle tone="accent">
+                  {tr('media.librariesLoadFailed')}
+                </SettingsActionTitle>
               }
               onPress={() => void userViewQuery.refetch()}
             />
@@ -160,28 +170,37 @@ function ServerConfigScreen() {
               return (
                 <NativeSettingsSwitch
                   key={userView.id}
-                  title={<SettingsTitle>{userView.name || '未知媒体库'}</SettingsTitle>}
+                  title={
+                    <SettingsTitle>{userView.name || tr('media.unknownLibrary')}</SettingsTitle>
+                  }
                   value={!isHidden}
                   onValueChange={(visible) => handleToggleHidden(userView.id, !visible)}
                 />
               );
             })
           ) : (
-            <NativeSettingsItem title={<SettingsTitle>暂无媒体库</SettingsTitle>} />
+            <NativeSettingsItem title={<SettingsTitle>{tr('media.noLibraries')}</SettingsTitle>} />
           )}
         </NativeSettingsSection>
-        <NativeSettingsSection title="此设备">
+        <NativeSettingsSection title={tr('common.thisDevice')}>
           <NativeSettingsItem
-            title={<SettingsActionTitle>移除此账号</SettingsActionTitle>}
+            title={<SettingsActionTitle>{tr('server.removeAccount')}</SettingsActionTitle>}
             onPress={() =>
-              Alert.alert('移除此账号？', `${server.name} / ${server.username}\n仅从此设备移除。`, [
-                { text: '取消', style: 'cancel' },
-                {
-                  text: '移除',
-                  style: 'destructive',
-                  onPress: () => void removeServer(server.id).then(() => router.back()),
-                },
-              ])
+              Alert.alert(
+                tr('server.removeAccountConfirmationTitle'),
+                tr('server.removeAccountLocalNote', {
+                  name: server.name,
+                  username: server.username,
+                }),
+                [
+                  { text: tr('common.cancel'), style: 'cancel' },
+                  {
+                    text: tr('common.remove'),
+                    style: 'destructive',
+                    onPress: () => void removeServer(server.id).then(() => router.back()),
+                  },
+                ],
+              )
             }
           />
         </NativeSettingsSection>

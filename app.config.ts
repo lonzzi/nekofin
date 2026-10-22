@@ -87,6 +87,7 @@ export default ({ config: _config }: { config: ExpoConfig }): ExpoConfig => {
     },
     plugins: [
       'expo-router',
+      ['expo-localization', { supportedLocales: ['zh-Hans', 'en'], supportsRTL: false }],
       [
         'expo-splash-screen',
         {

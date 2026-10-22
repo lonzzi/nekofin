@@ -1,6 +1,7 @@
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import { MediaItem } from '@/services/media/types';
 import React, { useCallback, useMemo } from 'react';
@@ -23,6 +24,7 @@ export const UserViewCard = React.memo(function UserViewCard({
   source?: MediaItemSource;
   showServerSource?: boolean;
 }) {
+  const { t: tr } = useTranslation();
   const router = useTracedRouter('user-view-card');
   const theme = useAppTheme();
 
@@ -51,7 +53,10 @@ export const UserViewCard = React.memo(function UserViewCard({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`打开 ${source ? `${source.server.name} ` : ''}${title} 媒体库`}
+      accessibilityLabel={tr('media.openLibrary', {
+        value: source ? `${source.server.name} ` : '',
+        title: title,
+      })}
       style={styles.userViewCard}
       onPress={handlePress}
     >

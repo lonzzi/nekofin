@@ -10,6 +10,7 @@ import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaActions } from '@/hooks/useMediaActions';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import { ImageUrlInfo } from '@/lib/utils/image';
 import { rememberDetailArtwork } from '@/services/media/detailArtwork';
@@ -71,6 +72,7 @@ function CardActionMenu({
   children: React.ReactNode;
   onViewDetails?: () => void;
 }) {
+  const { t: tr } = useTranslation();
   const {
     currentUserData,
     handlePlay,
@@ -86,24 +88,24 @@ function CardActionMenu({
       <Content>
         <Item key="play" onSelect={handlePlay}>
           <ItemIcon ios={{ name: 'play.circle' }} />
-          <ItemTitle>播放</ItemTitle>
+          <ItemTitle>{tr('player.play')}</ItemTitle>
         </Item>
         {onViewDetails && (
           <Item key="viewDetails" onSelect={onViewDetails}>
             <ItemIcon ios={{ name: 'info.circle' }} />
-            <ItemTitle>查看详情</ItemTitle>
+            <ItemTitle>{tr('media.viewDetails')}</ItemTitle>
           </Item>
         )}
         <Item key="addToFavorites" onSelect={handleAddToFavorites}>
           <ItemIcon ios={{ name: 'heart' }} />
-          <ItemTitle>添加到收藏</ItemTitle>
+          <ItemTitle>{tr('media.addFavorite')}</ItemTitle>
         </Item>
         <Item
           key={isPlayed ? 'markAsUnwatched' : 'markAsWatched'}
           onSelect={isPlayed ? handleMarkAsUnwatched : handleMarkAsWatched}
         >
           <ItemIcon ios={{ name: isPlayed ? 'eye.slash' : 'eye' }} />
-          <ItemTitle>{isPlayed ? '标记为未看' : '标记为已看'}</ItemTitle>
+          <ItemTitle>{isPlayed ? tr('media.markUnwatched') : tr('media.markWatched')}</ItemTitle>
         </Item>
       </Content>
     </CardActionMenuRoot>
@@ -137,6 +139,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   source?: MediaItemSource;
   showServerSource?: boolean;
 }) {
+  const { t: tr } = useTranslation();
   const router = useTracedRouter('episode-card');
   const queryClient = useQueryClient();
   const { currentServer, setCurrentServer } = useMediaServers();
@@ -194,7 +197,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
       : undefined;
 
   const isPlayed = currentUserData?.played === true;
-  const itemTitle = item.seriesName || item.name || '未知标题';
+  const itemTitle = item.seriesName || item.name || tr('media.untitled');
 
   return (
     <CardActionMenu item={item} actionServer={actionServer}>
@@ -253,7 +256,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
                 ]}
                 numberOfLines={1}
               >
-                {item.seriesName || item.name || '未知标题'}
+                {item.seriesName || item.name || tr('media.untitled')}
               </Text>
               <Text
                 style={[
@@ -270,7 +273,10 @@ export const EpisodeCard = React.memo(function EpisodeCard({
           )}
         </ShadowedGlassCard>
         <Pressable
-          accessibilityLabel={`打开 ${itemTitle}${isPlayed ? '，已观看' : ''}`}
+          accessibilityLabel={tr('media.openItemWithStatus', {
+            itemTitle: itemTitle,
+            value: isPlayed ? tr('media.watchedSuffix') : '',
+          })}
           accessibilityRole="button"
           disabled={disabled}
           onLongPress={Platform.OS === 'ios' ? consumeCardLongPress : undefined}
@@ -280,7 +286,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
         {showPlayButton ? (
           <View pointerEvents="box-none" style={styles.playButtonLayer}>
             <Pressable
-              accessibilityLabel={`播放 ${itemTitle}`}
+              accessibilityLabel={tr('player.playItem', { itemTitle: itemTitle })}
               accessibilityRole="button"
               disabled={disabled}
               onLongPress={Platform.OS === 'ios' ? consumeCardLongPress : undefined}
@@ -320,6 +326,7 @@ export const SeriesCard = React.memo(function SeriesCard({
   source?: MediaItemSource;
   showServerSource?: boolean;
 }) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const router = useTracedRouter('series-card');
   const queryClient = useQueryClient();
@@ -340,7 +347,7 @@ export const SeriesCard = React.memo(function SeriesCard({
   );
 
   const imageUrl = imageInfo.url;
-  const itemTitle = item.seriesName || item.name || '未知标题';
+  const itemTitle = item.seriesName || item.name || tr('media.untitled');
 
   const openDetails = useCallback(() => {
     if (onPress) {
@@ -376,7 +383,7 @@ export const SeriesCard = React.memo(function SeriesCard({
   const card = (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`打开 ${itemTitle}`}
+      accessibilityLabel={tr('media.openItem', { itemTitle: itemTitle })}
       style={[styles.card, { width: 120 }, style]}
       onLongPress={Platform.OS === 'ios' ? consumeCardLongPress : undefined}
       onPress={openDetails}
@@ -400,7 +407,7 @@ export const SeriesCard = React.memo(function SeriesCard({
             ]}
             numberOfLines={1}
           >
-            {hideSubtitle ? item.name : item.seriesName || item.name || '未知标题'}
+            {hideSubtitle ? item.name : item.seriesName || item.name || tr('media.untitled')}
           </Text>
           {!hideSubtitle && (
             <Text

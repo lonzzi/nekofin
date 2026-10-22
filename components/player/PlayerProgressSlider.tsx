@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n';
 import * as Haptics from 'expo-haptics';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -17,6 +18,7 @@ export function PlayerProgressSlider({
   onValueChange,
   progress,
 }: PlayerProgressSliderProps) {
+  const { t: tr } = useTranslation();
   const width = useSharedValue(1);
   const pressed = useSharedValue(false);
   const start = () => {
@@ -62,7 +64,7 @@ export function PlayerProgressSlider({
       <View
         accessible
         accessibilityRole="adjustable"
-        accessibilityLabel="播放进度"
+        accessibilityLabel={tr('player.position')}
         accessibilityValue={{ text: accessibilityValue }}
         accessibilityState={{ disabled }}
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}

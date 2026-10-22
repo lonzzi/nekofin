@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n';
 import {
   NAVIGATION_CONTROL_GAP,
   NAVIGATION_CONTROL_SIZE,
@@ -12,6 +13,7 @@ import { HeaderIconButton } from './HeaderIconButton.android';
 import type { PlatformHeaderOptions } from './platformHeaderOptions';
 
 function HeaderBackButton() {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const router = useRouter();
   return (
@@ -34,7 +36,7 @@ function HeaderBackButton() {
             source={require('../../assets/drawables/chevron_left.png')}
             size={NAVIGATION_ICON_SIZE}
             tint={theme.colors.text}
-            contentDescription="返回"
+            contentDescription={tr('common.back')}
           />
         </HeaderIconButton>
       </Box>

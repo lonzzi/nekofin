@@ -1,3 +1,4 @@
+import { t as tr } from '@/lib/i18n';
 import type { MediaServerInfo } from '@/services/media/types';
 
 import { isSameMediaServer } from './serverAccounts';
@@ -26,7 +27,7 @@ export function prepareAuthenticatedServer(
   if (!connections.some((line) => line.address === address)) {
     connections.push({
       id: existing ? `address-${address}` : 'default',
-      name: existing ? '备用线路' : '默认线路',
+      name: existing ? tr('server.alternativeConnection') : tr('server.defaultConnection'),
       address,
     });
   }

@@ -1,6 +1,7 @@
 import { ItemImage } from '@/components/ItemImage';
 import { useContentDimensions, useLargeContentLayout } from '@/hooks/useContentDimensions';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import type { MediaItem } from '@/services/media/types';
 import { useState, type ReactNode } from 'react';
@@ -126,12 +127,13 @@ export function DetailSummaryPlaceholder({
   title?: string;
   mode: 'series' | 'movie' | 'episode';
 }) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const tablet = useLargeContentLayout();
   return (
     <View
       accessible
-      accessibilityLabel="正在加载详情"
+      accessibilityLabel={tr('media.loadingDetails')}
       accessibilityState={{ busy: true }}
       pointerEvents="none"
     >

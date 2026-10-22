@@ -4,6 +4,7 @@ import { useHiddenUserViews } from '@/hooks/useHiddenUserViews';
 import { useMediaServerSources } from '@/hooks/useMediaServerSources';
 import { useRefetchOnScreenFocus } from '@/hooks/useRefetchOnScreenFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import {
   groupAggregateLatestFolders,
   mergeAggregateHomeItems,
@@ -21,6 +22,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 
 export default function AggregateViewAllScreen() {
+  const { t: tr } = useTranslation();
   const { type, sectionKey, serverId } = useLocalSearchParams<{
     type: string;
     sectionKey?: string;
@@ -104,7 +106,11 @@ export default function AggregateViewAllScreen() {
   return (
     <ItemGridScreen
       title={
-        type === 'resume' ? '继续观看' : type === 'nextup' ? '接下来' : (group?.title ?? '最近添加')
+        type === 'resume'
+          ? tr('home.continueWatching')
+          : type === 'nextup'
+            ? tr('home.upNext')
+            : (group?.title ?? tr('home.recentlyAdded'))
       }
       data={entries.map((entry) => entry.item)}
       getItemSource={(item) => sourceByItem.get(item)}

@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n';
 import { requireNativeView } from 'expo';
 import type { ComponentType } from 'react';
 import type { NativeSyntheticEvent, ViewProps } from 'react-native';
@@ -39,6 +40,7 @@ export function PlayerProgressSlider({
   onValueChange,
   progress,
 }: PlayerProgressSliderProps) {
+  const { t: tr } = useTranslation();
   const animatedProps = useAnimatedProps<NativePlayerScrubberProps>(() => ({
     bufferedValue: bufferedProgress?.get() ?? 0,
     value: progress.get(),
@@ -49,8 +51,8 @@ export function PlayerProgressSlider({
     <GestureDetector gesture={nativeGesture}>
       <AnimatedPlayerScrubber
         accessible
-        accessibilityHint="上下轻扫可前进或后退 10 秒"
-        accessibilityLabel="播放进度"
+        accessibilityHint={tr('player.skipGestureHint')}
+        accessibilityLabel={tr('player.position')}
         accessibilityRole="adjustable"
         accessibilityStep={accessibilityStep}
         accessibilityValue={{ text: accessibilityValue }}
@@ -65,8 +67,8 @@ export function PlayerProgressSlider({
           onValueChange(nativeEvent.value);
         }}
         nativeID="PlayerProgressSlider"
-        sliderAccessibilityHint="上下轻扫可调整播放位置"
-        sliderAccessibilityLabel="播放进度"
+        sliderAccessibilityHint={tr('player.seekGestureHint')}
+        sliderAccessibilityLabel={tr('player.position')}
         sliderAccessibilityValue={accessibilityValue}
         style={{ flex: 1, height: 44 }}
         animatedProps={animatedProps}

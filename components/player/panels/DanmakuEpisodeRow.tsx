@@ -1,5 +1,6 @@
 import { NativeSettingsItem } from '@/components/ui/NativeSettings';
 import { SettingsSubtitle } from '@/components/ui/SettingsVisual';
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import type { DanmakuEpisodeSelection } from '@/services/danmaku';
 import {
@@ -30,6 +31,7 @@ export function DanmakuEpisodeRow({
   title?: string;
   onPress: () => void;
 }) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const { height: windowHeight } = useWindowDimensions();
   const [visible, setVisible] = useState(false);
@@ -54,12 +56,12 @@ export function DanmakuEpisodeRow({
     retry: false,
   });
   const subtitle = loading
-    ? '正在加载弹幕…'
+    ? tr('danmaku.loadingComments')
     : count != null
-      ? count.toLocaleString('zh-CN') + ' 条弹幕'
+      ? tr('danmaku.loadedCommentCount', { value: count.toLocaleString('zh-CN') })
       : isError
-        ? '弹幕数量暂不可用'
-        : '正在获取弹幕数量…';
+        ? tr('danmaku.countUnavailable')
+        : tr('danmaku.fetchingCount');
 
   return (
     <NativeSettingsItem
@@ -74,7 +76,7 @@ export function DanmakuEpisodeRow({
       subtitle={
         <SettingsSubtitle
           primary={subtitle}
-          secondary={sameNumber ? '与当前视频集号相同，请确认季度和前后篇' : undefined}
+          secondary={sameNumber ? tr('danmaku.episodeNumberMatchHint') : undefined}
           lines={2}
         />
       }

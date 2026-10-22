@@ -36,6 +36,8 @@ class NavigationRailView(context: Context, appContext: AppContext) : ExpoView(co
   val onToggleSidebar by EventDispatcher()
   var destinations: List<RailDestination> = emptyList()
   var servers: List<SidebarServer> = emptyList()
+  var serversTitle = ""
+  var collapseLabel = ""
   var selectedServerId = ""
   var selected = "home"
   var dark = false
@@ -99,7 +101,7 @@ class NavigationRailView(context: Context, appContext: AppContext) : ExpoView(co
     }
     val nav = navigation ?: return
     val items = destinations.map { listOf(it.key, it.title, it.drawable) } +
-      servers.map { listOf(it.id, it.name, it.type, it.avatarUri) }
+      servers.map { listOf(it.id, it.name, it.type, it.avatarUri) } + listOf(listOf(serversTitle))
     if (renderedItems != items) {
       nav.menu.clear()
       serverMenuIds.clear()
@@ -109,7 +111,7 @@ class NavigationRailView(context: Context, appContext: AppContext) : ExpoView(co
         nav.menu.add(0, destinationIds[index], order, destination.title).apply { isCheckable = true }
       }
       if (servers.isNotEmpty()) {
-        val section = nav.menu.addSubMenu(1, View.generateViewId(), destinations.size, "服务器")
+        val section = nav.menu.addSubMenu(1, View.generateViewId(), destinations.size, serversTitle)
         servers.forEach { server ->
           val menuId = View.generateViewId()
           serverMenuIds[menuId] = server.id
@@ -120,7 +122,7 @@ class NavigationRailView(context: Context, appContext: AppContext) : ExpoView(co
       avatars.keys.retainAll(servers.map { it.avatarUri }.toSet())
     }
     nav.setBackgroundColor(surfaceColor)
-    collapseButton?.updateNavigationIcon(R.drawable.native_layout_menu, "收起侧边栏", selectedColor)
+    collapseButton?.updateNavigationIcon(R.drawable.native_layout_menu, collapseLabel, selectedColor)
     val selectedForeground = if (ColorUtils.calculateLuminance(selectedColor) > 0.45) Color.BLACK else Color.WHITE
     val iconColors = ColorStateList(
       arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),

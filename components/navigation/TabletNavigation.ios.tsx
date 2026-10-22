@@ -1,4 +1,5 @@
 import { ContentDimensionsProvider } from '@/hooks/useContentDimensions';
+import { useTranslation } from '@/lib/i18n';
 import { useOuterTheme } from '@/lib/theme/OuterTheme';
 import { embeddedNavigationBar } from '@/modules/native-layout';
 import { NativeTabSidebar } from '@/modules/native-layout/NativeTabSidebar.ios';
@@ -51,12 +52,14 @@ export function TabletNavigation({ children }: PropsWithChildren) {
 }
 
 function AdaptiveTabNavigation({ children }: PropsWithChildren) {
+  const { t: tr } = useTranslation();
   const router = useRouter();
   const segments = useSegments();
   const { items, homeServerId, selectServer } = useSidebarServers();
   return (
     <NativeTabSidebar
       style={{ flex: 1 }}
+      serversTitle={tr('navigation.servers')}
       servers={items}
       selectedServerId={tabletDestinationKey(segments) === 'home' ? (homeServerId ?? '') : ''}
       onServerSelected={({ nativeEvent }) => {
@@ -69,6 +72,7 @@ function AdaptiveTabNavigation({ children }: PropsWithChildren) {
 }
 
 function SplitNavigation({ children }: PropsWithChildren) {
+  const { t: tr } = useTranslation();
   const theme = useOuterTheme();
   const router = useRouter();
   const segments = useSegments();
@@ -114,7 +118,7 @@ function SplitNavigation({ children }: PropsWithChildren) {
                 navigationSplitViewColumnWidth({ min: 260, ideal: 280, max: 320 }),
               ]}
             >
-              <Section title="媒体">
+              <Section title={tr('media.media')}>
                 {tabletDestinations.map((entry) => (
                   <NavigationLink key={entry.key} value={entry.key} modifiers={[tag(entry.key)]}>
                     <Label title={entry.title} systemImage={entry.icon} />
@@ -122,7 +126,7 @@ function SplitNavigation({ children }: PropsWithChildren) {
                 ))}
               </Section>
               {servers.length ? (
-                <Section title="服务器">
+                <Section title={tr('navigation.servers')}>
                   {servers.map((server) => (
                     <Button
                       key={server.id}
