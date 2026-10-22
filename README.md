@@ -1,5 +1,7 @@
 # Nekofin
 
+[简体中文](README.md) · [English](README.en.md)
+
 <div align="center">
   <img src="docs/images/readme-banner.png" width="640" height="320" alt="Nekofin 项目头图" />
   <p><strong>把自建媒体库装进口袋。</strong></p>
@@ -47,6 +49,8 @@ Nekofin 帮你连接自建媒体服务器，在手机上浏览电影与剧集、
 - **切换外观**：使用浅色、暗色或跟随系统主题
 - **应用更新**：「帮助与关于 → 检查更新」同时检查安装包与资源更新，支持自动下载开关；Android 后台下载完成后再提示安装，播放期间延后提醒
 
+> 默认弹幕 API 提供的都是中文弹幕。
+
 ## 开始使用
 
 从 [GitHub Releases](https://github.com/lonzzi/nekofin/releases) 获取可用版本。添加 Jellyfin 或 Emby 账号后，进入媒体库即可浏览与搜索；打开影片或剧集详情可以继续播放。
@@ -70,10 +74,6 @@ bun run test
 ## 技术栈
 
 React Native · Expo · Expo Router · MPV · TypeScript
-
-国际化使用 `i18next`、`react-i18next` 和原生 `expo-localization`，支持简体中文、English 及跟随系统。可在「设置 → 语言」切换，也可使用系统的应用语言设置。文案资源位于 `lib/i18n/locales/`，使用按业务分组的英文语义 key（如 `common.save`、`settings.language`、`player.subtitleSwitchFailed`），动态内容使用具名插值。资源采用扁平的点号 key，`en.json` 定义 key 类型；组件通过 `useTranslation()` 订阅语言变化，服务与模型通过 `lib/i18n` 的 `t()` 翻译。修改文案时同步更新两份资源，key 格式、资源与插值完整性由测试检查。
-
-操作结果通过 `lib/toast` 的薄适配层调用平台实现，不在 React 树中绘制提示 UI：iOS 使用 Burnt 的 Swift 模块和 UIKit 库 SPIndicator（不是 Apple 内置控件），Android 使用 `ToastAndroid` 调用系统 Toast。Android 带详情的错误使用原生 Alert，避免系统 Toast 的两行限制；Web 使用 `sonner`。使用 `toast.success(title)` 或 `toast.error(title, { description })`；字段校验留在表单中，删除与安装等确认保留系统弹窗。新增原生依赖后需重新构建开发客户端与安装包。
 
 ## 下载
 
