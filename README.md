@@ -1,5 +1,7 @@
 # Nekofin
 
+[简体中文](README.md) · [English](README.en.md)
+
 <div align="center">
   <img src="docs/images/readme-banner.png" width="640" height="320" alt="Nekofin 项目头图" />
   <p><strong>把自建媒体库装进口袋。</strong></p>
@@ -47,13 +49,15 @@ Nekofin 帮你连接自建媒体服务器，在手机上浏览电影与剧集、
 - **切换外观**：使用浅色、暗色或跟随系统主题
 - **应用更新**：「帮助与关于 → 检查更新」同时检查安装包与资源更新，支持自动下载开关；Android 后台下载完成后再提示安装，播放期间延后提醒
 
+> 默认弹幕 API 提供的都是中文弹幕。
+
 ## 开始使用
 
 从 [GitHub Releases](https://github.com/lonzzi/nekofin/releases) 获取可用版本。添加 Jellyfin 或 Emby 账号后，进入媒体库即可浏览与搜索；打开影片或剧集详情可以继续播放。
 
 ## 本地开发
 
-需要 Bun 和 Xcode 27 或更新版本。项目包含原生播放器与 Expo 原生模块，请使用开发客户端构建运行。
+本地开发需要 Bun，iOS 构建还需安装 Xcode。推荐使用 Xcode 27 或更新版本；旧版 Xcode 构建的应用在 iOS 27 上可能出现兼容性问题。项目包含原生播放器与 Expo 原生模块，请使用开发客户端构建运行。
 
 ```sh
 bun install

@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { MediaInfo } from 'expo-mpv';
 import { useEffect, useState } from 'react';
@@ -8,6 +9,7 @@ import { usePlayer } from './PlayerContext';
 import { PlayerGlassSurface } from './PlayerGlassSurface';
 
 export function PlaybackInfoBadges() {
+  const { t: tr } = useTranslation();
   const {
     playbackSourceInfo,
     readPlaybackMediaInfo,
@@ -59,9 +61,9 @@ export function PlaybackInfoBadges() {
   const showDetails = () => {
     clearControlsTimeout();
     Alert.alert(
-      '播放信息',
+      tr('player.playbackInformation'),
       badges.map((badge) => badge.accessibilityLabel).join('\n'),
-      [{ text: '完成', onPress: hideControlsWithDelay }],
+      [{ text: tr('common.done'), onPress: hideControlsWithDelay }],
       { cancelable: true, onDismiss: hideControlsWithDelay },
     );
   };
@@ -73,7 +75,7 @@ export function PlaybackInfoBadges() {
         importantForAccessibility={showControls ? 'auto' : 'no-hide-descendants'}
         accessibilityRole="button"
         accessibilityLabel={summary.map((badge) => badge.accessibilityLabel).join('，')}
-        accessibilityHint="查看完整播放信息"
+        accessibilityHint={tr('player.viewFullPlaybackInformation')}
         onPress={showDetails}
         style={({ pressed }) => [styles.row, pressed && styles.pressed]}
         testID="player-playback-info"

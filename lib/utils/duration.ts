@@ -1,4 +1,5 @@
 import dayjs from '@/lib/dayjs';
+import { t as tr } from '@/lib/i18n';
 
 export const ticksToSeconds = (ticks: number) => {
   return ticks / 10000000;
@@ -67,10 +68,10 @@ export const formatChineseDurationFromTicks = (
   const includeSeconds = options?.includeSeconds ?? totalSeconds < 60;
 
   const parts: string[] = [];
-  if (hours > 0) parts.push(`${hours} 小时`);
-  if (minutes > 0) parts.push(`${minutes} 分钟`);
-  if (includeSeconds && seconds > 0) parts.push(`${seconds} 秒`);
+  if (hours > 0) parts.push(tr('time.hoursShort', { hours: hours }));
+  if (minutes > 0) parts.push(tr('time.minutesShort', { minutes: minutes }));
+  if (includeSeconds && seconds > 0) parts.push(tr('time.secondsShort', { seconds: seconds }));
 
-  if (parts.length === 0) return '0 秒';
+  if (parts.length === 0) return tr('time.zeroSeconds');
   return parts.slice(0, largest).join(' ');
 };

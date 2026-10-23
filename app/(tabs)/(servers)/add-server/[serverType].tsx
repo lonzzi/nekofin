@@ -2,11 +2,13 @@ import { AddServerForm } from '@/components/AddServerForm';
 import { OuterScreenOptions } from '@/components/outer/OuterPrimitives';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import { isMediaServerType } from '@/lib/mediaServerTypes';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import { useLocalSearchParams } from 'expo-router';
 
 function AddServerScreen() {
+  const { t: tr } = useTranslation();
   const {
     serverType: serverTypeParam,
     serverId,
@@ -27,7 +29,13 @@ function AddServerScreen() {
   return (
     <>
       <OuterScreenOptions
-        title={existingServer ? '重新登录' : accountServer ? '添加账号' : '添加服务器'}
+        title={
+          existingServer
+            ? tr('server.signInAgain')
+            : accountServer
+              ? tr('server.addAccount')
+              : tr('server.addServer')
+        }
         large={false}
         grouped
       />

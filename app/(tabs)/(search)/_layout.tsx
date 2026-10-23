@@ -1,6 +1,7 @@
 import { GroupedStackRoutes } from '@/components/GroupedStackRoutes';
 import { useNativeListStackOptions } from '@/components/navigation/nativeListStackOptions';
 import { TabletChromeContext } from '@/components/navigation/TabletChromeContext';
+import { useTranslation } from '@/lib/i18n';
 import { usePerformanceStackScreenListeners } from '@/lib/performance/PerformanceMonitorContext';
 import { useAppTheme } from '@/lib/theme';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
@@ -9,13 +10,14 @@ import { useContext } from 'react';
 import { View } from 'react-native';
 
 function SearchLayout() {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const screenListeners = usePerformanceStackScreenListeners('search');
   const stackOptions = useNativeListStackOptions(theme.colors.background);
   const chrome = useContext(TabletChromeContext);
   const stack = (
     <Stack screenListeners={screenListeners} screenOptions={stackOptions}>
-      <Stack.Screen name="index" options={{ title: '搜索' }} />
+      <Stack.Screen name="index" options={{ title: tr('search.title') }} />
       {GroupedStackRoutes()}
     </Stack>
   );

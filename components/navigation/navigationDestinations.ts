@@ -1,10 +1,14 @@
+import { t as tr } from '@/lib/i18n';
+
 /** Shared ordering, labels and assets for native phone tabs and tablet navigation. */
 export const navigationDestinations = [
   {
     key: 'home',
     role: 'tab',
     name: '(home)',
-    title: '首页',
+    get title() {
+      return tr('navigation.home');
+    },
     drawable: 'home',
     sf: { default: 'house', selected: 'house.fill' },
   },
@@ -12,7 +16,9 @@ export const navigationDestinations = [
     key: 'servers',
     role: 'tab',
     name: '(servers)',
-    title: '服务器',
+    get title() {
+      return tr('navigation.servers');
+    },
     drawable: 'storage',
     sf: { default: 'externaldrive', selected: 'externaldrive.fill' },
   },
@@ -20,7 +26,9 @@ export const navigationDestinations = [
     key: 'favorites',
     role: 'tab',
     name: '(favorites)',
-    title: '收藏',
+    get title() {
+      return tr('navigation.favorites');
+    },
     drawable: 'heart_outline',
     sf: { default: 'heart', selected: 'heart.fill' },
   },
@@ -28,7 +36,9 @@ export const navigationDestinations = [
     key: 'settings',
     role: 'tab',
     name: '(settings)',
-    title: '设置',
+    get title() {
+      return tr('navigation.settings');
+    },
     drawable: 'settings',
     sf: { default: 'gearshape', selected: 'gearshape.fill' },
   },
@@ -36,7 +46,9 @@ export const navigationDestinations = [
     key: 'search',
     role: 'search',
     name: '(search)',
-    title: '搜索',
+    get title() {
+      return tr('search.title');
+    },
     drawable: 'search',
     sf: { default: 'magnifyingglass', selected: 'magnifyingglass' },
   },

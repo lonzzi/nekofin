@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n';
 import { MEDIA_SERVER_TYPES } from '@/lib/mediaServerTypes';
 import { layout, useAppTheme } from '@/lib/theme';
 import {
@@ -61,6 +62,7 @@ function Field({
   placeholder: string;
   onSubmit?: () => void;
 }) {
+  const { t: tr } = useTranslation();
   const value = useNativeState(values[field]);
   const lastText = useRef(values[field]);
   const [visible, setVisible] = useState(false);
@@ -95,13 +97,13 @@ function Field({
       <HStack spacing={8}>
         {visible ? <TextField {...props} /> : <SecureField {...props} />}
         <Button
-          label={visible ? '隐藏密码' : '显示密码'}
+          label={visible ? tr('server.hidePassword') : tr('server.showPassword')}
           systemImage={visible ? 'eye.slash' : 'eye'}
           onPress={() => setVisible((previous) => !previous)}
           modifiers={[
             buttonStyle('borderless'),
             labelStyle('iconOnly'),
-            accessibilityLabel(visible ? '隐藏密码' : '显示密码'),
+            accessibilityLabel(visible ? tr('server.hidePassword') : tr('server.showPassword')),
           ]}
         />
       </HStack>
@@ -135,6 +137,7 @@ export function NativeServerForm({
   onSubmit,
   onChangeServer,
 }: NativeServerFormProps) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const [expanded, setExpanded] = useState(false);
   const title = MEDIA_SERVER_TYPES[serverType].label;
@@ -177,7 +180,9 @@ export function NativeServerForm({
                   accessibilityAddTraits(['isHeader']),
                 ]}
               >
-                {connection ? `登录 ${connection.name || title}` : `连接到 ${title}`}
+                {connection
+                  ? tr('server.signInTo', { value: connection.name || title })
+                  : tr('server.connectTo', { title: title })}
               </Text>
               {connection ? (
                 <Text
@@ -187,7 +192,7 @@ export function NativeServerForm({
                     textSelection(true),
                   ]}
                 >
-                  {`${connection.address}${connection.version ? `\n版本 ${connection.version}` : ''}`}
+                  {`${connection.address}${connection.version ? tr('about.versionNote', { version: connection.version }) : ''}`}
                 </Text>
               ) : null}
             </VStack>
@@ -199,16 +204,16 @@ export function NativeServerForm({
                 {...shared}
                 key="username"
                 field="username"
-                title="用户名"
-                placeholder="必填"
+                title={tr('server.username')}
+                placeholder={tr('common.required')}
               />
               <Divider modifiers={[gridCellUnsizedAxes('horizontal')]} />
               <Field
                 {...shared}
                 key="password"
                 field="password"
-                title="密码"
-                placeholder="可选"
+                title={tr('server.password')}
+                placeholder={tr('common.optional')}
                 onSubmit={submit}
               />
             </Grid>
@@ -217,7 +222,7 @@ export function NativeServerForm({
               {...shared}
               key="address"
               field="address"
-              title="服务器地址"
+              title={tr('server.url')}
               placeholder="https://media.example.com:8096"
               onSubmit={submit}
             />
@@ -244,22 +249,22 @@ export function NativeServerForm({
               <Text>
                 {busy
                   ? connection
-                    ? '正在登录…'
-                    : '正在连接…'
+                    ? tr('server.signingIn')
+                    : tr('server.connecting')
                   : connection
-                    ? '登录并保存'
-                    : '连接服务器'}
+                    ? tr('server.signInAndSave')
+                    : tr('server.connect')}
               </Text>
             </HStack>
           </Button>
           {connection && onChangeServer ? (
-            <Button label="更换服务器" onPress={onChangeServer} />
+            <Button label={tr('server.changeServer')} onPress={onChangeServer} />
           ) : null}
         </Section>
         {connection ? (
           <Section>
             <DisclosureGroup
-              label="显示选项（可选）"
+              label={tr('server.optionalDisplayOptions')}
               isExpanded={expanded}
               onIsExpandedChange={setExpanded}
             >
@@ -267,11 +272,16 @@ export function NativeServerForm({
                 <Field
                   {...shared}
                   field="name"
-                  title="显示名称"
+                  title={tr('server.displayName')}
                   placeholder={connection.name || title}
                 />
                 <Divider modifiers={[gridCellUnsizedAxes('horizontal')]} />
-                <Field {...shared} field="note" title="备注" placeholder="可选" />
+                <Field
+                  {...shared}
+                  field="note"
+                  title={tr('common.note')}
+                  placeholder={tr('common.optional')}
+                />
               </Grid>
             </DisclosureGroup>
           </Section>

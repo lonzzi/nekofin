@@ -54,7 +54,7 @@ tag 是发布版本号的来源。工作流会在计算运行时和构建两个�
 
 双端构建通过 `NEKOFIN_NATIVE_RUNTIME` 将准备阶段生成的运行时固定到 Expo 原生配置。Android 的 EAS 构建会重新设置内部的 `EXPO_UPDATES_FINGERPRINT_OVERRIDE`，因此发布流程不依赖该内部变量。上传安装包前会读取 APK 编译后的 manifest / 资源或 iOS Archive 的 Expo.plist（必要时解析内置 fingerprint 文件），运行时与发布契约不一致会直接阻止发布。
 
-iOS 构建使用 `xcode-27` runner 和 Xcode 27.0，EAS 的 iOS profiles 固定为 `macos-tahoe-26.6-xcode-27.0`。安装包必须链接 iOS 27 或更新的 SDK，并保留 `enableSceneSupport`。旧 SDK 编译的应用在 iOS 27 上有[返回手势期间大标题消失的问题](https://github.com/software-mansion/react-native-screens/issues/4663)。构建前执行 `node .github/scripts/verify-ios-sdk.cjs --toolchain`；打包前执行 `node .github/scripts/verify-ios-sdk.cjs --app build/nekofin.xcarchive/Products/Applications/nekofin.app`，同时检查 Info.plist、Mach-O 实际链接的 SDK 和 scene 生命周期。本地构建也需选用 Xcode 27 或更新版本；最低支持系统仍为 iOS 16.4。此修复需要重新安装 IPA，无法通过 OTA 更新旧安装包的链接 SDK。
+iOS 发布构建使用 `xcode-27` runner 和 Xcode 27.0，EAS 的 iOS profiles 固定为 `macos-tahoe-26.6-xcode-27.0`。发布安装包必须链接 iOS 27 或更新的 SDK，并保留 `enableSceneSupport`。旧 SDK 编译的应用在 iOS 27 上有[返回手势期间大标题消失的问题](https://github.com/software-mansion/react-native-screens/issues/4663)。构建前执行 `node .github/scripts/verify-ios-sdk.cjs --toolchain`；打包前执行 `node .github/scripts/verify-ios-sdk.cjs --app build/nekofin.xcarchive/Products/Applications/nekofin.app`，同时检查 Info.plist、Mach-O 实际链接的 SDK 和 scene 生命周期。本地开发推荐使用 Xcode 27 或更新版本，以避免上述兼容性问题；用于发布的安装包仍需通过上述 SDK 校验。最低支持系统仍为 iOS 16.4。此修复需要重新安装 IPA，无法通过 OTA 更新旧安装包的链接 SDK。
 
 也可以手动运行 `Release`，填写已有的版本 tag；两个平台始终构建 tag 指向的同一提交。相同 tag 的发布按顺序执行，预发布版不会替换正式版的 Latest。
 

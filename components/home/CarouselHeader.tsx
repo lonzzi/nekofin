@@ -9,6 +9,7 @@ import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useContentDimensions, useLargeContentLayout } from '@/hooks/useContentDimensions';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { t as tr, useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import { formatRating } from '@/lib/utils';
 import { rememberDetailArtwork } from '@/services/media/detailArtwork';
@@ -66,7 +67,7 @@ function getCarouselItemKey(item: MediaItem, index: number) {
 }
 
 function getCarouselItemTitle(item: MediaItem) {
-  return item.seriesName || item.name || '未知标题';
+  return item.seriesName || item.name || tr('media.untitled');
 }
 
 function getRelativeIndex(index: number, direction: number, itemCount: number) {
@@ -263,10 +264,12 @@ function CarouselBadge({ label, outlined = false }: { label: string; outlined?: 
 }
 
 function CarouselOverlay({ imageInfo, item, showLogo, hasPagination }: CarouselOverlayProps) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const title = getCarouselItemTitle(item);
   const logoUrl = showLogo ? imageInfo?.logoImageUrl : undefined;
-  const typeLabel = item.type === 'Movie' ? '电影' : item.type === 'Series' ? '剧集' : null;
+  const typeLabel =
+    item.type === 'Movie' ? tr('media.movies') : item.type === 'Series' ? tr('media.series') : null;
   const titleFallback = (
     <ThemedText
       style={[theme.typography.title3, styles.cardTitle]}
@@ -343,6 +346,7 @@ export function useCarouselHeaderLayers({
   getItemSource,
   showServerSource = true,
 }: CarouselHeaderProps) {
+  const { t: tr } = useTranslation();
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [autoTargetIndex, setAutoTargetIndex] = useState<number | null>(null);
   const [pendingAutoAdvance, setPendingAutoAdvance] = useState<{
@@ -802,7 +806,9 @@ export function useCarouselHeaderLayers({
             accessible
             accessibilityRole="button"
             accessibilityLabel={
-              currentItem ? `打开 ${getCarouselItemTitle(currentItem)}` : '打开媒体'
+              currentItem
+                ? tr('media.openValue', { value: getCarouselItemTitle(currentItem) })
+                : tr('media.openMedia')
             }
             onAccessibilityTap={() => {
               if (currentItem) handleCarouselItemPress(currentItem);

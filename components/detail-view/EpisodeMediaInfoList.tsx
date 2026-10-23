@@ -1,3 +1,4 @@
+import { t as tr, useTranslation } from '@/lib/i18n';
 import { layout, useAppTheme } from '@/lib/theme';
 import { MediaSource } from '@/services/media/types';
 import { Button, FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -24,8 +25,8 @@ const MediaInfoCard = ({ rows, title }: { rows?: MediaInfoRow[]; title: string }
 
 export const SourceMediaInfoCard = ({ source }: { source: MediaSource }) => (
   <View style={styles.sourceCardContainer}>
-    <MediaInfoCard title="视频" rows={getVideoInfoRows(source)} />
-    <MediaInfoCard title="音频" rows={getAudioInfoRows(source)} />
+    <MediaInfoCard title={tr('media.video')} rows={getVideoInfoRows(source)} />
+    <MediaInfoCard title={tr('media.audio')} rows={getAudioInfoRows(source)} />
   </View>
 );
 
@@ -40,6 +41,7 @@ export const EpisodeMediaInfoList = ({
   isError?: boolean;
   onRetry?: () => void;
 }) => {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const textColor = theme.colors.text;
 
@@ -47,7 +49,9 @@ export const EpisodeMediaInfoList = ({
 
   return (
     <View style={detailViewStyles.sectionBlock}>
-      <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>媒体信息</Text>
+      <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>
+        {tr('media.information')}
+      </Text>
       {displayState === 'ready' ? (
         <FlatList
           horizontal
@@ -62,7 +66,7 @@ export const EpisodeMediaInfoList = ({
       ) : displayState === 'loading' ? (
         <View
           accessible
-          accessibilityLabel="正在加载媒体信息"
+          accessibilityLabel={tr('media.loadingInformation')}
           accessibilityState={{ busy: true }}
           pointerEvents="none"
         >
@@ -76,21 +80,27 @@ export const EpisodeMediaInfoList = ({
             showsHorizontalScrollIndicator={false}
           >
             <View style={styles.sourceCardContainer}>
-              <MediaInfoCard title="视频" />
-              <MediaInfoCard title="音频" />
+              <MediaInfoCard title={tr('media.video')} />
+              <MediaInfoCard title={tr('media.audio')} />
             </View>
           </ScrollView>
         </View>
       ) : (
         <View>
           <EmptyState
-            title={displayState === 'error' ? '媒体信息加载失败' : '暂无媒体信息'}
+            title={
+              displayState === 'error'
+                ? tr('media.informationLoadFailed')
+                : tr('media.noInformation')
+            }
             description={
-              displayState === 'error' ? '请检查网络连接后重试' : '服务器未提供这集的音视频信息'
+              displayState === 'error'
+                ? tr('search.checkNetworkAndRetry')
+                : tr('media.episodeTracksUnavailable')
             }
           />
           {displayState === 'error' && onRetry ? (
-            <Button title="重试" onPress={onRetry} color={theme.colors.tint} />
+            <Button title={tr('common.retry')} onPress={onRetry} color={theme.colors.tint} />
           ) : null}
         </View>
       )}

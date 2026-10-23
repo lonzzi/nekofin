@@ -1,10 +1,12 @@
 import { GroupedStackRoutes } from '@/components/GroupedStackRoutes';
 import { useNativeListStackOptions } from '@/components/navigation/nativeListStackOptions';
+import { useTranslation } from '@/lib/i18n';
 import { usePerformanceStackScreenListeners } from '@/lib/performance/PerformanceMonitorContext';
 import { useAppTheme } from '@/lib/theme';
 import { Stack } from 'expo-router';
 
 export default function HomeLayout() {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const screenListeners = usePerformanceStackScreenListeners('home');
   const stackOptions = useNativeListStackOptions(theme.colors.background);
@@ -23,9 +25,9 @@ export default function HomeLayout() {
         }}
       />
       {GroupedStackRoutes()}
-      <Stack.Screen name="carousel-libraries" options={{ title: '轮播图媒体库' }} />
-      <Stack.Screen name="folder/[id]" options={{ title: '查看全部' }} />
-      <Stack.Screen name="view-all/[type]" options={{ title: '查看全部' }} />
+      <Stack.Screen name="carousel-libraries" options={{ title: tr('home.featuredLibraries') }} />
+      <Stack.Screen name="folder/[id]" options={{ title: tr('common.viewAll') }} />
+      <Stack.Screen name="view-all/[type]" options={{ title: tr('common.viewAll') }} />
     </Stack>
   );
 }

@@ -1,6 +1,7 @@
 import type { MediaServerInfo } from '@/services/media/types';
 
 import { isSameMediaServer } from './serverAccounts';
+import { normalizeConnectionName } from './serverConnectionNames';
 import { getServerConnections } from './serverConnections';
 
 export function normalizeServerAddress(address: string): string {
@@ -22,11 +23,12 @@ export function prepareAuthenticatedServer(
   );
   const connections = existing
     ? [...getServerConnections(existing)]
-    : [...(authenticated.connections ?? [])];
+    : (authenticated.connections ?? []).map(normalizeConnectionName);
   if (!connections.some((line) => line.address === address)) {
     connections.push({
       id: existing ? `address-${address}` : 'default',
-      name: existing ? '备用线路' : '默认线路',
+      name: '',
+      nameKind: existing ? 'alternative' : 'default',
       address,
     });
   }

@@ -1,28 +1,61 @@
+import { t as tr } from '@/lib/i18n';
 import type { Href } from 'expo-router';
 
 export const tabletDestinations = [
-  { key: 'home', title: '首页', icon: 'house', href: '/(tabs)/(home)', section: '媒体' },
+  {
+    key: 'home',
+    get title() {
+      return tr('navigation.home');
+    },
+    icon: 'house',
+    href: '/(tabs)/(home)',
+    get section() {
+      return tr('media.media');
+    },
+  },
   {
     key: 'servers',
-    title: '服务器',
+    get title() {
+      return tr('navigation.servers');
+    },
     icon: 'externaldrive',
     href: '/(tabs)/(servers)',
-    section: '媒体',
+    get section() {
+      return tr('media.media');
+    },
   },
-  { key: 'favorites', title: '收藏', icon: 'heart', href: '/(tabs)/(favorites)', section: '媒体' },
+  {
+    key: 'favorites',
+    get title() {
+      return tr('navigation.favorites');
+    },
+    icon: 'heart',
+    href: '/(tabs)/(favorites)',
+    get section() {
+      return tr('media.media');
+    },
+  },
   {
     key: 'search',
-    title: '搜索',
+    get title() {
+      return tr('search.title');
+    },
     icon: 'magnifyingglass',
     href: '/(tabs)/(search)',
-    section: '媒体',
+    get section() {
+      return tr('media.media');
+    },
   },
   {
     key: 'settings',
-    title: '设置',
+    get title() {
+      return tr('navigation.settings');
+    },
     icon: 'gearshape',
     href: '/(tabs)/(settings)',
-    section: '设置',
+    get section() {
+      return tr('navigation.settings');
+    },
   },
 ] as const satisfies readonly {
   key: string;

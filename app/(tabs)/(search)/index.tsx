@@ -13,6 +13,8 @@ import { FilterChoice, FilterRow } from '@/components/ui/FilterControls';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
+import { formatList } from '@/lib/i18n/formatters';
 import { useAppTheme } from '@/lib/theme';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import { createMediaAdapterWithApi, createMediaApiFromServerInfo } from '@/services/media';
@@ -101,6 +103,7 @@ function aggregateSearchQueryOptions({
 }
 
 function AggregateSearchScreen() {
+  const { t: tr } = useTranslation();
   const tabletChrome = useContext(TabletChromeContext);
   const androidTablet = tabletChrome != null;
   const focused = useIsFocused();
@@ -147,13 +150,13 @@ function AggregateSearchScreen() {
   const isEmpty = !hasKeyword || pending || results.length === 0;
   return (
     <>
-      <OuterScreenOptions title="搜索" />
+      <OuterScreenOptions title={tr('search.title')} />
       <Stack.SearchBar
         ref={searchBar}
         autoFocus={androidTablet && focused}
-        placeholder="搜索所有服务器"
+        placeholder={tr('search.allServers')}
         hideWhenScrolling={false}
-        cancelButtonText="取消"
+        cancelButtonText={tr('common.cancel')}
         textColor={t.colors.text}
         hintTextColor={t.colors.textSecondary}
         headerIconColor={t.colors.text}
@@ -179,10 +182,10 @@ function AggregateSearchScreen() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <FilterRow>
                   {[
-                    { label: '全部', value: 'all' },
-                    { label: '电影', value: 'Movie' },
-                    { label: '剧集', value: 'Series' },
-                    { label: '单集', value: 'Episode' },
+                    { label: tr('common.all'), value: 'all' },
+                    { label: tr('media.movies'), value: 'Movie' },
+                    { label: tr('media.series'), value: 'Series' },
+                    { label: tr('media.episodes'), value: 'Episode' },
                   ].map((item) => (
                     <FilterChoice
                       key={item.value}
@@ -196,20 +199,23 @@ function AggregateSearchScreen() {
               {hasKeyword && query.data?.failedServers.length ? (
                 <View style={[styles.failure, { borderColor: t.colors.separator }]}>
                   <Text style={{ color: t.colors.textSecondary, flex: 1, lineHeight: 21 }}>
-                    {query.data.failedServers.join('、')} 未能完成搜索
+                    {tr('search.incomplete', { servers: formatList(query.data.failedServers) })}
                   </Text>
                   <Pressable
                     accessibilityRole="button"
                     onPress={() => void query.refetch()}
                     style={styles.retry}
                   >
-                    <Text style={{ color: t.colors.tint }}>重试</Text>
+                    <Text style={{ color: t.colors.tint }}>{tr('common.retry')}</Text>
                   </Pressable>
                 </View>
               ) : null}
               {hasKeyword && !pending ? (
                 <Text style={[styles.count, { color: t.colors.textSecondary }]}>
-                  {results.length} 个结果 · {servers.length} 个账号
+                  {tr('search.resultAndAccountCounts', {
+                    count: results.length,
+                    count2: servers.length,
+                  })}
                 </Text>
               ) : null}
             </View>
@@ -222,16 +228,16 @@ function AggregateSearchScreen() {
                     icon={servers.length ? 'search' : 'server'}
                     title={
                       !servers.length
-                        ? '尚未添加服务器'
+                        ? tr('server.noneAdded')
                         : hasKeyword
-                          ? '没有找到结果'
-                          : '输入片名开始搜索'
+                          ? tr('search.noResults')
+                          : tr('search.enterTitle')
                     }
                     description={
                       !servers.length
-                        ? '请先在服务器页面添加账号。'
+                        ? tr('server.addAccountFirst')
                         : hasKeyword
-                          ? '请尝试其他片名或更短的关键词。'
+                          ? tr('danmaku.searchKeywordHint')
                           : undefined
                     }
                   />
@@ -243,7 +249,10 @@ function AggregateSearchScreen() {
         renderItem={({ item: result }) => (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${result.item.name}，来自 ${result.server.name}`}
+            accessibilityLabel={tr('media.sourceAttribution', {
+              name: result.item.name,
+              name2: result.server.name,
+            })}
             onPress={() => open(result)}
             style={({ pressed }) => [
               styles.result,
@@ -264,11 +273,11 @@ function AggregateSearchScreen() {
                 {[
                   result.item.productionYear,
                   result.item.type === 'Movie'
-                    ? '电影'
+                    ? tr('media.movies')
                     : result.item.type === 'Series'
-                      ? '剧集'
+                      ? tr('media.series')
                       : result.item.type === 'Episode'
-                        ? '单集'
+                        ? tr('media.episodes')
                         : result.item.type,
                 ]
                   .filter(Boolean)

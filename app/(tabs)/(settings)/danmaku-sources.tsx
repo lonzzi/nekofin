@@ -10,18 +10,20 @@ import {
 } from '@/components/ui/NativeSettings';
 import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { useDanmakuSources } from '@/lib/contexts/DanmakuSourcesContext';
+import { useTranslation } from '@/lib/i18n';
 import { useRouter } from 'expo-router';
 
 export default function DanmakuSourcesScreen() {
+  const { t: tr } = useTranslation();
   const router = useRouter();
   const { sourceSettings, setSourceSettings } = useDanmakuSources();
   return (
     <>
-      <OuterTitle>弹幕 API</OuterTitle>
+      <OuterTitle>{tr('danmaku.apis')}</OuterTitle>
       <HeaderToolbar placement="right">
         <HeaderButton
           icon={getNativeToolbarIcon('add', 'plus')}
-          accessibilityLabel="添加弹幕 API"
+          accessibilityLabel={tr('danmaku.addApi')}
           onPress={() =>
             router.push({
               pathname: '/(tabs)/(settings)/danmaku-source/[id]',
@@ -29,20 +31,20 @@ export default function DanmakuSourcesScreen() {
             })
           }
         >
-          添加
+          {tr('common.add')}
         </HeaderButton>
       </HeaderToolbar>
       <NativeSettingsForm testID="danmaku-api-sources">
-        <NativeSettingsSection title="内置接口">
+        <NativeSettingsSection title={tr('danmaku.builtInApi')}>
           <NativeSettingsSwitch
-            title={<SettingsTitle>默认 API</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.defaultApi')}</SettingsTitle>}
             value={sourceSettings.defaultEnabled}
             onValueChange={(defaultEnabled) =>
               setSourceSettings((current) => ({ ...current, defaultEnabled }))
             }
           />
         </NativeSettingsSection>
-        <NativeSettingsSection title="自定义接口">
+        <NativeSettingsSection title={tr('danmaku.customApis')}>
           {sourceSettings.customSources.map((source) => (
             <NativeSettingsItem
               key={source.id}
@@ -50,7 +52,10 @@ export default function DanmakuSourcesScreen() {
               subtitle={
                 <SettingsSubtitle
                   primary={
-                    new URL(source.baseUrl).host + (source.enabled ? ' · 已启用' : ' · 已停用')
+                    new URL(source.baseUrl).host +
+                    (source.enabled
+                      ? tr('danmaku.sourceEnabledSuffix')
+                      : tr('danmaku.sourceDisabledSuffix'))
                   }
                 />
               }
@@ -64,19 +69,21 @@ export default function DanmakuSourcesScreen() {
             />
           ))}
           {!sourceSettings.customSources.length ? (
-            <NativeSettingsItem title={<SettingsTitle>还没有自定义 API</SettingsTitle>} />
+            <NativeSettingsItem
+              title={<SettingsTitle>{tr('danmaku.noCustomApis')}</SettingsTitle>}
+            />
           ) : null}
         </NativeSettingsSection>
         <NativeSettingsSection
-          title="自动匹配"
-          footer="最佳匹配使用一个匹配源；合并匹配源会合并多个来源的弹幕。播放时可随时切换。"
+          title={tr('danmaku.automaticMatching')}
+          footer={tr('danmaku.matchingModesDescription')}
         >
           <NativeSettingsPicker
-            title={<SettingsTitle>默认显示方式</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.defaultDisplayMode')}</SettingsTitle>}
             value={sourceSettings.mode}
             options={[
-              { title: '最佳匹配', value: 'auto' },
-              { title: '合并匹配源', value: 'merge' },
+              { title: tr('danmaku.bestMatch'), value: 'auto' },
+              { title: tr('danmaku.mergeMatches'), value: 'merge' },
             ]}
             onValueChange={(value) =>
               setSourceSettings((current) => ({

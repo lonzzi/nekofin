@@ -1,3 +1,5 @@
+import { t as tr } from '@/lib/i18n';
+
 import { danmakuTitleSeason } from './danmakuMatching';
 import { danmakuEndpointUrl, DEFAULT_DANMAKU_SOURCE } from './danmakuSources';
 import type { MediaItem } from './media/types';
@@ -49,7 +51,7 @@ export type DandanRequestOptions = {
 type QueryParameter = boolean | number | string;
 class DandanApiError extends Error {
   constructor(public status: number) {
-    super('弹幕 API 请求失败（HTTP ' + status + '）');
+    super(tr('danmaku.apiHttpError', { status: status }));
   }
 }
 
@@ -73,7 +75,7 @@ async function makeRequest<T>(
     });
     if (!response.ok) throw new DandanApiError(response.status);
     const result = await response.json();
-    if (result?.success === false) throw new Error('弹幕 API 返回失败');
+    if (result?.success === false) throw new Error(tr('danmaku.apiResponseError'));
     return result;
   } finally {
     clearTimeout(timeout);

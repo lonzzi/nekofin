@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n';
 import { MEDIA_SERVER_TYPES } from '@/lib/mediaServerTypes';
 import { layout, useAppTheme } from '@/lib/theme';
 import type { MediaServerType } from '@/services/media/types';
@@ -38,6 +39,7 @@ export function NativeServerForm({
   onSubmit,
   onChangeServer,
 }: NativeServerFormProps) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const [expanded, setExpanded] = useState(false);
   const title = MEDIA_SERVER_TYPES[serverType].label;
@@ -52,18 +54,20 @@ export function NativeServerForm({
       <View style={styles.intro}>
         <ServerTypeIcon type={serverType} size={56} />
         <Text accessibilityRole="header" style={[styles.title, { color: theme.colors.text }]}>
-          {connection ? `登录 ${connection.name || title}` : `连接到 ${title}`}
+          {connection
+            ? tr('server.signInTo', { value: connection.name || title })
+            : tr('server.connectTo', { title: title })}
         </Text>
         {connection ? (
           <Text selectable style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-            {`${connection.address}${connection.version ? `\n版本 ${connection.version}` : ''}`}
+            {`${connection.address}${connection.version ? tr('about.versionNote', { version: connection.version }) : ''}`}
           </Text>
         ) : null}
       </View>
       {connection ? (
         <ServerFormSection>
           <ServerFormField
-            label="用户名"
+            label={tr('server.username')}
             key="username"
             defaultValue={values.username}
             onChangeText={(text) => onChange('username', text)}
@@ -71,8 +75,8 @@ export function NativeServerForm({
             editable={!busy}
           />
           <ServerFormField
-            label="密码"
-            placeholder="可选"
+            label={tr('server.password')}
+            placeholder={tr('common.optional')}
             key="password"
             defaultValue={values.password}
             onChangeText={(text) => onChange('password', text)}
@@ -85,7 +89,7 @@ export function NativeServerForm({
       ) : (
         <ServerFormSection>
           <ServerFormField
-            label="服务器地址"
+            label={tr('server.url')}
             placeholder="https://media.example.com:8096"
             key="address"
             defaultValue={values.address}
@@ -105,7 +109,13 @@ export function NativeServerForm({
       <ServerFormButton
         busy={busy}
         title={
-          busy ? (connection ? '正在登录…' : '正在连接…') : connection ? '登录并保存' : '连接服务器'
+          busy
+            ? connection
+              ? tr('server.signingIn')
+              : tr('server.connecting')
+            : connection
+              ? tr('server.signInAndSave')
+              : tr('server.connect')
         }
         disabled={busy || !(connection ? values.username.trim() : values.address.trim())}
         onPress={onSubmit}
@@ -114,14 +124,14 @@ export function NativeServerForm({
         <>
           {onChangeServer ? (
             <Button
-              title="更换服务器"
+              title={tr('server.changeServer')}
               color={theme.colors.tint}
               disabled={busy}
               onPress={onChangeServer}
             />
           ) : null}
           <Button
-            title={expanded ? '收起显示选项' : '显示选项（可选）'}
+            title={expanded ? tr('server.hideDisplayOptions') : tr('server.optionalDisplayOptions')}
             color={theme.colors.textSecondary}
             disabled={busy}
             onPress={() => setExpanded((previous) => !previous)}
@@ -129,7 +139,7 @@ export function NativeServerForm({
           {expanded ? (
             <ServerFormSection>
               <ServerFormField
-                label="显示名称"
+                label={tr('server.displayName')}
                 placeholder={connection.name || title}
                 key="name"
                 defaultValue={values.name}
@@ -137,8 +147,8 @@ export function NativeServerForm({
                 editable={!busy}
               />
               <ServerFormField
-                label="备注"
-                placeholder="可选"
+                label={tr('common.note')}
+                placeholder={tr('common.optional')}
                 key="note"
                 defaultValue={values.note}
                 onChangeText={(text) => onChange('note', text)}

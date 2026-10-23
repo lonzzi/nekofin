@@ -36,6 +36,8 @@ class NativeLayoutModule : Module() {
     View(NavigationRailView::class) {
       Events("onDestinationSelected", "onServerSelected", "onToggleSidebar")
       Prop("destinations") { view, value: List<RailDestination> -> view.destinations = value }
+      Prop("serversTitle") { view, value: String -> view.serversTitle = value }
+      Prop("collapseLabel") { view, value: String -> view.collapseLabel = value }
       Prop("servers") { view, value: List<SidebarServer> -> view.servers = value }
       Prop("selectedServerId") { view, value: String -> view.selectedServerId = value }
       Prop("selected") { view, value: String -> view.selected = value }
@@ -50,6 +52,7 @@ class NativeLayoutModule : Module() {
       Prop("destinations") { view, value: List<RailDestination> -> view.destinations = value }
       Prop("selected") { view, value: String -> view.selected = value }
       Prop("dark") { view, value: Boolean -> view.dark = value }
+      Prop("toggleSidebarLabel") { view, value: String -> view.toggleSidebarLabel = value }
       Prop("collapsed") { view, value: Boolean -> view.collapsed = value }
       Prop("kind") { view, value: String -> view.kind = value }
       Prop("selectedColor") { view, value: Int -> view.selectedColor = value }

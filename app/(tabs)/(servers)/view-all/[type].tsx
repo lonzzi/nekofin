@@ -4,6 +4,7 @@ import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useMediaFilters } from '@/hooks/useMediaFilters';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import { visibleHomeLibraryIds } from '@/services/media/homeVisibility';
 import {
   homeUserViewsQueryOptions,
@@ -14,6 +15,7 @@ import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 
 export default function ServerViewAllScreen() {
+  const { t: tr } = useTranslation();
   const { type, folderId, folderName } = useLocalSearchParams<{
     type: string;
     folderId?: string;
@@ -35,13 +37,15 @@ export default function ServerViewAllScreen() {
   const getTitle = () => {
     switch (type) {
       case 'resume':
-        return '继续观看';
+        return tr('home.continueWatching');
       case 'nextup':
-        return '接下来';
+        return tr('home.upNext');
       case 'latest':
-        return folderName ? `最近添加的 ${folderName}` : '最新内容';
+        return folderName
+          ? tr('home.recentlyAddedInFolder', { folderName: folderName })
+          : tr('home.latestContent');
       default:
-        return '查看所有';
+        return tr('media.viewAll');
     }
   };
 

@@ -15,6 +15,7 @@ import { ServerTypePicker } from '@/components/servers/ServerTypePicker';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useContentDimensions } from '@/hooks/useContentDimensions';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import { MEDIA_SERVER_TYPE_OPTIONS } from '@/lib/mediaServerTypes';
 import { groupServerAccounts } from '@/lib/serverAccounts';
 import { useAppTheme } from '@/lib/theme';
@@ -24,6 +25,7 @@ import { useIsFocused } from 'expo-router/react-navigation';
 import { ActivityIndicator, Alert, Platform, StyleSheet, Text, View } from 'react-native';
 
 function ServersScreen() {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const router = useTracedRouter('servers');
   const { servers, activeServers, setHomeServer, currentServer, removeServer, isInitialized } =
@@ -56,17 +58,31 @@ function ServersScreen() {
       params: { serverType },
     });
   const remove = (server: MediaServerInfo) =>
-    Alert.alert('移除此账号', `从 Nekofin 移除 ${server.name} / ${server.username}？`, [
-      { text: '取消', style: 'cancel' },
-      { text: '删除', style: 'destructive', onPress: () => void removeServer(server.id) },
-    ]);
+    Alert.alert(
+      tr('server.removeAccount'),
+      tr('server.removeAccountConfirmation', {
+        name: server.name,
+        username: server.username,
+      }),
+      [
+        { text: tr('common.cancel'), style: 'cancel' },
+        {
+          text: tr('common.delete'),
+          style: 'destructive',
+          onPress: () => void removeServer(server.id),
+        },
+      ],
+    );
   return (
     <>
-      <OuterScreenOptions title="服务器" grouped />
-      <OuterTitle>服务器</OuterTitle>
+      <OuterScreenOptions title={tr('navigation.servers')} grouped />
+      <OuterTitle>{tr('navigation.servers')}</OuterTitle>
       <HeaderToolbar placement="right">
-        <HeaderMenu accessibilityLabel="添加媒体账号" icon={getNativeToolbarIcon('add', 'plus')}>
-          <HeaderLabel>添加服务器</HeaderLabel>
+        <HeaderMenu
+          accessibilityLabel={tr('server.addMediaAccount')}
+          icon={getNativeToolbarIcon('add', 'plus')}
+        >
+          <HeaderLabel>{tr('server.addServer')}</HeaderLabel>
           {MEDIA_SERVER_TYPE_OPTIONS.map(({ type, label }) => (
             <HeaderMenuAction
               key={type}
@@ -91,7 +107,10 @@ function ServersScreen() {
               <View style={styles.servers}>
                 <View style={styles.heading}>
                   <Text style={[styles.count, { color: theme.colors.textSecondary }]}>
-                    {activeServers.length} 个服务器 · {servers.length} 个账号
+                    {tr('server.serverAndAccountCounts', {
+                      count: activeServers.length,
+                      count2: servers.length,
+                    })}
                   </Text>
                 </View>
                 <View style={styles.grid}>

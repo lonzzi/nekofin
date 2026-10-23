@@ -1,3 +1,5 @@
+import { i18n } from '@/lib/i18n';
+import { getConnectionName } from '@/lib/serverConnectionNames';
 import type { MediaServerInfo } from '@/services/media/types';
 import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -74,9 +76,43 @@ beforeEach(() => {
   mocks.queryClient.cancelQueries.mockResolvedValue(undefined);
   vi.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json({ Id: 'nas-1' }));
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(async () => {
+  vi.restoreAllMocks();
+  await i18n.changeLanguage('zh-Hans');
+});
 
 describe('verified legacy connection edits', () => {
+  it('keeps a generated default name when saving an address without a custom name', async () => {
+    const context = loadContext({
+      ...legacy,
+      connections: [{ id: 'default', name: '默认线路', address: legacy.address }],
+    });
+    await context.saveConnection(legacy.id, '', nextAddress, 'default');
+    const [line] = savedServer().connections!;
+    expect(line).toMatchObject({ name: '', nameKind: 'default', address: nextAddress });
+    await i18n.changeLanguage('en');
+    expect(getConnectionName(line)).toBe('Default connection');
+  });
+
+  it('preserves a user rename that exactly matches a generated label', async () => {
+    const context = loadContext();
+    await context.saveConnection(legacy.id, '默认线路', nextAddress, 'default');
+    const [line] = savedServer().connections!;
+    expect(line).toMatchObject({ name: '默认线路', nameKind: 'custom' });
+    await i18n.changeLanguage('en');
+    expect(getConnectionName(line)).toBe('默认线路');
+  });
+
+  it('stores an unnamed manually added route as a generated alternative', async () => {
+    await i18n.changeLanguage('en');
+    const context = loadContext();
+    await context.saveConnection(legacy.id, ' ', nextAddress);
+    const line = savedServer().connections!.find((line) => line.address === nextAddress)!;
+    expect(line).toMatchObject({ name: '', nameKind: 'alternative' });
+    await i18n.changeLanguage('zh-Hans');
+    expect(getConnectionName(line)).toBe('备用线路');
+  });
+
   it.each([false, true])(
     'replaces the sole active route with explicit connections=%s',
     async (explicit) => {

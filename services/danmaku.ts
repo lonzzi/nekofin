@@ -1,3 +1,5 @@
+import { t as tr } from '@/lib/i18n';
+
 import {
   getAnimeEpisodes,
   getCommentsByEpisodeId,
@@ -55,7 +57,7 @@ export async function searchDanmaku(
       return animes.map((anime) => ({ key: danmakuAnimeKey(source, anime), source, anime }));
     }),
   );
-  if (signal?.aborted) throw new Error('搜索已取消');
+  if (signal?.aborted) throw new Error(tr('search.canceled'));
   const animes: SourcedDanmakuAnime[] = [];
   const failedSources: string[] = [];
   results.forEach((result, index) => {
@@ -93,7 +95,7 @@ export function resolveDanmakuSelection(
     episodeInfo: {
       animeTitle:
         selection === 'merge'
-          ? '合并 ' + tracks.length + ' 个匹配源'
+          ? tr('danmaku.mergedSourceCount', { count: tracks.length })
           : selected.sourceName + ' · ' + selected.animeTitle,
       episodeTitle: selected.episodeTitle,
     },
@@ -143,7 +145,7 @@ export async function loadDanmakuSelections(
       return { tracks, failed, name: group[0].source.name };
     }),
   );
-  if (signal?.aborted) throw new Error('弹幕加载已取消');
+  if (signal?.aborted) throw new Error(tr('danmaku.loadingCanceled'));
   const tracks = rankDanmakuTracks(results.flatMap((result) => result.tracks));
   return resolveDanmakuSelection(
     {
@@ -221,7 +223,7 @@ export async function getDanmakuByItem(
         return { selections, failed: failed || !searched, name: source.name };
       }),
   );
-  if (signal?.aborted) throw new Error('匹配已取消');
+  if (signal?.aborted) throw new Error(tr('danmaku.matchingCanceled'));
   // Compare title confidence across APIs before considering comment volume.
   const selections = results.flatMap((result) => result.selections);
   const bestScore = Math.max(0, ...selections.map((selection) => selection.score ?? 0));

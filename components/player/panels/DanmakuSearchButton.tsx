@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import { CircularProgressIndicator, Text, TextButton } from '@expo/ui/jetpack-compose';
 import { semantics, size, testID } from '@expo/ui/jetpack-compose/modifiers';
@@ -21,8 +22,9 @@ export function DanmakuSearchButton({
   loading: boolean;
   onPress: () => void;
 }) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
-  const label = loading ? '正在搜索弹幕' : '搜索弹幕';
+  const label = loading ? tr('danmaku.searching') : tr('danmaku.findComments');
 
   if (Platform.OS === 'android') {
     return (
@@ -39,7 +41,7 @@ export function DanmakuSearchButton({
         {loading ? (
           <CircularProgressIndicator color={theme.colors.tint} modifiers={[size(20, 20)]} />
         ) : (
-          <Text>搜索</Text>
+          <Text>{tr('search.title')}</Text>
         )}
       </TextButton>
     );
@@ -47,7 +49,7 @@ export function DanmakuSearchButton({
 
   return (
     <Button
-      label="搜索"
+      label={tr('search.title')}
       onPress={onPress}
       modifiers={[
         buttonStyle('borderless'),

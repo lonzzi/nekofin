@@ -1,5 +1,6 @@
 import { MenuView, type MenuComponentRef, type NativeActionEvent } from '@/components/ui/MenuView';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
+import { useTranslation } from '@/lib/i18n';
 import { playbackQualityOptions } from '@/services/media/playbackQuality';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {
@@ -38,15 +39,12 @@ type PlayerMenuProps = Omit<ComponentProps<typeof MenuView>, 'ref'> & {
 type AccessibleMenuViewProps = PlayerMenuProps &
   Pick<ViewProps, 'accessibilityActions' | 'onAccessibilityAction'>;
 
-const androidMenuAccessibilityActions: NonNullable<ViewProps['accessibilityActions']> = [
-  { name: 'activate', label: '打开菜单' },
-];
-
 const AccessibleMenuView = MenuView as ComponentType<
   AccessibleMenuViewProps & RefAttributes<MenuComponentRef>
 >;
 
 function PlayerMenu(props: PlayerMenuProps) {
+  const { t: tr } = useTranslation();
   const menuRef = useRef<MenuComponentRef>(null);
   const handleAccessibilityAction = useCallback<NonNullable<ViewProps['onAccessibilityAction']>>(
     (event) => {
@@ -59,7 +57,9 @@ function PlayerMenu(props: PlayerMenuProps) {
   return (
     <AccessibleMenuView
       {...props}
-      accessibilityActions={Platform.OS === 'android' ? androidMenuAccessibilityActions : undefined}
+      accessibilityActions={
+        Platform.OS === 'android' ? [{ name: 'activate', label: tr('common.openMenu') }] : undefined
+      }
       onAccessibilityAction={Platform.OS === 'android' ? handleAccessibilityAction : undefined}
       ref={menuRef}
     />
@@ -113,6 +113,7 @@ function ActionButton({
 }
 
 export function PlayerActionBar() {
+  const { t: tr } = useTranslation();
   const {
     aspectRatio,
     clearControlsTimeout,
@@ -139,30 +140,36 @@ export function PlayerActionBar() {
   const { settings, setSettings } = useDanmakuSettings();
   const actions = useMemo(
     () =>
-      derivePlayerActionButtons({
-        danmakuCount: danmakuComments.length,
-        episodeCount: episodes.length,
-        isMovie,
-      }),
-    [danmakuComments.length, episodes.length, isMovie],
+      derivePlayerActionButtons(
+        {
+          danmakuCount: danmakuComments.length,
+          episodeCount: episodes.length,
+          isMovie,
+        },
+        tr,
+      ),
+    [danmakuComments.length, episodes.length, isMovie, tr],
   );
   const danmakuMenuActions = useMemo(
     () =>
-      deriveDanmakuMenuActions({
-        commentCount: danmakuComments.length,
-        enabled: settings.enabled,
-      }),
-    [danmakuComments.length, settings.enabled],
+      deriveDanmakuMenuActions(
+        {
+          commentCount: danmakuComments.length,
+          enabled: settings.enabled,
+        },
+        tr,
+      ),
+    [danmakuComments.length, settings.enabled, tr],
   );
   const trackMenuActions = useMemo(
-    () => deriveTrackMenuActions(tracks, selectedTracks, mediaSources, selectedMediaSourceId),
-    [selectedTracks, tracks, mediaSources, selectedMediaSourceId],
+    () => deriveTrackMenuActions(tracks, selectedTracks, mediaSources, selectedMediaSourceId, tr),
+    [selectedTracks, tracks, mediaSources, selectedMediaSourceId, tr],
   );
   const playbackMenuActions = useMemo(
-    () => derivePlaybackMenuActions(rate, aspectRatio),
-    [aspectRatio, rate],
+    () => derivePlaybackMenuActions(rate, aspectRatio, tr),
+    [aspectRatio, rate, tr],
   );
-  const qualityMenuActions = useMemo(() => deriveQualityMenuActions(quality), [quality]);
+  const qualityMenuActions = useMemo(() => deriveQualityMenuActions(quality, tr), [quality, tr]);
   const currentQuality =
     playbackQualityOptions.find((option) => option.id === quality) ?? playbackQualityOptions[0];
   const qualityLabel =
@@ -235,11 +242,16 @@ export function PlayerActionBar() {
         {actions.map((action, index) => {
           const accessibilityLabel =
             action.key === 'quality'
-              ? `画质，当前 ${currentQuality.id === 'auto' ? '自动' : currentQuality.title}`
+              ? tr('player.qualityValue', {
+                  value: currentQuality.id === 'auto' ? tr('common.auto') : currentQuality.title,
+                })
               : action.key === 'danmaku'
-                ? `${action.accessibilityLabel}，${settings.enabled ? '已开启' : '已关闭'}`
+                ? `${action.accessibilityLabel}，${settings.enabled ? tr('settings.enabled') : tr('settings.disabled')}`
                 : action.key === 'playback' && rate !== 1
-                  ? `${action.accessibilityLabel}，当前 ${rate} 倍速`
+                  ? tr('player.speedAccessibilityLabel', {
+                      accessibilityLabel: action.accessibilityLabel,
+                      rate: rate,
+                    })
                   : action.accessibilityLabel;
           const actionButton = (
             <ActionButton
@@ -270,7 +282,7 @@ export function PlayerActionBar() {
                   style={styles.menuAnchor}
                   testID="player-danmaku-menu"
                   themeVariant="dark"
-                  title="弹幕"
+                  title={tr('danmaku.comments')}
                 >
                   {actionButton}
                 </PlayerMenu>
@@ -287,7 +299,7 @@ export function PlayerActionBar() {
                   style={styles.menuAnchor}
                   testID="player-track-menu"
                   themeVariant="dark"
-                  title="字幕与音轨"
+                  title={tr('player.subtitlesAndAudio')}
                 >
                   {actionButton}
                 </PlayerMenu>
@@ -304,7 +316,7 @@ export function PlayerActionBar() {
                   style={styles.menuAnchor}
                   testID="player-quality-menu"
                   themeVariant="dark"
-                  title="画质"
+                  title={tr('player.quality')}
                 >
                   {actionButton}
                 </PlayerMenu>
@@ -321,7 +333,7 @@ export function PlayerActionBar() {
                   style={styles.menuAnchor}
                   testID="player-playback-menu"
                   themeVariant="dark"
-                  title="播放设置"
+                  title={tr('player.settings')}
                 >
                   {actionButton}
                 </PlayerMenu>

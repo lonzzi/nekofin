@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { i18n } from '@/lib/i18n';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   derivePlaybackInfoBadges,
@@ -14,7 +15,36 @@ const source = {
   ],
 };
 
+afterEach(() => i18n.changeLanguage('zh-Hans'));
+
 describe('actual playback information', () => {
+  it.each(['zh-Hans', 'en'] as const)(
+    'keeps compact bitrate and decoder values independent of %s labels',
+    async (language) => {
+      await i18n.changeLanguage(language);
+      const badges = derivePlaybackInfoBadges(
+        { ...derivePlaybackSourceInfo('https://test/stream', source), method: 'transcode' },
+        { videoCodec: 'h264', width: 1280, height: 720, hwdecCurrent: 'mediacodec' },
+      );
+      const summary = derivePlaybackInfoSummary(badges);
+      expect(summary.map((badge) => badge.text)).toEqual([
+        language === 'en' ? 'Transcoding' : '转码',
+        'H.264',
+        '720p',
+        'HW',
+        '12.0M',
+      ]);
+      expect(badges.find((badge) => badge.key === 'bitrate')?.text).toBe(
+        language === 'en' ? 'Source 12.0 Mbps' : '源码率 12.0 Mbps',
+      );
+      expect(
+        derivePlaybackInfoSummary(derivePlaybackInfoBadges({ method: 'transcode' })).find(
+          (badge) => badge.key === 'bitrate',
+        )?.text,
+      ).toBe('—');
+    },
+  );
+
   it('keeps codec, resolution, decoder and source bitrate compact while retaining full details', () => {
     const badges = derivePlaybackInfoBadges(
       derivePlaybackSourceInfo('https://test/Videos/id/stream', source),
