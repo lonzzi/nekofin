@@ -214,13 +214,11 @@ function CarouselSlide({
 
 function CarouselTextSlide({
   item,
-  items,
   imageInfo,
   showLogo,
   ...motion
 }: CarouselMotionProps & {
   item: MediaItem;
-  items: MediaItem[];
   imageInfo?: CarouselImageInfo;
   showLogo: boolean;
 }) {
@@ -228,22 +226,20 @@ function CarouselTextSlide({
   return (
     <Animated.View pointerEvents="none" style={[styles.overlayFrame, animated.text]}>
       <CarouselOverlay
-        activeIndex={motion.index}
         item={item}
-        items={items}
         imageInfo={imageInfo}
         showLogo={showLogo}
+        hasPagination={motion.count > 1}
       />
     </Animated.View>
   );
 }
 
 type CarouselOverlayProps = {
-  activeIndex: number;
   imageInfo?: CarouselImageInfo;
   item: MediaItem;
-  items: MediaItem[];
   showLogo: boolean;
+  hasPagination: boolean;
 };
 
 function CarouselBadge({ label, outlined = false }: { label: string; outlined?: boolean }) {
@@ -267,7 +263,7 @@ function CarouselBadge({ label, outlined = false }: { label: string; outlined?: 
   );
 }
 
-function CarouselOverlay({ activeIndex, imageInfo, item, items, showLogo }: CarouselOverlayProps) {
+function CarouselOverlay({ imageInfo, item, showLogo, hasPagination }: CarouselOverlayProps) {
   const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const title = getCarouselItemTitle(item);
@@ -285,7 +281,10 @@ function CarouselOverlay({ activeIndex, imageInfo, item, items, showLogo }: Caro
   );
 
   return (
-    <View pointerEvents="none" style={styles.bottomOverlay}>
+    <View
+      pointerEvents="none"
+      style={[styles.bottomOverlay, hasPagination && styles.overlayWithPagination]}
+    >
       <View style={styles.cardInner}>
         <View style={styles.titleBounds}>
           {logoUrl ? (
@@ -323,24 +322,6 @@ function CarouselOverlay({ activeIndex, imageInfo, item, items, showLogo }: Caro
           {!!item.officialRating && <CarouselBadge label={item.officialRating} outlined />}
         </View>
       </View>
-
-      {items.length > 1 && (
-        <View style={styles.dotsRow}>
-          {items.map((carouselItem, index) => (
-            <View
-              key={index}
-              style={[
-                styles.dot,
-                index === activeIndex && styles.dotActive,
-                {
-                  backgroundColor:
-                    index === activeIndex ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.38)',
-                },
-              ]}
-            />
-          ))}
-        </View>
-      )}
     </View>
   );
 }
@@ -861,11 +842,20 @@ export function useCarouselHeaderLayers({
             {...motion}
             index={index}
             item={items[index]}
-            items={items}
             imageInfo={carouselImageInfos[index]}
             showLogo={showLogo}
           />
         ))}
+        {canReveal && (
+          <View style={styles.paginationOverlay}>
+            {items.map((_, index) => (
+              <View
+                key={slideKey(index)}
+                style={[styles.dot, index === carouselIndex && styles.dotActive]}
+              />
+            ))}
+          </View>
+        )}
       </View>
     ) : null;
 
@@ -956,6 +946,9 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     justifyContent: 'flex-end',
   },
+  overlayWithPagination: {
+    paddingBottom: 16 + 7 + 12,
+  },
   cardInner: {
     gap: 8,
   },
@@ -1005,19 +998,25 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     ...TEXT_SHADOW,
   },
-  dotsRow: {
+  paginationOverlay: {
+    position: 'absolute',
+    bottom: 16,
+    left: CAROUSEL_OVERLAY_LEFT_INSET,
+    right: CAROUSEL_OVERLAY_RIGHT_INSET,
+    zIndex: 5,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 6,
-    marginTop: 12,
   },
   dot: {
     width: 7,
     height: 7,
     borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.38)',
   },
   dotActive: {
     width: 16,
+    backgroundColor: 'rgba(255,255,255,0.92)',
   },
 });
