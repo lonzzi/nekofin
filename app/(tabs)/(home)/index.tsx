@@ -8,6 +8,7 @@ import { useAggregateHome } from '@/hooks/useAggregateHome';
 import useRefresh from '@/hooks/useRefresh';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
+import { formatList } from '@/lib/i18n/formatters';
 import { useAppTheme } from '@/lib/theme';
 import { useMemo } from 'react';
 import { Pressable, Text, View } from 'react-native';
@@ -99,7 +100,7 @@ export default function AggregateHomeScreen() {
               <Text
                 style={[theme.typography.footnote, { color: theme.colors.textSecondary, flex: 1 }]}
               >
-                {tr('home.partialContentUnavailable', { value: home.failedServers.join('、') })}
+                {tr('home.partialContentUnavailable', { value: formatList(home.failedServers) })}
               </Text>
               <Pressable onPress={() => void home.refetch()} style={{ paddingVertical: 12 }}>
                 <Text style={{ color: theme.colors.tint }}>{tr('common.retry')}</Text>
