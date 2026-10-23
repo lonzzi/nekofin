@@ -1257,6 +1257,7 @@ export const VideoPlayer = ({
 
   const handleAspectRatioChange = useCallback((mode: string) => {
     setAspectRatio(mode);
+    void player.current?.setPropertyString('sub-use-margins', mode === 'fill' ? 'yes' : 'no');
     switch (mode) {
       case 'fit':
         player.current?.setPropertyString('panscan', '0');
@@ -1430,8 +1431,11 @@ export const VideoPlayer = ({
             if (!isPlaybackContextActive(playbackContext)) return;
             isPlayerReadyRef.current = true;
             loadedSourceRef.current = playbackSourceUrl;
-            // Keep plain-text subtitles inside the video instead of the letterbox area.
-            void player.current?.setPropertyString('sub-use-margins', 'no');
+            // Fill crops the video, so keep plain-text subtitles within the screen.
+            void player.current?.setPropertyString(
+              'sub-use-margins',
+              aspectRatio === 'fill' ? 'yes' : 'no',
+            );
             // mpv can report `isPlaying` while it is still opening the source.
             // Resume only after file-loaded, when seek commands are accepted.
             if (!hasInitialSeeked.current) {
