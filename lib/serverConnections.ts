@@ -6,6 +6,7 @@ import type {
 } from '@/services/media/types';
 
 import { buildConnectionAddress } from './serverConnection';
+import { normalizeConnectionName } from './serverConnectionNames';
 
 type ServerSession = Pick<MediaServerInfo, 'id' | 'type' | 'address' | 'userId' | 'accessToken'>;
 
@@ -25,14 +26,15 @@ export function hasSameServerSession(expected: ServerSession, current?: ServerSe
 export function getServerConnections(
   server: Pick<MediaServerInfo, 'address' | 'connections'>,
 ): MediaServerConnection[] {
-  const connections = server.connections ?? [];
+  const connections = (server.connections ?? []).map(normalizeConnectionName);
   const address = server.address.replace(/\/+$/, '');
   return connections.some((line) => line.address === address)
     ? connections
     : [
         {
           id: connections.length ? `default-${address}` : 'default',
-          name: tr('server.defaultConnection'),
+          name: '',
+          nameKind: 'default',
           address,
         },
         ...connections,

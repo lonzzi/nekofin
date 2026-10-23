@@ -2,6 +2,7 @@ import { getNativeToolbarIcon } from '@/components/navigation/nativeToolbarIcons
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
 import { groupServerAccounts } from '@/lib/serverAccounts';
+import { getConnectionName } from '@/lib/serverConnectionNames';
 import { getConnectionPolicy, getServerConnections } from '@/lib/serverConnections';
 import { useAppTheme } from '@/lib/theme';
 import { toast } from '@/lib/toast';
@@ -208,7 +209,7 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
                         });
                     }}
                   >
-                    {line.name}
+                    {getConnectionName(line)}
                   </AccountMenuAction>
                 ))}
               </AccountMenu>

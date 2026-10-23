@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/SettingsVisual';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
+import { getConnectionName } from '@/lib/serverConnectionNames';
 import { getConnectionPolicy, getServerConnections } from '@/lib/serverConnections';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import { toast } from '@/lib/toast';
@@ -31,6 +32,7 @@ function ServerLinesScreen() {
   const busyRef = useRef(false);
   const [pending, setPending] = useState<string | null>(null);
   const connections = server ? getServerConnections(server) : [];
+  const pendingConnection = connections.find((line) => line.id === pending);
   const policy = server ? getConnectionPolicy(server) : null;
   const run = async (key: string, action: () => Promise<void>) => {
     if (busyRef.current) return;
@@ -76,7 +78,7 @@ function ServerLinesScreen() {
                 label={tr('server.switchConnection')}
                 value={connections.find((line) => line.address === server.address)?.id ?? ''}
                 options={connections.map((line) => ({
-                  title: line.name,
+                  title: getConnectionName(line),
                   subtitle: line.address,
                   value: line.id,
                 }))}
@@ -90,9 +92,9 @@ function ServerLinesScreen() {
                       {pending === 'policy'
                         ? tr('server.savingConnection')
                         : tr('server.connectingTo', {
-                            value:
-                              connections.find((line) => line.id === pending)?.name ??
-                              tr('server.connection'),
+                            value: pendingConnection
+                              ? getConnectionName(pendingConnection)
+                              : tr('server.connection'),
                           })}
                     </SettingsTitle>
                   }
@@ -132,7 +134,10 @@ function ServerLinesScreen() {
                 disabled={!!pending}
                 title={<SettingsTitle>{tr('server.defaultConnection')}</SettingsTitle>}
                 value={policy.defaultConnectionId}
-                options={connections.map((line) => ({ title: line.name, value: line.id }))}
+                options={connections.map((line) => ({
+                  title: getConnectionName(line),
+                  value: line.id,
+                }))}
                 onValueChange={(defaultConnectionId) =>
                   void run('policy', () =>
                     updateServer(serverId, {
@@ -157,7 +162,7 @@ function ServerLinesScreen() {
                     { title: tr('common.choose'), value: '' },
                     ...connections
                       .filter((line) => line.id !== policy.defaultConnectionId)
-                      .map((line) => ({ title: line.name, value: line.id })),
+                      .map((line) => ({ title: getConnectionName(line), value: line.id })),
                   ]}
                   onValueChange={(localConnectionId) =>
                     void run('policy', () =>
@@ -178,7 +183,9 @@ function ServerLinesScreen() {
                 <NativeSettingsItem
                   key={line.id}
                   title={
-                    <SettingsTitle>{tr('common.editName', { name: line.name })}</SettingsTitle>
+                    <SettingsTitle>
+                      {tr('common.editName', { name: getConnectionName(line) })}
+                    </SettingsTitle>
                   }
                   subtitle={<SettingsSubtitle primary={line.address} lines={2} />}
                   disclosure

@@ -6,7 +6,12 @@ import {
   getMediaAdapter,
 } from '@/services/media';
 import { deleteCachedApiForServer } from '@/services/media/jellyfin';
-import { MediaApi, MediaServerInfo, MediaServerType } from '@/services/media/types';
+import {
+  MediaApi,
+  MediaServerConnection,
+  MediaServerInfo,
+  MediaServerType,
+} from '@/services/media/types';
 import { useQueryClient } from '@tanstack/react-query';
 import React, {
   createContext,
@@ -345,9 +350,16 @@ export function MediaServerProvider({ children }: { children: React.ReactNode })
         throw new Error(tr('server.connectionDeletedRetry'));
       if (latestConnections.some((line) => line.address === address && line.id !== connectionId))
         throw new Error(tr('server.duplicateConnectionUrl'));
-      const line = {
+      const previous = latestConnections.find((line) => line.id === connectionId);
+      const customName = name.trim();
+      const line: MediaServerConnection = {
         id: connectionId ?? `line-${Date.now()}`,
-        name: name.trim() || tr('server.alternativeConnection'),
+        name: customName,
+        nameKind: customName
+          ? 'custom'
+          : previous?.nameKind === 'default'
+            ? 'default'
+            : 'alternative',
         address,
       };
       const editingActive =

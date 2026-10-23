@@ -8,6 +8,7 @@ import { ServerFormScrollView } from '@/components/servers/ServerFormScrollView'
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
 import { buildConnectionAddress } from '@/lib/serverConnection';
+import { getConnectionName } from '@/lib/serverConnectionNames';
 import { getServerConnections } from '@/lib/serverConnections';
 import { layout, useAppTheme } from '@/lib/theme';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
@@ -114,7 +115,11 @@ function ServerLineScreen() {
           <ServerFormSection footer={tr('server.connectionUrlHint')}>
             <ServerFormField
               label={tr('server.connectionName')}
-              placeholder={tr('server.connectionNamePlaceholder')}
+              placeholder={
+                line && (line.nameKind === 'default' || line.nameKind === 'alternative')
+                  ? getConnectionName(line)
+                  : tr('server.connectionNamePlaceholder')
+              }
               defaultValue={name}
               onChangeText={setName}
               editable={!busy}
@@ -164,7 +169,7 @@ function ServerLineScreen() {
               busy={pending === 'remove'}
               disabled={busy || active}
               onPress={() =>
-                Alert.alert(tr('server.deleteConnectionConfirmation'), line.name, [
+                Alert.alert(tr('server.deleteConnectionConfirmation'), getConnectionName(line), [
                   { text: tr('common.cancel'), style: 'cancel' },
                   {
                     text: tr('common.delete'),
