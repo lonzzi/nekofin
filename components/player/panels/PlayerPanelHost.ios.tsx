@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import {
   BottomSheet,
@@ -22,6 +23,7 @@ import {
 import { usePlayerPanelPresentation, type PlayerPanelHostProps } from './playerPanelPresentation';
 
 export function PlayerPanelHost(props: PlayerPanelHostProps) {
+  const { t: tr } = useTranslation();
   const { visible, onDismiss, testID = 'player-panel-host' } = props;
   const theme = useAppTheme();
   const panel = usePlayerPanelPresentation(props);
@@ -55,20 +57,23 @@ export function PlayerPanelHost(props: PlayerPanelHostProps) {
               {panel.onBack ? (
                 <ToolbarItem placement="topBarLeading">
                   <Button
-                    label="返回"
+                    label={tr('common.back')}
                     systemImage="chevron.backward"
                     onPress={panel.onBack}
-                    modifiers={[accessibilityLabel('返回上一页')]}
+                    modifiers={[accessibilityLabel(tr('common.goBack'))]}
                   />
                 </ToolbarItem>
               ) : null}
               <ToolbarItem placement="topBarTrailing">
                 <Button
                   role="close"
-                  label="关闭"
+                  label={tr('common.close')}
                   systemImage="xmark"
                   onPress={onDismiss}
-                  modifiers={[labelStyle('iconOnly'), accessibilityLabel('关闭' + panel.title)]}
+                  modifiers={[
+                    labelStyle('iconOnly'),
+                    accessibilityLabel(tr('common.closeTitle', { title: panel.title })),
+                  ]}
                 />
               </ToolbarItem>
             </Toolbar.Content>

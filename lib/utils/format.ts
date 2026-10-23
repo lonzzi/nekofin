@@ -1,3 +1,5 @@
+import { t as tr } from '@/lib/i18n';
+
 /** Ratings are shown with a single decimal place throughout the app. */
 export const formatRating = (rating: number): string => rating.toFixed(1);
 
@@ -5,7 +7,7 @@ export const formatBitrate = (
   bps: number | null | undefined,
   options?: { unit?: 'bits' | 'bytes' },
 ): string => {
-  if (!bps || bps <= 0) return '未知';
+  if (!bps || bps <= 0) return tr('common.unknown');
 
   const useBytes = options?.unit === 'bytes';
 

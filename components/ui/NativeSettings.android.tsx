@@ -1,4 +1,5 @@
 import { useFloatingTabBarInset } from '@/components/navigation/FloatingTabBarInset';
+import { useTranslation } from '@/lib/i18n';
 import { layout, useAppTheme } from '@/lib/theme';
 import { ListItem, Slider, Switch, TextInput } from '@expo/ui';
 import {
@@ -220,6 +221,7 @@ export function NativeSettingsPicker({
   onValueChange,
   disabled,
 }: ComponentProps<typeof SharedSettings.NativeSettingsPicker>) {
+  const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
   const colors = useMaterialColors();
   const { height: windowHeight } = useWindowDimensions();
@@ -285,7 +287,7 @@ export function NativeSettingsPicker({
           </AlertDialog.Text>
           <AlertDialog.ConfirmButton>
             <TextButton onClick={() => setOpen(false)}>
-              <Text>取消</Text>
+              <Text>{tr('common.cancel')}</Text>
             </TextButton>
           </AlertDialog.ConfirmButton>
         </AlertDialog>

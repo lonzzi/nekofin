@@ -14,10 +14,12 @@ import {
 } from '@/components/ui/SettingsVisual';
 import { defaultSettings, useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { useDanmakuSources } from '@/lib/contexts/DanmakuSourcesContext';
+import { useTranslation } from '@/lib/i18n';
 import { useRouter } from 'expo-router';
 import { Alert } from 'react-native';
 
 export default function DanmakuSettingsScreen() {
+  const { t: tr } = useTranslation();
   const { settings, setSettings } = useDanmakuSettings();
   const { sources } = useDanmakuSources();
   const router = useRouter();
@@ -49,36 +51,42 @@ export default function DanmakuSettingsScreen() {
   };
 
   const handleResetToDefault = () => {
-    Alert.alert('恢复弹幕默认设置？', '将重置显示、过滤和时间偏移等弹幕设置，保留已添加的 API。', [
-      { text: '取消', style: 'cancel' },
-      { text: '恢复默认', style: 'destructive', onPress: () => setSettings(defaultSettings) },
+    Alert.alert(tr('danmaku.resetConfirmation'), tr('danmaku.resetSettingsDescription'), [
+      { text: tr('common.cancel'), style: 'cancel' },
+      {
+        text: tr('common.restoreDefaults'),
+        style: 'destructive',
+        onPress: () => setSettings(defaultSettings),
+      },
     ]);
   };
 
   return (
     <>
-      <OuterTitle>弹幕设置</OuterTitle>
+      <OuterTitle>{tr('danmaku.settings')}</OuterTitle>
       <NativeSettingsForm testID="danmaku-settings-form">
-        <NativeSettingsSection title="弹幕 API">
+        <NativeSettingsSection title={tr('danmaku.apis')}>
           <NativeSettingsItem
-            title={<SettingsTitle>管理弹幕 API</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.manageApis')}</SettingsTitle>}
             subtitle={
               <SettingsSubtitle
-                primary={'已启用 ' + sources.filter((source) => source.enabled).length + ' 个 API'}
+                primary={tr('danmaku.enabledApiCount', {
+                  count: sources.filter((source) => source.enabled).length,
+                })}
               />
             }
             disclosure
             onPress={() => router.push('/(tabs)/(settings)/danmaku-sources')}
           />
         </NativeSettingsSection>
-        <NativeSettingsSection title="显示">
+        <NativeSettingsSection title={tr('settings.display')}>
           <NativeSettingsSwitch
-            title={<SettingsTitle>显示弹幕</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.showComments')}</SettingsTitle>}
             value={settings.enabled}
             onValueChange={(value) => updateSetting('enabled', value)}
           />
           <NativeSettingsSlider
-            title={<SettingsTitle>不透明度</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.opacity')}</SettingsTitle>}
             value={settings.opacity}
             min={0.1}
             max={1.0}
@@ -87,7 +95,7 @@ export default function DanmakuSettingsScreen() {
             formatValue={(value) => `${Math.round(value * 100)}%`}
           />
           <NativeSettingsSlider
-            title={<SettingsTitle>字体大小</SettingsTitle>}
+            title={<SettingsTitle>{tr('fonts.fontSize')}</SettingsTitle>}
             value={mapFontSizeToSlider(settings.fontSize)}
             min={0}
             max={1}
@@ -96,7 +104,7 @@ export default function DanmakuSettingsScreen() {
             formatValue={(value) => `${mapSliderToFontSize(value)}px`}
           />
           <NativeSettingsSlider
-            title={<SettingsTitle>显示区域</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.displayArea')}</SettingsTitle>}
             value={settings.heightRatio}
             min={0.3}
             max={1.0}
@@ -107,11 +115,11 @@ export default function DanmakuSettingsScreen() {
         </NativeSettingsSection>
 
         <NativeSettingsSection
-          title="速度与密度"
-          footer={!settings.enabled ? '开启“显示弹幕”后可调整。' : undefined}
+          title={tr('danmaku.speedAndDensity')}
+          footer={!settings.enabled ? tr('danmaku.enableToAdjustHint') : undefined}
         >
           <NativeSettingsSlider
-            title={<SettingsTitle>滚动速度</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.scrollSpeed')}</SettingsTitle>}
             value={Math.max(80, Math.min(240, settings.speed))}
             min={80}
             max={240}
@@ -121,30 +129,30 @@ export default function DanmakuSettingsScreen() {
             formatValue={(value) => `${Math.round(value)} px/s`}
           />
           <NativeSettingsPicker
-            title={<SettingsTitle>屏幕密度</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.density')}</SettingsTitle>}
             value={String(settings.danmakuDensityLimit)}
             disabled={!settings.enabled}
             options={[
-              { title: '自动', value: '0' },
-              { title: '宽松', value: '1' },
-              { title: '标准', value: '2' },
-              { title: '严格', value: '3' },
-              { title: '极简', value: '4' },
+              { title: tr('common.auto'), value: '0' },
+              { title: tr('danmaku.relaxedMatching'), value: '1' },
+              { title: tr('diagnostics.standard'), value: '2' },
+              { title: tr('danmaku.strictMatching'), value: '3' },
+              { title: tr('diagnostics.minimal'), value: '4' },
             ]}
             onValueChange={(value) => updateSetting('danmakuDensityLimit', Number(value))}
           />
           <NativeSettingsSwitch
-            title={<SettingsTitle>防止重叠</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.preventOverlap')}</SettingsTitle>}
             value={settings.collisionPolicy === 'avoid'}
             disabled={!settings.enabled}
             onValueChange={(value) => updateSetting('collisionPolicy', value ? 'avoid' : 'allow')}
           />
         </NativeSettingsSection>
 
-        <NativeSettingsSection title="时间同步">
+        <NativeSettingsSection title={tr('diagnostics.timing')}>
           <NativeSettingsSlider
-            title={<SettingsTitle>弹幕偏移</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="负值提前，正值延后" />}
+            title={<SettingsTitle>{tr('danmaku.offset')}</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={tr('danmaku.offsetDescription')} />}
             value={Math.max(-5, Math.min(5, settings.curEpOffset))}
             min={-5}
             max={5}
@@ -155,48 +163,50 @@ export default function DanmakuSettingsScreen() {
           />
           {settings.curEpOffset !== 0 ? (
             <NativeSettingsItem
-              title={<SettingsActionTitle tone="accent">偏移归零</SettingsActionTitle>}
+              title={
+                <SettingsActionTitle tone="accent">{tr('danmaku.resetOffset')}</SettingsActionTitle>
+              }
               onPress={() => updateSetting('curEpOffset', 0)}
             />
           ) : null}
         </NativeSettingsSection>
 
-        <NativeSettingsSection title="来源过滤">
+        <NativeSettingsSection title={tr('danmaku.sourceFilters')}>
           <NativeSettingsSwitch
-            title={<SettingsTitle>B站弹幕</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.bilibili')}</SettingsTitle>}
             value={(settings.danmakuFilter & 1) !== 1}
             onValueChange={() => toggleFilter(1)}
           />
           <NativeSettingsSwitch
-            title={<SettingsTitle>巴哈弹幕</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.bahamut')}</SettingsTitle>}
             value={(settings.danmakuFilter & 2) !== 2}
             onValueChange={() => toggleFilter(2)}
           />
           <NativeSettingsSwitch
-            title={<SettingsTitle>弹弹Play弹幕</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.dandanplay')}</SettingsTitle>}
             value={(settings.danmakuFilter & 4) !== 4}
             onValueChange={() => toggleFilter(4)}
           />
           <NativeSettingsSwitch
-            title={<SettingsTitle>其他来源弹幕</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.otherSources')}</SettingsTitle>}
             value={(settings.danmakuFilter & 8) !== 8}
             onValueChange={() => toggleFilter(8)}
           />
         </NativeSettingsSection>
 
-        <NativeSettingsSection title="弹幕类型">
+        <NativeSettingsSection title={tr('danmaku.types')}>
           <NativeSettingsSwitch
-            title={<SettingsTitle>底部弹幕</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.bottomComments')}</SettingsTitle>}
             value={(settings.danmakuModeFilter & 1) !== 1}
             onValueChange={() => toggleModeFilter(1)}
           />
           <NativeSettingsSwitch
-            title={<SettingsTitle>顶部弹幕</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.topComments')}</SettingsTitle>}
             value={(settings.danmakuModeFilter & 2) !== 2}
             onValueChange={() => toggleModeFilter(2)}
           />
           <NativeSettingsSwitch
-            title={<SettingsTitle>滚动弹幕</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.scrollingComments')}</SettingsTitle>}
             value={(settings.danmakuModeFilter & 4) !== 4}
             onValueChange={() => toggleModeFilter(4)}
           />
@@ -204,7 +214,7 @@ export default function DanmakuSettingsScreen() {
 
         <NativeSettingsSection>
           <NativeSettingsItem
-            title={<SettingsActionTitle>恢复默认设置</SettingsActionTitle>}
+            title={<SettingsActionTitle>{tr('danmaku.restoreDefaults')}</SettingsActionTitle>}
             onPress={handleResetToDefault}
           />
         </NativeSettingsSection>

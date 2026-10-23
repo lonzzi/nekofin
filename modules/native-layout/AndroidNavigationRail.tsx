@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n';
 import { requireNativeView } from 'expo';
 import { processColor, type NativeSyntheticEvent, type ViewProps } from 'react-native';
 
@@ -17,6 +18,8 @@ type RailProps = ViewProps & {
 
 const NativeRail = requireNativeView<
   Omit<RailProps, 'backgroundColor' | 'tintColor' | 'textColor'> & {
+    serversTitle: string;
+    collapseLabel: string;
     surfaceColor: ReturnType<typeof processColor>;
     selectedColor: ReturnType<typeof processColor>;
     unselectedColor: ReturnType<typeof processColor>;
@@ -29,9 +32,13 @@ export function AndroidNavigationRail({
   textColor,
   ...props
 }: RailProps) {
+  const { t } = useTranslation();
   return (
     <NativeRail
       {...props}
+      destinations={props.destinations.map((destination) => ({ ...destination }))}
+      serversTitle={t('navigation.servers')}
+      collapseLabel={t('navigation.collapseSidebar')}
       surfaceColor={processColor(backgroundColor)}
       selectedColor={processColor(tintColor)}
       unselectedColor={processColor(textColor)}

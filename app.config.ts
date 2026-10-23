@@ -88,6 +88,13 @@ export default ({ config: _config }: { config: ExpoConfig }): ExpoConfig => {
     plugins: [
       'expo-router',
       [
+        'expo-localization',
+        {
+          supportedLocales: { ios: ['zh-Hans', 'en'], android: ['zh-Hans', 'en'] },
+          supportsRTL: false,
+        },
+      ],
+      [
         'expo-splash-screen',
         {
           image: './assets/images/splash-icon.png',

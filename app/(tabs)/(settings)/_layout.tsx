@@ -1,10 +1,12 @@
 import { useNativeListStackOptions } from '@/components/navigation/nativeListStackOptions';
+import { useTranslation } from '@/lib/i18n';
 import { usePerformanceStackScreenListeners } from '@/lib/performance/PerformanceMonitorContext';
 import { useAppTheme } from '@/lib/theme';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import { Stack } from 'expo-router';
 
 function HomeLayout() {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const backgroundColor = theme.colors.backgroundGrouped;
   const stackScreenListeners = usePerformanceStackScreenListeners('settings');
@@ -21,36 +23,36 @@ function HomeLayout() {
         headerLargeTitleStyle: { color: theme.colors.text },
       }}
     >
-      <Stack.Screen name="playback" options={{ title: '播放与画质' }} />
-      <Stack.Screen name="audio" options={{ title: '音频与字幕' }} />
-      <Stack.Screen name="subtitle-fonts" options={{ title: '字幕字体' }} />
-      <Stack.Screen name="subtitle-font-url" options={{ title: '从 URL 导入' }} />
-      <Stack.Screen name="about" options={{ title: '帮助与关于' }} />
+      <Stack.Screen name="playback" options={{ title: tr('settings.playbackAndQuality') }} />
+      <Stack.Screen name="audio" options={{ title: tr('settings.audioAndSubtitles') }} />
+      <Stack.Screen name="subtitle-fonts" options={{ title: tr('fonts.subtitleFonts') }} />
+      <Stack.Screen name="subtitle-font-url" options={{ title: tr('fonts.importFromUrl') }} />
+      <Stack.Screen name="about" options={{ title: tr('about.helpAndAbout') }} />
       <Stack.Screen
         name="index"
         options={{
-          title: '设置',
+          title: tr('navigation.settings'),
           headerLargeTitleShadowVisible: false,
         }}
       />
       <Stack.Screen
         name="danmaku"
         options={{
-          headerTitle: '弹幕设置',
+          headerTitle: tr('danmaku.settings'),
         }}
       />
-      <Stack.Screen name="danmaku-sources" options={{ title: '弹幕 API' }} />
-      <Stack.Screen name="danmaku-source/[id]" options={{ title: '弹幕 API' }} />
+      <Stack.Screen name="danmaku-sources" options={{ title: tr('danmaku.apis') }} />
+      <Stack.Screen name="danmaku-source/[id]" options={{ title: tr('danmaku.apis') }} />
       <Stack.Screen
         name="performance"
         options={{
-          headerTitle: '性能分析',
+          headerTitle: tr('diagnostics.performance'),
         }}
       />
       <Stack.Screen
         name="cache"
         options={{
-          headerTitle: '存储管理',
+          headerTitle: tr('settings.storage'),
         }}
       />
     </Stack>

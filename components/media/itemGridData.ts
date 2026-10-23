@@ -1,3 +1,4 @@
+import { t as tr, type TranslationKey } from '@/lib/i18n';
 import type { MediaItem } from '@/services/media/types';
 
 export type ItemGridPage = MediaItem[] | { items: MediaItem[] };
@@ -37,45 +38,45 @@ const groupOrder = [
   'Folder',
   'Other',
 ];
-const groupTitleMap: Record<string, string> = {
-  AggregateFolder: '聚合文件夹',
-  Audio: '音频',
-  AudioBook: '有声书',
-  BasePluginFolder: '插件文件夹',
-  Book: '图书',
-  BoxSet: '合集',
-  Channel: '频道',
-  ChannelFolderItem: '频道文件夹',
-  CollectionFolder: '媒体库',
-  Folder: '文件夹',
-  Genre: '类型',
-  LiveTvChannel: '直播频道',
-  LiveTvProgram: '直播节目',
-  ManualPlaylistsFolder: '播放列表文件夹',
-  MusicAlbum: '音乐专辑',
-  MusicArtist: '音乐艺人',
-  MusicGenre: '音乐类型',
-  Person: '人物',
-  Photo: '照片',
-  PhotoAlbum: '相册',
-  Playlist: '播放列表',
-  PlaylistsFolder: '播放列表文件夹',
-  Program: '节目',
-  Recording: '录制',
-  Season: '季',
-  Series: '剧集',
-  Movie: '电影',
-  Episode: '单集',
-  MusicVideo: '音乐视频',
-  Studio: '工作室',
-  Trailer: '预告片',
-  TvChannel: '电视频道',
-  TvProgram: '电视节目',
-  UserRootFolder: '用户根目录',
-  UserView: '用户视图',
-  Video: '视频',
-  Year: '年份',
-  Other: '其他',
+const groupTitleMap: Record<string, TranslationKey> = {
+  AggregateFolder: 'media.aggregateFolders',
+  Audio: 'media.audio',
+  AudioBook: 'media.audiobooks',
+  BasePluginFolder: 'media.pluginFolders',
+  Book: 'media.books',
+  BoxSet: 'media.collections',
+  Channel: 'media.channel',
+  ChannelFolderItem: 'media.channelFolders',
+  CollectionFolder: 'media.libraries',
+  Folder: 'media.folders',
+  Genre: 'media.genre',
+  LiveTvChannel: 'media.liveTvChannels',
+  LiveTvProgram: 'media.liveTvPrograms',
+  ManualPlaylistsFolder: 'media.playlistFolders',
+  MusicAlbum: 'media.musicAlbums',
+  MusicArtist: 'media.musicArtists',
+  MusicGenre: 'media.musicGenres',
+  Person: 'media.people',
+  Photo: 'media.photos',
+  PhotoAlbum: 'media.photoAlbums',
+  Playlist: 'media.playlists',
+  PlaylistsFolder: 'media.playlistFolders',
+  Program: 'media.programs',
+  Recording: 'media.recordings',
+  Season: 'media.season',
+  Series: 'media.series',
+  Movie: 'media.movies',
+  Episode: 'media.episodes',
+  MusicVideo: 'media.musicVideos',
+  Studio: 'media.studios',
+  Trailer: 'media.trailers',
+  TvChannel: 'media.tvChannels',
+  TvProgram: 'media.tvPrograms',
+  UserRootFolder: 'media.userRoot',
+  UserView: 'media.userViews',
+  Video: 'media.video',
+  Year: 'media.year',
+  Other: 'common.other',
 };
 
 export function dedupeMediaItems(
@@ -105,7 +106,11 @@ export function flattenItemGridPages(pages: ItemGridPage[] | undefined): MediaIt
   );
 }
 
-export function groupMediaItems(items: MediaItem[], disableGrouping = false): ItemGridGroup[] {
+export function groupMediaItems(
+  items: MediaItem[],
+  disableGrouping = false,
+  translate = tr,
+): ItemGridGroup[] {
   if (disableGrouping) {
     return [{ key: 'all', title: '', items }];
   }
@@ -125,7 +130,7 @@ export function groupMediaItems(items: MediaItem[], disableGrouping = false): It
     )
     .map(([type, items]) => ({
       key: type,
-      title: groupTitleMap[type] || type,
+      title: groupTitleMap[type] ? translate(groupTitleMap[type]) : type,
       items,
     }));
 }

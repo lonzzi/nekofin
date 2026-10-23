@@ -1,6 +1,7 @@
 import { AvatarImage } from '@/components/AvatarImage';
 import * as ContextMenu from '@/components/ui/ContextMenu';
 import { GlassCard, SafeGlassContainer } from '@/components/ui/GlassCard';
+import { t as tr, useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import type { MediaServerInfo } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -18,9 +19,9 @@ function formatServerAge(createdAt: number) {
   const monthMs = 30 * 24 * 60 * 60 * 1000;
   const diff = Date.now() - createdAt;
   const months = Math.max(0, Math.round(diff / monthMs));
-  if (months <= 0) return '刚刚';
-  if (months < 12) return `${months}月前`;
-  return `${Math.round(months / 12)}年前`;
+  if (months <= 0) return tr('time.justNow');
+  if (months < 12) return tr('time.monthsAgo', { months: months });
+  return tr('time.yearsAgo', { value: Math.round(months / 12) });
 }
 
 function getServerGradient(
@@ -169,6 +170,7 @@ export function HomeServerCard({
   onAccounts: () => void;
   accountCount: number;
 }) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const gradient = getServerGradient(server, isCurrent, theme.isDark);
   const chrome = getServerCardChrome(theme.isDark);
@@ -197,9 +199,9 @@ export function HomeServerCard({
           />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`进入 ${server.name} 媒体库`}
-            accessibilityHint="长按可打开服务器设置"
-            accessibilityActions={[{ name: 'settings', label: '服务器设置' }]}
+            accessibilityLabel={tr('media.openNamedLibrary', { name: server.name })}
+            accessibilityHint={tr('server.settingsLongPressHint')}
+            accessibilityActions={[{ name: 'settings', label: tr('server.settings') }]}
             onAccessibilityAction={({ nativeEvent }) => {
               if (nativeEvent.actionName === 'settings') onSettings();
             }}
@@ -237,16 +239,21 @@ export function HomeServerCard({
 
           <View style={styles.cardFooter}>
             <Text style={[styles.ageText, { color: theme.colors.textSecondary }]}>
-              {accountCount > 1 ? `${accountCount} 个账号` : formatServerAge(server.createdAt)}
+              {accountCount > 1
+                ? tr('server.accountCount', { count: accountCount })
+                : formatServerAge(server.createdAt)}
             </Text>
             <SafeGlassContainer spacing={8} style={styles.footerActions}>
               <ServerCardAction
-                accessibilityLabel={`管理 ${server.name} 的账号`}
+                accessibilityLabel={tr('server.manageNamedAccounts', { name: server.name })}
                 onPress={onAccounts}
               >
                 <Ionicons name="people-outline" size={16} color={theme.colors.textSecondary} />
               </ServerCardAction>
-              <ServerCardAction accessibilityLabel={`配置 ${server.name}`} onPress={onSettings}>
+              <ServerCardAction
+                accessibilityLabel={tr('server.configureNamedServer', { name: server.name })}
+                onPress={onSettings}
+              >
                 <Ionicons name="settings-outline" size={16} color={theme.colors.textSecondary} />
               </ServerCardAction>
             </SafeGlassContainer>
@@ -255,19 +262,19 @@ export function HomeServerCard({
       </ContextMenu.Trigger>
       <ContextMenu.Content>
         <ContextMenu.Item key="open" onSelect={onOpen}>
-          <ContextMenu.ItemTitle>进入媒体库</ContextMenu.ItemTitle>
+          <ContextMenu.ItemTitle>{tr('media.openLibraryAction')}</ContextMenu.ItemTitle>
           <ContextMenu.ItemIcon ios={{ name: 'film' }} androidIconName="film" />
         </ContextMenu.Item>
         <ContextMenu.Item key="settings" onSelect={onSettings}>
-          <ContextMenu.ItemTitle>服务器设置</ContextMenu.ItemTitle>
+          <ContextMenu.ItemTitle>{tr('server.settings')}</ContextMenu.ItemTitle>
           <ContextMenu.ItemIcon ios={{ name: 'gearshape' }} androidIconName="settings" />
         </ContextMenu.Item>
         <ContextMenu.Item key="accounts" onSelect={onAccounts}>
-          <ContextMenu.ItemTitle>管理账号</ContextMenu.ItemTitle>
+          <ContextMenu.ItemTitle>{tr('server.manageAccounts')}</ContextMenu.ItemTitle>
           <ContextMenu.ItemIcon ios={{ name: 'person.2' }} androidIconName="people" />
         </ContextMenu.Item>
         <ContextMenu.Item key="remove" destructive onSelect={onRemove}>
-          <ContextMenu.ItemTitle>移除此账号</ContextMenu.ItemTitle>
+          <ContextMenu.ItemTitle>{tr('server.removeAccount')}</ContextMenu.ItemTitle>
           <ContextMenu.ItemIcon ios={{ name: 'trash' }} androidIconName="delete" />
         </ContextMenu.Item>
       </ContextMenu.Content>

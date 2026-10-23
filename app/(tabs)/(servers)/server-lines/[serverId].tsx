@@ -15,13 +15,16 @@ import {
   SettingsTitle,
 } from '@/components/ui/SettingsVisual';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
+import { getConnectionName } from '@/lib/serverConnectionNames';
 import { getConnectionPolicy, getServerConnections } from '@/lib/serverConnections';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
+import { toast } from '@/lib/toast';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Alert } from 'react-native';
 
 function ServerLinesScreen() {
+  const { t: tr } = useTranslation();
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
   const { getServer, switchConnection, updateServer } = useMediaServers();
   const server = getServer(serverId);
@@ -29,6 +32,7 @@ function ServerLinesScreen() {
   const busyRef = useRef(false);
   const [pending, setPending] = useState<string | null>(null);
   const connections = server ? getServerConnections(server) : [];
+  const pendingConnection = connections.find((line) => line.id === pending);
   const policy = server ? getConnectionPolicy(server) : null;
   const run = async (key: string, action: () => Promise<void>) => {
     if (busyRef.current) return;
@@ -37,7 +41,9 @@ function ServerLinesScreen() {
     try {
       await action();
     } catch (error) {
-      Alert.alert('线路更新失败', error instanceof Error ? error.message : '请检查网络后重试');
+      toast.error(tr('server.connectionUpdateFailed'), {
+        description: error instanceof Error ? error.message : tr('server.checkNetworkAndRetry'),
+      });
     } finally {
       busyRef.current = false;
       setPending(null);
@@ -50,11 +56,11 @@ function ServerLinesScreen() {
     });
   return (
     <>
-      <OuterScreenOptions title="服务器线路" grouped />
+      <OuterScreenOptions title={tr('server.connections')} grouped />
       <HeaderToolbar placement="right">
         <HeaderButton
           icon={getNativeToolbarIcon('add', 'plus')}
-          accessibilityLabel="添加线路"
+          accessibilityLabel={tr('server.addConnection')}
           disabled={!server || !!pending}
           onPress={() => editLine()}
         />
@@ -64,15 +70,15 @@ function ServerLinesScreen() {
           <>
             <NativeSettingsSection
               title={server.name}
-              footer="点按其他线路即可切换，并关闭自动切换。"
+              footer={tr('server.manualConnectionSwitchHint')}
             >
               {/* Reset native selection after a failed request to reflect the active connection. */}
               <NativeSettingsChoiceList
                 key={pending ? 'pending' : server.address}
-                label="切换服务器线路"
+                label={tr('server.switchConnection')}
                 value={connections.find((line) => line.address === server.address)?.id ?? ''}
                 options={connections.map((line) => ({
-                  title: line.name,
+                  title: getConnectionName(line),
                   subtitle: line.address,
                   value: line.id,
                 }))}
@@ -84,8 +90,12 @@ function ServerLinesScreen() {
                   title={
                     <SettingsTitle>
                       {pending === 'policy'
-                        ? '正在保存切换设置…'
-                        : `正在连接 ${connections.find((line) => line.id === pending)?.name ?? '线路'}…`}
+                        ? tr('server.savingConnection')
+                        : tr('server.connectingTo', {
+                            value: pendingConnection
+                              ? getConnectionName(pendingConnection)
+                              : tr('server.connection'),
+                          })}
                     </SettingsTitle>
                   }
                   busy
@@ -93,15 +103,15 @@ function ServerLinesScreen() {
               ) : null}
             </NativeSettingsSection>
             <NativeSettingsSection
-              title="内外网自动切换"
-              footer="Wi-Fi 下优先使用局域网，连接失败时回到默认线路。播放时不自动切换。"
+              title={tr('server.automaticConnection')}
+              footer={tr('server.automaticConnectionDescription')}
             >
               <NativeSettingsSwitch
                 key={connections.length < 2 ? 'single-line' : 'multiple-lines'}
-                title={<SettingsTitle>自动切换线路</SettingsTitle>}
+                title={<SettingsTitle>{tr('server.switchAutomatically')}</SettingsTitle>}
                 subtitle={
                   connections.length < 2 ? (
-                    <SettingsSubtitle primary="请先添加另一条线路" />
+                    <SettingsSubtitle primary={tr('server.addConnectionFirst')} />
                   ) : undefined
                 }
                 value={policy.enabled}
@@ -122,9 +132,12 @@ function ServerLinesScreen() {
               />
               <NativeSettingsPicker
                 disabled={!!pending}
-                title={<SettingsTitle>默认线路</SettingsTitle>}
+                title={<SettingsTitle>{tr('server.defaultConnection')}</SettingsTitle>}
                 value={policy.defaultConnectionId}
-                options={connections.map((line) => ({ title: line.name, value: line.id }))}
+                options={connections.map((line) => ({
+                  title: getConnectionName(line),
+                  value: line.id,
+                }))}
                 onValueChange={(defaultConnectionId) =>
                   void run('policy', () =>
                     updateServer(serverId, {
@@ -143,13 +156,13 @@ function ServerLinesScreen() {
               {connections.length > 1 ? (
                 <NativeSettingsPicker
                   disabled={!!pending}
-                  title={<SettingsTitle>局域网线路</SettingsTitle>}
+                  title={<SettingsTitle>{tr('server.localConnection')}</SettingsTitle>}
                   value={policy.localConnectionId ?? ''}
                   options={[
-                    { title: '请选择', value: '' },
+                    { title: tr('common.choose'), value: '' },
                     ...connections
                       .filter((line) => line.id !== policy.defaultConnectionId)
-                      .map((line) => ({ title: line.name, value: line.id })),
+                      .map((line) => ({ title: getConnectionName(line), value: line.id })),
                   ]}
                   onValueChange={(localConnectionId) =>
                     void run('policy', () =>
@@ -165,11 +178,15 @@ function ServerLinesScreen() {
                 />
               ) : null}
             </NativeSettingsSection>
-            <NativeSettingsSection title="管理线路">
+            <NativeSettingsSection title={tr('server.manageConnections')}>
               {connections.map((line) => (
                 <NativeSettingsItem
                   key={line.id}
-                  title={<SettingsTitle>{`编辑 ${line.name}`}</SettingsTitle>}
+                  title={
+                    <SettingsTitle>
+                      {tr('common.editName', { name: getConnectionName(line) })}
+                    </SettingsTitle>
+                  }
                   subtitle={<SettingsSubtitle primary={line.address} lines={2} />}
                   disclosure
                   disabled={!!pending}
@@ -179,7 +196,11 @@ function ServerLinesScreen() {
                 />
               ))}
               <NativeSettingsItem
-                title={<SettingsActionTitle tone="accent">添加线路</SettingsActionTitle>}
+                title={
+                  <SettingsActionTitle tone="accent">
+                    {tr('server.addConnection')}
+                  </SettingsActionTitle>
+                }
                 disabled={!!pending}
                 onPress={() => {
                   if (!busyRef.current) editLine();
@@ -189,7 +210,7 @@ function ServerLinesScreen() {
           </>
         ) : (
           <NativeSettingsSection>
-            <NativeSettingsItem title={<SettingsTitle>服务器不存在</SettingsTitle>} />
+            <NativeSettingsItem title={<SettingsTitle>{tr('server.notFound')}</SettingsTitle>} />
           </NativeSettingsSection>
         )}
       </NativeSettingsForm>

@@ -1,3 +1,4 @@
+import { t as tr } from '@/lib/i18n';
 import { MediaItem } from '@/services/media/types';
 import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
 
@@ -30,14 +31,16 @@ export const getSubtitle = (item: MediaItem) => {
   }
 
   if (item.type === 'Movie') {
-    return item.productionYear ?? '未知时间';
+    return item.productionYear ?? tr('media.unknownDate');
   }
 
   if (item.type === 'Series') {
     const startYear = item.productionYear?.toString() ?? '';
 
     if (item.status === 'Continuing') {
-      return startYear ? `${startYear} - 现在` : '现在';
+      return startYear
+        ? tr('media.yearRangeToPresent', { startYear: startYear })
+        : tr('media.present');
     }
 
     if (item.endDate) {
@@ -50,7 +53,7 @@ export const getSubtitle = (item: MediaItem) => {
       return startYear ? `${startYear} - ${endYear}` : `${endYear}`;
     }
 
-    return startYear ?? '未知时间';
+    return startYear ?? tr('media.unknownDate');
   }
 
   return item.name;

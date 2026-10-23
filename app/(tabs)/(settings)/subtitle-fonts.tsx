@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/SettingsVisual';
 import { useCustomSubtitleFonts } from '@/hooks/useCustomSubtitleFonts';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
+import { toast } from '@/lib/toast';
 import {
   importCustomSubtitleFont,
   removeCustomSubtitleFont,
@@ -33,6 +35,7 @@ const sizeLabel = (bytes: number) =>
   bytes < 1024 * 1024 ? `${Math.ceil(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
 export default function SubtitleFontSettings() {
+  const { t: tr } = useTranslation();
   const router = useRouter();
   const { fonts, selection } = useCustomSubtitleFonts();
   const { currentApi, currentServer } = useMediaServers();
@@ -57,9 +60,11 @@ export default function SubtitleFontSettings() {
       await action(controller.signal);
     } catch (error) {
       if (!controller.signal.aborted)
-        Alert.alert(
-          key === 'server' ? '无法读取服务器字体' : '无法导入字体',
-          error instanceof Error ? error.message : '请稍后重试',
+        toast.error(
+          key === 'server' ? tr('fonts.loadServerFontsFailed') : tr('fonts.importFailed'),
+          {
+            description: error instanceof Error ? error.message : tr('fonts.tryAgainLater'),
+          },
         );
     } finally {
       if (!controller.signal.aborted) setPending(null);
@@ -77,6 +82,7 @@ export default function SubtitleFontSettings() {
       const asset = result.assets[0];
       try {
         await importCustomSubtitleFont({ uri: asset.uri, name: asset.name, signal });
+        if (!signal.aborted) toast.success(tr('fonts.imported'));
       } finally {
         const temporary = new File(asset.uri);
         if (temporary.exists) temporary.delete();
@@ -102,7 +108,7 @@ export default function SubtitleFontSettings() {
             ),
           );
       } catch {
-        throw new Error('无法读取服务器字体，请稍后重试');
+        throw new Error(tr('fonts.loadServerFontsFailedRetry'));
       } finally {
         clearTimeout(timeout);
         signal.removeEventListener('abort', cancel);
@@ -110,15 +116,15 @@ export default function SubtitleFontSettings() {
     });
   return (
     <>
-      <OuterTitle>字幕字体</OuterTitle>
+      <OuterTitle>{tr('fonts.subtitleFonts')}</OuterTitle>
       <NativeSettingsForm testID="subtitle-font-settings">
-        <NativeSettingsSection title="播放器字体">
+        <NativeSettingsSection title={tr('fonts.playerFont')}>
           <NativeSettingsPicker
             disabled={busy}
-            title={<SettingsTitle>当前字体</SettingsTitle>}
+            title={<SettingsTitle>{tr('fonts.selectedFont')}</SettingsTitle>}
             value={selection ? JSON.stringify(selection) : 'auto'}
             options={[
-              { title: '跟随字幕与服务器', value: 'auto' },
+              { title: tr('fonts.useSubtitleOrServerFont'), value: 'auto' },
               ...fonts.flatMap((font) =>
                 font.families.map((family) => ({
                   title: family,
@@ -132,13 +138,13 @@ export default function SubtitleFontSettings() {
           />
         </NativeSettingsSection>
         <NativeSettingsSection
-          title="导入字体"
-          footer="支持 TTF、OTF、TTC、WOFF、WOFF2，单个文件不超过 32 MB。导入后自动设为当前字体。"
+          title={tr('fonts.importFont')}
+          footer={tr('fonts.supportedFormatsDescription')}
         >
           <NativeSettingsItem
             title={
               <SettingsActionTitle tone="accent">
-                {pending === 'file' ? '正在导入文件…' : '从文件导入'}
+                {pending === 'file' ? tr('fonts.importingFile') : tr('fonts.importFromFile')}
               </SettingsActionTitle>
             }
             onPress={importFile}
@@ -146,7 +152,9 @@ export default function SubtitleFontSettings() {
             busy={pending === 'file'}
           />
           <NativeSettingsItem
-            title={<SettingsActionTitle tone="accent">从 URL 导入</SettingsActionTitle>}
+            title={
+              <SettingsActionTitle tone="accent">{tr('fonts.importFromUrl')}</SettingsActionTitle>
+            }
             disclosure
             onPress={() => router.push('/subtitle-font-url')}
             disabled={busy}
@@ -154,13 +162,15 @@ export default function SubtitleFontSettings() {
         </NativeSettingsSection>
         {currentServer?.type === 'jellyfin' && (
           <NativeSettingsSection
-            title="服务端字体"
-            footer={serverFonts?.length ? '导入后自动设为当前字体。' : undefined}
+            title={tr('fonts.serverFonts')}
+            footer={serverFonts?.length ? tr('fonts.autoSelectDescription') : undefined}
           >
             <NativeSettingsItem
               title={
                 <SettingsActionTitle tone="accent">
-                  {pending === 'server' ? '正在读取服务器字体…' : '查看服务器字体'}
+                  {pending === 'server'
+                    ? tr('fonts.loadingServerFonts')
+                    : tr('fonts.viewServerFonts')}
                 </SettingsActionTitle>
               }
               onPress={loadServerFonts}
@@ -168,7 +178,9 @@ export default function SubtitleFontSettings() {
               busy={pending === 'server'}
             />
             {serverFonts?.length === 0 && (
-              <NativeSettingsItem title={<SettingsTitle>服务器暂无可导入的字体</SettingsTitle>} />
+              <NativeSettingsItem
+                title={<SettingsTitle>{tr('fonts.noServerFonts')}</SettingsTitle>}
+              />
             )}
             {serverFonts?.map((font) => (
               <NativeSettingsItem
@@ -179,9 +191,9 @@ export default function SubtitleFontSettings() {
                 busy={pending === font.revision}
                 trailing={
                   <NativeSettingsButton
-                    label="导入"
+                    label={tr('fonts.import')}
                     disabled={busy}
-                    accessibilityLabel={`导入字体 ${font.name}`}
+                    accessibilityLabel={tr('fonts.importNamedFont', { name: font.name })}
                     onPress={() =>
                       void run(font.revision, async (signal) => {
                         await importCustomSubtitleFont({
@@ -202,8 +214,8 @@ export default function SubtitleFontSettings() {
         )}
         {fonts.length > 0 && (
           <NativeSettingsSection
-            title="已导入"
-            footer="删除当前使用的字体后，将恢复“跟随字幕与服务器”。"
+            title={tr('fonts.alreadyImported')}
+            footer={tr('fonts.deleteSelectedDescription')}
           >
             {fonts.map((font) => (
               <NativeSettingsItem
@@ -217,24 +229,27 @@ export default function SubtitleFontSettings() {
                 disabled={busy}
                 trailing={
                   <NativeSettingsButton
-                    label="删除"
+                    label={tr('common.delete')}
                     disabled={busy}
                     destructive
-                    accessibilityLabel={`删除字体 ${font.name}`}
+                    accessibilityLabel={tr('fonts.deleteNamedFont', { name: font.name })}
                     onPress={() =>
                       Alert.alert(
-                        '删除字体？',
-                        `“${font.name}”${selection?.id === font.id ? '\n删除后将恢复“跟随字幕与服务器”。' : ''}`,
+                        tr('fonts.deleteConfirmationTitle'),
+                        `“${font.name}”${selection?.id === font.id ? tr('fonts.deleteRestoreNote') : ''}`,
                         [
-                          { text: '取消', style: 'cancel' },
+                          { text: tr('common.cancel'), style: 'cancel' },
                           {
-                            text: '删除',
+                            text: tr('common.delete'),
                             style: 'destructive',
                             onPress: () => {
                               try {
                                 removeCustomSubtitleFont(font.id);
+                                toast.success(tr('fonts.deleted'));
                               } catch {
-                                Alert.alert('无法删除字体', '请稍后重试');
+                                toast.error(tr('fonts.deleteFailed'), {
+                                  description: tr('fonts.tryAgainLater'),
+                                });
                               }
                             },
                           },

@@ -6,6 +6,7 @@ import { SkeletonHorizontalSection } from '@/components/ui/Skeleton';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import {
   recommendedSearchItemsQueryOptions,
@@ -26,6 +27,7 @@ import {
 import { SearchBarCommands } from 'react-native-screens';
 
 export default function ServerSearchScreen() {
+  const { t: tr } = useTranslation();
   const { currentServer } = useMediaServers();
   const [keyword, setKeyword] = useState<string>('');
   const [selected, setSelected] = useState<string>('');
@@ -71,11 +73,11 @@ export default function ServerSearchScreen() {
     });
     const order = ['Series', 'Movie', 'Episode', 'MusicVideo', 'Other'];
     const titleMap: Record<string, string> = {
-      Series: '剧集',
-      Movie: '电影',
-      Episode: '单集',
-      MusicVideo: '音乐视频',
-      Other: '其他',
+      Series: tr('media.series'),
+      Movie: tr('media.movies'),
+      Episode: tr('media.episodes'),
+      MusicVideo: tr('media.musicVideos'),
+      Other: tr('common.other'),
     };
     const entries = Object.entries(typeToItems);
     entries.sort(
@@ -84,7 +86,7 @@ export default function ServerSearchScreen() {
         (order.indexOf(b[0]) === -1 ? 999 : order.indexOf(b[0])),
     );
     return entries.map(([type, items]) => ({ key: type, title: titleMap[type] || type, items }));
-  }, [results]);
+  }, [results, tr]);
 
   const renderItem: ListRenderItem<MediaItem> = useCallback(({ item }) => {
     if (item.type === 'Series') {
@@ -101,11 +103,15 @@ export default function ServerSearchScreen() {
 
   const header = (
     <>
-      <NativeListTitle>{effectiveKeyword.length === 0 ? '推荐' : '搜索'}</NativeListTitle>
+      <NativeListTitle>
+        {effectiveKeyword.length === 0 ? tr('media.recommended') : tr('search.title')}
+      </NativeListTitle>
       <Stack.SearchBar
         ref={searchBarRef}
         placeholder={
-          currentServer?.name ? `搜索 ${currentServer.name} 中的影片、剧集` : '搜索影片、剧集'
+          currentServer?.name
+            ? tr('search.serverPlaceholder', { name: currentServer.name })
+            : tr('search.placeholder')
         }
         onChangeText={(event: TextInputChangeEvent) => {
           const text = event.nativeEvent.text;
@@ -119,7 +125,7 @@ export default function ServerSearchScreen() {
           setSelected('');
         }}
         hideWhenScrolling={false}
-        cancelButtonText="取消"
+        cancelButtonText={tr('common.cancel')}
       />
     </>
   );
@@ -128,7 +134,12 @@ export default function ServerSearchScreen() {
     return (
       <>
         {header}
-        <ItemGridScreen title="推荐" data={recommendedData} type="series" disableGrouping />
+        <ItemGridScreen
+          title={tr('media.recommended')}
+          data={recommendedData}
+          type="series"
+          disableGrouping
+        />
       </>
     );
   }
@@ -148,7 +159,7 @@ export default function ServerSearchScreen() {
                 { color: theme.colors.textSecondary, marginBottom: theme.spacing.sm },
               ]}
             >
-              没有找到相关内容
+              {tr('search.noMatchingContent')}
             </Text>
             {isResultsError && (
               <Pressable
@@ -170,7 +181,7 @@ export default function ServerSearchScreen() {
                     { color: theme.colors.tint },
                   ]}
                 >
-                  重试
+                  {tr('common.retry')}
                 </Text>
               </Pressable>
             )}

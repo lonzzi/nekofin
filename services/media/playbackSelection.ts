@@ -1,3 +1,4 @@
+import { t as tr } from '@/lib/i18n';
 import { preferredTrackId } from '@/lib/playbackPreferences';
 
 import { parsePlaybackQuality, type PlaybackQuality } from './playbackQuality';
@@ -147,16 +148,16 @@ export function playbackTrackLabel(stream: MediaStream) {
   if (serverTitle) return serverTitle;
 
   const languages: Record<string, string> = {
-    zh: '中文',
-    zho: '中文',
-    chi: '中文',
-    cmn: '中文',
-    en: '英语',
-    eng: '英语',
-    ja: '日语',
-    jpn: '日语',
-    ko: '韩语',
-    kor: '韩语',
+    zh: tr('settings.languageChinese'),
+    zho: tr('settings.languageChinese'),
+    chi: tr('settings.languageChinese'),
+    cmn: tr('settings.languageChinese'),
+    en: tr('settings.languageEnglish'),
+    eng: tr('settings.languageEnglish'),
+    ja: tr('settings.languageJapanese'),
+    jpn: tr('settings.languageJapanese'),
+    ko: tr('settings.languageKorean'),
+    kor: tr('settings.languageKorean'),
   };
   const languageCode = stream.language?.trim();
   const language = languageCode
@@ -167,14 +168,17 @@ export function playbackTrackLabel(stream: MediaStream) {
     ? `${title}${language ? ` · ${language}` : ''}`
     : language
       ? `${language}${stream.codec ? ` · ${stream.codec.toUpperCase()}` : ''}`
-      : `${stream.type === 'Audio' ? '音轨' : '字幕'} ${stream.index}${stream.codec ? ` · ${stream.codec.toUpperCase()}` : ''}`;
-  return `${label}${stream.isExternal ? ' · 外挂' : ''}`;
+      : `${stream.type === 'Audio' ? tr('player.audioTrack') : tr('player.subtitles')} ${stream.index}${stream.codec ? ` · ${stream.codec.toUpperCase()}` : ''}`;
+  return `${label}${stream.isExternal ? tr('player.externalTrackSuffix') : ''}`;
 }
 
 export function playbackSourceLabel(source: MediaSource, index: number) {
   return (
     source.name?.trim() ||
     source.mediaStreams.find((stream) => stream.type === 'Video')?.displayTitle?.trim() ||
-    `${source.container ? `${source.container.toUpperCase()} · ` : ''}版本 ${index + 1}`
+    tr('player.sourceVersion', {
+      value: source.container ? `${source.container.toUpperCase()} · ` : '',
+      value2: index + 1,
+    })
   );
 }

@@ -1,3 +1,4 @@
+import { t as tr } from '@/lib/i18n';
 import { gt } from 'semver';
 
 import type { AppRelease, InstallerDownload } from './appUpdates';
@@ -206,7 +207,7 @@ export function createAppUpdateController(dependencies: Dependencies) {
       return dependencies.openURL(release.url).then(
         () => {},
         () => {
-          message('无法打开更新页面', '请稍后重试，或在浏览器中访问 GitHub 的 NekoFin 版本页面。');
+          message(tr('updates.openUpdatePageFailed'), tr('updates.retryOrCheckGithub'));
         },
       );
     }
@@ -227,9 +228,10 @@ export function createAppUpdateController(dependencies: Dependencies) {
       })
       .catch((error: unknown) => {
         if (revision !== downloadRevision) return;
-        const description = error instanceof Error ? error.message : '无法开始下载，请稍后重试。';
+        const description =
+          error instanceof Error ? error.message : tr('updates.startDownloadFailed');
         publish({ ...snapshot, downloadStatus: 'error', downloadError: description });
-        if (!automatic) message('下载更新失败', description);
+        if (!automatic) message(tr('updates.downloadFailed'), description);
       })
       .finally(() => {
         operation = null;
@@ -295,18 +297,16 @@ export function createAppUpdateController(dependencies: Dependencies) {
       .then((result) => {
         publish({ ...snapshot, downloadStatus: 'ready' });
         if (result === 'permission-required') {
-          message(
-            '允许安装新版本',
-            '请在系统设置中允许 NekoFin 安装应用，返回后点按“安装新版本”。',
-          );
+          message(tr('updates.allowInstallation'), tr('updates.installPermissionDescription'));
         }
       })
       .catch((error: unknown) => {
-        const description = error instanceof Error ? error.message : '无法启动安装，请重试。';
+        const description =
+          error instanceof Error ? error.message : tr('updates.startInstallationFailed');
         // A cache cleanup may have removed the file. Retrying downloads and verifies it again.
         installerUri = null;
         publish({ ...snapshot, downloadStatus: 'error', downloadError: description });
-        message('安装未开始', description);
+        message(tr('updates.installationNotStarted'), description);
       })
       .finally(() => {
         operation = null;
@@ -328,12 +328,14 @@ export function createAppUpdateController(dependencies: Dependencies) {
       .then((ready) => {
         publish({ ...snapshot, resourceStatus: ready ? 'ready' : 'current' });
         if (ready) queueReady('resources');
-        else if (!automatic) message('未发现资源更新', '当前资源已是最新版本。');
+        else if (!automatic)
+          message(tr('updates.noResourceUpdate'), tr('updates.resourcesUpToDateDescription'));
       })
       .catch((error: unknown) => {
-        const description = error instanceof Error ? error.message : '资源下载失败，请稍后重试。';
+        const description =
+          error instanceof Error ? error.message : tr('updates.resourceDownloadFailed');
         publish({ ...snapshot, resourceStatus: 'error', resourceError: description });
-        if (!automatic) message('资源更新失败', description);
+        if (!automatic) message(tr('updates.resourceUpdateFailed'), description);
       })
       .finally(() => {
         operation = null;
@@ -348,8 +350,12 @@ export function createAppUpdateController(dependencies: Dependencies) {
     operation = Promise.resolve()
       .then(() => dependencies.resources!.apply())
       .catch(() => {
-        publish({ ...snapshot, resourceStatus: 'ready', resourceError: '重新载入失败，请重试。' });
-        message('暂时无法应用更新', '更新已下载，请稍后重试重新载入应用。');
+        publish({
+          ...snapshot,
+          resourceStatus: 'ready',
+          resourceError: tr('common.reloadFailed'),
+        });
+        message(tr('updates.notReadyToApply'), tr('updates.downloadedReloadLater'));
       })
       .finally(() => {
         operation = null;
@@ -407,7 +413,7 @@ export function createAppUpdateController(dependencies: Dependencies) {
     storage.set(lastCheckKey, now());
     inFlight = Promise.allSettled([
       Promise.resolve().then(() => {
-        if (!currentVersion) throw new Error('无法读取当前应用版本，请使用正式发布的安装包。');
+        if (!currentVersion) throw new Error(tr('updates.appVersionUnreadable'));
         return dependencies.fetchUpdate();
       }),
       checkResources
@@ -423,13 +429,13 @@ export function createAppUpdateController(dependencies: Dependencies) {
           packageResult.status === 'rejected'
             ? packageResult.reason instanceof Error
               ? packageResult.reason.message
-              : '检查安装包更新失败，请稍后重试。'
+              : tr('updates.appCheckFailed')
             : undefined;
         const resourceError =
           resourceResult.status === 'rejected'
             ? resourceResult.reason instanceof Error
               ? resourceResult.reason.message
-              : '检查资源更新失败，请稍后重试。'
+              : tr('updates.resourceCheckFailed')
             : undefined;
         const resourceAvailable =
           resourceWasReady ||
@@ -482,15 +488,21 @@ export function createAppUpdateController(dependencies: Dependencies) {
         } else if (mode === 'manual' && !fetchedRelease && !resourceAvailable) {
           if (error || resourceError) {
             message(
-              '检查更新未完成',
-              [error && `安装包：${error}`, resourceError && `资源：${resourceError}`]
+              tr('updates.checkIncomplete'),
+              [
+                error && tr('updates.appError', { error: error }),
+                resourceError && tr('updates.resourceError', { resourceError: resourceError }),
+              ]
                 .filter(Boolean)
                 .join('\n'),
             );
           } else {
             message(
-              '未发现更新',
-              `当前没有可用的新版本。\n当前版本：v${currentVersion}${!dependencies.resources ? '\n此安装包暂不支持资源更新。' : ''}`,
+              tr('updates.noUpdates'),
+              tr('updates.noNewVersionDescription', {
+                currentVersion: currentVersion,
+                value: !dependencies.resources ? tr('updates.resourceUpdatesUnsupportedNote') : '',
+              }),
             );
           }
         }

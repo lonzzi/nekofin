@@ -1,10 +1,12 @@
 import { GroupedStackRoutes } from '@/components/GroupedStackRoutes';
 import { useNativeListStackOptions } from '@/components/navigation/nativeListStackOptions';
+import { useTranslation } from '@/lib/i18n';
 import { usePerformanceStackScreenListeners } from '@/lib/performance/PerformanceMonitorContext';
 import { useAppTheme } from '@/lib/theme';
 import { Stack } from 'expo-router';
 
 export default function ServersLayout() {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const backgroundColor = theme.colors.backgroundGrouped;
   const libraryBackgroundColor = theme.colors.background;
@@ -21,8 +23,8 @@ export default function ServersLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: '服务器',
-          headerTitle: '服务器',
+          title: tr('navigation.servers'),
+          headerTitle: tr('navigation.servers'),
           headerLargeTitleShadowVisible: false,
         }}
       />
@@ -45,14 +47,14 @@ export default function ServersLayout() {
       <Stack.Screen
         name="favorites"
         options={{
-          title: '收藏',
+          title: tr('navigation.favorites'),
           headerLargeTitleShadowVisible: false,
         }}
       />
       <Stack.Screen
         name="server-search"
         options={{
-          title: '搜索',
+          title: tr('search.title'),
           headerLargeTitleShadowVisible: false,
         }}
       />
@@ -60,28 +62,28 @@ export default function ServersLayout() {
       <Stack.Screen
         name="folder/[id]"
         options={{
-          title: '查看全部',
+          title: tr('common.viewAll'),
         }}
       />
       <Stack.Screen
         name="view-all/[type]"
         options={{
-          title: '查看全部',
+          title: tr('common.viewAll'),
         }}
       />
       <Stack.Screen
         name="server-config/[serverId]"
         options={{
-          title: '服务器配置',
+          title: tr('server.configuration'),
         }}
       />
-      <Stack.Screen name="server-lines/[serverId]" options={{ title: '服务器线路' }} />
-      <Stack.Screen name="server-accounts/[serverId]" options={{ title: '服务器账号' }} />
-      <Stack.Screen name="server-line/[serverId]" options={{ title: '添加线路' }} />
+      <Stack.Screen name="server-lines/[serverId]" options={{ title: tr('server.connections') }} />
+      <Stack.Screen name="server-accounts/[serverId]" options={{ title: tr('server.accounts') }} />
+      <Stack.Screen name="server-line/[serverId]" options={{ title: tr('server.addConnection') }} />
       <Stack.Screen
         name="add-server/[serverType]"
         options={{
-          title: '添加服务器',
+          title: tr('server.addServer'),
         }}
       />
     </Stack>

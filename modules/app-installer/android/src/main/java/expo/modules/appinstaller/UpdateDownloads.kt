@@ -25,14 +25,23 @@ internal class UpdateDownloads(private val context: Context, private val expecte
   private val manager = context.getSystemService(DownloadManager::class.java)
   private val notifications = context.getSystemService(NotificationManager::class.java)
 
+  fun setLocalizedStrings(json: String) {
+    JSONObject(json)
+    prefs.edit().putString("localized-strings", json).apply()
+  }
+
+  fun text(key: String, fallback: String): String = runCatching {
+    JSONObject(prefs.getString("localized-strings", "{}") ?: "{}").optString(key, fallback)
+  }.getOrDefault(fallback)
+
   private fun root(): File = File(requireNotNull(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)), "app-updates")
 
   fun file(uri: String): File {
     val parsed = Uri.parse(uri)
-    require(parsed.scheme == "file") { "安装文件无效，请重新下载。" }
+    require(parsed.scheme == "file") { text("updates.installationFileInvalid", "安装文件无效，请重新下载。") }
     val file = File(requireNotNull(parsed.path)).canonicalFile
     require(file.parentFile == root().canonicalFile && file.extension == "apk" && file.isFile) {
-      "安装文件已丢失，请重新下载。"
+      text("updates.installationFileMissing", "安装文件已丢失，请重新下载。")
     }
     return file
   }
@@ -55,7 +64,7 @@ internal class UpdateDownloads(private val context: Context, private val expecte
 
   fun verify(file: File, release: JSONObject) {
     val installer = validate(release)
-    require(file.length() == installer.getLong("size")) { "安装包下载不完整，请重新下载。" }
+    require(file.length() == installer.getLong("size")) { text("updates.downloadIncomplete", "安装包下载不完整，请重新下载。") }
     if (!installer.isNull("sha256")) {
       val digest = MessageDigest.getInstance("SHA-256")
       file.inputStream().buffered().use { stream ->
@@ -67,11 +76,11 @@ internal class UpdateDownloads(private val context: Context, private val expecte
         }
       }
       val actual = digest.digest().joinToString("") { "%02x".format(it) }
-      require(actual.equals(installer.getString("sha256"), ignoreCase = true)) { "安装包校验失败，请重新下载。" }
+      require(actual.equals(installer.getString("sha256"), ignoreCase = true)) { text("updates.installerChecksumInvalid", "安装包校验失败，请重新下载。") }
     }
     @Suppress("DEPRECATION")
     val archive = context.packageManager.getPackageArchiveInfo(file.path, 0)
-    require(archive?.packageName == expectedPackage) { "安装包无效，请重新下载。" }
+    require(archive?.packageName == expectedPackage) { text("updates.installerInvalid", "安装包无效，请重新下载。") }
   }
 
   fun start(json: String, automatic: Boolean): Map<String, Any?> = synchronized(lock) {
@@ -86,7 +95,7 @@ internal class UpdateDownloads(private val context: Context, private val expecte
     val request = DownloadManager.Request(Uri.parse(installer.getString("url")))
       .setDestinationUri(Uri.fromFile(destination))
       .setTitle("NekoFin ${release.getString("version")}")
-      .setDescription(if (automatic) "正在下载更新（仅非计费网络）" else "正在下载更新")
+      .setDescription(if (automatic) text("updates.downloadingUnmeteredOnly", "正在下载更新（仅非计费网络）") else text("updates.downloading", "正在下载更新"))
       .setMimeType("application/vnd.android.package-archive")
       // A completed download must be verified before it can be opened for installation.
       .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
@@ -96,7 +105,7 @@ internal class UpdateDownloads(private val context: Context, private val expecte
     if (!prefs.edit().putLong("id", id).putString("release", json)
         .putBoolean("automatic", automatic).remove("verified").remove("error").commit()) {
       manager.remove(id)
-      error("无法保存下载任务，请重试。")
+      error(text("updates.saveDownloadTaskFailed", "无法保存下载任务，请重试。"))
     }
     requireNotNull(snapshot())
   }
@@ -110,7 +119,7 @@ internal class UpdateDownloads(private val context: Context, private val expecte
     val savedError = prefs.getString("error", null)
     if (savedError != null) return@synchronized result.apply { put("status", "error"); put("error", savedError) }
     manager.query(DownloadManager.Query().setFilterById(id)).use { cursor ->
-      if (!cursor.moveToFirst()) return@synchronized result.apply { put("status", "error"); put("error", "下载任务已失效，请重新下载。") }
+      if (!cursor.moveToFirst()) return@synchronized result.apply { put("status", "error"); put("error", text("updates.downloadTaskExpired", "下载任务已失效，请重新下载。")) }
       val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
       val bytes = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
       val total = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)).takeIf { it > 0 } ?: installer.getLong("size")
@@ -129,19 +138,19 @@ internal class UpdateDownloads(private val context: Context, private val expecte
             result["uri"] = Uri.fromFile(file).toString()
           } catch (_: Exception) {
             file.delete()
-            prefs.edit().putString("error", "安装包不完整或校验失败，请重新下载。").apply()
+            prefs.edit().putString("error", text("updates.installerIncompleteOrInvalid", "安装包不完整或校验失败，请重新下载。")).apply()
             result["status"] = "error"
-            result["error"] = "安装包不完整或校验失败，请重新下载。"
+            result["error"] = text("updates.installerIncompleteOrInvalid", "安装包不完整或校验失败，请重新下载。")
           }
         }
         DownloadManager.STATUS_FAILED -> {
           result["status"] = "error"
-          result["error"] = "下载失败，请检查网络和可用存储空间后重试。"
+          result["error"] = text("updates.downloadFailedRetry", "下载失败，请检查网络和可用存储空间后重试。")
         }
         else -> {
           result["status"] = "downloading"
           if (status == DownloadManager.STATUS_PAUSED || status == DownloadManager.STATUS_PENDING) {
-            result["waiting"] = if (prefs.getBoolean("automatic", false)) "等待非计费网络或系统重试" else "等待网络或系统重试"
+            result["waiting"] = if (prefs.getBoolean("automatic", false)) text("updates.waitingForUnmeteredNetwork", "等待非计费网络或系统重试") else text("updates.waitingForNetwork", "等待网络或系统重试")
           }
         }
       }
@@ -157,7 +166,7 @@ internal class UpdateDownloads(private val context: Context, private val expecte
   }
 
   fun verifyForInstall(uri: String): File = synchronized(lock) {
-    val release = requireNotNull(release()) { "更新任务已失效，请重新下载。" }
+    val release = requireNotNull(release()) { text("updates.taskExpired", "更新任务已失效，请重新下载。") }
     file(uri).also { file ->
       require(file.name == release.getJSONObject("installer").getString("name"))
       verify(file, release)
@@ -175,8 +184,8 @@ internal class UpdateDownloads(private val context: Context, private val expecte
     if (snapshot()?.get("status") != "ready" || prefs.getLong("notified", -1) == id) return@synchronized
     if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return@synchronized
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      notifications.createNotificationChannel(NotificationChannel(CHANNEL, "应用更新", NotificationManager.IMPORTANCE_LOW).apply {
-        description = "更新下载完成后提醒安装"
+      notifications.createNotificationChannel(NotificationChannel(CHANNEL, text("updates.title", "应用更新"), NotificationManager.IMPORTANCE_LOW).apply {
+        description = text("updates.installReminderDescription", "更新下载完成后提醒安装")
         setSound(null, null)
       })
     }
@@ -187,8 +196,8 @@ internal class UpdateDownloads(private val context: Context, private val expecte
     val pending = PendingIntent.getActivity(context, NOTIFICATION_ID, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     val notification = NotificationCompat.Builder(context, CHANNEL)
       .setSmallIcon(android.R.drawable.stat_sys_download_done)
-      .setContentTitle("NekoFin 更新已下载")
-      .setContentText("点按打开应用，选择是否安装新版本")
+      .setContentTitle(text("updates.downloadedNotificationTitle", "NekoFin 更新已下载"))
+      .setContentText(text("updates.downloadedNotificationDescription", "点按打开应用，选择是否安装新版本"))
       .setContentIntent(pending).setAutoCancel(true).setSilent(true).build()
     if (playing) return@synchronized
     notifications.notify(NOTIFICATION_ID, notification)

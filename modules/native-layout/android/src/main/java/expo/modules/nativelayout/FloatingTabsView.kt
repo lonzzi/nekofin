@@ -7,6 +7,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
@@ -26,6 +27,7 @@ class FloatingTabsView(context: Context, appContext: AppContext) : ExpoView(cont
   var destinations: List<RailDestination> = emptyList()
   var selected = "home"
   var dark = false
+  var toggleSidebarLabel = ""
   var collapsed = false
   var kind = "destinations"
   var selectedColor = Color.BLACK
@@ -104,7 +106,7 @@ class FloatingTabsView(context: Context, appContext: AppContext) : ExpoView(cont
       renderedDestinations = items
     }
     action?.apply {
-      val label = if (collapsed) "展开侧边栏" else "收起侧边栏"
+      val label = toggleSidebarLabel
       updateNavigationIcon(R.drawable.native_layout_menu, label, unselectedColor)
     }
     buttons.forEachIndexed { index, item ->
@@ -178,6 +180,7 @@ class FloatingTabsView(context: Context, appContext: AppContext) : ExpoView(cont
     strokeWidth = 0
     textSize = 14f
     setSingleLine(true)
+    setAutoSizeTextTypeUniformWithConfiguration(12, 14, 1, TypedValue.COMPLEX_UNIT_SP)
     rippleColor = ColorStateList.valueOf(ColorUtils.setAlphaComponent(unselectedColor, 35))
   }
 

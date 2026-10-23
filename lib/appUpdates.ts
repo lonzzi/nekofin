@@ -1,3 +1,4 @@
+import { t as tr } from '@/lib/i18n';
 import { gt, parse, rcompare, valid } from 'semver';
 
 export type UpdatePlatform = 'ios' | 'android';
@@ -60,7 +61,7 @@ export function selectAppUpdate(
   platform: UpdatePlatform,
 ): AppRelease | null {
   const current = parse(currentVersion);
-  if (!current) throw new Error('无法读取当前应用版本，请重新安装正式发布的安装包。');
+  if (!current) throw new Error(tr('updates.appVersionUnreadableReinstall'));
   const acceptsPrerelease = current.prerelease.length > 0;
   const extension = platform === 'ios' ? 'ios-unsigned.ipa' : 'android-arm64.apk';
   const candidates: AppRelease[] = [];

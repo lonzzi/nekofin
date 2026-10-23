@@ -1,5 +1,6 @@
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import dayjs from '@/lib/dayjs';
+import { useTranslation } from '@/lib/i18n';
 import { formatBitrate } from '@/lib/utils';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Network from 'expo-network';
@@ -26,6 +27,7 @@ const networkIcons: Partial<Record<Network.NetworkStateType, keyof typeof Ionico
 };
 
 export function TopControls() {
+  const { t: tr } = useTranslation();
   const { side, safeSideGap, topExtra, maxContentWidth, isCompact } = useOverlayInsets();
   const insets = useSafeAreaInsets();
   const {
@@ -74,13 +76,15 @@ export function TopControls() {
   const contextLabel = [
     currentItem?.seriesName,
     episodeLabel,
-    danmakuComments.length > 0 ? `${danmakuComments.length} 条弹幕` : null,
+    danmakuComments.length > 0
+      ? tr('danmaku.commentCount', { count: danmakuComments.length })
+      : null,
   ]
     .filter(Boolean)
     .join(' · ');
   const primaryTitle = currentItem?.name || title;
   const statusLabel = [
-    networkType ? `网络 ${networkType}` : null,
+    networkType ? tr('diagnostics.networkType', { networkType: networkType }) : null,
     hdrLabel,
     mediaStats?.inputBitrate ? formatBitrate(mediaStats.inputBitrate, { unit: 'bytes' }) : null,
     now,
@@ -108,7 +112,7 @@ export function TopControls() {
           visible={showControls}
         >
           <Pressable
-            accessibilityLabel="返回"
+            accessibilityLabel={tr('common.back')}
             accessibilityRole="button"
             hitSlop={6}
             onPress={handleBackPress}

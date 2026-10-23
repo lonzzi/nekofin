@@ -1,5 +1,6 @@
 import { getHomeRailListConfig } from '@/components/home/homePerformanceConfig';
 import { useContentDimensions } from '@/hooks/useContentDimensions';
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import { MediaItem } from '@/services/media/types';
 import React, { useCallback, useMemo } from 'react';
@@ -26,6 +27,7 @@ export const UserViewSection = React.memo(function UserViewSection({
   getItemSource?: GetMediaItemSource;
   showServerSource?: boolean;
 }) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const { width: viewportWidth } = useContentDimensions();
   const userViewItems = userView || [];
@@ -48,12 +50,12 @@ export const UserViewSection = React.memo(function UserViewSection({
     ({ item }) => (
       <UserViewCard
         item={item}
-        title={item.name || '未知标题'}
+        title={item.name || tr('media.untitled')}
         source={getItemSource?.(item)}
         showServerSource={showServerSource}
       />
     ),
-    [getItemSource, showServerSource],
+    [getItemSource, showServerSource, tr],
   );
 
   const renderSkeletonItem = useCallback(() => <SkeletonUserViewCard />, []);
@@ -89,7 +91,7 @@ export const UserViewSection = React.memo(function UserViewSection({
             { color: theme.colors.textSecondary },
           ]}
         >
-          暂无内容
+          {tr('media.noContent')}
         </Text>
       </View>
     );

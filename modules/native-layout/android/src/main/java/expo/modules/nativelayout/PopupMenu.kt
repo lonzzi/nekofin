@@ -55,6 +55,7 @@ data class PopupMenuProps(
   val expanded: Boolean = false,
   val color: AndroidColor? = null,
   val textColor: AndroidColor? = null,
+  val backLabel: String = "",
   val alignEnd: Boolean? = null
 ) : ComposeProps
 
@@ -200,7 +201,7 @@ fun FunctionalComposableScope.PopupMenuContent(
                       verticalAlignment = Alignment.CenterVertically) {
                       MenuChevron(textColor, back = true)
                       Spacer(Modifier.width(18.dp))
-                      BasicText("返回", style = TextStyle(color = textColor, fontSize = 16.sp), modifier = Modifier.weight(1f))
+                      BasicText(props.backLabel, style = TextStyle(color = textColor, fontSize = 16.sp), modifier = Modifier.weight(1f))
                     }
                     Box(Modifier.fillMaxWidth().height(1.dp).background(textColor.copy(alpha = 0.08f)))
                   }

@@ -13,6 +13,7 @@ import {
   SettingsTitle,
 } from '@/components/ui/SettingsVisual';
 import { defaultSettings, useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
+import { t as tr, useTranslation } from '@/lib/i18n';
 import { useCallback } from 'react';
 
 import { usePlayer } from '../PlayerContext';
@@ -22,27 +23,88 @@ type DanmakuPanelProps = {
 };
 
 const densityProfiles = [
-  { title: '自动', value: '0' },
-  { title: '宽松', value: '1' },
-  { title: '标准', value: '2' },
-  { title: '严格', value: '3' },
-  { title: '极简', value: '4' },
+  {
+    get title() {
+      return tr('common.auto');
+    },
+    value: '0',
+  },
+  {
+    get title() {
+      return tr('danmaku.relaxedMatching');
+    },
+    value: '1',
+  },
+  {
+    get title() {
+      return tr('diagnostics.standard');
+    },
+    value: '2',
+  },
+  {
+    get title() {
+      return tr('danmaku.strictMatching');
+    },
+    value: '3',
+  },
+  {
+    get title() {
+      return tr('diagnostics.minimal');
+    },
+    value: '4',
+  },
 ];
 
 const sourceFilters = [
-  { bit: 1, label: '显示 B 站弹幕' },
-  { bit: 2, label: '显示巴哈弹幕' },
-  { bit: 4, label: '显示弹弹 Play 弹幕' },
-  { bit: 8, label: '显示其他来源' },
+  {
+    bit: 1,
+    get label() {
+      return tr('danmaku.showBilibili');
+    },
+  },
+  {
+    bit: 2,
+    get label() {
+      return tr('danmaku.showBahamut');
+    },
+  },
+  {
+    bit: 4,
+    get label() {
+      return tr('danmaku.showDandanplay');
+    },
+  },
+  {
+    bit: 8,
+    get label() {
+      return tr('danmaku.showOtherSources');
+    },
+  },
 ];
 
 const modeFilters = [
-  { bit: 4, label: '显示滚动弹幕' },
-  { bit: 2, label: '显示顶部弹幕' },
-  { bit: 1, label: '显示底部弹幕' },
+  {
+    bit: 4,
+    get label() {
+      return tr('danmaku.showScrollingComments');
+    },
+  },
+  {
+    bit: 2,
+    get label() {
+      return tr('danmaku.showTopComments');
+    },
+  },
+  {
+    bit: 1,
+    get label() {
+      return tr('danmaku.showBottomComments');
+    },
+  },
 ];
 
 export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
+  const { t: tr } = useTranslation();
   const {
     danmakuComments,
     danmakuEpisodeInfo,
@@ -72,41 +134,39 @@ export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
   const matchDescription = danmakuEpisodeInfo
     ? `${danmakuEpisodeInfo.animeTitle} · ${danmakuEpisodeInfo.episodeTitle}`
     : danmakuComments.length > 0
-      ? `已加载 ${danmakuComments.length} 条弹幕`
-      : '当前视频尚未匹配弹幕';
+      ? tr('danmaku.loadedCount', { count: danmakuComments.length })
+      : tr('danmaku.noMatchForVideo');
 
   return (
     <NativeSettingsForm hosted surface="sheet" testID="player-danmaku-settings">
-      <NativeSettingsSection title="当前弹幕">
+      <NativeSettingsSection title={tr('danmaku.currentComments')}>
         <NativeSettingsSwitch
           leading={<SettingsSymbol name="text.bubble" />}
-          title={<SettingsTitle>显示弹幕</SettingsTitle>}
+          title={<SettingsTitle>{tr('danmaku.showComments')}</SettingsTitle>}
           subtitle={<SettingsSubtitle primary={matchDescription} lines={2} />}
           value={settings.enabled}
           onValueChange={(enabled) => updateSetting('enabled', enabled)}
         />
         <NativeSettingsItem
           leading={<SettingsSymbol name="magnifyingglass" />}
-          title={<SettingsTitle>搜索弹幕</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary="使用系统搜索表单重新匹配番剧与剧集" />}
+          title={<SettingsTitle>{tr('danmaku.findComments')}</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary={tr('danmaku.searchFormHint')} />}
           disclosure
           onPress={onSearch}
         />
         {danmakuTracks?.length ? (
           <NativeSettingsPicker
-            title={<SettingsTitle>显示来源</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.sourceSelection')}</SettingsTitle>}
             value={danmakuSelection ?? 'auto'}
             options={[
-              { title: '自动选择', value: 'auto' },
-              { title: '合并全部匹配源', value: 'merge' },
+              { title: tr('player.selectAutomatically'), value: 'auto' },
+              { title: tr('danmaku.mergeAllMatches'), value: 'merge' },
               ...danmakuTracks.map((track) => ({
-                title:
-                  track.sourceName +
-                  ' · ' +
-                  track.animeTitle +
-                  ' · ' +
-                  track.comments.length +
-                  ' 条',
+                title: tr('danmaku.sourceResultSummary', {
+                  sourceName: track.sourceName,
+                  animeTitle: track.animeTitle,
+                  count: track.comments.length,
+                }),
                 value: track.id,
               })),
             ]}
@@ -115,15 +175,15 @@ export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
         ) : null}
         {danmakuFailedSources?.length ? (
           <NativeSettingsItem
-            title={<SettingsTitle>部分来源暂不可用</SettingsTitle>}
+            title={<SettingsTitle>{tr('danmaku.someSourcesUnavailable')}</SettingsTitle>}
             subtitle={<SettingsSubtitle primary={danmakuFailedSources.join('、')} lines={2} />}
           />
         ) : null}
       </NativeSettingsSection>
 
-      <NativeSettingsSection title="显示效果">
+      <NativeSettingsSection title={tr('danmaku.appearance')}>
         <NativeSettingsSlider
-          title={<SettingsTitle>透明度</SettingsTitle>}
+          title={<SettingsTitle>{tr('danmaku.transparency')}</SettingsTitle>}
           value={settings.opacity}
           min={0.1}
           max={1}
@@ -133,7 +193,7 @@ export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
           formatValue={(value) => `${Math.round(value * 100)}%`}
         />
         <NativeSettingsSlider
-          title={<SettingsTitle>字体大小</SettingsTitle>}
+          title={<SettingsTitle>{tr('fonts.fontSize')}</SettingsTitle>}
           value={settings.fontSize}
           min={12}
           max={36}
@@ -143,7 +203,7 @@ export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
           formatValue={(value) => `${Math.round(value)} px`}
         />
         <NativeSettingsSlider
-          title={<SettingsTitle>显示区域</SettingsTitle>}
+          title={<SettingsTitle>{tr('danmaku.displayArea')}</SettingsTitle>}
           value={settings.heightRatio}
           min={0.3}
           max={1}
@@ -154,10 +214,10 @@ export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
         />
       </NativeSettingsSection>
 
-      <NativeSettingsSection title="运动与密度">
+      <NativeSettingsSection title={tr('danmaku.motionAndDensity')}>
         <NativeSettingsSlider
-          title={<SettingsTitle>滚动速度</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary="长弹幕会在此基础上自动提速" />}
+          title={<SettingsTitle>{tr('danmaku.scrollSpeed')}</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary={tr('danmaku.speedUpLongComments')} />}
           value={Math.max(80, Math.min(240, settings.speed))}
           min={80}
           max={240}
@@ -167,22 +227,22 @@ export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
           formatValue={(value) => `${Math.round(value)} px/s`}
         />
         <NativeSettingsPicker
-          title={<SettingsTitle>屏幕密度</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary="限制轨道拥挤度与同屏弹幕数量" />}
+          title={<SettingsTitle>{tr('danmaku.density')}</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary={tr('danmaku.densityLimitDescription')} />}
           value={String(settings.danmakuDensityLimit)}
           options={densityProfiles}
           disabled={!settings.enabled}
           onValueChange={(value) => updateSetting('danmakuDensityLimit', Number(value))}
         />
         <NativeSettingsSwitch
-          title={<SettingsTitle>防止重叠</SettingsTitle>}
-          subtitle={<SettingsSubtitle primary="避免同类型弹幕重叠，预测滚动追尾" />}
+          title={<SettingsTitle>{tr('danmaku.preventOverlap')}</SettingsTitle>}
+          subtitle={<SettingsSubtitle primary={tr('danmaku.preventCollisionsDescription')} />}
           value={settings.collisionPolicy === 'avoid'}
           disabled={!settings.enabled}
           onValueChange={(enabled) => updateSetting('collisionPolicy', enabled ? 'avoid' : 'allow')}
         />
         <NativeSettingsSlider
-          title={<SettingsTitle>时间校准</SettingsTitle>}
+          title={<SettingsTitle>{tr('danmaku.timing')}</SettingsTitle>}
           value={Math.max(-5, Math.min(5, settings.curEpOffset))}
           min={-5}
           max={5}
@@ -193,7 +253,7 @@ export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
         />
       </NativeSettingsSection>
 
-      <NativeSettingsSection title="弹幕来源">
+      <NativeSettingsSection title={tr('danmaku.sources')}>
         {sourceFilters.map(({ bit, label }) => (
           <NativeSettingsSwitch
             key={bit}
@@ -205,7 +265,7 @@ export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
         ))}
       </NativeSettingsSection>
 
-      <NativeSettingsSection title="弹幕类型">
+      <NativeSettingsSection title={tr('danmaku.types')}>
         {modeFilters.map(({ bit, label }) => (
           <NativeSettingsSwitch
             key={bit}
@@ -219,7 +279,7 @@ export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
 
       <NativeSettingsSection>
         <NativeSettingsItem
-          title={<SettingsActionTitle>恢复默认设置</SettingsActionTitle>}
+          title={<SettingsActionTitle>{tr('danmaku.restoreDefaults')}</SettingsActionTitle>}
           onPress={() => setSettings(defaultSettings)}
         />
       </NativeSettingsSection>

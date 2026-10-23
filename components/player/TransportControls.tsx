@@ -1,4 +1,5 @@
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useTranslation } from '@/lib/i18n';
 import * as Haptics from 'expo-haptics';
 import { useCallback, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -9,6 +10,7 @@ import { PlayerGlassSurface } from './PlayerGlassSurface';
 import { useOverlayInsets } from './useOverlayInsets';
 
 export function TransportControls() {
+  const { t: tr } = useTranslation();
   const { isCompact } = useOverlayInsets();
   const {
     canSeek,
@@ -93,7 +95,7 @@ export function TransportControls() {
                 />
               }
               height={groupHeight}
-              label="后退 10 秒"
+              label={tr('player.skipBackward')}
               onPress={() => seekBy(-PLAYER_SEEK_INTERVAL_MS)}
               width={sideButtonWidth}
             />
@@ -110,7 +112,7 @@ export function TransportControls() {
                 />
               }
               height={groupHeight}
-              label={isPlaying ? '暂停' : '播放'}
+              label={isPlaying ? tr('player.pause') : tr('player.play')}
               onPress={handlePlayPause}
               width={playButtonWidth}
             />
@@ -125,7 +127,7 @@ export function TransportControls() {
                 />
               }
               height={groupHeight}
-              label="前进 10 秒"
+              label={tr('player.skipForward')}
               onPress={() => seekBy(PLAYER_SEEK_INTERVAL_MS)}
               width={sideButtonWidth}
             />
@@ -156,7 +158,7 @@ export function TransportControls() {
                   />
                 }
                 height={groupHeight}
-                label="上一集"
+                label={tr('player.previousEpisode')}
                 onPress={() => handleEpisodeChange('previous')}
                 width={sideButtonWidth}
               />
@@ -171,7 +173,7 @@ export function TransportControls() {
                   />
                 }
                 height={groupHeight}
-                label="下一集"
+                label={tr('player.nextEpisode')}
                 onPress={() => handleEpisodeChange('next')}
                 width={sideButtonWidth}
               />

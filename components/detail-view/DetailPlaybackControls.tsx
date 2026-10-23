@@ -3,6 +3,7 @@ import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { usePlaybackPreferences } from '@/hooks/usePlaybackPreferences';
 import { useSubtitlePrefetch } from '@/hooks/useSubtitlePrefetch';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import { spacing, useAppTheme } from '@/lib/theme';
 import {
   resolvePlaybackSelection,
@@ -59,6 +60,7 @@ export function DetailPlaybackControls({ item }: { item: MediaItem }) {
 }
 
 function ItemPlaybackControls({ item }: { item: MediaItem }) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const useLiquidGlass = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
   const adapter = useMediaAdapter();
@@ -82,11 +84,13 @@ function ItemPlaybackControls({ item }: { item: MediaItem }) {
   const actions = [
     ...menu.actions.map((action) => ({ ...action, imageColor: theme.colors.text })),
     ...(query.isError
-      ? [{ id: 'retry', title: '重新读取播放选项' }]
+      ? [{ id: 'retry', title: tr('player.reloadPlaybackOptions') }]
       : !menu.actions.length
         ? [
             {
-              title: query.isPending ? '正在读取播放选项…' : '暂无可用播放选项',
+              title: query.isPending
+                ? tr('player.loadingPlaybackOptions')
+                : tr('player.noPlaybackOptions'),
               attributes: { disabled: true },
             },
           ]
@@ -109,11 +113,13 @@ function ItemPlaybackControls({ item }: { item: MediaItem }) {
           ref={menuRef}
           testID="detail-playback-options"
           accessibilityRole="button"
-          accessibilityLabel="播放选项"
-          accessibilityHint="选择可用的视频版本、音轨、字幕和画质"
+          accessibilityLabel={tr('player.playbackOptions')}
+          accessibilityHint={tr('player.playbackOptionsDescription')}
           accessibilityState={{ busy: query.isPending }}
           accessibilityActions={
-            Platform.OS === 'android' ? [{ name: 'activate', label: '打开播放选项' }] : undefined
+            Platform.OS === 'android'
+              ? [{ name: 'activate', label: tr('player.openPlaybackOptions') }]
+              : undefined
           }
           onAccessibilityAction={
             Platform.OS === 'android'
@@ -122,7 +128,7 @@ function ItemPlaybackControls({ item }: { item: MediaItem }) {
                 }
               : undefined
           }
-          title="播放选项"
+          title={tr('player.playbackOptions')}
           actions={actions}
           style={styles.optionsMenu}
           themeVariant={theme.colorScheme}

@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n';
 import { spacing, useAppTheme } from '@/lib/theme';
 import { BottomSheet, Button, Column, Row, ScrollView, Spacer, Text } from '@expo/ui';
 import { onSizeChanged } from '@expo/ui/jetpack-compose/modifiers';
@@ -15,6 +16,7 @@ import { useCallback, useState } from 'react';
 import { Platform, useWindowDimensions } from 'react-native';
 
 function OverviewContent({ overview, onDismiss }: { overview: string; onDismiss: () => void }) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const { height: windowHeight } = useWindowDimensions();
   const [contentHeight, setContentHeight] = useState(0);
@@ -44,11 +46,11 @@ function OverviewContent({ overview, onDismiss }: { overview: string; onDismiss:
               : undefined
           }
         >
-          剧情简介
+          {tr('media.overview')}
         </Text>
         <Spacer flexible />
         <Button
-          label="完成"
+          label={tr('common.done')}
           variant="text"
           onPress={onDismiss}
           modifiers={

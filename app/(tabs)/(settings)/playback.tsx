@@ -6,6 +6,7 @@ import {
   NativeSettingsSwitch,
 } from '@/components/ui/NativeSettings';
 import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
+import { useTranslation } from '@/lib/i18n';
 import { storage } from '@/lib/storage';
 import { useState } from 'react';
 import { useMMKVBoolean } from 'react-native-mmkv';
@@ -32,6 +33,7 @@ const codecOptions = [
 ];
 
 export default function PlaybackSettings() {
+  const { t: tr } = useTranslation();
   const [autoPlayNext = true, setAutoPlayNext] = useMMKVBoolean('playback.autoPlayNext', storage);
   const [orientation, setOrientation] = useState(
     storage.getString('videoOrientation') ?? 'landscape',
@@ -69,21 +71,21 @@ export default function PlaybackSettings() {
 
   return (
     <>
-      <OuterTitle>播放与画质</OuterTitle>
+      <OuterTitle>{tr('settings.playbackAndQuality')}</OuterTitle>
       <NativeSettingsForm testID="playback-settings-form">
-        <NativeSettingsSection title="播放默认值">
+        <NativeSettingsSection title={tr('settings.playbackDefaults')}>
           <NativeSettingsSwitch
-            title={<SettingsTitle>自动播放下一集</SettingsTitle>}
+            title={<SettingsTitle>{tr('player.autoPlayNextEpisode')}</SettingsTitle>}
             value={autoPlayNext}
             onValueChange={setAutoPlayNext}
           />
           <NativeSettingsPicker
-            title={<SettingsTitle>屏幕方向</SettingsTitle>}
+            title={<SettingsTitle>{tr('player.orientation')}</SettingsTitle>}
             value={orientation}
             options={[
-              { title: '横屏', value: 'landscape' },
-              { title: '竖屏', value: 'portrait' },
-              { title: '跟随系统', value: 'auto' },
+              { title: tr('player.landscape'), value: 'landscape' },
+              { title: tr('player.portrait'), value: 'portrait' },
+              { title: tr('settings.system'), value: 'auto' },
             ]}
             onValueChange={(v) => {
               setOrientation(v);
@@ -91,7 +93,7 @@ export default function PlaybackSettings() {
             }}
           />
           <NativeSettingsPicker
-            title={<SettingsTitle>默认倍速</SettingsTitle>}
+            title={<SettingsTitle>{tr('player.defaultPlaybackSpeed')}</SettingsTitle>}
             value={rate}
             options={[0.5, 0.75, 1, 1.25, 1.5, 2].map((v) => ({
               title: `${v}×`,
@@ -104,32 +106,32 @@ export default function PlaybackSettings() {
           />
         </NativeSettingsSection>
         <NativeSettingsSection
-          title="画质与兼容性"
-          footer="开启自定义转码后，可设置码率、视频编码和字幕烧录；兼容时仍优先直接播放。"
+          title={tr('player.qualityAndCompatibility')}
+          footer={tr('player.customTranscodingDescription')}
         >
           <NativeSettingsSwitch
-            title={<SettingsTitle>自定义转码</SettingsTitle>}
+            title={<SettingsTitle>{tr('player.customTranscoding')}</SettingsTitle>}
             value={enableTranscoding}
             onValueChange={handleTranscodingToggle}
           />
           <NativeSettingsPicker
             disabled={!enableTranscoding}
-            title={<SettingsTitle>最大码率</SettingsTitle>}
+            title={<SettingsTitle>{tr('player.maximumBitrate')}</SettingsTitle>}
             value={maxBitrate.toString()}
             options={bitrateOptions}
             onValueChange={handleBitrateChange}
           />
           <NativeSettingsPicker
             disabled={!enableTranscoding}
-            title={<SettingsTitle>视频编码</SettingsTitle>}
+            title={<SettingsTitle>{tr('media.videoCodec')}</SettingsTitle>}
             value={selectedCodec}
             options={codecOptions}
             onValueChange={handleCodecSelection}
           />
           <NativeSettingsSwitch
             disabled={!enableTranscoding}
-            title={<SettingsTitle>字幕烧录</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary="字幕合入画面，增加转码负载。" />}
+            title={<SettingsTitle>{tr('player.burnInSubtitles')}</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={tr('player.subtitleBurnInDescription')} />}
             value={enableSubtitleBurnIn}
             onValueChange={handleSubtitleBurnInToggle}
           />

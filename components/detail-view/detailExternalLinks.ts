@@ -1,3 +1,4 @@
+import { t as tr } from '@/lib/i18n';
 import type { MediaItem } from '@/services/media/types';
 
 export type DetailExternalLink = {
@@ -55,13 +56,13 @@ export function getDetailExternalInfo(item: MediaItem, series?: MediaItem | null
   const links: DetailExternalLink[] = [
     {
       provider: 'tmdb',
-      label: tmdbUrl ? '查看 TMDB' : '在 TMDB 搜索',
+      label: tmdbUrl ? tr('media.viewOnTmdb') : tr('media.searchTmdb'),
       url: tmdbUrl || `https://www.themoviedb.org/search?query=${encodeURIComponent(searchTitle)}`,
       isDirect: !!tmdbUrl,
     },
     {
       provider: 'imdb',
-      label: imdb ? '查看 IMDb' : '在 IMDb 搜索',
+      label: imdb ? tr('media.viewOnImdb') : tr('media.searchImdb'),
       url: imdb
         ? `https://www.imdb.com/title/${imdb}/`
         : `https://www.imdb.com/find/?q=${encodeURIComponent(searchTitle)}&s=tt`,

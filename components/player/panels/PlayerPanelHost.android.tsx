@@ -1,4 +1,5 @@
 import { NativeBottomSheet } from '@/components/ui/NativeBottomSheet.android';
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import { Column, Icon, IconButton, Row, Text } from '@expo/ui/jetpack-compose';
 import { fillMaxSize, fillMaxWidth, padding, weight } from '@expo/ui/jetpack-compose/modifiers';
@@ -6,6 +7,7 @@ import { fillMaxSize, fillMaxWidth, padding, weight } from '@expo/ui/jetpack-com
 import { usePlayerPanelPresentation, type PlayerPanelHostProps } from './playerPanelPresentation';
 
 export function PlayerPanelHost(props: PlayerPanelHostProps) {
+  const { t: tr } = useTranslation();
   const { visible, onDismiss, testID = 'player-panel-host' } = props;
   const theme = useAppTheme();
   const panel = usePlayerPanelPresentation(props);
@@ -27,7 +29,7 @@ export function PlayerPanelHost(props: PlayerPanelHostProps) {
                 source={require('../../../assets/drawables/chevron_left.png')}
                 size={24}
                 tint={theme.colors.text}
-                contentDescription="返回上一页"
+                contentDescription={tr('common.goBack')}
               />
             </IconButton>
           ) : null}
@@ -43,7 +45,7 @@ export function PlayerPanelHost(props: PlayerPanelHostProps) {
               source={require('../../../assets/drawables/close.png')}
               size={24}
               tint={theme.colors.text}
-              contentDescription={'关闭' + panel.title}
+              contentDescription={tr('common.closeTitle', { title: panel.title })}
             />
           </IconButton>
         </Row>

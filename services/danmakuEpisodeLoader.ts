@@ -1,3 +1,5 @@
+import { t as tr } from '@/lib/i18n';
+
 import {
   loadDanmakuSelections,
   type DanmakuCommentsData,
@@ -19,7 +21,7 @@ type Job = {
 
 function throwIfAborted(signal: AbortSignal) {
   if (!signal.aborted) return;
-  const error = new Error('弹幕请求已取消');
+  const error = new Error(tr('danmaku.requestCanceled'));
   error.name = 'AbortError';
   throw error;
 }
@@ -43,7 +45,8 @@ export function createDanmakuEpisodeLoader(
       throwIfAborted(job.controller.signal);
       const data = await fetchEpisode(job.entry, job.controller.signal);
       throwIfAborted(job.controller.signal);
-      if (!data.tracks?.length || data.failedSources?.length) throw new Error('弹幕数量暂不可用');
+      if (!data.tracks?.length || data.failedSources?.length)
+        throw new Error(tr('danmaku.countUnavailable'));
       cache.set(job.key, data);
       while (cache.size > 3) cache.delete(cache.keys().next().value!);
       job.resolve(data);

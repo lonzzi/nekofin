@@ -1,13 +1,16 @@
 import { getNativeToolbarIcon } from '@/components/navigation/nativeToolbarIcons';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import { groupServerAccounts } from '@/lib/serverAccounts';
+import { getConnectionName } from '@/lib/serverConnectionNames';
 import { getConnectionPolicy, getServerConnections } from '@/lib/serverConnections';
 import { useAppTheme } from '@/lib/theme';
+import { toast } from '@/lib/toast';
 import { getCachedToolbarAvatar, getToolbarAvatar } from '@/modules/toolbar-avatar';
 import type { MediaServerInfo } from '@/services/media/types';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
 
 import { AccountMenu, AccountMenuAction, AccountToolbar } from './AccountMenu';
 
@@ -15,6 +18,7 @@ import { AccountMenu, AccountMenuAction, AccountToolbar } from './AccountMenu';
 const AVATAR_DIAMETER = 36;
 
 export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo | null }) {
+  const { t: tr } = useTranslation();
   const {
     servers,
     activeServers,
@@ -86,17 +90,19 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
           disabled={switching}
           accessibilityLabel={
             switching
-              ? '正在切换服务器线路'
-              : `${server?.username || '用户'}，切换账号、首页视图和服务器线路`
+              ? tr('server.switchingConnection')
+              : tr('home.accountMenuAccessibilityLabel', {
+                  value: server?.username || tr('server.user'),
+                })
           }
         >
-          <AccountMenu inline title="首页视图">
+          <AccountMenu inline title={tr('home.view')}>
             <AccountMenuAction
               onPress={() => selectView(null)}
-              subtitle="查看所有服务器"
+              subtitle={tr('server.viewAll')}
               isOn={homeServerId === null}
             >
-              聚合视图
+              {tr('home.allServers')}
             </AccountMenuAction>
             {activeServers.map((item) => (
               <AccountMenuAction
@@ -118,10 +124,10 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
               })
             }
           >
-            轮播图媒体库
+            {tr('home.featuredLibraries')}
           </AccountMenuAction>
           {server ? (
-            <AccountMenu title="切换账号">
+            <AccountMenu title={tr('server.switchAccount')}>
               <AccountMenu inline title={server.name}>
                 {accounts.map((item) => (
                   <AccountMenuAction
@@ -144,7 +150,7 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
                   })
                 }
               >
-                添加账号
+                {tr('server.addAccount')}
               </AccountMenuAction>
               <AccountMenuAction
                 onPress={() =>
@@ -154,15 +160,15 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
                   })
                 }
               >
-                管理账号
+                {tr('server.manageAccounts')}
               </AccountMenuAction>
             </AccountMenu>
           ) : null}
           {server ? (
-            <AccountMenu title="服务器线路">
+            <AccountMenu title={tr('server.connections')}>
               <AccountMenuAction
                 isOn={policy?.enabled}
-                subtitle="Wi-Fi 下优先使用已验证的局域网地址"
+                subtitle={tr('server.preferVerifiedLocalUrl')}
                 onPress={() => {
                   if (!policy?.localConnectionId) {
                     router.push({
@@ -176,7 +182,7 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
                   });
                 }}
               >
-                自动切换线路
+                {tr('server.switchAutomatically')}
               </AccountMenuAction>
               <AccountMenu inline title={server.name}>
                 {connections.map((line) => (
@@ -190,10 +196,12 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
                       setSwitching(true);
                       void switchConnection(server.id, line.id)
                         .catch((error) =>
-                          Alert.alert(
-                            '线路切换失败',
-                            error instanceof Error ? error.message : '请检查线路地址和网络',
-                          ),
+                          toast.error(tr('server.connectionSwitchFailed'), {
+                            description:
+                              error instanceof Error
+                                ? error.message
+                                : tr('server.checkConnectionUrlAndNetwork'),
+                          }),
                         )
                         .finally(() => {
                           switchingRef.current = false;
@@ -201,7 +209,7 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
                         });
                     }}
                   >
-                    {line.name}
+                    {getConnectionName(line)}
                   </AccountMenuAction>
                 ))}
               </AccountMenu>
@@ -213,12 +221,12 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
                   })
                 }
               >
-                管理线路
+                {tr('server.manageConnections')}
               </AccountMenuAction>
             </AccountMenu>
           ) : null}
           <AccountMenuAction onPress={() => router.navigate('/(tabs)/(servers)')}>
-            服务器
+            {tr('navigation.servers')}
           </AccountMenuAction>
         </AccountMenu>
       </AccountToolbar>

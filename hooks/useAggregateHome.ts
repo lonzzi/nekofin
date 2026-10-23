@@ -2,6 +2,7 @@ import type { GetMediaItemSource, MediaItemSource } from '@/components/media/med
 import { useHiddenUserViews } from '@/hooks/useHiddenUserViews';
 import { useHomeCarouselLibraries } from '@/hooks/useHomeCarouselLibraries';
 import { useRefetchOnScreenFocus } from '@/hooks/useRefetchOnScreenFocus';
+import { useTranslation } from '@/lib/i18n';
 import {
   groupAggregateLatestFolders,
   mergeAggregateHomeItems,
@@ -21,6 +22,7 @@ import type { HomeSectionWithStatus } from './useHomeSections';
 import { useMediaServerSources } from './useMediaServerSources';
 
 export function useAggregateHome(servers: MediaServerInfo[]) {
+  const { t: tr } = useTranslation();
   const sources = useMediaServerSources(servers);
   const hidden = useHiddenUserViews(servers.map((server) => server.id));
   const carouselLibraries = useHomeCarouselLibraries(servers.map((server) => server.id));
@@ -135,7 +137,7 @@ export function useAggregateHome(servers: MediaServerInfo[]) {
     return {
       key: type,
       type: type as 'resume' | 'nextup',
-      title: type === 'resume' ? '继续观看' : '接下来',
+      title: type === 'resume' ? tr('home.continueWatching') : tr('home.upNext'),
       items: mergeAggregateHomeItems(
         matches.map(({ server, query }) => ({ server, items: query.data ?? [] })),
         'resume',
@@ -154,7 +156,7 @@ export function useAggregateHome(servers: MediaServerInfo[]) {
   sections.push({
     key: 'userview',
     type: 'userview',
-    title: '媒体库',
+    title: tr('media.libraries'),
     items: mergeAggregateHomeItems(librarySources, 'resume', Infinity).map((entry) => entry.item),
     isLoading:
       results

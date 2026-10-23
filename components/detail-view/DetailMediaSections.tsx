@@ -1,5 +1,6 @@
 import { getMediaRailListConfig } from '@/components/media/railPerformanceConfig';
 import { useContentDimensions } from '@/hooks/useContentDimensions';
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import type { MediaItem, MediaPerson } from '@/services/media/types';
 import { memo } from 'react';
@@ -26,6 +27,7 @@ function getMediaItemKey(item: MediaItem) {
 }
 
 export const PeopleSection = memo(function PeopleSection({ items }: { items: MediaPerson[] }) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const { width } = useContentDimensions();
   const batching =
@@ -41,7 +43,9 @@ export const PeopleSection = memo(function PeopleSection({ items }: { items: Med
 
   return (
     <View style={detailViewStyles.sectionBlock}>
-      <Text style={[detailViewStyles.sectionTitle, { color: theme.colors.text }]}>演职人员</Text>
+      <Text style={[detailViewStyles.sectionTitle, { color: theme.colors.text }]}>
+        {tr('media.castAndCrew')}
+      </Text>
       <FlatList
         {...batching}
         horizontal
@@ -62,6 +66,7 @@ export const SimilarItemsSection = memo(function SimilarItemsSection({
 }: {
   items: MediaItem[];
 }) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const { width } = useContentDimensions();
   const batching =
@@ -77,7 +82,9 @@ export const SimilarItemsSection = memo(function SimilarItemsSection({
 
   return (
     <View style={detailViewStyles.sectionBlock}>
-      <Text style={[detailViewStyles.sectionTitle, { color: theme.colors.text }]}>更多类似的</Text>
+      <Text style={[detailViewStyles.sectionTitle, { color: theme.colors.text }]}>
+        {tr('media.moreLikeThis')}
+      </Text>
       <FlatList
         {...batching}
         horizontal

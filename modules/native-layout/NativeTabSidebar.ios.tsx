@@ -4,6 +4,7 @@ import type { NativeSyntheticEvent, ViewProps } from 'react-native';
 type NativeTabSidebarProps = ViewProps & {
   servers: readonly { id: string; name: string; type: string; avatarUri: string }[];
   selectedServerId: string;
+  serversTitle: string;
   onServerSelected: (event: NativeSyntheticEvent<{ id: string }>) => void;
 };
 

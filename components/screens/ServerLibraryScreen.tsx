@@ -6,11 +6,13 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useHomeSections } from '@/hooks/useHomeSections';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import { useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
 export default function HomeScreen() {
+  const { t: tr } = useTranslation();
   const { servers, currentServer, isInitialized } = useMediaServers();
   const theme = useAppTheme();
 
@@ -38,7 +40,7 @@ export default function HomeScreen() {
     for (const section of sections) {
       if (section.type === 'latest') {
         const folderId = section.key.replace('latest_', '');
-        const folderName = section.title.replace('最近添加的 ', '');
+        const folderName = section.folderName ?? '';
         handlers[section.key] = () =>
           router.push({
             pathname: '/(tabs)/(servers)/view-all/[type]',
@@ -61,9 +63,9 @@ export default function HomeScreen() {
             size={48}
             color={theme.colors.textTertiary}
           />
-          <ThemedText style={theme.typography.title3}>还没有媒体账号</ThemedText>
+          <ThemedText style={theme.typography.title3}>{tr('server.noMediaAccountsYet')}</ThemedText>
           <ThemedText style={[theme.typography.footnote, { color: theme.colors.textSecondary }]}>
-            添加 Jellyfin 或 Emby 账号以开始使用
+            {tr('server.addAccountDescription')}
           </ThemedText>
           <Pressable
             style={[
@@ -81,7 +83,7 @@ export default function HomeScreen() {
             <ThemedText
               style={[theme.typography.bodyEmphasized, { color: theme.colors.inverseText }]}
             >
-              添加媒体账号
+              {tr('server.addMediaAccount')}
             </ThemedText>
           </Pressable>
         </ThemedView>

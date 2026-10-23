@@ -1,5 +1,6 @@
 import { getHomeRailListConfig } from '@/components/home/homePerformanceConfig';
 import { useContentDimensions } from '@/hooks/useContentDimensions';
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import { MediaItem } from '@/services/media/types';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -28,6 +29,7 @@ export const Section = React.memo(function Section({
   getItemSource?: GetMediaItemSource;
   showServerSource?: boolean;
 }) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const { width: viewportWidth } = useContentDimensions();
   const listPerformanceConfig = useMemo(
@@ -102,7 +104,9 @@ export const Section = React.memo(function Section({
     />
   ) : (
     <View style={[styles.emptyContainer, { paddingHorizontal: theme.spacing.page }]}>
-      <Text style={[theme.typography.body, { color: theme.colors.textSecondary }]}>暂无内容</Text>
+      <Text style={[theme.typography.body, { color: theme.colors.textSecondary }]}>
+        {tr('media.noContent')}
+      </Text>
     </View>
   );
 
@@ -122,7 +126,7 @@ export const Section = React.memo(function Section({
       ) : (
         <Pressable
           accessibilityRole={onViewAll ? 'button' : undefined}
-          accessibilityLabel={onViewAll ? `查看全部${title}` : undefined}
+          accessibilityLabel={onViewAll ? tr('common.viewAllTitle', { title: title }) : undefined}
           onPress={onViewAll}
         >
           <View style={[styles.sectionHeader, { paddingHorizontal: theme.spacing.page }]}>

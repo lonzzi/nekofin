@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n';
 import { requireNativeView } from 'expo';
 import type { ComponentType, PropsWithChildren } from 'react';
 import type { ColorValue } from 'react-native';
@@ -11,7 +12,7 @@ type PopupMenuProps = PropsWithChildren<{
   alignEnd?: boolean;
 }>;
 
-const NativePopup: ComponentType<PopupMenuProps> = requireNativeView(
+const NativePopup: ComponentType<PopupMenuProps & { backLabel: string }> = requireNativeView(
   'NativeLayout',
   'PopupMenuView',
 );
@@ -49,7 +50,12 @@ function Trigger({ children }: PropsWithChildren) {
   return <>{children}</>;
 }
 
-export const PopupMenu = Object.assign(NativePopup, { Items, Trigger, Submenu: NativeSubmenu });
+function LocalizedPopup(props: PopupMenuProps) {
+  const { t } = useTranslation();
+  return <NativePopup {...props} backLabel={t('common.back')} />;
+}
+
+export const PopupMenu = Object.assign(LocalizedPopup, { Items, Trigger, Submenu: NativeSubmenu });
 export const PopupMenuItem = Object.assign(
   ({
     onClick,

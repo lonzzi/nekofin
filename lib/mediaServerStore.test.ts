@@ -1,5 +1,6 @@
+import { i18n } from '@/lib/i18n';
 import type { MediaServerInfo } from '@/services/media/types';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   createMediaServerStorageId,
@@ -7,6 +8,10 @@ import {
   prepareAuthenticatedServer,
   upsertMediaServer,
 } from './mediaServerStore';
+import { getConnectionName } from './serverConnectionNames';
+import { getServerConnections } from './serverConnections';
+
+afterEach(() => i18n.changeLanguage('zh-Hans'));
 
 const baseServer: MediaServerInfo = {
   id: 'https://media.test_user-1',
@@ -21,6 +26,32 @@ const baseServer: MediaServerInfo = {
 };
 
 describe('media server store helpers', () => {
+  it.each(['zh-Hans', 'en'])(
+    'persists generated connection names independently of the creation language %s',
+    async (language) => {
+      await i18n.changeLanguage(language);
+      const authenticated = { ...baseServer, remoteServerId: 'nas-1' };
+      const servers = upsertMediaServer([], prepareAuthenticatedServer([], authenticated));
+      const saved = prepareAuthenticatedServer(servers, {
+        ...authenticated,
+        address: 'https://other.test',
+      });
+      const restored: MediaServerInfo = JSON.parse(JSON.stringify(saved));
+      expect(restored.connections?.map(({ name, nameKind }) => ({ name, nameKind }))).toEqual([
+        { name: '', nameKind: 'default' },
+        { name: '', nameKind: 'alternative' },
+      ]);
+      const lines = getServerConnections(restored);
+      await i18n.changeLanguage('en');
+      expect(lines.map(getConnectionName)).toEqual([
+        'Default connection',
+        'Alternative connection',
+      ]);
+      await i18n.changeLanguage('zh-Hans');
+      expect(lines.map(getConnectionName)).toEqual(['默认线路', '备用线路']);
+    },
+  );
+
   it('merges a login through another address into the same remote account and preserves settings', () => {
     const existing = {
       ...baseServer,

@@ -1,3 +1,5 @@
+import { t as tr } from '@/lib/i18n';
+
 export type DanmakuApiSource = {
   id: string;
   name: string;
@@ -14,7 +16,9 @@ export type DanmakuSourceSettings = {
 export const DEFAULT_DANMAKU_SOURCE_ID = 'default';
 export const DEFAULT_DANMAKU_SOURCE: DanmakuApiSource = {
   id: DEFAULT_DANMAKU_SOURCE_ID,
-  name: '默认 API',
+  get name() {
+    return tr('danmaku.defaultApi');
+  },
   baseUrl: process.env.EXPO_PUBLIC_DANDANPLAY_API_URL ?? '',
   enabled: true,
 };
@@ -31,7 +35,7 @@ export function normalizeDanmakuApiUrl(value: string): string {
   try {
     url = new URL(value.trim());
   } catch {
-    throw new Error('请输入完整的 API 地址');
+    throw new Error(tr('danmaku.enterFullApiUrl'));
   }
   if (
     !['http:', 'https:'].includes(url.protocol) ||
@@ -39,7 +43,7 @@ export function normalizeDanmakuApiUrl(value: string): string {
     url.username ||
     url.password
   ) {
-    throw new Error('API 地址需要使用 http 或 https');
+    throw new Error(tr('danmaku.apiUrlProtocolRequired'));
   }
   url.hash = '';
   const path = url.pathname.replace(/\/+$/, '');
@@ -75,7 +79,7 @@ export function parseDanmakuSourceSettings(saved?: string): DanmakuSourceSetting
           name:
             typeof source.name === 'string' && source.name.trim()
               ? source.name.trim()
-              : '自定义 API',
+              : tr('danmaku.customApi'),
           baseUrl,
           enabled: source.enabled !== false,
         });
@@ -95,7 +99,14 @@ export function parseDanmakuSourceSettings(saved?: string): DanmakuSourceSetting
 
 export function getDanmakuSources(settings: DanmakuSourceSettings): DanmakuApiSource[] {
   return [
-    { ...DEFAULT_DANMAKU_SOURCE, enabled: settings.defaultEnabled },
+    {
+      id: DEFAULT_DANMAKU_SOURCE.id,
+      get name() {
+        return DEFAULT_DANMAKU_SOURCE.name;
+      },
+      baseUrl: DEFAULT_DANMAKU_SOURCE.baseUrl,
+      enabled: settings.defaultEnabled,
+    },
     ...settings.customSources,
   ];
 }
@@ -109,7 +120,9 @@ export function danmakuSourcesKey(sources: DanmakuApiSource[]): string {
       for (const char of source.baseUrl) {
         hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
       }
-      return source.id + ':' + source.name + ':' + (hash >>> 0).toString(36);
+      // The built-in display name is localized; it must not invalidate comment caches.
+      const name = source.id === DEFAULT_DANMAKU_SOURCE_ID ? '' : source.name;
+      return source.id + ':' + name + ':' + (hash >>> 0).toString(36);
     })
     .sort()
     .join('|');

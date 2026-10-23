@@ -2,12 +2,14 @@ import { FloatingTabBarInsetProvider } from '@/components/navigation/FloatingTab
 import { navigationDestinations } from '@/components/navigation/navigationDestinations';
 import { TabletNavigation } from '@/components/navigation/TabletNavigation';
 import { usesAndroidNavigationRail } from '@/lib/adaptiveLayout';
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import { useOuterTheme } from '@/lib/theme/OuterTheme';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { Platform, useWindowDimensions } from 'react-native';
 
 export default function TabLayout() {
+  useTranslation();
   const accentColor = useOuterTheme().colors.tint;
   const theme = useAppTheme();
   const tablet = Platform.OS === 'ios' && Platform.isPad;

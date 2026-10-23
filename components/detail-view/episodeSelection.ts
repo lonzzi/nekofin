@@ -1,3 +1,4 @@
+import { t as tr } from '@/lib/i18n';
 import { MediaItem } from '@/services/media/types';
 
 export const getInitialSeasonId = (seasons: MediaItem[], seasonId?: string): string =>
@@ -35,12 +36,17 @@ export const getSeasonTitle = (season?: MediaItem): string => {
 
   if (season.name) return season.name;
 
-  return typeof season.indexNumber === 'number' ? `第${season.indexNumber}季` : '未知季度';
+  return typeof season.indexNumber === 'number'
+    ? tr('media.seasonByIndex', { indexNumber: season.indexNumber })
+    : tr('media.unknownSeason');
 };
 
 export const getEpisodeHeaderText = (episode: MediaItem): string => {
   const seriesName = episode.seriesName?.trim();
-  const episodeNumber = typeof episode.indexNumber === 'number' ? `第${episode.indexNumber}集` : '';
+  const episodeNumber =
+    typeof episode.indexNumber === 'number'
+      ? tr('media.episodeByIndex', { indexNumber: episode.indexNumber })
+      : '';
 
   if (seriesName && episodeNumber) return `${seriesName} ${episodeNumber}`;
   if (seriesName) return seriesName;

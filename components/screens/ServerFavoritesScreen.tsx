@@ -3,9 +3,11 @@ import { useInfiniteQueryWithFocus } from '@/hooks/useInfiniteQueryWithFocus';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useMediaFilters } from '@/hooks/useMediaFilters';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { useTranslation } from '@/lib/i18n';
 import { favoritesQueryOptions } from '@/services/media/queryOptions';
 
 export default function FavoritesScreen() {
+  const { t: tr } = useTranslation();
   const { currentServer } = useMediaServers();
   const mediaAdapter = useMediaAdapter();
 
@@ -22,13 +24,13 @@ export default function FavoritesScreen() {
 
   return (
     <ItemGridScreen
-      title="我的收藏"
+      title={tr('media.myFavorites')}
       query={query}
       type="series"
       layout="grid"
       filters={filters}
       onChangeFilters={setFilters}
-      emptyState={{ title: '暂无收藏', icon: 'favorites' }}
+      emptyState={{ title: tr('media.noFavorites'), icon: 'favorites' }}
     />
   );
 }

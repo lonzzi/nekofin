@@ -7,9 +7,11 @@ import { useSubtitleFonts } from '@/hooks/useSubtitleFonts';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { useDanmakuSources } from '@/lib/contexts/DanmakuSourcesContext';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
+import { t as tr, useTranslation } from '@/lib/i18n';
 import { preferredTrackId } from '@/lib/playbackPreferences';
 import { generateDeviceProfile } from '@/lib/profiles/native';
 import { storage } from '@/lib/storage';
+import { toast } from '@/lib/toast';
 import { formatBitrate, getDeviceId, ticksToMilliseconds, ticksToSeconds } from '@/lib/utils';
 import { resolveDanmakuSelection, type DanmakuCommentsData } from '@/services/danmaku';
 import { danmakuSourcesKey } from '@/services/danmakuSources';
@@ -99,12 +101,15 @@ const LoadingIndicator = ({
   title?: string;
   bufferInfo?: BufferInfo | null;
 }) => {
+  const { t: tr } = useTranslation();
   return (
     <View style={[StyleSheet.absoluteFill, styles.bufferingOverlay]} pointerEvents="none">
       <ActivityIndicator size="large" color="#fff" />
       {bufferInfo ? (
         <>
-          <Text style={styles.loadingTitle}>{`缓冲中 ${Math.round(bufferInfo.percent)}%`}</Text>
+          <Text style={styles.loadingTitle}>
+            {tr('player.bufferingProgress', { value: Math.round(bufferInfo.percent) })}
+          </Text>
           {bufferInfo.rate > 0 && (
             <Text style={styles.loadingSubtitle}>
               {formatBitrate(bufferInfo.rate * 8, { unit: 'bytes' })}
@@ -125,6 +130,8 @@ export const VideoPlayer = ({
   itemId: string;
   initialSelection?: PlaybackSelection;
 }) => {
+  // Translate callback messages live without restarting track effects on locale changes.
+  useTranslation();
   const { currentServer, currentApi } = useMediaServers();
   const entryControlsVisible = useContext(PlayerEntryVisibilityContext);
   const router = useTracedRouter('player');
@@ -796,7 +803,9 @@ export const VideoPlayer = ({
           manualTrackChoice.current.subtitle = true;
           rememberedTrackChoice.current.subtitle = undefined;
           setFailedSubtitleIndices((previous) => new Set([...previous, chosenSubtitle]));
-          Alert.alert('字幕切换失败', '请重新选择字幕。');
+          toast.error(tr('player.subtitleSwitchFailed'), {
+            description: tr('player.reselectSubtitle'),
+          });
         }
         console.warn('refreshMpvTracks error:', e);
       }
@@ -844,15 +853,15 @@ export const VideoPlayer = ({
 
   useEffect(() => {
     if (!loadFailure) return;
-    Alert.alert('播放失败', loadFailure, [
-      { text: '返回', style: 'cancel', onPress: () => router.back() },
-      { text: '重新加载', onPress: retryPlayback },
+    Alert.alert(tr('player.playbackFailed'), loadFailure, [
+      { text: tr('common.back'), style: 'cancel', onPress: () => router.back() },
+      { text: tr('common.reload'), onPress: retryPlayback },
     ]);
   }, [loadFailure, retryPlayback, router]);
 
   useEffect(() => {
     if (streamInfoError) {
-      setLoadFailure('无法获取播放信息。请检查服务器连接后重新加载。');
+      setLoadFailure(tr('player.playbackInformationUnavailable'));
     }
   }, [streamInfoError]);
 
@@ -1191,7 +1200,10 @@ export const VideoPlayer = ({
         await targetPlayer.setAudioTrack(trackId);
         await refreshMpvTracks(targetPlayer, targetSource);
       } catch {
-        if (player.current === targetPlayer) Alert.alert('音轨切换失败', '请重新选择音轨。');
+        if (player.current === targetPlayer)
+          toast.error(tr('player.audioTrackSwitchFailed'), {
+            description: tr('player.reselectAudioTrack'),
+          });
       }
     },
     [refreshMpvTracks, usesServerTracks, changeServerTrack, mpvTracks],
@@ -1239,7 +1251,10 @@ export const VideoPlayer = ({
         else await targetPlayer.setSubtitleTrack(trackId);
         await refreshMpvTracks(targetPlayer, targetSource);
       } catch {
-        if (player.current === targetPlayer) Alert.alert('字幕切换失败', '请重新选择字幕。');
+        if (player.current === targetPlayer)
+          toast.error(tr('player.subtitleSwitchFailed'), {
+            description: tr('player.reselectSubtitle'),
+          });
       }
     },
     [
@@ -1502,7 +1517,7 @@ export const VideoPlayer = ({
       {(showLoading || !entryControlsVisible) && (
         <LoadingIndicator
           bufferInfo={bufferInfo}
-          title={playbackAttempt > 0 && !isLoaded ? '正在重新加载视频…' : undefined}
+          title={playbackAttempt > 0 && !isLoaded ? tr('player.reloadingVideo') : undefined}
         />
       )}
 

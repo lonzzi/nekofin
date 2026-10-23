@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n';
 import { spacing, useAppTheme } from '@/lib/theme';
 import { BottomSheet, Host, ScrollView, Text, VStack } from '@expo/ui/swift-ui';
 import {
@@ -20,6 +21,7 @@ export function OverviewSheet({
   isPresented: boolean;
   onDismiss: () => void;
 }) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   return (
     <Host style={{ position: 'absolute' }} pointerEvents="none" colorScheme={theme.colorScheme}>
@@ -52,7 +54,7 @@ export function OverviewSheet({
               accessibilityAddTraits(['isHeader']),
             ]}
           >
-            剧情简介
+            {tr('media.overview')}
           </Text>
           <ScrollView>
             <Text

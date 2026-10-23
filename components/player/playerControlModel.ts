@@ -1,3 +1,5 @@
+import { t as tr } from '@/lib/i18n';
+
 export const PLAYER_SEEK_INTERVAL_MS = 10_000;
 
 export type PlayerTransportActionKey =
@@ -63,18 +65,18 @@ export function deriveTransportActions({
   const canSeek = Number.isFinite(durationMs) && durationMs > 0;
   const timeActions: PlayerTransportAction[] = [
     {
-      accessibilityLabel: '后退 10 秒',
+      accessibilityLabel: tr('player.skipBackward'),
       disabled: !canSeek,
       key: 'rewind10',
       seekOffsetMs: -PLAYER_SEEK_INTERVAL_MS,
     },
     {
-      accessibilityLabel: isPlaying ? '暂停' : '播放',
+      accessibilityLabel: isPlaying ? tr('player.pause') : tr('player.play'),
       disabled: false,
       key: 'playPause',
     },
     {
-      accessibilityLabel: '前进 10 秒',
+      accessibilityLabel: tr('player.skipForward'),
       disabled: !canSeek,
       key: 'forward10',
       seekOffsetMs: PLAYER_SEEK_INTERVAL_MS,
@@ -85,50 +87,49 @@ export function deriveTransportActions({
 
   return [
     {
-      accessibilityLabel: '上一集',
+      accessibilityLabel: tr('player.previousEpisode'),
       disabled: !hasPreviousEpisode,
       key: 'previousEpisode',
     },
     ...timeActions,
     {
-      accessibilityLabel: '下一集',
+      accessibilityLabel: tr('player.nextEpisode'),
       disabled: !hasNextEpisode,
       key: 'nextEpisode',
     },
   ];
 }
 
-export function derivePlayerActionButtons({
-  danmakuCount,
-  episodeCount,
-  isMovie,
-}: PlayerActionButtonOptions): PlayerActionButton[] {
+export function derivePlayerActionButtons(
+  { danmakuCount, episodeCount, isMovie }: PlayerActionButtonOptions,
+  translate = tr,
+): PlayerActionButton[] {
   const resolvedDanmakuCount = safeCount(danmakuCount);
   const resolvedEpisodeCount = safeCount(episodeCount);
   const actions: PlayerActionButton[] = [];
 
   if (!isMovie && resolvedEpisodeCount > 0) {
     actions.push({
-      accessibilityLabel: `剧集列表，共 ${resolvedEpisodeCount} 集`,
+      accessibilityLabel: translate('player.episodeListWithCount', { count: resolvedEpisodeCount }),
       key: 'episodes',
     });
   }
 
   actions.push(
     {
-      accessibilityLabel: `弹幕设置，当前 ${resolvedDanmakuCount} 条`,
+      accessibilityLabel: translate('danmaku.settingsWithCount', { count: resolvedDanmakuCount }),
       key: 'danmaku',
     },
     {
-      accessibilityLabel: '字幕与音轨',
+      accessibilityLabel: translate('player.subtitlesAndAudio'),
       key: 'tracks',
     },
     {
-      accessibilityLabel: '画质',
+      accessibilityLabel: translate('player.quality'),
       key: 'quality',
     },
     {
-      accessibilityLabel: '播放设置',
+      accessibilityLabel: translate('player.settings'),
       key: 'playback',
     },
   );

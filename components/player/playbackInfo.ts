@@ -1,3 +1,4 @@
+import { t as tr } from '@/lib/i18n';
 import type { MediaInfo } from 'expo-mpv';
 
 export type PlaybackMethod =
@@ -107,24 +108,30 @@ export function derivePlaybackInfoBadges(
   info?: Partial<MediaInfo> | null,
 ): PlaybackInfoBadge[] {
   const method = {
-    pending: '读取播放信息…',
-    directPlay: '直接播放',
-    transcode: '服务器转码',
-    audioTranscode: '音频转码',
-    remux: '服务器封装',
-    videoCopy: '视频直通',
+    pending: tr('player.loadingPlaybackInformation'),
+    directPlay: tr('player.directPlay'),
+    transcode: tr('player.serverTranscoding'),
+    audioTranscode: tr('player.audioTranscoding'),
+    remux: tr('player.serverRemuxing'),
+    videoCopy: tr('player.videoPassthrough'),
   }[source.method];
   const badges: PlaybackInfoBadge[] = [
     {
       key: 'method',
       text: method,
-      accessibilityLabel: `播放方式：${method}`,
+      compactText:
+        source.method === 'transcode'
+          ? tr('player.transcoding')
+          : source.method === 'audioTranscode'
+            ? method
+            : undefined,
+      accessibilityLabel: tr('player.playbackMethod', { method: method }),
       tone: source.method === 'directPlay' ? 'positive' : undefined,
     },
   ];
   const activeDecoder = info?.hwdecCurrent?.trim();
-  let decoder = '解码待确认';
-  if (activeDecoder === 'no') decoder = '软件解码';
+  let decoder = tr('player.unknownDecoder');
+  if (activeDecoder === 'no') decoder = tr('player.softwareDecoding');
   else if (activeDecoder) {
     const api = activeDecoder.replace(/-copy$/, '');
     const name =
@@ -138,9 +145,17 @@ export function derivePlaybackInfoBadges(
           dxva2: 'DXVA2',
         } as Record<string, string>
       )[api] ?? api;
-    decoder = `硬解 · ${name}${activeDecoder.endsWith('-copy') ? '（拷贝）' : ''}`;
+    decoder = tr('player.hardwareDecoderDescription', {
+      name: name,
+      value: activeDecoder.endsWith('-copy') ? tr('player.decoderCopySuffix') : '',
+    });
   }
-  badges.push({ key: 'decoder', text: decoder, accessibilityLabel: `本机视频解码：${decoder}` });
+  badges.push({
+    key: 'decoder',
+    text: decoder,
+    compactText: activeDecoder === 'no' ? 'SW' : activeDecoder ? 'HW' : '—',
+    accessibilityLabel: tr('player.localVideoDecoder', { decoder: decoder }),
+  });
   // Metadata describes the original file. Never show it as the decoded resolution/bitrate of a transcode.
   const direct = source.method === 'directPlay';
   const hasNativeResolution = positive(info?.width) && positive(info?.height);
@@ -151,7 +166,7 @@ export function derivePlaybackInfoBadges(
       key: 'resolution',
       text: `${width}×${height}`,
       compactText: width >= height ? `${height}p` : `${width}×${height}`,
-      accessibilityLabel: `分辨率：${width} × ${height}`,
+      accessibilityLabel: tr('media.resolutionDimensions', { width: width, height: height }),
     });
   const codec = codecLabel(info?.videoCodec || (direct ? source.sourceCodec : undefined));
   const fps = positive(info?.fps) ? info.fps : direct ? source.sourceFps : undefined;
@@ -163,7 +178,7 @@ export function derivePlaybackInfoBadges(
       key: 'format',
       text: format,
       compactText: codec,
-      accessibilityLabel: `视频格式：${format}`,
+      accessibilityLabel: tr('media.videoFormat', { format: format }),
     });
   // The compact overlay describes the original file, not a moving packet-rate estimate.
   const sourceBitrate = positive(source.sourceVideoBitrate)
@@ -171,28 +186,45 @@ export function derivePlaybackInfoBadges(
     : source.sourceBitrate;
   badges.push({
     key: 'bitrate',
-    text: positive(sourceBitrate) ? `源码率 ${bitrateLabel(sourceBitrate)}` : '源码率未知',
+    text: positive(sourceBitrate)
+      ? tr('media.sourceValue', { value: bitrateLabel(sourceBitrate) })
+      : tr('media.sourceBitrateUnknown'),
+    compactText: positive(sourceBitrate)
+      ? bitrateLabel(sourceBitrate).replace(' Mbps', 'M').replace(' Kbps', 'K')
+      : '—',
     accessibilityLabel: positive(sourceBitrate)
-      ? `源文件${positive(source.sourceVideoBitrate) ? '视频' : '总'}码率：${bitrateLabel(sourceBitrate)}`
-      : '服务器未提供源文件码率',
+      ? tr('media.sourceBitrateWithPrefix', {
+          value: positive(source.sourceVideoBitrate)
+            ? tr('media.video')
+            : tr('media.totalBitratePrefix'),
+          value2: bitrateLabel(sourceBitrate),
+        })
+      : tr('media.sourceBitrateUnavailable'),
   });
   if (positive(info?.videoBitrate)) {
     const bitrate = info.videoBitrate + (positive(info.audioBitrate) ? info.audioBitrate : 0);
     badges.push({
       key: 'currentBitrate',
-      text: `实时码率 ${bitrateLabel(bitrate)}`,
-      accessibilityLabel: `当前音视频估算码率：${bitrateLabel(bitrate)}`,
+      text: tr('diagnostics.liveValue', { value: bitrateLabel(bitrate) }),
+      accessibilityLabel: tr('media.estimatedBitrate', { value: bitrateLabel(bitrate) }),
     });
   }
   if (!direct && source.method !== 'pending' && positive(source.bitrateLimit)) {
     badges.push({
       key: 'bitrateLimit',
-      text: `上限 ${bitrateLabel(source.bitrateLimit)}`,
-      accessibilityLabel: `请求的音视频码率上限：${bitrateLabel(source.bitrateLimit)}`,
+      text: tr('danmaku.limitValue', { value: bitrateLabel(source.bitrateLimit) }),
+      accessibilityLabel: tr('player.requestedBitrateLimit', {
+        value: bitrateLabel(source.bitrateLimit),
+      }),
     });
   }
   const audio = codecLabel(info?.audioCodec);
-  if (audio) badges.push({ key: 'audio', text: audio, accessibilityLabel: `音频编码：${audio}` });
+  if (audio)
+    badges.push({
+      key: 'audio',
+      text: audio,
+      accessibilityLabel: tr('media.audioCodecDescription', { audio: audio }),
+    });
   return badges;
 }
 
@@ -200,32 +232,16 @@ export function derivePlaybackInfoBadges(
 export function derivePlaybackInfoSummary(badges: PlaybackInfoBadge[]): PlaybackInfoBadge[] {
   return ['method', 'format', 'resolution', 'decoder', 'bitrate'].flatMap((key) => {
     const badge = badges.find((entry) => entry.key === key);
-    if (!badge) return [];
-    let text = badge.text;
-    if (key === 'method') {
-      // A remux or copied video does not establish that the server decoded it.
-      if (text === '服务器转码') text = '转码';
-      else if (text !== '音频转码') return [];
-    } else if (key === 'format') {
-      if (!badge.compactText) return [];
-      return [
-        { ...badge, text: badge.compactText, accessibilityLabel: `视频编码：${badge.compactText}` },
-      ];
-    } else if (key === 'resolution') {
-      if (!badge.compactText) return [];
-      text = badge.compactText;
-    } else if (key === 'decoder') {
-      text = text.startsWith('硬解') ? 'HW' : text === '软件解码' ? 'SW' : '—';
-    } else {
-      text = text
-        .replace(/^码率 /, '')
-        .replace(/^源码率 /, '')
-        .replace(/^上限 /, '≤')
-        .replace(' Mbps', 'M')
-        .replace(' Kbps', 'K')
-        .replace('源码率未知', '—')
-        .replace('码率待确认', '—');
-    }
-    return [{ ...badge, text }];
+    if (!badge?.compactText) return [];
+    return [
+      {
+        ...badge,
+        text: badge.compactText,
+        accessibilityLabel:
+          key === 'format'
+            ? tr('media.videoCodecDescription', { compactText: badge.compactText })
+            : badge.accessibilityLabel,
+      },
+    ];
   });
 }

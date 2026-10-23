@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import { Button, Text, View } from 'react-native';
 
@@ -14,6 +15,7 @@ export function DetailRequestState({
   isError: boolean;
   onRetry: () => void;
 }) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
 
   if (!isError) return <DetailSummaryPlaceholder title={title} mode={mode} />;
@@ -26,13 +28,13 @@ export function DetailRequestState({
           accessibilityRole="alert"
           style={[theme.typography.bodyEmphasized, { color: theme.colors.text }]}
         >
-          详情加载失败
+          {tr('media.detailsLoadFailed')}
         </Text>
         <Text style={[theme.typography.footnote, { color: theme.colors.textSecondary }]}>
-          请检查网络连接后重试
+          {tr('search.checkNetworkAndRetry')}
         </Text>
         <View style={{ alignSelf: 'flex-start' }}>
-          <Button title="重试" onPress={onRetry} color={theme.colors.tint} />
+          <Button title={tr('common.retry')} onPress={onRetry} color={theme.colors.tint} />
         </View>
       </View>
     </View>

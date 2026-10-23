@@ -1,3 +1,4 @@
+import { t as tr } from '@/lib/i18n';
 import type {
   MediaServerConnection,
   MediaServerInfo,
@@ -5,6 +6,7 @@ import type {
 } from '@/services/media/types';
 
 import { buildConnectionAddress } from './serverConnection';
+import { normalizeConnectionName } from './serverConnectionNames';
 
 type ServerSession = Pick<MediaServerInfo, 'id' | 'type' | 'address' | 'userId' | 'accessToken'>;
 
@@ -24,12 +26,17 @@ export function hasSameServerSession(expected: ServerSession, current?: ServerSe
 export function getServerConnections(
   server: Pick<MediaServerInfo, 'address' | 'connections'>,
 ): MediaServerConnection[] {
-  const connections = server.connections ?? [];
+  const connections = (server.connections ?? []).map(normalizeConnectionName);
   const address = server.address.replace(/\/+$/, '');
   return connections.some((line) => line.address === address)
     ? connections
     : [
-        { id: connections.length ? `default-${address}` : 'default', name: '默认线路', address },
+        {
+          id: connections.length ? `default-${address}` : 'default',
+          name: '',
+          nameKind: 'default',
+          address,
+        },
         ...connections,
       ];
 }
@@ -37,7 +44,7 @@ export function getServerConnections(
 export function selectServerConnection(server: MediaServerInfo, connectionId: string) {
   const connections = getServerConnections(server);
   const line = connections.find((connection) => connection.id === connectionId);
-  if (!line) throw new Error('线路不存在');
+  if (!line) throw new Error(tr('server.connectionNotFound'));
   return {
     ...server,
     address: line.address,
@@ -55,10 +62,10 @@ export async function getPublicServerInfo(address: string) {
     const response = await fetch(`${buildConnectionAddress(address)}/System/Info/Public`, {
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error('连接失败，请检查线路地址、端口和网络');
+    if (!response.ok) throw new Error(tr('server.connectionFailedPortAndNetwork'));
     const info = await response.json();
     if (typeof info.Id !== 'string' || !info.Id)
-      throw new Error('这个地址没有返回有效的媒体服务器信息');
+      throw new Error(tr('server.invalidServerResponse'));
     return {
       id: info.Id as string,
       name: typeof info.ServerName === 'string' ? info.ServerName : '',
@@ -66,9 +73,9 @@ export async function getPublicServerInfo(address: string) {
     };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError')
-      throw new Error('线路连接超时，请检查地址和网络');
-    if (error instanceof TypeError) throw new Error('无法连接此线路，请检查地址和网络');
-    if (error instanceof SyntaxError) throw new Error('这个地址没有返回有效的媒体服务器信息');
+      throw new Error(tr('server.connectionTimedOut'));
+    if (error instanceof TypeError) throw new Error(tr('server.connectionFailedDescription'));
+    if (error instanceof SyntaxError) throw new Error(tr('server.invalidServerResponse'));
     throw error;
   } finally {
     clearTimeout(timeout);
@@ -139,6 +146,6 @@ export async function verifyServerConnection(
 ) {
   const expected = server.remoteServerId || (await readIdentity(server.address));
   const actual = await readIdentity(address);
-  if (expected !== actual) throw new Error('此线路连接到了另一台服务器，请填写同一服务器的地址');
+  if (expected !== actual) throw new Error(tr('server.connectionServerMismatch'));
   return expected;
 }

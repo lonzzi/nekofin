@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { createElement, useContext } from 'react';
@@ -14,6 +15,7 @@ export const nativeListTitleOptions = {
 
 /** Let UIKit render its own navigation and scroll-edge materials on iOS 26+. */
 export function useNativeListStackOptions(backgroundColor: string) {
+  const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const ios = Platform.OS === 'ios';
   const sidebar = useTabletSidebar();
@@ -40,8 +42,8 @@ export function useNativeListStackOptions(backgroundColor: string) {
           unstable_headerLeftItems: () => [
             {
               type: 'button' as const,
-              label: '显示侧边栏',
-              accessibilityLabel: '显示侧边栏',
+              label: tr('navigation.showSidebar'),
+              accessibilityLabel: tr('navigation.showSidebar'),
               icon: { type: 'sfSymbol' as const, name: 'sidebar.left' as const },
               onPress: sidebar.showSidebar,
             },

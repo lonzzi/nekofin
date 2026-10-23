@@ -224,7 +224,9 @@ export interface MediaServerInfo {
 
 export interface MediaServerConnection {
   id: string;
+  /** Generated names store an empty string and resolve nameKind in the current locale. */
   name: string;
+  nameKind?: 'default' | 'alternative' | 'custom';
   address: string;
 }
 

@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { i18n } from '@/lib/i18n';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   danmakuEndpointUrl,
@@ -8,7 +9,27 @@ import {
   parseDanmakuSourceSettings,
 } from './danmakuSources';
 
+afterEach(() => i18n.changeLanguage('zh-Hans'));
+
 describe('danmaku API configuration', () => {
+  it('updates the built-in name without invalidating cached comments on language changes', async () => {
+    const settings = parseDanmakuSourceSettings(
+      JSON.stringify({
+        customSources: [
+          { id: 'custom', name: '家中 API', baseUrl: 'https://example.test', enabled: true },
+        ],
+      }),
+    );
+    const sources = getDanmakuSources(settings);
+    const key = danmakuSourcesKey(sources);
+    expect(sources[0].name).toBe('默认 API');
+    await i18n.changeLanguage('en');
+    expect(sources[0].name).toBe('Default API');
+    expect(sources[1].name).toBe('家中 API');
+    expect(danmakuSourcesKey(sources)).toBe(key);
+    expect(danmakuSourcesKey(getDanmakuSources(settings))).toBe(key);
+  });
+
   it('keeps token prefixes and auth parameters intact when appending endpoints', () => {
     expect(
       danmakuEndpointUrl(

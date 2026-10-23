@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n';
 import { DandanComment } from '@/services/dandanplay';
 import type { DanmakuCommentsData, DanmakuTrack } from '@/services/danmaku';
 import type { PlaybackQuality } from '@/services/media/playbackQuality';
@@ -125,6 +126,7 @@ export function Controls({
   currentItem,
   onEpisodeSelect,
 }: ControlsProps) {
+  const { t: tr } = useTranslation();
   const [panelState, dispatchPanel] = useReducer(playerPanelReducer, INITIAL_PLAYER_PANEL_STATE);
   const [showControls, setShowControls] = useState(initiallyVisible);
   const [controlsLaidOut, setControlsLaidOut] = useState(false);
@@ -142,7 +144,10 @@ export function Controls({
   const fadeAnim = useSharedValue(0);
   const controlsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const danmakuSearchPanelRef = useRef<DanmakuSearchPanelRef>(null);
-  const [searchNavigation, setSearchNavigation] = useState({ title: '搜索弹幕', canGoBack: false });
+  const [searchNavigation, setSearchNavigation] = useState({
+    title: tr('danmaku.findComments'),
+    canGoBack: false,
+  });
   const activePanel = getActivePlayerPanelRoute(panelState);
   const isPanelOpen = isPlayerPanelOpen(panelState);
   const isPanelOpenRef = useRef(isPanelOpen);
@@ -351,10 +356,10 @@ export function Controls({
 
   const panelTitle =
     activePanel?.key === 'episodes'
-      ? '剧集'
+      ? tr('media.series')
       : activePanel?.key === 'danmakuSearch'
         ? searchNavigation.title
-        : '弹幕';
+        : tr('danmaku.comments');
 
   const handleEpisodeSelect = useCallback(
     (episodeId: string) => {
@@ -364,9 +369,9 @@ export function Controls({
     [closePanel, onEpisodeSelect],
   );
   const handleOpenDanmakuSearch = useCallback(() => {
-    setSearchNavigation({ title: '搜索弹幕', canGoBack: false });
+    setSearchNavigation({ title: tr('danmaku.findComments'), canGoBack: false });
     pushPanel({ key: 'danmakuSearch' });
-  }, [pushPanel]);
+  }, [pushPanel, tr]);
   const handleCommentsLoaded = useCallback(
     (data: DanmakuCommentsData) => {
       onCommentsLoaded?.(data);
