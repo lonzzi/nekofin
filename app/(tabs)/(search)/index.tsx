@@ -14,6 +14,7 @@ import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
+import { formatList } from '@/lib/i18n/formatters';
 import { useAppTheme } from '@/lib/theme';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import { createMediaAdapterWithApi, createMediaApiFromServerInfo } from '@/services/media';
@@ -198,7 +199,7 @@ function AggregateSearchScreen() {
               {hasKeyword && query.data?.failedServers.length ? (
                 <View style={[styles.failure, { borderColor: t.colors.separator }]}>
                   <Text style={{ color: t.colors.textSecondary, flex: 1, lineHeight: 21 }}>
-                    {query.data.failedServers.join('、')} {tr('search.incomplete')}
+                    {tr('search.incomplete', { servers: formatList(query.data.failedServers) })}
                   </Text>
                   <Pressable
                     accessibilityRole="button"

@@ -44,4 +44,13 @@ describe('bundled translations', () => {
       'Servers: 1 · Accounts: 2',
     );
   });
+
+  it('keeps the English episode count value separate from its row label', async () => {
+    await i18n.changeLanguage('en');
+    for (const value of [1, 24, 100]) {
+      expect(`${t('player.episodes')} ${t('media.episodeCount', { value })}`).toBe(
+        `Episodes ${value}`,
+      );
+    }
+  });
 });

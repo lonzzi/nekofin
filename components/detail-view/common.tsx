@@ -1,5 +1,6 @@
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { t as tr, useTranslation } from '@/lib/i18n';
+import { formatDate } from '@/lib/i18n/formatters';
 import { layout, radius, spacing, typography, useAppTheme } from '@/lib/theme';
 import { formatChineseDurationFromTicks, formatRating } from '@/lib/utils';
 import {
@@ -25,20 +26,7 @@ import { GlassCard, ShadowedGlassCard } from '../ui/GlassCard';
 import { InfoCard, InfoCardRows } from '../ui/InfoCard';
 import { OverviewSheet } from './OverviewSheet';
 
-const detailDateFormatter = new Intl.DateTimeFormat('zh-CN', {
-  year: 'numeric',
-  month: 'short',
-  day: 'numeric',
-});
-
 const OVERVIEW_COLLAPSED_LINES = 5;
-
-function formatDetailDate(value?: string | null) {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return detailDateFormatter.format(date);
-}
 
 function compactList(values?: (string | null | undefined)[] | null, limit = 4) {
   const clean = values?.map((value) => value?.trim()).filter((value): value is string => !!value);
@@ -294,7 +282,7 @@ export const ItemInfoList = ({ item }: { item: MediaItem }) => {
         : '';
 
     return [
-      { label: tr('media.premiere'), value: formatDetailDate(item.premiereDate) },
+      { label: tr('media.premiere'), value: formatDate(item.premiereDate) },
       { label: tr('media.duration'), value: runtimeText },
       { label: tr('media.rating'), value: ratingParts.join(' · ') },
       { label: tr('media.certification'), value: item.officialRating ?? '' },
