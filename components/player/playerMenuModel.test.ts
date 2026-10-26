@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  deriveAutoSkipMenuActions,
+  deriveChapterMenuAction,
   deriveDanmakuMenuActions,
   derivePlaybackMenuActions,
   deriveQualityMenuActions,
@@ -9,6 +11,37 @@ import {
 } from './playerMenuModel';
 
 describe('player native menu model', () => {
+  it('offers independent persistent auto-skip toggles with native selection state', () => {
+    expect(deriveAutoSkipMenuActions({ intro: true, outro: false })).toEqual([
+      { id: 'playback:autoSkipIntro', title: '自动跳过片头', state: 'on' },
+      { id: 'playback:autoSkipOutro', title: '自动跳过片尾', state: 'off' },
+    ]);
+    expect(parsePlayerMenuAction('playback:autoSkipIntro')).toEqual({ kind: 'autoSkipIntro' });
+    expect(parsePlayerMenuAction('playback:autoSkipOutro')).toEqual({ kind: 'autoSkipOutro' });
+    expect(parsePlayerMenuAction('playback:autoSkipIntro:unknown')).toBeNull();
+  });
+  it('seeks to precise chapter times and disables chapter actions until seeking is ready', () => {
+    const chapters = [
+      { name: 'Opening', startTimeMs: 101018 },
+      { name: '', startTimeMs: 3600000 },
+    ];
+    expect(deriveChapterMenuAction(chapters, false)[0].subactions).toMatchObject([
+      { id: 'playback:chapter:101018', title: '1:41  Opening', attributes: { disabled: true } },
+      { title: '1:00:00  章节 2' },
+    ]);
+    expect(deriveChapterMenuAction([], true)).toEqual([]);
+    expect(parsePlayerMenuAction('playback:chapter:101018.5')).toEqual({
+      kind: 'chapter',
+      timeMs: 101018.5,
+    });
+    for (const id of [
+      'playback:chapter:',
+      'playback:chapter:NaN',
+      'playback:chapter:-1',
+      'playback:chapter:Infinity',
+    ])
+      expect(parsePlayerMenuAction(id)).toBeNull();
+  });
   it('offers video versions with the actual media source id', () => {
     const actions = deriveTrackMenuActions(
       undefined,

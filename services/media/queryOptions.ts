@@ -604,6 +604,24 @@ export function mediaSourcesQueryOptions({
   });
 }
 
+export function mediaSegmentsQueryOptions({
+  adapter,
+  currentServer,
+  itemId,
+}: {
+  adapter: MediaAdapter;
+  currentServer: MediaServerInfo | null;
+  itemId: string;
+}) {
+  return queryOptions({
+    queryKey: mediaQueryKeys.mediaSegments(currentServer?.id, itemId, currentServer?.userId),
+    enabled: !!currentServer && !!itemId,
+    staleTime: 0,
+    retry: false,
+    queryFn: () => adapter.getMediaSegments({ itemId }),
+  });
+}
+
 export function streamInfoQueryOptions({
   adapter,
   currentServer,

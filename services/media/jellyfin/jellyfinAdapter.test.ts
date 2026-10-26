@@ -5,10 +5,11 @@ import { mapRawItemToMediaItem } from '../mappers';
 import { JellyfinAdapter } from './jellyfinAdapter';
 import { parseJellyfinItemArrayResponse, parseJellyfinItemsPage } from './mappers';
 
-const { reportStart, reportProgress, reportStop } = vi.hoisted(() => ({
+const { reportStart, reportProgress, reportStop, getItemSegments } = vi.hoisted(() => ({
   reportStart: vi.fn(),
   reportProgress: vi.fn(),
   reportStop: vi.fn(),
+  getItemSegments: vi.fn(),
 }));
 vi.mock('@jellyfin/sdk/lib/utils/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@jellyfin/sdk/lib/utils/api')>()),
@@ -17,7 +18,32 @@ vi.mock('@jellyfin/sdk/lib/utils/api', async (importOriginal) => ({
     reportPlaybackProgress: reportProgress,
     reportPlaybackStopped: reportStop,
   }),
+  getMediaSegmentsApi: () => ({ getItemSegments }),
 }));
+
+describe('Jellyfin media segment metadata', () => {
+  it('maps the server ranges through the authenticated SDK API', async () => {
+    const adapter = new JellyfinAdapter();
+    adapter.setApi({ basePath: 'https://jellyfin.test' } as never);
+    getItemSegments.mockResolvedValueOnce({
+      data: { Items: [{ Type: 'Intro', StartTicks: 10000000, EndTicks: 900000000 }] },
+    });
+    expect(await adapter.getMediaSegments({ itemId: 'episode' })).toEqual([
+      { type: 'Intro', startTimeMs: 1000, endTimeMs: 90000 },
+    ]);
+    expect(getItemSegments).toHaveBeenLastCalledWith({ itemId: 'episode' }, { timeout: 5000 });
+  });
+
+  it('falls back for unsupported servers but propagates other errors to the optional query', async () => {
+    const adapter = new JellyfinAdapter();
+    adapter.setApi({ basePath: 'https://jellyfin.test' } as never);
+    getItemSegments.mockRejectedValueOnce({ isAxiosError: true, response: { status: 404 } });
+    expect(await adapter.getMediaSegments({ itemId: 'episode' })).toEqual([]);
+    const unauthorized = { isAxiosError: true, response: { status: 401 } };
+    getItemSegments.mockRejectedValueOnce(unauthorized);
+    await expect(adapter.getMediaSegments({ itemId: 'episode' })).rejects.toBe(unauthorized);
+  });
+});
 
 describe('Jellyfin version playback reports', () => {
   it.each([

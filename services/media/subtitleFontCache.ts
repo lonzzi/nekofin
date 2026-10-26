@@ -3,6 +3,7 @@ import { Directory, File, Paths } from 'expo-file-system';
 import { decodeWoff2 } from 'expo-mpv';
 
 import {
+  BUNDLED_SUBTITLE_FONT_DIRECTORY,
   deriveSubtitleFonts,
   fetchFallbackFonts,
   fontExtension,
@@ -130,7 +131,11 @@ export function createSubtitleFontCacheStore() {
     const fontsDirectory = new Directory(directory, 'fonts');
     fontsDirectory.create({ intermediates: true, idempotent: true });
     // Preserve the native module's CJK fallback when libass switches to this directory.
-    const fallback = new File(Paths.bundle, 'NotoSansCJKsc-Regular.otf');
+    const fallback = new File(
+      Paths.bundle,
+      BUNDLED_SUBTITLE_FONT_DIRECTORY,
+      'NotoSansCJKsc-Regular.otf',
+    );
     const bundled = new File(fontsDirectory, 'NotoSansCJKsc-Regular.otf');
     if (fallback.exists && !bundled.exists) await fallback.copy(bundled);
     let loaded = 0;

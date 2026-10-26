@@ -141,6 +141,14 @@ export function deriveDurationMs(
     : Math.max(0, (fallbackDurationSeconds ?? 0) * 1000);
 }
 
+/** Native loadfile expects seconds; preserve fractional resume positions. */
+export function deriveStartPositionSeconds(positionMs: number, durationMs: number): number {
+  const position = Number.isFinite(positionMs) ? Math.max(0, positionMs) : 0;
+  const bounded =
+    Number.isFinite(durationMs) && durationMs > 0 ? Math.min(position, durationMs) : position;
+  return bounded / 1000;
+}
+
 export function deriveBufferedProgress({
   positionSeconds,
   durationSeconds,

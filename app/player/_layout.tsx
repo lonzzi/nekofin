@@ -1,6 +1,9 @@
 import { PlayerEntryVisibilityContext } from '@/components/player/PlayerEntryContext';
 import { usePlayerEntryVisibility } from '@/hooks/usePlayerEntryVisibility';
-import { resolveVideoScreenOrientation } from '@/lib/playerOrientation';
+import {
+  resolveVideoOrientationLock,
+  resolveVideoScreenOrientation,
+} from '@/lib/playerOrientation';
 import { storage } from '@/lib/storage';
 import { Stack, type NativeStackNavigationProp } from 'expo-router';
 import {
@@ -25,6 +28,33 @@ export default function Layout() {
   // iPad multitasking can keep a landscape window despite a portrait orientation mask.
   const coordinatePortraitExit = Platform.OS === 'ios' && !Platform.isPad;
   const canFinishExit = !coordinatePortraitExit || (portraitTransitionCompleted && width <= height);
+  // Both native stacks must allow portrait before requesting the exit rotation.
+  // Changing only the inner screen leaves Expo observing the outer landscape mask.
+  const screenOrientation = resolveVideoScreenOrientation(
+    coordinatePortraitExit && pendingExit ? 'portrait' : videoOrientation,
+  );
+
+  useEffect(() => {
+    if (!coordinatePortraitExit) return;
+    // Observe before an exit starts so a fast native rotation cannot beat registration.
+    const subscription = ScreenOrientation.addOrientationChangeListener(({ orientationInfo }) => {
+      setPortraitTransitionCompleted(
+        orientationInfo.orientation === ScreenOrientation.Orientation.PORTRAIT_UP,
+      );
+    });
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      void ScreenOrientation.getOrientationAsync()
+        .then((orientation) => {
+          setPortraitTransitionCompleted(orientation === ScreenOrientation.Orientation.PORTRAIT_UP);
+        })
+        .catch((error) => console.warn('Failed to read the player orientation', error));
+    });
+    return () => {
+      ScreenOrientation.removeOrientationChangeListener(subscription);
+      appStateSubscription.remove();
+    };
+  }, [coordinatePortraitExit]);
 
   useLayoutEffect(
     () =>
@@ -36,46 +66,46 @@ export default function Layout() {
     [navigation],
   );
 
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !hasAppeared) return;
+    // A reused native screen can keep the previous viewport even though its
+    // orientation mask is already correct. Request rotation after presentation.
+    // Fabric applies native screen options after the JS commit. Requesting
+    // rotation sooner can still hit the outgoing landscape orientation mask.
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        void ScreenOrientation.lockAsync(
+          resolveVideoOrientationLock(
+            coordinatePortraitExit && pendingExit ? 'portrait' : videoOrientation,
+          ),
+        ).catch((error) => console.warn('Failed to apply the player orientation', error));
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [coordinatePortraitExit, hasAppeared, pendingExit, videoOrientation]);
+
   // Defer every platform's first exit so the root route receives its exit animation.
   usePreventRemove(!pendingExit || !canFinishExit, ({ data }) => {
+    if (pendingExit) return;
+    setPortraitTransitionCompleted(false);
     setPendingExit(data.action);
-    if (!coordinatePortraitExit) return;
-    // A portrait player can leave immediately; a landscape player remains mounted
-    // until UIKit completes its rotation, so the returning screen never uses stale dimensions.
-    if (width <= height) {
-      void ScreenOrientation.getOrientationAsync()
-        .then((orientation) => {
-          if (orientation === ScreenOrientation.Orientation.PORTRAIT_UP) {
-            setPortraitTransitionCompleted(true);
-          }
-        })
-        .catch((error) => console.warn('Failed to read the player orientation', error));
-    }
   });
 
   useEffect(() => {
-    if (!pendingExit || !coordinatePortraitExit) return;
-    const subscription = ScreenOrientation.addOrientationChangeListener(({ orientationInfo }) => {
-      if (orientationInfo.orientation === ScreenOrientation.Orientation.PORTRAIT_UP) {
-        setPortraitTransitionCompleted(true);
-      }
-    });
-    // A completed rotation can be missed while Expo's registry is suspended in background.
-    const appStateSubscription = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') return;
-      void ScreenOrientation.getOrientationAsync()
-        .then((orientation) => {
-          if (orientation === ScreenOrientation.Orientation.PORTRAIT_UP) {
-            setPortraitTransitionCompleted(true);
-          }
-        })
-        .catch((error) => console.warn('Failed to read the player orientation', error));
-    });
+    if (!pendingExit || !coordinatePortraitExit || width > height) return;
+    // A player that was already portrait has no rotation event to wait for.
+    let active = true;
+    void ScreenOrientation.getOrientationAsync()
+      .then((orientation) => {
+        if (active && orientation === ScreenOrientation.Orientation.PORTRAIT_UP) {
+          setPortraitTransitionCompleted(true);
+        }
+      })
+      .catch((error) => console.warn('Failed to read the player orientation', error));
     return () => {
-      ScreenOrientation.removeOrientationChangeListener(subscription);
-      appStateSubscription.remove();
+      active = false;
     };
-  }, [coordinatePortraitExit, pendingExit]);
+  }, [coordinatePortraitExit, height, pendingExit, width]);
 
   useEffect(() => {
     if (!pendingExit || !canFinishExit) return;
@@ -99,6 +129,7 @@ export default function Layout() {
             : 'none',
           animationDuration: Platform.OS === 'android' ? 220 : undefined,
           statusBarHidden: true,
+          orientation: Platform.OS === 'ios' ? screenOrientation : undefined,
           navigationBarHidden: Platform.OS === 'android' ? true : undefined,
           unstable_nativeProps: androidPlayerScreenProps,
         }}
@@ -114,12 +145,7 @@ export default function Layout() {
             }
             screenOptions={{
               headerShown: false,
-              orientation:
-                Platform.OS === 'ios'
-                  ? coordinatePortraitExit && pendingExit
-                    ? 'portrait_up'
-                    : resolveVideoScreenOrientation(videoOrientation)
-                  : undefined,
+              orientation: Platform.OS === 'ios' ? screenOrientation : undefined,
               statusBarHidden: true,
               navigationBarHidden: Platform.OS === 'android' ? true : undefined,
               autoHideHomeIndicator: true,

@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createSubtitleFontController, fontStyleOverride } from './subtitleFontSettings';
 
-const defaults = { directory: '/bundle', family: 'Noto Sans CJK SC', assOverride: 'no' };
+const defaults = {
+  directory: '/bundle/ExpoMpvFonts.bundle',
+  family: 'Noto Sans CJK SC',
+  assOverride: 'no',
+};
 describe('player subtitle font settings', () => {
   it('replaces only font styles and restores native defaults without track commands', async () => {
     const player = { setPropertyString: vi.fn().mockResolvedValue(undefined) };
@@ -23,7 +27,7 @@ describe('player subtitle font settings', () => {
     player.setPropertyString.mockClear();
     await controller.apply(player, {}, () => true);
     expect(player.setPropertyString.mock.calls).toEqual([
-      ['sub-fonts-dir', '/bundle'],
+      ['sub-fonts-dir', defaults.directory],
       ['sub-font', defaults.family],
       ['sub-ass-style-overrides', ''],
       ['sub-ass-override', 'no'],

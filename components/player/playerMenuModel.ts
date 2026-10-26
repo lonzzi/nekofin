@@ -5,7 +5,7 @@ import {
   type PlaybackQuality,
 } from '@/services/media/playbackQuality';
 import { playbackSourceLabel } from '@/services/media/playbackSelection';
-import type { MediaSource } from '@/services/media/types';
+import type { MediaChapter, MediaSource } from '@/services/media/types';
 import type { MenuAction } from '@react-native-menu/menu';
 
 import type { MediaTrack, MediaTracks, TrackInfo } from './PlayerContext';
@@ -14,6 +14,8 @@ export const PLAYER_MENU_ACTION_IDS = {
   danmakuToggle: 'danmaku:toggle',
   danmakuSettings: 'danmaku:settings',
   danmakuSearch: 'danmaku:search',
+  autoSkipIntro: 'playback:autoSkipIntro',
+  autoSkipOutro: 'playback:autoSkipOutro',
   brightnessGestureToggle: 'playback:gesture:brightness',
   volumeGestureToggle: 'playback:gesture:volume',
 } as const;
@@ -24,6 +26,7 @@ const VERSION_PREFIX = 'source:';
 const RATE_PREFIX = 'playback:rate:';
 const ASPECT_PREFIX = 'playback:aspect:';
 const QUALITY_PREFIX = 'playback:quality:';
+const CHAPTER_PREFIX = 'playback:chapter:';
 
 export const PLAYER_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
 
@@ -48,6 +51,8 @@ export type PlayerMenuSelection =
   | { kind: 'danmakuToggle' }
   | { kind: 'danmakuSettings' }
   | { kind: 'danmakuSearch' }
+  | { kind: 'autoSkipIntro' }
+  | { kind: 'autoSkipOutro' }
   | { kind: 'brightnessGestureToggle' }
   | { kind: 'volumeGestureToggle' }
   | { kind: 'audioTrack'; trackIndex: number }
@@ -55,6 +60,7 @@ export type PlayerMenuSelection =
   | { kind: 'mediaSource'; id: string }
   | { kind: 'rate'; rate: number }
   | { kind: 'quality'; quality: PlaybackQuality }
+  | { kind: 'chapter'; timeMs: number }
   | { aspectRatio: string; kind: 'aspectRatio' };
 
 const selectedState = (selected: boolean): MenuAction['state'] => (selected ? 'on' : 'off');
@@ -229,6 +235,24 @@ export function derivePlaybackMenuActions(
   ];
 }
 
+export function deriveAutoSkipMenuActions(
+  { intro, outro }: { intro: boolean; outro: boolean },
+  translate = tr,
+): MenuAction[] {
+  return [
+    {
+      id: PLAYER_MENU_ACTION_IDS.autoSkipIntro,
+      title: translate('player.autoSkipIntro'),
+      state: selectedState(intro),
+    },
+    {
+      id: PLAYER_MENU_ACTION_IDS.autoSkipOutro,
+      title: translate('player.autoSkipOutro'),
+      state: selectedState(outro),
+    },
+  ];
+}
+
 export function deriveQualityMenuActions(
   quality: PlaybackQuality = 'auto',
   translate = tr,
@@ -240,12 +264,48 @@ export function deriveQualityMenuActions(
   }));
 }
 
+export function deriveChapterMenuAction(
+  chapters: MediaChapter[],
+  canSeek: boolean,
+  translate = tr,
+): MenuAction[] {
+  if (!chapters.length) return [];
+  return [
+    {
+      title: translate('player.chapters'),
+      subactions: chapters.map((chapter, index) => {
+        const seconds = Math.floor(chapter.startTimeMs / 1000);
+        const timestamp =
+          seconds >= 3600
+            ? `${Math.floor(seconds / 3600)}:${String(Math.floor(seconds / 60) % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
+            : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+        return {
+          id: `${CHAPTER_PREFIX}${chapter.startTimeMs}`,
+          title: `${timestamp}  ${chapter.name || translate('player.chapterNumber', { number: index + 1 })}`,
+          attributes: { disabled: !canSeek },
+        };
+      }),
+    },
+  ];
+}
+
 export function parsePlayerMenuAction(actionId: string): PlayerMenuSelection | null {
+  if (actionId.startsWith(CHAPTER_PREFIX)) {
+    const value = actionId.slice(CHAPTER_PREFIX.length);
+    const timeMs = Number(value);
+    return value.trim() && Number.isFinite(timeMs) && timeMs >= 0
+      ? { kind: 'chapter', timeMs }
+      : null;
+  }
   if (actionId.startsWith(QUALITY_PREFIX)) {
     const quality = parsePlaybackQuality(actionId.slice(QUALITY_PREFIX.length));
     return quality ? { kind: 'quality', quality } : null;
   }
   switch (actionId) {
+    case PLAYER_MENU_ACTION_IDS.autoSkipIntro:
+      return { kind: 'autoSkipIntro' };
+    case PLAYER_MENU_ACTION_IDS.autoSkipOutro:
+      return { kind: 'autoSkipOutro' };
     case PLAYER_MENU_ACTION_IDS.danmakuToggle:
       return { kind: 'danmakuToggle' };
     case PLAYER_MENU_ACTION_IDS.danmakuSettings:

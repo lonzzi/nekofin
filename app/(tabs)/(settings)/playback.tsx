@@ -42,6 +42,14 @@ export default function PlaybackSettings() {
     setVolumeGestureEnabled,
   } = usePlayerGestureSettings();
   const [autoPlayNext = true, setAutoPlayNext] = useMMKVBoolean('playback.autoPlayNext', storage);
+  const [autoSkipIntro = false, setAutoSkipIntro] = useMMKVBoolean(
+    'playback.autoSkipIntro',
+    storage,
+  );
+  const [autoSkipOutro = false, setAutoSkipOutro] = useMMKVBoolean(
+    'playback.autoSkipOutro',
+    storage,
+  );
   const [orientation, setOrientation] = useState(
     storage.getString('videoOrientation') ?? 'landscape',
   );
@@ -124,6 +132,21 @@ export default function PlaybackSettings() {
             subtitle={<SettingsSubtitle primary={tr('player.volumeGestureDescription')} />}
             value={volumeGestureEnabled}
             onValueChange={setVolumeGestureEnabled}
+          />
+        </NativeSettingsSection>
+        <NativeSettingsSection
+          title={tr('player.segmentSkipping')}
+          footer={tr('player.segmentSkippingDescription')}
+        >
+          <NativeSettingsSwitch
+            title={<SettingsTitle>{tr('player.autoSkipIntro')}</SettingsTitle>}
+            value={autoSkipIntro}
+            onValueChange={setAutoSkipIntro}
+          />
+          <NativeSettingsSwitch
+            title={<SettingsTitle>{tr('player.autoSkipOutro')}</SettingsTitle>}
+            value={autoSkipOutro}
+            onValueChange={setAutoSkipOutro}
           />
         </NativeSettingsSection>
         <NativeSettingsSection

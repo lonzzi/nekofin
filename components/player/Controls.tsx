@@ -444,8 +444,8 @@ export function Controls({
   return (
     <PlayerContext.Provider value={contextValue}>
       <View
-        accessibilityElementsHidden={isPanelOpen || !hasEntered}
-        importantForAccessibility={isPanelOpen || !hasEntered ? 'no-hide-descendants' : 'auto'}
+        accessibilityElementsHidden={isPanelOpen}
+        importantForAccessibility={isPanelOpen ? 'no-hide-descendants' : 'auto'}
         onLayout={handleControlsLayout}
         pointerEvents="box-none"
         style={StyleSheet.absoluteFill}
