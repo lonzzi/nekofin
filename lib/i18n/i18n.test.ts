@@ -29,6 +29,18 @@ describe('bundled translations', () => {
     await i18n.changeLanguage('en');
     expect(navigationDestinations[0].title).toBe('Home');
     expect(derivePlaybackMenuActions(1, 'fit')[0].title).toContain('Playback speed');
+    expect(
+      derivePlaybackMenuActions(1, 'fit', t, {
+        brightnessGestureEnabled: false,
+        volumeGestureEnabled: true,
+      })[2],
+    ).toMatchObject({
+      title: 'Gesture controls',
+      subactions: [
+        { title: 'Brightness gesture', state: 'off' },
+        { title: 'Volume gesture', state: 'on' },
+      ],
+    });
     expect(() => buildConnectionAddress('')).toThrow('Enter a server URL');
     await i18n.changeLanguage('zh-Hans');
     expect(navigationDestinations[0].title).toBe('首页');

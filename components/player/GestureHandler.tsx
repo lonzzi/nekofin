@@ -1,3 +1,4 @@
+import { usePlayerGestureSettings } from '@/hooks/usePlayerGestureSettings';
 import * as Brightness from 'expo-brightness';
 import * as Haptics from 'expo-haptics';
 import { Fragment, useCallback, useEffect, useState } from 'react';
@@ -35,6 +36,8 @@ export function GestureHandler() {
     showControls,
     setShowControls,
     isLoading,
+    isLocked,
+    isInteractionLocked,
     isPanelOpen,
     isDragging,
     isGestureSeekingActive,
@@ -45,6 +48,7 @@ export function GestureHandler() {
     seekPreviewTime,
     seekPreviewStartTime,
   } = usePlayer();
+  const { brightnessGestureEnabled, volumeGestureEnabled } = usePlayerGestureSettings();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [isInitialized, setIsInitialized] = useState(false);
   const volumeValue = useSharedValue(1);
@@ -77,29 +81,45 @@ export function GestureHandler() {
     };
   }, [brightnessValue, volumeValue, isVolumeGestureActive]);
 
-  const writeSystemValue = useCallback((mode: VerticalGestureMode, value: number) => {
-    const operation =
-      mode === 'brightness' ? Brightness.setBrightnessAsync(value) : VolumeManager.setVolume(value);
-    void operation.catch(() => {});
-  }, []);
+  const writeSystemValue = useCallback(
+    (mode: VerticalGestureMode, value: number) => {
+      if (isInteractionLocked()) return;
+      const operation =
+        mode === 'brightness'
+          ? Brightness.setBrightnessAsync(value)
+          : VolumeManager.setVolume(value);
+      void operation.catch(() => {});
+    },
+    [isInteractionLocked],
+  );
 
   const startSeek = useCallback(() => {
+    if (isInteractionLocked()) return;
     clearControlsTimeout();
     setShowControls(true);
     selectionFeedback();
-  }, [clearControlsTimeout, setShowControls]);
+  }, [clearControlsTimeout, isInteractionLocked, setShowControls]);
   const finishSeek = useCallback(
     (time: number, commit: boolean) => {
+      if (isInteractionLocked()) return;
       if (commit && canSeek) onSeek(time / duration);
       hideControlsWithDelay();
     },
-    [canSeek, duration, onSeek, hideControlsWithDelay],
+    [canSeek, duration, onSeek, hideControlsWithDelay, isInteractionLocked],
   );
+  const handlePlayPause = useCallback(() => {
+    if (!isInteractionLocked()) onPlayPause();
+  }, [isInteractionLocked, onPlayPause]);
+  const startSpeedBoost = useCallback(() => {
+    if (isInteractionLocked()) return;
+    selectionFeedback();
+    onRateChange?.(3, { remember: false });
+  }, [isInteractionLocked, onRateChange]);
 
   // Decide once, after a deliberate movement. Vertical drift after activation
   // must never cancel seeking or change it into a brightness/volume gesture.
   const panGesture = Gesture.Pan()
-    .enabled(!isPanelOpen && !isDragging)
+    .enabled(!isLocked && !isPanelOpen && !isDragging)
     .manualActivation(true)
     .maxPointers(1)
     .onTouchesDown((event, manager) => {
@@ -125,7 +145,15 @@ export function GestureHandler() {
       if (isHorizontalPan(x, y) && canSeek) {
         panMode.value = 'seek';
       } else if (isVerticalPan(x, y) && isInitialized && !isLoading) {
-        panMode.value = getVerticalGestureMode(touchStartX.value, screenWidth);
+        const mode = getVerticalGestureMode(touchStartX.value, screenWidth, {
+          brightnessGestureEnabled,
+          volumeGestureEnabled,
+        });
+        if (!mode) {
+          manager.fail();
+          return;
+        }
+        panMode.value = mode;
       } else {
         return;
       }
@@ -199,19 +227,20 @@ export function GestureHandler() {
     });
 
   const doubleTapGesture = Gesture.Tap()
-    .enabled(!isPanelOpen && !isDragging)
+    .enabled(!isLocked && !isPanelOpen && !isDragging)
     .numberOfTaps(2)
     .maxDuration(250)
     .maxDelay(250)
     .onEnd((_event, success) => {
-      if (success) scheduleOnRN(onPlayPause);
+      if (success) scheduleOnRN(handlePlayPause);
     });
   const handleSingleTap = () => {
+    if (isInteractionLocked()) return;
     clearControlsTimeout();
     setShowControls(!showControls);
   };
   const tapGesture = Gesture.Tap()
-    .enabled(!isPanelOpen && !isDragging)
+    .enabled(!isLocked && !isPanelOpen && !isDragging)
     .maxDuration(280)
     .maxDeltaX(16)
     .maxDeltaY(16)
@@ -219,14 +248,13 @@ export function GestureHandler() {
       if (success) scheduleOnRN(handleSingleTap);
     });
   const longPressGesture = Gesture.LongPress()
-    .enabled(!isPanelOpen && !isLoading && !isDragging)
+    .enabled(!isLocked && !isPanelOpen && !isLoading && !isDragging)
     .minDuration(500)
     .maxDistance(12)
     .onStart(() => {
       if (!onRateChange) return;
       boostActive.value = true;
-      scheduleOnRN(selectionFeedback);
-      scheduleOnRN(onRateChange, 3, { remember: false });
+      scheduleOnRN(startSpeedBoost);
     })
     .onFinalize(() => {
       if (boostActive.value && onRateChange) {
@@ -242,12 +270,14 @@ export function GestureHandler() {
 
   return (
     <Fragment>
-      <GestureValuePreview
-        brightness={brightnessValue}
-        volume={volumeValue}
-        isBrightnessActive={isBrightnessGestureActive}
-        isVolumeActive={isVolumeGestureActive}
-      />
+      {!isLocked ? (
+        <GestureValuePreview
+          brightness={brightnessValue}
+          volume={volumeValue}
+          isBrightnessActive={isBrightnessGestureActive}
+          isVolumeActive={isVolumeGestureActive}
+        />
+      ) : null}
       <GestureDetector gesture={composed}>
         <Animated.View style={styles.touchOverlay} />
       </GestureDetector>
