@@ -106,4 +106,20 @@ describe('gestureMath', () => {
       value: 0.5,
     });
   });
+
+  it.each([
+    { brightnessGestureEnabled: false, volumeGestureEnabled: true },
+    { brightnessGestureEnabled: true, volumeGestureEnabled: false },
+    { brightnessGestureEnabled: false, volumeGestureEnabled: false },
+  ])('only activates enabled vertical gestures: %o', (settings) => {
+    expect(getVerticalGestureMode(100, 400, settings)).toBe(
+      settings.brightnessGestureEnabled ? 'brightness' : null,
+    );
+    expect(getVerticalGestureMode(300, 400, settings)).toBe(
+      settings.volumeGestureEnabled ? 'volume' : null,
+    );
+    expect(getVerticalGestureMode(200, 400, settings)).toBe(
+      settings.volumeGestureEnabled ? 'volume' : null,
+    );
+  });
 });

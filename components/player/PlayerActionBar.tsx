@@ -1,4 +1,5 @@
 import { MenuView, type MenuComponentRef, type NativeActionEvent } from '@/components/ui/MenuView';
+import { usePlayerGestureSettings } from '@/hooks/usePlayerGestureSettings';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { useTranslation } from '@/lib/i18n';
 import { storage } from '@/lib/storage';
@@ -155,6 +156,12 @@ export function PlayerActionBar() {
     'playback.autoSkipOutro',
     storage,
   );
+  const {
+    brightnessGestureEnabled,
+    setBrightnessGestureEnabled,
+    volumeGestureEnabled,
+    setVolumeGestureEnabled,
+  } = usePlayerGestureSettings();
   const actions = useMemo(
     () =>
       derivePlayerActionButtons(
@@ -189,10 +196,24 @@ export function PlayerActionBar() {
         canSeek,
         tr,
       ),
-      ...derivePlaybackMenuActions(rate, aspectRatio, tr),
+      ...derivePlaybackMenuActions(rate, aspectRatio, tr, {
+        brightnessGestureEnabled,
+        volumeGestureEnabled,
+      }),
       ...deriveAutoSkipMenuActions({ intro: autoSkipIntro, outro: autoSkipOutro }, tr),
     ],
-    [aspectRatio, rate, tr, currentItem?.chapters, duration, canSeek, autoSkipIntro, autoSkipOutro],
+    [
+      aspectRatio,
+      rate,
+      tr,
+      currentItem?.chapters,
+      duration,
+      canSeek,
+      autoSkipIntro,
+      autoSkipOutro,
+      brightnessGestureEnabled,
+      volumeGestureEnabled,
+    ],
   );
   const qualityMenuActions = useMemo(() => deriveQualityMenuActions(quality, tr), [quality, tr]);
   const currentQuality =
@@ -245,6 +266,10 @@ export function PlayerActionBar() {
         setAutoSkipIntro((current) => !current);
       } else if (selection?.kind === 'autoSkipOutro') {
         setAutoSkipOutro((current) => !current);
+      } else if (selection?.kind === 'brightnessGestureToggle') {
+        setBrightnessGestureEnabled((enabled) => !(enabled ?? true));
+      } else if (selection?.kind === 'volumeGestureToggle') {
+        setVolumeGestureEnabled((enabled) => !(enabled ?? true));
       }
     },
     [
@@ -255,6 +280,8 @@ export function PlayerActionBar() {
       onSeek,
       setAutoSkipIntro,
       setAutoSkipOutro,
+      setBrightnessGestureEnabled,
+      setVolumeGestureEnabled,
     ],
   );
   const handleQualityAction = useCallback(

@@ -6,6 +6,7 @@ import {
   NativeSettingsSwitch,
 } from '@/components/ui/NativeSettings';
 import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
+import { usePlayerGestureSettings } from '@/hooks/usePlayerGestureSettings';
 import { useTranslation } from '@/lib/i18n';
 import { storage } from '@/lib/storage';
 import { useState } from 'react';
@@ -34,6 +35,12 @@ const codecOptions = [
 
 export default function PlaybackSettings() {
   const { t: tr } = useTranslation();
+  const {
+    brightnessGestureEnabled,
+    setBrightnessGestureEnabled,
+    volumeGestureEnabled,
+    setVolumeGestureEnabled,
+  } = usePlayerGestureSettings();
   const [autoPlayNext = true, setAutoPlayNext] = useMMKVBoolean('playback.autoPlayNext', storage);
   const [autoSkipIntro = false, setAutoSkipIntro] = useMMKVBoolean(
     'playback.autoSkipIntro',
@@ -111,6 +118,20 @@ export default function PlaybackSettings() {
               setRate(v);
               storage.set('playback.defaultRate', Number(v));
             }}
+          />
+        </NativeSettingsSection>
+        <NativeSettingsSection title={tr('player.gestureControls')}>
+          <NativeSettingsSwitch
+            title={<SettingsTitle>{tr('player.brightnessGesture')}</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={tr('player.brightnessGestureDescription')} />}
+            value={brightnessGestureEnabled}
+            onValueChange={setBrightnessGestureEnabled}
+          />
+          <NativeSettingsSwitch
+            title={<SettingsTitle>{tr('player.volumeGesture')}</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={tr('player.volumeGestureDescription')} />}
+            value={volumeGestureEnabled}
+            onValueChange={setVolumeGestureEnabled}
           />
         </NativeSettingsSection>
         <NativeSettingsSection

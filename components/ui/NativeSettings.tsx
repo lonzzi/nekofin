@@ -11,7 +11,6 @@ import { Host as ComposeHost } from '@expo/ui/jetpack-compose';
 import {
   Button,
   HStack,
-  Menu,
   ProgressView,
   RNHostView,
   Slider,
@@ -350,65 +349,27 @@ export function NativeSettingsPicker({
   disabled?: boolean;
 }) {
   const theme = useAppTheme();
-  const selected = options.find((option) => option.value === value);
-  const { fontScale } = useWindowDimensions();
-  const valueLabel = (
-    <HStack spacing={8}>
-      <SwiftText modifiers={[foregroundStyle(theme.colors.tint)]}>
-        {selected?.title ?? value}
-      </SwiftText>
-      <SwiftImage systemName="chevron.up.chevron.down" size={12} color={theme.colors.tint} />
-    </HStack>
-  );
+
+  // The native menu picker anchors to its trailing value; a full-row Menu label centers it.
   return (
-    <Menu
-      label={
-        fontScale > 1.3 ? (
-          <VStack
-            alignment="leading"
-            spacing={8}
-            modifiers={[
-              frame({ maxWidth: Infinity, alignment: 'leading' }),
-              contentShape(shapes.rectangle()),
-            ]}
-          >
-            <SettingsLabel title={title} subtitle={subtitle} leading={leading} />
-            {valueLabel}
-          </VStack>
-        ) : (
-          <HStack
-            spacing={12}
-            modifiers={[
-              frame({ maxWidth: Infinity, minHeight: 28, alignment: 'leading' }),
-              contentShape(shapes.rectangle()),
-            ]}
-          >
-            <SettingsLabel title={title} subtitle={subtitle} leading={leading} />
-            <Spacer />
-            {valueLabel}
-          </HStack>
-        )
-      }
+    <SwiftPicker
+      label={<SettingsLabel title={title} subtitle={subtitle} leading={leading} />}
+      selection={value}
+      onSelectionChange={(next) => onValueChange?.(String(next))}
       modifiers={[
-        buttonStyle('plain'),
+        pickerStyle('menu'),
+        frame({ minHeight: 28 }),
         tint(theme.colors.tint),
         disabledModifier(!!disabled),
         ...(disabled ? [opacity(0.45)] : []),
       ]}
     >
-      <SwiftPicker
-        label={title}
-        selection={value}
-        onSelectionChange={(next) => onValueChange?.(String(next))}
-        modifiers={[pickerStyle('inline'), labelsHidden()]}
-      >
-        {options.map((option) => (
-          <SwiftText key={option.value} modifiers={[tag(option.value)]}>
-            {option.title}
-          </SwiftText>
-        ))}
-      </SwiftPicker>
-    </Menu>
+      {options.map((option) => (
+        <SwiftText key={option.value} modifiers={[tag(option.value)]}>
+          {option.title}
+        </SwiftText>
+      ))}
+    </SwiftPicker>
   );
 }
 

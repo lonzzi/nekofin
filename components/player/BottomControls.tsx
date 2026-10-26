@@ -33,6 +33,8 @@ export function BottomControls() {
     fadeAnim,
     hideControlsWithDelay,
     isDragging,
+    isLocked,
+    isInteractionLocked,
     onSeek,
     setIsDragging,
     showControls,
@@ -56,11 +58,11 @@ export function BottomControls() {
 
   const seekToTime = useCallback(
     (time: number) => {
-      if (!canSeek) return;
+      if (!canSeek || isInteractionLocked()) return;
       const clampedTime = Math.max(0, Math.min(time, duration));
       onSeek(clampedTime / duration);
     },
-    [canSeek, duration, onSeek],
+    [canSeek, duration, isInteractionLocked, onSeek],
   );
 
   const handleSliderSlidingComplete = (value: number) => {
@@ -83,7 +85,7 @@ export function BottomControls() {
       accessibilityStep={duration > 0 ? Math.min(1, 10_000 / duration) : 0.01}
       accessibilityValue={`${formattedCurrentTime} / ${formattedDuration}`}
       bufferedProgress={bufferedProgress}
-      disabled={!canSeek}
+      disabled={isLocked || !canSeek}
       onSlidingComplete={handleSliderSlidingComplete}
       onSlidingCancel={() => {
         progressValue.value = duration > 0 ? currentTime.value / duration : 0;
@@ -91,12 +93,14 @@ export function BottomControls() {
         hideControlsWithDelay();
       }}
       onSlidingStart={() => {
+        if (isInteractionLocked()) return;
         clearControlsTimeout();
         seekPreviewStartTime.value = currentTime.value;
         seekPreviewTime.value = currentTime.value;
         setIsDragging(true);
       }}
       onValueChange={(value) => {
+        if (isInteractionLocked()) return;
         seekPreviewTime.value = value * duration;
       }}
       progress={progressValue}
