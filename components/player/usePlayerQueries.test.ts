@@ -30,6 +30,7 @@ vi.mock('@/services/media/queryOptions', () => ({
   itemDetailQueryOptions: () => ({ queryKey: ['series'] }),
   playbackItemDetailQueryOptions: () => ({ queryKey: ['item'] }),
   mediaSourcesQueryOptions: () => ({ queryKey: ['sources'] }),
+  mediaSegmentsQueryOptions: () => ({ queryKey: ['segments'] }),
   streamInfoQueryOptions: () => ({ queryKey: ['stream'], enabled: true }),
   episodesBySeasonQueryOptions: () => ({ queryKey: ['episodes'] }),
 }));

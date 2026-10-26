@@ -2,6 +2,8 @@ import { getImageInfo } from '@/lib/utils/image';
 import type { Api } from '@jellyfin/sdk';
 import { BaseItemDto, BaseItemKind, ItemSortBy } from '@jellyfin/sdk/lib/generated-client/models';
 import { DeviceProfile } from '@jellyfin/sdk/lib/generated-client/models/device-profile';
+import { getMediaSegmentsApi } from '@jellyfin/sdk/lib/utils/api';
+import { isAxiosError } from 'axios';
 
 import {
   addFavoriteItem,
@@ -20,6 +22,7 @@ import {
 } from '.';
 import { normalizeMediaItemTypeList } from '../itemTypes';
 import { mapRawItemToMediaItem } from '../mappers';
+import { mapMediaSegments } from '../segments';
 import {
   GetRandomItemsParams,
   MediaAdapter,
@@ -299,6 +302,19 @@ export class JellyfinAdapter extends MediaAdapter {
     const api = this.requireApi();
     const result = await getItemMediaSources(api, itemId);
     return mapJellyfinPlaybackInfo(result.data);
+  }
+
+  async getMediaSegments({ itemId }: { itemId: string }) {
+    try {
+      const response = await getMediaSegmentsApi(this.requireApi()).getItemSegments(
+        { itemId },
+        { timeout: 5000 },
+      );
+      return mapMediaSegments(response.data.Items);
+    } catch (error) {
+      if (isAxiosError(error) && [404, 405, 501].includes(error.response?.status ?? 0)) return [];
+      throw error;
+    }
   }
 
   async getUserView({ userId }: GetUserViewParams) {

@@ -12,6 +12,7 @@ export type FallbackFont = {
   DateModified?: string;
 };
 export const SUBTITLE_FONT_MAX_BYTES = 32 * 1024 * 1024;
+export const BUNDLED_SUBTITLE_FONT_DIRECTORY = 'ExpoMpvFonts.bundle';
 
 export function fontExtension(name: string) {
   return name.match(/\.(ttf|otf|ttc|woff2?)$/i)?.[1].toLowerCase();

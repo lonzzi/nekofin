@@ -160,7 +160,7 @@ describe('persistent subtitle font cache', () => {
     );
   });
   it('isolates servers and accounts, and retains the bundled CJK fallback', async () => {
-    io.files.set('file:///bundle/NotoSansCJKsc-Regular.otf', font);
+    io.files.set('file:///bundle/ExpoMpvFonts.bundle/NotoSansCJKsc-Regular.otf', font);
     const store = createSubtitleFontCacheStore();
     const dirs = await Promise.all([
       session(store).prepare(request),

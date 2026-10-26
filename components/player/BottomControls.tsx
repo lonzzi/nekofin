@@ -1,5 +1,6 @@
 import { useCurrentTime } from '@/hooks/useCurrentTime';
 import { formatTimeWorklet } from '@/lib/utils';
+import { visibleChapters } from '@/services/media/segments';
 import { useCallback } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import Animated, {
@@ -21,6 +22,7 @@ export function BottomControls() {
   const insets = useSafeAreaInsets();
   const {
     bufferedProgress,
+    currentItem,
     canSeek,
     currentTime,
     seekPreviewTime,
@@ -39,6 +41,7 @@ export function BottomControls() {
     isDragging || isGestureSeekingActive.value ? seekPreviewTime.value : currentTime.value,
   );
   const currentTimeMs = useCurrentTime({ time: displayedTime });
+  const chapters = visibleChapters(currentItem?.chapters ?? [], duration);
 
   const fadeAnimatedStyle = useAnimatedStyle(() => ({
     opacity: fadeAnim.value,
@@ -121,6 +124,25 @@ export function BottomControls() {
           ]}
         >
           {progressSlider}
+          <View
+            pointerEvents="none"
+            style={[
+              styles.chapterMarkers,
+              Platform.OS === 'android' && styles.androidChapterMarkers,
+            ]}
+          >
+            {chapters
+              .filter((chapter) => chapter.startTimeMs > 0)
+              .map((chapter) => (
+                <View
+                  key={chapter.startTimeMs}
+                  style={[
+                    styles.chapterMarker,
+                    { left: `${(chapter.startTimeMs / duration) * 100}%` },
+                  ]}
+                />
+              ))}
+          </View>
         </Animated.View>
         <View pointerEvents="box-none" style={styles.bottomRow}>
           <TransportControls />
@@ -134,6 +156,18 @@ export function BottomControls() {
 }
 
 const styles = StyleSheet.create({
+  chapterMarkers: { position: 'absolute', left: 0, right: 0, top: 18, height: 8, zIndex: 1 },
+  androidChapterMarkers: { left: 14, right: 14 },
+  chapterMarker: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    backgroundColor: '#fff',
+    borderColor: 'rgba(0,0,0,0.8)',
+    borderWidth: 1.5,
+    borderRadius: 4,
+    transform: [{ translateX: -4 }],
+  },
   container: {
     position: 'absolute',
     zIndex: 10,

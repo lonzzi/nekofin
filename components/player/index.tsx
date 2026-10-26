@@ -22,7 +22,9 @@ import {
   resolvePlaybackSelection,
   type PlaybackSelection,
 } from '@/services/media/playbackSelection';
-import { Paths } from 'expo-file-system';
+import { resolveMediaSegments } from '@/services/media/segments';
+import { BUNDLED_SUBTITLE_FONT_DIRECTORY } from '@/services/media/subtitleFonts';
+import { Directory, Paths } from 'expo-file-system';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import {
   ExpoMpvView,
@@ -68,16 +70,17 @@ import {
   deriveExternalAudio,
   deriveExternalSubtitles,
   deriveMpvTracks,
+  deriveStartPositionSeconds,
   deriveTracks,
   formatPlayerTitle,
 } from './playerDerived';
 import { PlayerEntryVisibilityContext } from './PlayerEntryContext';
 import { createPlayerLoadRecovery, playbackFailureMessage } from './playerLoadRecovery';
 import { serverIndexForNativeTrack } from './playerQualitySelection';
+import { createPlayerSegmentSkip } from './playerSegmentSkip';
 import {
   deriveNativeSubtitleState,
   deriveSubtitleMenuTracks,
-  isSubtitlePending,
   subtitleChoiceForSource,
   type SubtitleChoice,
 } from './playerSubtitleMenu';
@@ -149,6 +152,9 @@ export const VideoPlayer = ({
   const [isLoaded, setIsLoaded] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
   const [initialTime, setInitialTime] = useState<number>(-1);
+  const [sourceStart, setSourceStart] = useState<{ context: object; positionMs: number } | null>(
+    null,
+  );
   const [playbackAttempt, setPlaybackAttempt] = useState(0);
   const [loadFailure, setLoadFailure] = useState<string | null>(null);
   const [rate, setRate] = useState(() => storage.getNumber('playback.defaultRate') ?? 1);
@@ -221,6 +227,8 @@ export const VideoPlayer = ({
   const [aspectRatio, setAspectRatio] = useState<string>('fit');
   const [preferences] = useState(readPlaybackPreferences);
   const [autoPlayNext = true] = useMMKVBoolean('playback.autoPlayNext', storage);
+  const [autoSkipIntro = false] = useMMKVBoolean('playback.autoSkipIntro', storage);
+  const [autoSkipOutro = false] = useMMKVBoolean('playback.autoSkipOutro', storage);
   const [playbackCompletion, setPlaybackCompletion] = useState<PlaybackCompletion | null>(null);
   const [autoNext] = useState(createPlayerAutoNext);
 
@@ -254,10 +262,8 @@ export const VideoPlayer = ({
   const completedPlaybackContextRef = useRef<object | null>(null);
   const isPlayerReadyRef = useRef(false);
   const loadedSourceRef = useRef<string | null>(null);
-  const hasInitialSeeked = useRef(false);
   const danmakuLayer = useRef<DanmakuLayerRef>(null);
   const currentTime = useSharedValue(0);
-  const sourceResumeTimeMsRef = useRef(0);
   const [isNativeSeeking, setIsNativeSeeking] = useState(false);
   const playbackSeekGateRef = useRef(createPlaybackSeekGateState());
   const playbackSeekWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -322,6 +328,8 @@ export const VideoPlayer = ({
     playbackSelection,
     episodes,
     mediaSources,
+    mediaSegments: serverSegments,
+    segmentsPending,
   } = usePlayerQueries({
     itemId,
     mediaAdapter,
@@ -340,6 +348,15 @@ export const VideoPlayer = ({
   });
 
   const playbackSourceUrl = streamInfo?.url ?? null;
+  const segmentSkip = useMemo(
+    () => ({
+      serverId: currentServer?.id,
+      itemId,
+      sourceId: streamInfo?.mediaSource?.Id,
+      ...createPlayerSegmentSkip(),
+    }),
+    [currentServer?.id, itemId, streamInfo?.mediaSource?.Id],
+  );
   const usesServerTracks = !!streamInfo?.mediaSource?.TranscodingUrl;
   const subtitleSourceMetadata = streamInfo?.mediaSource;
   const subtitleMenuSource = useMemo(() => {
@@ -459,7 +476,12 @@ export const VideoPlayer = ({
       createSubtitleFontController({
         directory:
           Platform.OS === 'ios'
-            ? decodeURIComponent(Paths.bundle.uri.replace(/^file:\/\//, ''))
+            ? decodeURIComponent(
+                new Directory(Paths.bundle, BUNDLED_SUBTITLE_FONT_DIRECTORY).uri.replace(
+                  /^file:\/\//,
+                  '',
+                ),
+              )
             : '',
         family: Platform.OS === 'ios' ? 'Noto Sans CJK SC' : 'sans-serif',
         assOverride: Platform.OS === 'ios' ? 'no' : 'scale',
@@ -587,9 +609,7 @@ export const VideoPlayer = ({
   useEffect(() => {
     isPlayerReadyRef.current = false;
     loadedSourceRef.current = null;
-    hasInitialSeeked.current = false;
     currentTime.value = 0;
-    sourceResumeTimeMsRef.current = 0;
     clearPlaybackSeekWatchdog();
     playbackSeekGateRef.current = createPlaybackSeekGateState(
       0,
@@ -626,7 +646,6 @@ export const VideoPlayer = ({
 
   useEffect(() => {
     const sourceResumeTimeMs = currentTime.get();
-    sourceResumeTimeMsRef.current = sourceResumeTimeMs;
     clearPlaybackSeekWatchdog();
     playbackSeekGateRef.current = createPlaybackSeekGateState(
       sourceResumeTimeMs,
@@ -642,7 +661,6 @@ export const VideoPlayer = ({
     }
     isPlayerReadyRef.current = false;
     loadedSourceRef.current = null;
-    hasInitialSeeked.current = false;
     setIsLoaded(false);
     setIsBuffering(true);
     setIsPlaying(false);
@@ -865,23 +883,18 @@ export const VideoPlayer = ({
     }
   }, [streamInfoError]);
 
-  // Optional sidecars do not participate in buffering feedback. Follow the
-  // latest manual choice, and stop waiting on off, failure or source changes.
-  const isSubtitleLoading =
-    !isStopped &&
-    !usesServerTracks &&
-    isSubtitlePending(requestedSubtitleIndex, activeNativeSubtitles?.ids, failedSubtitleIndices);
+  // Subtitle loading is shown in the track menu. Optional sidecars must not
+  // cover a playing video with the full-screen buffering overlay.
   const showLoading = useMemo(() => {
     return (
       !loadFailure &&
-      (isSubtitleLoading ||
-        isBuffering ||
+      (isBuffering ||
         !streamInfo?.url ||
         !isLoaded ||
         playbackState === 'loading' ||
         playbackState === 'buffering')
     );
-  }, [loadFailure, isBuffering, streamInfo?.url, isLoaded, playbackState, isSubtitleLoading]);
+  }, [loadFailure, isBuffering, streamInfo?.url, isLoaded, playbackState]);
 
   const danmakuPlaybackState = useMemo<PlaybackState>(() => {
     if (isStopped) return 'ended';
@@ -893,6 +906,14 @@ export const VideoPlayer = ({
   const duration = useMemo(() => {
     return deriveDurationMs(itemDetail, mediaInfo?.duration);
   }, [itemDetail, mediaInfo?.duration]);
+
+  const segments = useMemo(
+    () =>
+      segmentsPending
+        ? []
+        : resolveMediaSegments(itemDetail?.chapters ?? [], serverSegments, duration),
+    [itemDetail?.chapters, serverSegments, duration, segmentsPending],
+  );
 
   const formattedTitle = useMemo(() => {
     return formatPlayerTitle(itemDetail);
@@ -909,9 +930,15 @@ export const VideoPlayer = ({
     const playbackPositionTicks = itemDetail.userData?.playbackPositionTicks ?? 0;
     const startTimeMs = Math.round(ticksToMilliseconds(playbackPositionTicks));
     currentTime.value = startTimeMs;
-    if (!isPlayerReadyRef.current) sourceResumeTimeMsRef.current = startTimeMs;
     setInitialTime(ticksToSeconds(playbackPositionTicks));
   }, [itemDetail, currentTime]);
+
+  useEffect(() => {
+    if (initialTime < 0 || !playbackContext.sourceUrl) return;
+    // Snapshot each load after the initial item position has been restored. Source
+    // changes and retries capture the live position without reading it during render.
+    setSourceStart({ context: playbackContext, positionMs: currentTime.get() });
+  }, [currentTime, initialTime, playbackContext]);
 
   useEffect(() => {
     (async () => {
@@ -1176,10 +1203,11 @@ export const VideoPlayer = ({
 
       const normalizedPosition = Math.max(0, Math.min(position, 1));
       const targetTimeMs = normalizedPosition * duration; // ms
+      segmentSkip.handleManualSeek(segments, targetTimeMs);
       requestNativeSeek(playerView, targetTimeMs);
       setIsStopped(false);
     },
-    [duration, requestNativeSeek, streamInfo?.url],
+    [duration, requestNativeSeek, streamInfo?.url, segments, segmentSkip],
   );
 
   // Direct-play audio uses mpv's native aid.
@@ -1356,12 +1384,16 @@ export const VideoPlayer = ({
 
   return (
     <View style={styles.container}>
-      {playbackSourceUrl && initialTime >= 0 && !loadFailure ? (
+      {playbackSourceUrl &&
+      sourceStart?.context === playbackContext &&
+      initialTime >= 0 &&
+      !loadFailure ? (
         <ExpoMpvView
           key={`${itemId}:${playbackSourceUrl}:${playbackAttempt}`}
           ref={player}
           style={styles.video}
           source={playbackSourceUrl}
+          startPosition={deriveStartPositionSeconds(sourceStart.positionMs, duration)}
           speed={rate}
           onPlaybackStateChange={({ nativeEvent }) => {
             if (!isPlaybackContextActive(playbackContext)) return;
@@ -1402,7 +1434,23 @@ export const VideoPlayer = ({
               } else {
                 danmakuLayer.current?.syncPlaybackTime(positionMs);
                 currentTime.set(positionMs);
-                syncPlaybackProgress(positionMs, false);
+                syncPlaybackProgress(positionMs, playbackStateRef.current === 'paused');
+              }
+              const playerView = player.current;
+              if (
+                !decision.completion &&
+                !playbackSeekGateRef.current.pendingSeek &&
+                playbackStateRef.current === 'playing' &&
+                isPlayerReadyRef.current &&
+                playerView
+              ) {
+                const segment = segmentSkip.claim(segments, positionMs, {
+                  intro: autoSkipIntro,
+                  outro: autoSkipOutro,
+                });
+                if (segment) {
+                  requestNativeSeek(playerView, segment.endTimeMs);
+                }
               }
             }
             bufferedProgress.set(
@@ -1451,25 +1499,8 @@ export const VideoPlayer = ({
               'sub-use-margins',
               aspectRatio === 'fill' ? 'yes' : 'no',
             );
-            // mpv can report `isPlaying` while it is still opening the source.
-            // Resume only after file-loaded, when seek commands are accepted.
-            if (!hasInitialSeeked.current) {
-              const fallbackDurationSeconds = duration > 0 ? duration / 1000 : 0;
-              const loadedDurationSeconds =
-                nativeEvent.duration > 0 ? nativeEvent.duration : fallbackDurationSeconds;
-              const requestedResumeSeconds = sourceResumeTimeMsRef.current / 1000;
-              const resumePositionSeconds =
-                loadedDurationSeconds > 0
-                  ? Math.min(Math.max(0, requestedResumeSeconds), loadedDurationSeconds)
-                  : Math.max(0, requestedResumeSeconds);
-              const playerView = player.current;
-              if (playerView && resumePositionSeconds > 0.05) {
-                requestNativeSeek(playerView, resumePositionSeconds * 1000);
-              } else {
-                setIsNativeSeeking(false);
-              }
-              hasInitialSeeked.current = true;
-            }
+            // Native loadfile applies startPosition before presenting its first frame.
+            setIsNativeSeeking(false);
             setIsLoaded(true);
             setIsBuffering(false);
             setIsPlaying(!resumePausedRef.current);

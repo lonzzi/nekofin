@@ -1,6 +1,7 @@
 import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
 
 import { normalizeMediaItemType, normalizePersonType } from './itemTypes';
+import { mapMediaChapters } from './segments';
 import type { MediaItem, MediaSource } from './types';
 
 /**
@@ -59,6 +60,7 @@ export function mapRawItemToMediaItem(item: BaseItemDto): MediaItem {
         }
       : undefined,
     runTimeTicks: item.RunTimeTicks,
+    chapters: mapMediaChapters(item.Chapters),
     cumulativeRunTimeTicks: item.CumulativeRunTimeTicks,
     originalTitle: item.OriginalTitle,
     seasonId: item.SeasonId,

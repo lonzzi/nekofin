@@ -8,11 +8,21 @@ import {
   deriveExternalAudio,
   deriveExternalSubtitles,
   deriveMpvTracks,
+  deriveStartPositionSeconds,
   deriveTracks,
   formatPlayerTitle,
 } from './playerDerived';
 
 describe('player derived state', () => {
+  it('passes a bounded fractional resume position to native loading, including unknown duration', () => {
+    expect(deriveStartPositionSeconds(140557, 1430054)).toBe(140.557);
+    expect(deriveStartPositionSeconds(140557, 0)).toBe(140.557);
+    expect(deriveStartPositionSeconds(20000, 10000)).toBe(10);
+    expect(deriveStartPositionSeconds(-1, 10000)).toBe(0);
+    expect(deriveStartPositionSeconds(Number.NaN, 10000)).toBe(0);
+    expect(deriveStartPositionSeconds(Number.POSITIVE_INFINITY, 10000)).toBe(0);
+  });
+
   it('names direct-play tracks from the server while retaining mpv ids, including duplicate languages', () => {
     expect(
       deriveMpvTracks(

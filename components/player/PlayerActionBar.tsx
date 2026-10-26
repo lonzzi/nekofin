@@ -1,7 +1,9 @@
 import { MenuView, type MenuComponentRef, type NativeActionEvent } from '@/components/ui/MenuView';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { useTranslation } from '@/lib/i18n';
+import { storage } from '@/lib/storage';
 import { playbackQualityOptions } from '@/services/media/playbackQuality';
+import { visibleChapters } from '@/services/media/segments';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   useCallback,
@@ -12,11 +14,14 @@ import {
   type RefAttributes,
 } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View, type ViewProps } from 'react-native';
+import { useMMKVBoolean } from 'react-native-mmkv';
 
 import { usePlayer } from './PlayerContext';
 import { derivePlayerActionButtons, type PlayerActionButtonKey } from './playerControlModel';
 import { PlayerGlassSurface } from './PlayerGlassSurface';
 import {
+  deriveAutoSkipMenuActions,
+  deriveChapterMenuAction,
   deriveDanmakuMenuActions,
   derivePlaybackMenuActions,
   deriveQualityMenuActions,
@@ -115,6 +120,10 @@ function ActionButton({
 export function PlayerActionBar() {
   const { t: tr } = useTranslation();
   const {
+    currentItem,
+    duration,
+    canSeek,
+    onSeek,
     aspectRatio,
     clearControlsTimeout,
     danmakuComments,
@@ -138,6 +147,14 @@ export function PlayerActionBar() {
     onQualityChange,
   } = usePlayer();
   const { settings, setSettings } = useDanmakuSettings();
+  const [autoSkipIntro = false, setAutoSkipIntro] = useMMKVBoolean(
+    'playback.autoSkipIntro',
+    storage,
+  );
+  const [autoSkipOutro = false, setAutoSkipOutro] = useMMKVBoolean(
+    'playback.autoSkipOutro',
+    storage,
+  );
   const actions = useMemo(
     () =>
       derivePlayerActionButtons(
@@ -166,8 +183,16 @@ export function PlayerActionBar() {
     [selectedTracks, tracks, mediaSources, selectedMediaSourceId, tr],
   );
   const playbackMenuActions = useMemo(
-    () => derivePlaybackMenuActions(rate, aspectRatio, tr),
-    [aspectRatio, rate, tr],
+    () => [
+      ...deriveChapterMenuAction(
+        visibleChapters(currentItem?.chapters ?? [], duration),
+        canSeek,
+        tr,
+      ),
+      ...derivePlaybackMenuActions(rate, aspectRatio, tr),
+      ...deriveAutoSkipMenuActions({ intro: autoSkipIntro, outro: autoSkipOutro }, tr),
+    ],
+    [aspectRatio, rate, tr, currentItem?.chapters, duration, canSeek, autoSkipIntro, autoSkipOutro],
   );
   const qualityMenuActions = useMemo(() => deriveQualityMenuActions(quality, tr), [quality, tr]);
   const currentQuality =
@@ -214,9 +239,23 @@ export function PlayerActionBar() {
         onRateChange?.(selection.rate);
       } else if (selection?.kind === 'aspectRatio') {
         onAspectRatioChange?.(selection.aspectRatio);
+      } else if (selection?.kind === 'chapter' && canSeek && duration > 0) {
+        onSeek(selection.timeMs / duration);
+      } else if (selection?.kind === 'autoSkipIntro') {
+        setAutoSkipIntro((current) => !current);
+      } else if (selection?.kind === 'autoSkipOutro') {
+        setAutoSkipOutro((current) => !current);
       }
     },
-    [onAspectRatioChange, onRateChange],
+    [
+      onAspectRatioChange,
+      onRateChange,
+      canSeek,
+      duration,
+      onSeek,
+      setAutoSkipIntro,
+      setAutoSkipOutro,
+    ],
   );
   const handleQualityAction = useCallback(
     ({ nativeEvent }: NativeActionEvent) => {

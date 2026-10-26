@@ -14,13 +14,16 @@ import type { StreamInfoKeyOptions } from '@/services/media/queryKeys';
 import {
   episodesBySeasonQueryOptions,
   itemDetailQueryOptions,
+  mediaSegmentsQueryOptions,
   mediaSourcesQueryOptions,
   playbackItemDetailQueryOptions,
   streamInfoQueryOptions,
 } from '@/services/media/queryOptions';
-import type { MediaAdapter, MediaServerInfo } from '@/services/media/types';
+import type { MediaAdapter, MediaSegment, MediaServerInfo } from '@/services/media/types';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
+
+const EMPTY_SEGMENTS: MediaSegment[] = [];
 
 export function usePlayerQueries({
   itemId,
@@ -78,6 +81,10 @@ export function usePlayerQueries({
 
   const { data: playbackInfo, isPending: tracksPending } = useQuery(
     mediaSourcesQueryOptions({ adapter: mediaAdapter, currentServer, itemId }),
+  );
+  // Segment metadata is optional and must never delay stream negotiation.
+  const { data: mediaSegments = EMPTY_SEGMENTS, isPending: segmentsPending } = useQuery(
+    mediaSegmentsQueryOptions({ adapter: mediaAdapter, currentServer, itemId }),
   );
   const playbackSelection = useMemo(
     () =>
@@ -138,6 +145,8 @@ export function usePlayerQueries({
     streamInfoError,
     playbackSelection,
     mediaSources: playbackInfo?.mediaSources ?? [],
+    mediaSegments,
+    segmentsPending,
     episodes,
   };
 }

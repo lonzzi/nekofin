@@ -141,6 +141,11 @@ export const mediaQueryKeys = {
     userId: string | null | undefined,
   ) =>
     [...mediaQueryKeys.server(serverId), 'media-sources', itemId ?? null, userId ?? null] as const,
+  mediaSegments: (
+    serverId: string | null | undefined,
+    itemId: string,
+    userId: string | undefined,
+  ) => [...mediaQueryKeys.server(serverId), 'media-segments', itemId, userId ?? null] as const,
   comments: (
     serverId: string | null | undefined,
     itemId: string | null | undefined,

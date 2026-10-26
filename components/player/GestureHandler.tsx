@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n';
 import * as Brightness from 'expo-brightness';
 import * as Haptics from 'expo-haptics';
 import { Fragment, useCallback, useEffect, useState } from 'react';
@@ -25,6 +26,7 @@ const selectionFeedback = () => {
 };
 
 export function GestureHandler() {
+  const { t: tr } = useTranslation();
   const {
     canSeek,
     duration,
@@ -249,7 +251,14 @@ export function GestureHandler() {
         isVolumeActive={isVolumeGestureActive}
       />
       <GestureDetector gesture={composed}>
-        <Animated.View style={styles.touchOverlay} />
+        <Animated.View
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={tr(showControls ? 'player.hideControls' : 'player.showControls')}
+          onAccessibilityTap={handleSingleTap}
+          testID="player-controls-toggle"
+          style={styles.touchOverlay}
+        />
       </GestureDetector>
     </Fragment>
   );

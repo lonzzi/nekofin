@@ -57,6 +57,18 @@ export interface MediaStudio {
   name: string;
 }
 
+export interface MediaChapter {
+  name: string;
+  startTimeMs: number;
+  markerType?: string;
+}
+
+export interface MediaSegment {
+  type: 'Intro' | 'Outro';
+  startTimeMs: number;
+  endTimeMs: number;
+}
+
 export interface MediaItem {
   id: string;
   name: string;
@@ -89,6 +101,7 @@ export interface MediaItem {
   providerIds?: Record<string, string | null> | null;
   userData?: MediaUserData | null;
   runTimeTicks?: number | null;
+  chapters?: MediaChapter[];
   cumulativeRunTimeTicks?: number | null;
   originalTitle?: string | null;
   seasonId?: string | null;
@@ -401,6 +414,10 @@ export abstract class MediaAdapter {
   abstract logout(): Promise<void>;
   abstract getUserInfo(params: GetUserInfoParams): Promise<MediaUser>;
   abstract getItemDetail(params: GetItemDetailParams): Promise<MediaItem>;
+  // Older servers and Emby expose chapter markers instead of this endpoint.
+  async getMediaSegments(_params: { itemId: string }): Promise<MediaSegment[]> {
+    return [];
+  }
   abstract getItemAncestors(params: GetItemDetailParams): Promise<MediaItem[]>;
   abstract getItemMediaSources(params: GetItemMediaSourcesParams): Promise<MediaPlaybackInfo>;
   abstract getUserView(params: GetUserViewParams): Promise<MediaItem[]>;
