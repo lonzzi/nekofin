@@ -86,6 +86,9 @@ export type PlayerContextValue = {
 
   showControls: boolean;
   setShowControls: (show: boolean) => void;
+  isLocked: boolean;
+  onToggleLock: () => void;
+  isInteractionLocked: () => boolean;
   fadeAnim: SharedValue<number>;
   isPanelOpen: boolean;
   openPanel: (route: PlayerPanelRoute) => void;

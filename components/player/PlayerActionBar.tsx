@@ -1,4 +1,5 @@
 import { MenuView, type MenuComponentRef, type NativeActionEvent } from '@/components/ui/MenuView';
+import { usePlayerGestureSettings } from '@/hooks/usePlayerGestureSettings';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { useTranslation } from '@/lib/i18n';
 import { playbackQualityOptions } from '@/services/media/playbackQuality';
@@ -138,6 +139,12 @@ export function PlayerActionBar() {
     onQualityChange,
   } = usePlayer();
   const { settings, setSettings } = useDanmakuSettings();
+  const {
+    brightnessGestureEnabled,
+    setBrightnessGestureEnabled,
+    volumeGestureEnabled,
+    setVolumeGestureEnabled,
+  } = usePlayerGestureSettings();
   const actions = useMemo(
     () =>
       derivePlayerActionButtons(
@@ -166,8 +173,12 @@ export function PlayerActionBar() {
     [selectedTracks, tracks, mediaSources, selectedMediaSourceId, tr],
   );
   const playbackMenuActions = useMemo(
-    () => derivePlaybackMenuActions(rate, aspectRatio, tr),
-    [aspectRatio, rate, tr],
+    () =>
+      derivePlaybackMenuActions(rate, aspectRatio, tr, {
+        brightnessGestureEnabled,
+        volumeGestureEnabled,
+      }),
+    [aspectRatio, rate, brightnessGestureEnabled, volumeGestureEnabled, tr],
   );
   const qualityMenuActions = useMemo(() => deriveQualityMenuActions(quality, tr), [quality, tr]);
   const currentQuality =
@@ -214,9 +225,13 @@ export function PlayerActionBar() {
         onRateChange?.(selection.rate);
       } else if (selection?.kind === 'aspectRatio') {
         onAspectRatioChange?.(selection.aspectRatio);
+      } else if (selection?.kind === 'brightnessGestureToggle') {
+        setBrightnessGestureEnabled((enabled) => !(enabled ?? true));
+      } else if (selection?.kind === 'volumeGestureToggle') {
+        setVolumeGestureEnabled((enabled) => !(enabled ?? true));
       }
     },
-    [onAspectRatioChange, onRateChange],
+    [onAspectRatioChange, onRateChange, setBrightnessGestureEnabled, setVolumeGestureEnabled],
   );
   const handleQualityAction = useCallback(
     ({ nativeEvent }: NativeActionEvent) => {

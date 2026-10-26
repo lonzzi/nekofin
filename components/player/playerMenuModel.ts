@@ -14,6 +14,8 @@ export const PLAYER_MENU_ACTION_IDS = {
   danmakuToggle: 'danmaku:toggle',
   danmakuSettings: 'danmaku:settings',
   danmakuSearch: 'danmaku:search',
+  brightnessGestureToggle: 'playback:gesture:brightness',
+  volumeGestureToggle: 'playback:gesture:volume',
 } as const;
 
 const AUDIO_PREFIX = 'track:audio:';
@@ -46,6 +48,8 @@ export type PlayerMenuSelection =
   | { kind: 'danmakuToggle' }
   | { kind: 'danmakuSettings' }
   | { kind: 'danmakuSearch' }
+  | { kind: 'brightnessGestureToggle' }
+  | { kind: 'volumeGestureToggle' }
   | { kind: 'audioTrack'; trackIndex: number }
   | { kind: 'subtitleTrack'; trackIndex: number }
   | { kind: 'mediaSource'; id: string }
@@ -183,6 +187,7 @@ export function derivePlaybackMenuActions(
   rate: number,
   aspectRatio = 'fit',
   translate = tr,
+  { brightnessGestureEnabled = true, volumeGestureEnabled = true } = {},
 ): MenuAction[] {
   const aspectLabel =
     PLAYER_ASPECT_OPTIONS.find((option) => option.value === aspectRatio)?.label ?? aspectRatio;
@@ -205,6 +210,21 @@ export function derivePlaybackMenuActions(
         title: option.label,
       })),
       title: translate('player.selectedAspectRatio', { aspectLabel: aspectLabel }),
+    },
+    {
+      title: translate('player.gestureControls'),
+      subactions: [
+        {
+          id: PLAYER_MENU_ACTION_IDS.brightnessGestureToggle,
+          state: selectedState(brightnessGestureEnabled),
+          title: translate('player.brightnessGesture'),
+        },
+        {
+          id: PLAYER_MENU_ACTION_IDS.volumeGestureToggle,
+          state: selectedState(volumeGestureEnabled),
+          title: translate('player.volumeGesture'),
+        },
+      ],
     },
   ];
 }
@@ -232,6 +252,10 @@ export function parsePlayerMenuAction(actionId: string): PlayerMenuSelection | n
       return { kind: 'danmakuSettings' };
     case PLAYER_MENU_ACTION_IDS.danmakuSearch:
       return { kind: 'danmakuSearch' };
+    case PLAYER_MENU_ACTION_IDS.brightnessGestureToggle:
+      return { kind: 'brightnessGestureToggle' };
+    case PLAYER_MENU_ACTION_IDS.volumeGestureToggle:
+      return { kind: 'volumeGestureToggle' };
   }
 
   if (actionId.startsWith(AUDIO_PREFIX)) {

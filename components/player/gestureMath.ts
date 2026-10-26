@@ -59,10 +59,15 @@ export const formatSeekOffsetText = (offsetMs: number) => {
   return `${sign}${formatTimeWorklet(absoluteMs)}`;
 };
 
-export const getVerticalGestureMode = (x: number, screenWidth: number): VerticalGestureMode => {
+export const getVerticalGestureMode = (
+  x: number,
+  screenWidth: number,
+  { brightnessGestureEnabled = true, volumeGestureEnabled = true } = {},
+): VerticalGestureMode | null => {
   'worklet';
 
-  return x < screenWidth * 0.5 ? 'brightness' : 'volume';
+  if (x < screenWidth * 0.5) return brightnessGestureEnabled ? 'brightness' : null;
+  return volumeGestureEnabled ? 'volume' : null;
 };
 
 export const calculateVerticalGestureValue = ({
