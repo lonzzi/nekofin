@@ -13,7 +13,6 @@ import {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
 
 import { BottomControls } from './BottomControls';
 import { GestureHandler } from './GestureHandler';
@@ -130,10 +129,14 @@ export function Controls({
 }: ControlsProps) {
   const { t: tr } = useTranslation();
   const [panelState, dispatchPanel] = useReducer(playerPanelReducer, INITIAL_PLAYER_PANEL_STATE);
-  const [{ isLocked, showControls }, dispatchControls] = useReducer(playerControlsReducer, {
-    isLocked: false,
-    showControls: initiallyVisible,
-  });
+  const [{ isLocked, showControls, showLockControl }, dispatchControls] = useReducer(
+    playerControlsReducer,
+    {
+      isLocked: false,
+      showControls: initiallyVisible,
+      showLockControl: false,
+    },
+  );
   const isLockedRef = useRef(false);
   const isInteractionLocked = useCallback(() => isLockedRef.current, []);
   const [controlsLaidOut, setControlsLaidOut] = useState(false);
@@ -149,6 +152,7 @@ export function Controls({
   const isBrightnessGestureActive = useSharedValue(false);
 
   const fadeAnim = useSharedValue(0);
+  const lockFadeAnim = useSharedValue(0);
   const controlsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const danmakuSearchPanelRef = useRef<DanmakuSearchPanelRef>(null);
   const [searchNavigation, setSearchNavigation] = useState({
@@ -157,6 +161,8 @@ export function Controls({
   });
   const activePanel = getActivePlayerPanelRoute(panelState);
   const isPanelOpen = isPlayerPanelOpen(panelState);
+  const lockControlVisible =
+    hasEntered && !isPanelOpen && (isLocked ? showLockControl : showControls);
   const isPanelOpenRef = useRef(isPanelOpen);
   isPanelOpenRef.current = isPanelOpen;
 
@@ -211,6 +217,12 @@ export function Controls({
     }
   }, []);
 
+  const toggleControlsVisibility = useCallback(() => {
+    clearControlsTimeout();
+    setHasEntered(true);
+    dispatchControls({ type: 'TOGGLE_VISIBLE' });
+  }, [clearControlsTimeout]);
+
   const toggleLock = useCallback(() => {
     const locked = !isLockedRef.current;
     isLockedRef.current = locked;
@@ -234,10 +246,9 @@ export function Controls({
 
     if (
       !autoHideControls ||
-      isLoading ||
+      (!isLockedRef.current && isLoading) ||
       isPanelOpenRef.current ||
-      isScreenReaderEnabled ||
-      isLockedRef.current
+      isScreenReaderEnabled
     ) {
       return;
     }
@@ -250,7 +261,7 @@ export function Controls({
         !isVolumeGestureActive.value &&
         !isBrightnessGestureActive.value
       ) {
-        scheduleOnRN(setControlsVisible, false);
+        dispatchControls({ type: 'HIDE' });
       }
     }, PLAYER_CONTROLS_AUTO_HIDE_DELAY_MS);
   }, [
@@ -262,7 +273,6 @@ export function Controls({
     isGestureSeekingActive,
     isVolumeGestureActive,
     isBrightnessGestureActive,
-    setControlsVisible,
   ]);
 
   useEffect(() => {
@@ -287,27 +297,8 @@ export function Controls({
   }, [setControlsVisible]);
 
   useEffect(() => {
-    if (isPanelOpen) {
-      if (controlsTimeout.current) {
-        clearTimeout(controlsTimeout.current);
-      }
-      setControlsVisible(true);
-    } else {
-      hideControlsWithDelay();
-    }
-  }, [isPanelOpen, hideControlsWithDelay, fadeAnim, setControlsVisible]);
-
-  useEffect(() => {
     closePanel();
   }, [closePanel, currentItem?.id]);
-
-  useEffect(() => {
-    return () => {
-      if (controlsTimeout.current) {
-        clearTimeout(controlsTimeout.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     if (controlsVisible) {
@@ -316,17 +307,31 @@ export function Controls({
         easing: Easing.out(Easing.cubic),
         reduceMotion: ReduceMotion.System,
       });
-      hideControlsWithDelay();
     } else {
       fadeAnim.value = withTiming(0, { duration: isReduceMotionEnabled ? 0 : 300 });
-      clearControlsTimeout();
     }
+  }, [controlsVisible, fadeAnim, isReduceMotionEnabled]);
+
+  useEffect(() => {
+    lockFadeAnim.set(
+      withTiming(lockControlVisible ? 1 : 0, {
+        duration: isReduceMotionEnabled ? 0 : lockControlVisible ? 280 : 300,
+        easing: Easing.out(Easing.cubic),
+        reduceMotion: ReduceMotion.System,
+      }),
+    );
+  }, [isReduceMotionEnabled, lockControlVisible, lockFadeAnim]);
+
+  useEffect(() => {
+    if (controlsVisible || lockControlVisible) hideControlsWithDelay();
+    else clearControlsTimeout();
+    return clearControlsTimeout;
   }, [
     controlsVisible,
-    fadeAnim,
+    lockControlVisible,
+    isPanelOpen,
     hideControlsWithDelay,
     clearControlsTimeout,
-    isReduceMotionEnabled,
   ]);
 
   const contextValue = {
@@ -362,10 +367,13 @@ export function Controls({
     hdrState: hdrState ?? null,
     showControls: controlsVisible,
     setShowControls: setControlsVisible,
+    showLockControl: lockControlVisible,
+    toggleControlsVisibility,
     isLocked,
     onToggleLock: toggleLock,
     isInteractionLocked,
     fadeAnim,
+    lockFadeAnim,
     isPanelOpen,
     openPanel,
     isDragging,
@@ -455,7 +463,7 @@ export function Controls({
           accessibilityElementsHidden={isLocked || !controlsVisible}
           importantForAccessibility={isLocked || !controlsVisible ? 'no-hide-descendants' : 'auto'}
           pointerEvents={isLocked ? 'none' : 'box-none'}
-          style={[StyleSheet.absoluteFill, { zIndex: 10 }, isLocked && { display: 'none' }]}
+          style={[StyleSheet.absoluteFill, { zIndex: 10 }]}
         >
           <ContentOverlayScrim />
           <TopOverlayGradient />

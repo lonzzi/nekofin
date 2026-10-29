@@ -161,6 +161,8 @@ export function PlayerActionBar() {
     setBrightnessGestureEnabled,
     volumeGestureEnabled,
     setVolumeGestureEnabled,
+    seekGestureEnabled,
+    setSeekGestureEnabled,
   } = usePlayerGestureSettings();
   const actions = useMemo(
     () =>
@@ -199,6 +201,7 @@ export function PlayerActionBar() {
       ...derivePlaybackMenuActions(rate, aspectRatio, tr, {
         brightnessGestureEnabled,
         volumeGestureEnabled,
+        seekGestureEnabled,
       }),
       ...deriveAutoSkipMenuActions({ intro: autoSkipIntro, outro: autoSkipOutro }, tr),
     ],
@@ -213,6 +216,7 @@ export function PlayerActionBar() {
       autoSkipOutro,
       brightnessGestureEnabled,
       volumeGestureEnabled,
+      seekGestureEnabled,
     ],
   );
   const qualityMenuActions = useMemo(() => deriveQualityMenuActions(quality, tr), [quality, tr]);
@@ -270,6 +274,8 @@ export function PlayerActionBar() {
         setBrightnessGestureEnabled((enabled) => !(enabled ?? true));
       } else if (selection?.kind === 'volumeGestureToggle') {
         setVolumeGestureEnabled((enabled) => !(enabled ?? true));
+      } else if (selection?.kind === 'seekGestureToggle') {
+        setSeekGestureEnabled((enabled) => !(enabled ?? true));
       }
     },
     [
@@ -282,6 +288,7 @@ export function PlayerActionBar() {
       setAutoSkipOutro,
       setBrightnessGestureEnabled,
       setVolumeGestureEnabled,
+      setSeekGestureEnabled,
     ],
   );
   const handleQualityAction = useCallback(

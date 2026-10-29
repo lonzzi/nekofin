@@ -36,6 +36,8 @@ export function GestureHandler() {
     onPlayPause,
     onRateChange,
     showControls,
+    showLockControl,
+    toggleControlsVisibility,
     setShowControls,
     isLoading,
     isLocked,
@@ -50,7 +52,8 @@ export function GestureHandler() {
     seekPreviewTime,
     seekPreviewStartTime,
   } = usePlayer();
-  const { brightnessGestureEnabled, volumeGestureEnabled } = usePlayerGestureSettings();
+  const { brightnessGestureEnabled, volumeGestureEnabled, seekGestureEnabled } =
+    usePlayerGestureSettings();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [isInitialized, setIsInitialized] = useState(false);
   const volumeValue = useSharedValue(1);
@@ -96,18 +99,18 @@ export function GestureHandler() {
   );
 
   const startSeek = useCallback(() => {
-    if (isInteractionLocked()) return;
+    if (isInteractionLocked() || !seekGestureEnabled) return;
     clearControlsTimeout();
     setShowControls(true);
     selectionFeedback();
-  }, [clearControlsTimeout, isInteractionLocked, setShowControls]);
+  }, [clearControlsTimeout, isInteractionLocked, seekGestureEnabled, setShowControls]);
   const finishSeek = useCallback(
     (time: number, commit: boolean) => {
       if (isInteractionLocked()) return;
-      if (commit && canSeek) onSeek(time / duration);
+      if (commit && canSeek && seekGestureEnabled) onSeek(time / duration);
       hideControlsWithDelay();
     },
-    [canSeek, duration, onSeek, hideControlsWithDelay, isInteractionLocked],
+    [canSeek, duration, onSeek, hideControlsWithDelay, isInteractionLocked, seekGestureEnabled],
   );
   const handlePlayPause = useCallback(() => {
     if (!isInteractionLocked()) onPlayPause();
@@ -144,7 +147,11 @@ export function GestureHandler() {
       }
       const x = touch.x - touchStartX.value;
       const y = touch.y - touchStartY.value;
-      if (isHorizontalPan(x, y) && canSeek) {
+      if (isHorizontalPan(x, y)) {
+        if (!canSeek || !seekGestureEnabled) {
+          manager.fail();
+          return;
+        }
         panMode.value = 'seek';
       } else if (isVerticalPan(x, y) && isInitialized && !isLoading) {
         const mode = getVerticalGestureMode(touchStartX.value, screenWidth, {
@@ -236,18 +243,13 @@ export function GestureHandler() {
     .onEnd((_event, success) => {
       if (success) scheduleOnRN(handlePlayPause);
     });
-  const handleSingleTap = () => {
-    if (isInteractionLocked()) return;
-    clearControlsTimeout();
-    setShowControls(!showControls);
-  };
   const tapGesture = Gesture.Tap()
-    .enabled(!isLocked && !isPanelOpen && !isDragging)
+    .enabled(!isPanelOpen && !isDragging)
     .maxDuration(280)
     .maxDeltaX(16)
     .maxDeltaY(16)
     .onEnd((_event, success) => {
-      if (success) scheduleOnRN(handleSingleTap);
+      if (success) scheduleOnRN(toggleControlsVisibility);
     });
   const longPressGesture = Gesture.LongPress()
     .enabled(!isLocked && !isPanelOpen && !isLoading && !isDragging)
@@ -284,8 +286,16 @@ export function GestureHandler() {
         <Animated.View
           accessible
           accessibilityRole="button"
-          accessibilityLabel={tr(showControls ? 'player.hideControls' : 'player.showControls')}
-          onAccessibilityTap={handleSingleTap}
+          accessibilityLabel={tr(
+            isLocked
+              ? showLockControl
+                ? 'player.hideUnlockButton'
+                : 'player.showUnlockButton'
+              : showControls
+                ? 'player.hideControls'
+                : 'player.showControls',
+          )}
+          onAccessibilityTap={toggleControlsVisibility}
           testID="player-controls-toggle"
           style={styles.touchOverlay}
         />

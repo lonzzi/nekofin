@@ -211,6 +211,8 @@ const styles = StyleSheet.create({
     columnGap: 8,
     rowGap: 4,
     justifyContent: 'space-between',
+    // Reserve room for the standalone lock button at the bottom right.
+    paddingRight: 52,
   },
   actionRow: {
     marginLeft: 'auto',

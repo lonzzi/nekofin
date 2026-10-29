@@ -10,11 +10,17 @@ export function usePlayerGestureSettings() {
     'playback.volumeGestureEnabled',
     storage,
   );
+  const [seekGestureEnabled = true, setSeekGestureEnabled] = useMMKVBoolean(
+    'playback.seekGestureEnabled',
+    storage,
+  );
 
   return {
     brightnessGestureEnabled,
     setBrightnessGestureEnabled,
     volumeGestureEnabled,
     setVolumeGestureEnabled,
+    seekGestureEnabled,
+    setSeekGestureEnabled,
   };
 }
