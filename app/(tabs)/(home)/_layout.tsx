@@ -1,17 +1,24 @@
 import { GroupedStackRoutes } from '@/components/GroupedStackRoutes';
 import { useNativeListStackOptions } from '@/components/navigation/nativeListStackOptions';
+import {
+  nativeStackTransitionProps,
+  useNativeStackScreenListeners,
+} from '@/components/navigation/useNativeStackScreenListeners';
 import { useTranslation } from '@/lib/i18n';
-import { usePerformanceStackScreenListeners } from '@/lib/performance/PerformanceMonitorContext';
 import { useAppTheme } from '@/lib/theme';
 import { Stack } from 'expo-router';
 
 export default function HomeLayout() {
   const { t: tr } = useTranslation();
   const theme = useAppTheme();
-  const screenListeners = usePerformanceStackScreenListeners('home');
+  const screenListeners = useNativeStackScreenListeners('home');
   const stackOptions = useNativeListStackOptions(theme.colors.background);
   return (
-    <Stack screenListeners={screenListeners} screenOptions={stackOptions}>
+    <Stack
+      unstable_nativeProps={nativeStackTransitionProps('home')}
+      screenListeners={screenListeners}
+      screenOptions={stackOptions}
+    >
       <Stack.Screen
         name="index"
         options={{

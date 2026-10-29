@@ -72,9 +72,21 @@ data class PopupSubmenuProps(
 ) : ComposeProps
 
 private data class MenuPage(val title: String, val slot: SlotView)
+private enum class MenuPageMotion(val direction: Float) { Initial(0f), Forward(1f), Back(-1f) }
+private data class MenuNavigationState(
+  val pages: List<MenuPage> = emptyList(),
+  val motion: MenuPageMotion = MenuPageMotion.Initial
+)
 private class MenuNavigation {
-  var pages by mutableStateOf<List<MenuPage>>(emptyList())
-  fun back() { pages = pages.dropLast(1) }
+  private var state by mutableStateOf(MenuNavigationState())
+  val pages get() = state.pages
+  val motion get() = state.motion
+  fun push(page: MenuPage) {
+    state = MenuNavigationState(pages + page, MenuPageMotion.Forward)
+  }
+  fun back() {
+    if (pages.isNotEmpty()) state = MenuNavigationState(pages.dropLast(1), MenuPageMotion.Back)
+  }
 }
 private val LocalMenuNavigation = staticCompositionLocalOf<MenuNavigation?> { null }
 
@@ -104,8 +116,8 @@ fun FunctionalComposableScope.PopupMenuContent(
       val shadowPadding = 24.dp
       val shadowInset = with(density) { shadowPadding.roundToPx() }
       val windowSize = LocalWindowInfo.current.containerSize
-      val maxHeight = with(density) { windowSize.height.toDp() - shadowPadding * 2 - 16.dp }.coerceAtLeast(48.dp)
-      val maxWidth = with(density) { windowSize.width.toDp() - shadowPadding * 2 - 16.dp }.coerceAtLeast(48.dp)
+      val maxHeight = with(density) { windowSize.height.toDp() - 16.dp }.coerceAtLeast(48.dp)
+      val maxWidth = with(density) { windowSize.width.toDp() - 16.dp }.coerceAtLeast(48.dp)
       var origin by remember { mutableStateOf(TransformOrigin(1f, 0f)) }
       val margin = with(density) { 8.dp.roundToPx() }
       val gap = with(density) { 4.dp.roundToPx() }
@@ -113,18 +125,20 @@ fun FunctionalComposableScope.PopupMenuContent(
         object : PopupPositionProvider {
           override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize,
             layoutDirection: LayoutDirection, popupContentSize: IntSize): IntOffset {
+            // Align and constrain the visible surface, excluding its transparent shadow gutter.
+            val width = (popupContentSize.width - shadowInset * 2).coerceAtLeast(1)
+            val height = (popupContentSize.height - shadowInset * 2).coerceAtLeast(1)
             val end = props.alignEnd ?: (anchorBounds.center.x > windowSize.width / 2)
-            val x = (if (end) anchorBounds.right - popupContentSize.width + shadowInset
-              else anchorBounds.left - shadowInset)
-              .coerceIn(margin, (windowSize.width - popupContentSize.width - margin).coerceAtLeast(margin))
-            val below = anchorBounds.bottom + gap - shadowInset
-            val y = (if (below + popupContentSize.height <= windowSize.height - margin) below
-              else anchorBounds.top - popupContentSize.height - gap + shadowInset)
-              .coerceIn(margin, (windowSize.height - popupContentSize.height - margin).coerceAtLeast(margin))
+            val x = (if (end) anchorBounds.right - width else anchorBounds.left)
+              .coerceIn(margin, (windowSize.width - width - margin).coerceAtLeast(margin))
+            val below = anchorBounds.bottom + gap
+            val y = (if (below + height <= windowSize.height - margin) below
+              else anchorBounds.top - height - gap)
+              .coerceIn(margin, (windowSize.height - height - margin).coerceAtLeast(margin))
             origin = TransformOrigin(
-              ((anchorBounds.center.x - x - shadowInset).toFloat() / (popupContentSize.width - shadowInset * 2).coerceAtLeast(1)).coerceIn(0f, 1f),
-              ((anchorBounds.center.y - y - shadowInset).toFloat() / (popupContentSize.height - shadowInset * 2).coerceAtLeast(1)).coerceIn(0f, 1f))
-            return IntOffset(x, y)
+              ((anchorBounds.center.x - x).toFloat() / width).coerceIn(0f, 1f),
+              ((anchorBounds.center.y - y).toFloat() / height).coerceIn(0f, 1f))
+            return IntOffset(x - shadowInset, y - shadowInset)
           }
         }
       }
@@ -134,7 +148,8 @@ fun FunctionalComposableScope.PopupMenuContent(
       Popup(popupPositionProvider = position,
         onDismissRequest = onDismiss,
         // Keep Compose's system back callback; key previews do not cover back gestures.
-        properties = PopupProperties(focusable = true, dismissOnBackPress = true)) {
+        // Only the shadow gutter may extend off screen; the surface is constrained above.
+        properties = PopupProperties(focusable = true, dismissOnBackPress = true, clippingEnabled = false)) {
         // Animate in the popup's composition; a toolbar's frame clock can pause
         // while this separate window owns focus.
         val transition = rememberTransition(expanded, label = "menu visibility")
@@ -185,14 +200,17 @@ fun FunctionalComposableScope.PopupMenuContent(
                   it.updateShape()
                 })
               val page = navigation.pages.lastOrNull()
-              key(page) {
-                val progress = remember { Animatable(if (page == null) 1f else 0f) }
+              val motion = navigation.motion
+              key(page, navigation.pages.size) {
+                // Only first opening is covered by the popup reveal. Returning to
+                // the root is a page transition too, entering from the opposite side.
+                val progress = remember { Animatable(if (motion == MenuPageMotion.Initial) 1f else 0f) }
                 LaunchedEffect(Unit) { progress.animateTo(1f, tween(160)) }
                 Column(Modifier
                   .widthIn(min = minOf(196.dp, maxWidth), max = minOf(320.dp, maxWidth))
                   .width(IntrinsicSize.Max).heightIn(max = maxHeight).graphicsLayer {
                     this.alpha = progress.value
-                    translationX = (1f - progress.value) * 12.dp.toPx()
+                    translationX = (1f - progress.value) * 12.dp.toPx() * motion.direction
                   }.verticalScroll(rememberScrollState()).padding(vertical = 4.dp)) {
                   if (page != null) {
                     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
@@ -234,7 +252,7 @@ fun FunctionalComposableScope.PopupSubmenuContent(props: PopupSubmenuProps) {
   val leading = findChildSlotView(view, "leadingIcon")
   val text = findChildSlotView(view, "text")
   MenuRow(props.enabled, null, {
-    if (items != null && navigation != null) navigation.pages = navigation.pages + MenuPage(props.title, items)
+    if (items != null && navigation != null) navigation.push(MenuPage(props.title, items))
   }, leading = { leading?.renderSlot() }, hasLeading = leading != null,
     trailing = { MenuChevron(Color.Gray, back = false) }, hasTrailing = true) { text?.renderSlot() }
 }

@@ -1,8 +1,8 @@
+import { scheduleAfterNavigation } from '@/lib/navigationWork';
 import { useOptionalPerformanceMonitorActions } from '@/lib/performance/PerformanceMonitorContext';
 import type { QueryKey } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef } from 'react';
-import { InteractionManager } from 'react-native';
 
 export type RefetchOnScreenFocus = boolean | 'stale';
 
@@ -62,7 +62,7 @@ export function useRefetchOnScreenFocus(
         type: 'trace',
       });
 
-      const interaction = InteractionManager.runAfterInteractions(() => {
+      const interaction = scheduleAfterNavigation(() => {
         const latest = queryStateRef.current;
         if (!latest.isEnabled || latest.fetchStatus === 'fetching') return;
 

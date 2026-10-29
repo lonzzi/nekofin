@@ -5,6 +5,7 @@ import {
   deriveNativeSubtitleState,
   deriveSubtitleMenuTracks,
   isSubtitlePending,
+  requiresServerSubtitleSwitch,
   subtitleChoiceForSource,
 } from './playerSubtitleMenu';
 
@@ -24,6 +25,63 @@ const streams = source.mediaStreams.map((stream) => ({
   DisplayTitle: stream.displayTitle,
   IsExternal: stream.isExternal,
 }));
+
+describe('subtitle delivery during video transcoding', () => {
+  const transcoded = {
+    TranscodingUrl: '/videos/movie/master.m3u8?VideoCodec=h264',
+    MediaStreams: [
+      { Type: 'Subtitle', Index: 0, Codec: 'ass', IsExternal: true, DeliveryMethod: 'External' },
+      { Type: 'Subtitle', Index: 3, Codec: 'srt', DeliveryMethod: 'External' },
+      { Type: 'Subtitle', Index: 5, Codec: 'pgs', DeliveryMethod: 'Encode' },
+      { Type: 'Subtitle', Index: 7, Codec: 'webvtt', DeliveryMethod: 'Hls' },
+    ],
+  };
+
+  it('switches external subtitles and off locally without restarting HLS', () => {
+    for (const index of [0, 3, -1, undefined]) {
+      expect(requiresServerSubtitleSwitch(transcoded, index)).toBe(false);
+    }
+    expect(requiresServerSubtitleSwitch(transcoded, 5)).toBe(true);
+    expect(requiresServerSubtitleSwitch(transcoded, 7)).toBe(true);
+  });
+
+  it('renegotiates when removing burned-in subtitles or selecting another subtitle', () => {
+    const burned = {
+      ...transcoded,
+      TranscodingUrl: '/videos/movie/master.m3u8?subtitleMethod=encode&SubtitleStreamIndex=5',
+    };
+    expect(requiresServerSubtitleSwitch(burned, -1)).toBe(true);
+    expect(requiresServerSubtitleSwitch(burned, 0)).toBe(true);
+    expect(
+      requiresServerSubtitleSwitch(burned, -1, 'https://media.test/master.m3u8?SubtitleMethod=Hls'),
+    ).toBe(false);
+  });
+
+  it('negotiates a subtitle that needs encoding even before a transcode starts', () => {
+    const direct = { MediaStreams: transcoded.MediaStreams };
+    expect(requiresServerSubtitleSwitch(direct, 5)).toBe(true);
+    expect(requiresServerSubtitleSwitch(direct, 0)).toBe(false);
+    expect(requiresServerSubtitleSwitch(direct, 7)).toBe(false);
+    expect(requiresServerSubtitleSwitch(undefined, 0)).toBe(false);
+  });
+
+  it('maps external ASS stream zero without matching original indices to embedded HLS tracks', () => {
+    const native = [
+      { type: 'sub', id: 1, isExternal: false },
+      { type: 'sub', id: 2, isExternal: true },
+    ];
+    const ids = new Map([[0, 2]]);
+    const state = deriveNativeSubtitleState(native, transcoded.MediaStreams, 2, ids, true);
+    expect([...state.ids]).toEqual([[0, 2]]);
+    expect(state.selectedIndex).toBe(0);
+    expect(
+      deriveNativeSubtitleState(native, transcoded.MediaStreams, 1, ids, true).selectedIndex,
+    ).toBeUndefined();
+    expect(
+      deriveNativeSubtitleState(native, transcoded.MediaStreams, 0, ids, true).selectedIndex,
+    ).toBe(-1);
+  });
+});
 
 describe('subtitle menu before sidecars load', () => {
   it('lists all server subtitles when the native player has no tracks or cache files', () => {

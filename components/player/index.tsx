@@ -74,13 +74,14 @@ import {
   deriveTracks,
   formatPlayerTitle,
 } from './playerDerived';
-import { PlayerEntryVisibilityContext } from './PlayerEntryContext';
+import { PlayerEntryVisibilityContext, PlayerExitPreparationContext } from './PlayerEntryContext';
 import { createPlayerLoadRecovery, playbackFailureMessage } from './playerLoadRecovery';
 import { serverIndexForNativeTrack } from './playerQualitySelection';
 import { createPlayerSegmentSkip } from './playerSegmentSkip';
 import {
   deriveNativeSubtitleState,
   deriveSubtitleMenuTracks,
+  requiresServerSubtitleSwitch,
   subtitleChoiceForSource,
   type SubtitleChoice,
 } from './playerSubtitleMenu';
@@ -257,6 +258,18 @@ export const VideoPlayer = ({
   );
 
   const player = useRef<ExpoMpvViewRef>(null);
+  const isExitingRef = useRef(false);
+  const exitPreparation = useContext(PlayerExitPreparationContext);
+  useLayoutEffect(
+    () =>
+      exitPreparation?.register(() => {
+        isExitingRef.current = true;
+        return Platform.OS === 'android'
+          ? (player.current?.prepareForExit?.() ?? Promise.resolve())
+          : Promise.resolve();
+      }),
+    [exitPreparation],
+  );
   const isMountedRef = useRef(true);
   const activePlaybackContextRef = useRef<object | null>(null);
   const completedPlaybackContextRef = useRef<object | null>(null);
@@ -386,7 +399,12 @@ export const VideoPlayer = ({
     ? resolvePlaybackSelection([subtitleMenuSource], playbackSelection, preferences)
         .subtitleStreamIndex
     : undefined;
-  const selectedSubtitleIndex = usesServerTracks
+  const usesServerSubtitleTracks = requiresServerSubtitleSwitch(
+    streamInfo?.mediaSource,
+    activeServerTrackChoice?.subtitle ?? defaultSubtitleIndex,
+    playbackSourceUrl,
+  );
+  const selectedSubtitleIndex = usesServerSubtitleTracks
     ? (activeServerTrackChoice?.subtitle ?? defaultSubtitleIndex)
     : (requestedSubtitleIndex ??
       (defaultSubtitleIndex != null &&
@@ -403,7 +421,7 @@ export const VideoPlayer = ({
         ? deriveSubtitleMenuTracks(
             subtitleMenuSource,
             activeNativeSubtitles?.ids ?? new Map(),
-            usesServerTracks ? undefined : selectedSubtitleIndex,
+            usesServerSubtitleTracks ? undefined : selectedSubtitleIndex,
             failedSubtitleIndices,
           )
         : mpvTracks.subtitle,
@@ -413,6 +431,10 @@ export const VideoPlayer = ({
     (type: 'audio' | 'subtitle', index: number) => {
       const sourceId = streamInfo?.mediaSource?.Id;
       if (!sourceId) return;
+      if (type === 'subtitle') {
+        rememberedTrackChoice.current.subtitle = undefined;
+        manualTrackChoice.current.subtitle = false;
+      }
       resumePausedRef.current = !isPlaying;
       setVersionChoice({ itemId, id: sourceId });
       setServerTrackChoice((previous) => ({
@@ -423,24 +445,35 @@ export const VideoPlayer = ({
             ? previous.audio
             : (streamInfo?.mediaSource?.DefaultAudioStreamIndex ?? undefined),
         subtitle:
-          previous?.itemId === itemId && previous.sourceId === sourceId
+          requestedSubtitleIndex ??
+          selectedSubtitleIndex ??
+          (previous?.itemId === itemId && previous.sourceId === sourceId
             ? previous.subtitle
-            : (streamInfo?.mediaSource?.DefaultSubtitleStreamIndex ?? undefined),
+            : (streamInfo?.mediaSource?.DefaultSubtitleStreamIndex ?? undefined)),
         [type]: index,
       }));
     },
-    [itemId, streamInfo?.mediaSource, isPlaying],
+    [itemId, streamInfo?.mediaSource, isPlaying, requestedSubtitleIndex, selectedSubtitleIndex],
   );
 
   useEffect(() => {
-    if (!usesServerTracks || requestedSubtitleIndex == null) return;
+    if (
+      requestedSubtitleIndex == null ||
+      !requiresServerSubtitleSwitch(
+        streamInfo?.mediaSource,
+        requestedSubtitleIndex,
+        playbackSourceUrl,
+      )
+    )
+      return;
     if (activeServerTrackChoice?.subtitle !== requestedSubtitleIndex) {
       changeServerTrack('subtitle', requestedSubtitleIndex);
     }
     subtitleChoiceRef.current = null;
     setSubtitleChoice(null);
   }, [
-    usesServerTracks,
+    streamInfo?.mediaSource,
+    playbackSourceUrl,
     requestedSubtitleIndex,
     activeServerTrackChoice?.subtitle,
     changeServerTrack,
@@ -463,6 +496,7 @@ export const VideoPlayer = ({
   const isPlaybackContextActive = useCallback(
     (context: object, targetPlayer?: ExpoMpvViewRef) =>
       isMountedRef.current &&
+      !isExitingRef.current &&
       activePlaybackContextRef.current === context &&
       (!targetPlayer || player.current === targetPlayer),
     [],
@@ -533,7 +567,11 @@ export const VideoPlayer = ({
       const target = player.current;
       const source = streamInfo?.mediaSource;
       let audio = activeServerTrackChoice?.audio ?? playbackSelection.audioStreamIndex;
-      let subtitle = activeServerTrackChoice?.subtitle ?? playbackSelection.subtitleStreamIndex;
+      let subtitle =
+        requestedSubtitleIndex ??
+        selectedSubtitleIndex ??
+        activeServerTrackChoice?.subtitle ??
+        playbackSelection.subtitleStreamIndex;
       if (target && source && !usesServerTracks && isPlayerReadyRef.current) {
         try {
           const tracks = await target.getTrackList();
@@ -550,13 +588,15 @@ export const VideoPlayer = ({
               externalIds: externalTrackLoads.current?.audioIds,
             }) ?? audio;
           subtitle =
+            requestedSubtitleIndex ??
             serverIndexForNativeTrack({
               type: 'Subtitle',
               nativeId: indices.sid,
               nativeTracks: tracks,
               serverStreams,
               externalIds: externalTrackLoads.current?.subtitleIds,
-            }) ?? subtitle;
+            }) ??
+            subtitle;
         } catch {
           /* The server can still resolve default tracks if native discovery fails. */
         }
@@ -574,6 +614,8 @@ export const VideoPlayer = ({
       streamInfo?.mediaSource,
       activeServerTrackChoice,
       playbackSelection,
+      requestedSubtitleIndex,
+      selectedSubtitleIndex,
       usesServerTracks,
       isPlaybackContextActive,
       playbackContext,
@@ -801,7 +843,7 @@ export const VideoPlayer = ({
         const confirmedIds = selectedIds ?? (await targetPlayer.getCurrentTrackIds());
         if (isActive()) {
           setCurrentTrackIds(confirmedIds);
-          if (source?.Id && !source.TranscodingUrl && list) {
+          if (source?.Id && list) {
             setNativeSubtitleState({
               sourceUrl: targetSource,
               sourceId: source.Id,
@@ -810,6 +852,7 @@ export const VideoPlayer = ({
                 source.MediaStreams ?? [],
                 confirmedIds.sid,
                 activeExternalLoads?.subtitleIds,
+                !!source.TranscodingUrl,
               ),
             });
           }
@@ -996,6 +1039,7 @@ export const VideoPlayer = ({
     const loads = externalTrackLoads.current;
     const isActive = () =>
       isMountedRef.current &&
+      !isExitingRef.current &&
       player.current === targetPlayer &&
       loadedSourceRef.current === targetSource;
     let cancelled = false;
@@ -1239,7 +1283,7 @@ export const VideoPlayer = ({
 
   const handleSubtitleTrackChange = useCallback(
     async (trackId: number) => {
-      if (usesServerTracks) {
+      if (requiresServerSubtitleSwitch(streamInfo?.mediaSource, trackId, playbackSourceUrl)) {
         subtitleChoiceRef.current = null;
         setSubtitleChoice(null);
         changeServerTrack('subtitle', trackId);
@@ -1287,7 +1331,8 @@ export const VideoPlayer = ({
     },
     [
       refreshMpvTracks,
-      usesServerTracks,
+      streamInfo?.mediaSource,
+      playbackSourceUrl,
       changeServerTrack,
       mpvTracks,
       hasServerSubtitleMenu,

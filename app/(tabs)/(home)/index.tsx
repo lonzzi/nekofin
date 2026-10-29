@@ -28,6 +28,25 @@ export default function AggregateHomeScreen() {
     home.refetch,
     visibleServers.map((server) => server.id),
   );
+  const sections = useMemo(
+    () =>
+      home.sections.map((section) => ({
+        ...section,
+        onViewAll:
+          section.type === 'userview'
+            ? undefined
+            : () =>
+                router.push({
+                  pathname: '/(tabs)/(home)/view-all/[type]',
+                  params: {
+                    type: section.type!,
+                    sectionKey: section.key,
+                    serverId: homeServerId || '',
+                  },
+                }),
+      })),
+    [home.sections, homeServerId, router],
+  );
   const toolbar = <HomeAccountMenu />;
   if (!servers.length && isInitialized)
     return (
@@ -72,21 +91,7 @@ export default function AggregateHomeScreen() {
         showServerSource={visibleServers.length > 1}
         refreshing={refreshing}
         onRefresh={onRefresh}
-        sections={home.sections.map((section) => ({
-          ...section,
-          onViewAll:
-            section.type === 'userview'
-              ? undefined
-              : () =>
-                  router.push({
-                    pathname: '/(tabs)/(home)/view-all/[type]',
-                    params: {
-                      type: section.type!,
-                      sectionKey: section.key,
-                      serverId: homeServerId || '',
-                    },
-                  }),
-        }))}
+        sections={sections}
         notice={
           home.failedServers.length ? (
             <View

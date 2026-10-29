@@ -1,5 +1,10 @@
-import { PlayerEntryVisibilityContext } from '@/components/player/PlayerEntryContext';
+import {
+  PlayerEntryVisibilityContext,
+  PlayerExitPreparationContext,
+} from '@/components/player/PlayerEntryContext';
+import { createPlayerExitPreparation } from '@/components/player/playerExitPreparation';
 import { usePlayerEntryVisibility } from '@/hooks/usePlayerEntryVisibility';
+import { beginNavigationTransition } from '@/lib/navigationWork';
 import {
   resolveVideoOrientationLock,
   resolveVideoScreenOrientation,
@@ -23,11 +28,14 @@ export default function Layout() {
   const [hasAppeared, setHasAppeared] = useState(Platform.OS !== 'ios');
   const entry = usePlayerEntryVisibility(videoOrientation, hasAppeared);
   const { width, height } = useWindowDimensions();
+  const [exitPreparation] = useState(createPlayerExitPreparation);
+  const [exitPrepared, setExitPrepared] = useState(Platform.OS !== 'android');
   const [pendingExit, setPendingExit] = useState<NavigationAction | null>(null);
   const [portraitTransitionCompleted, setPortraitTransitionCompleted] = useState(false);
   // iPad multitasking can keep a landscape window despite a portrait orientation mask.
   const coordinatePortraitExit = Platform.OS === 'ios' && !Platform.isPad;
-  const canFinishExit = !coordinatePortraitExit || (portraitTransitionCompleted && width <= height);
+  const canFinishExit =
+    exitPrepared && (!coordinatePortraitExit || (portraitTransitionCompleted && width <= height));
   // Both native stacks must allow portrait before requesting the exit rotation.
   // Changing only the inner screen leaves Expo observing the outer landscape mask.
   const screenOrientation = resolveVideoScreenOrientation(
@@ -87,9 +95,24 @@ export default function Layout() {
   // Defer every platform's first exit so the root route receives its exit animation.
   usePreventRemove(!pendingExit || !canFinishExit, ({ data }) => {
     if (pendingExit) return;
+    beginNavigationTransition('root:player-exit-preparation');
     setPortraitTransitionCompleted(false);
     setPendingExit(data.action);
   });
+
+  useEffect(() => {
+    if (!pendingExit || Platform.OS !== 'android') return;
+    let active = true;
+    void exitPreparation
+      .prepare()
+      .catch((error) => console.warn('Failed to prepare player exit', error))
+      .finally(() => {
+        if (active) setExitPrepared(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [exitPreparation, pendingExit]);
 
   useEffect(() => {
     if (!pendingExit || !coordinatePortraitExit || width > height) return;
@@ -135,27 +158,29 @@ export default function Layout() {
         }}
       />
       <View style={styles.container} onLayout={entry.onLayout}>
-        <PlayerEntryVisibilityContext value={entry.visible}>
-          <Stack
-            // The native stack remains visible while its SurfaceView is detached on Android.
-            unstable_nativeProps={
-              Platform.OS === 'android'
-                ? { nativeContainerStyle: { backgroundColor: '#000' } }
-                : undefined
-            }
-            screenOptions={{
-              headerShown: false,
-              orientation: Platform.OS === 'ios' ? screenOrientation : undefined,
-              statusBarHidden: true,
-              navigationBarHidden: Platform.OS === 'android' ? true : undefined,
-              autoHideHomeIndicator: true,
-              contentStyle: { backgroundColor: '#000' },
-              unstable_nativeProps: androidPlayerScreenProps,
-            }}
-          >
-            <Stack.Screen name="index" options={{ title: '', animation: 'none' }} />
-          </Stack>
-        </PlayerEntryVisibilityContext>
+        <PlayerExitPreparationContext value={exitPreparation}>
+          <PlayerEntryVisibilityContext value={entry.visible}>
+            <Stack
+              // The native stack remains visible while its SurfaceView is detached on Android.
+              unstable_nativeProps={
+                Platform.OS === 'android'
+                  ? { nativeContainerStyle: { backgroundColor: '#000' } }
+                  : undefined
+              }
+              screenOptions={{
+                headerShown: false,
+                orientation: Platform.OS === 'ios' ? screenOrientation : undefined,
+                statusBarHidden: true,
+                navigationBarHidden: Platform.OS === 'android' ? true : undefined,
+                autoHideHomeIndicator: true,
+                contentStyle: { backgroundColor: '#000' },
+                unstable_nativeProps: androidPlayerScreenProps,
+              }}
+            >
+              <Stack.Screen name="index" options={{ title: '', animation: 'none' }} />
+            </Stack>
+          </PlayerEntryVisibilityContext>
+        </PlayerExitPreparationContext>
       </View>
     </>
   );

@@ -12,6 +12,7 @@ export type AggregateLatestFolder = { server: MediaServerInfo; folder: MediaItem
 export function groupAggregateLatestFolders(
   sources: AggregateHomeSource[],
   hidden: Record<string, string[]>,
+  translate: typeof tr = tr,
 ) {
   const groups = new Map<
     string,
@@ -25,7 +26,7 @@ export function groupAggregateLatestFolders(
       const key = `latest:${folder.collectionType ?? ''}:${folder.name ?? ''}`;
       const group = groups.get(key) ?? {
         key,
-        title: tr('home.recentlyAddedInLibrary', { value: folder.name ?? '' }),
+        title: translate('home.recentlyAddedInLibrary', { value: folder.name ?? '' }),
         folders: [],
       };
       group.folders.push({ server, folder });

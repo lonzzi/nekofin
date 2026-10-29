@@ -151,6 +151,7 @@ export default ({ config: _config }: { config: ExpoConfig }): ExpoConfig => {
       ],
       'expo-font',
       'expo-status-bar',
+      ['expo-navigation-bar', { enforceContrast: false }],
       'expo-web-browser',
       [
         './plugins/withAbiFilters',

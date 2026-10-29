@@ -1,6 +1,9 @@
 import { useNativeListStackOptions } from '@/components/navigation/nativeListStackOptions';
+import {
+  nativeStackTransitionProps,
+  useNativeStackScreenListeners,
+} from '@/components/navigation/useNativeStackScreenListeners';
 import { useTranslation } from '@/lib/i18n';
-import { usePerformanceStackScreenListeners } from '@/lib/performance/PerformanceMonitorContext';
 import { useAppTheme } from '@/lib/theme';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
 import { Stack } from 'expo-router';
@@ -9,11 +12,12 @@ function HomeLayout() {
   const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const backgroundColor = theme.colors.backgroundGrouped;
-  const stackScreenListeners = usePerformanceStackScreenListeners('settings');
+  const stackScreenListeners = useNativeStackScreenListeners('settings');
 
   const stackOptions = useNativeListStackOptions(backgroundColor);
   return (
     <Stack
+      unstable_nativeProps={nativeStackTransitionProps('settings')}
       initialRouteName="index"
       screenListeners={stackScreenListeners}
       screenOptions={{

@@ -143,6 +143,7 @@
     "expo-linear-gradient@57.0.2": "patches/expo-linear-gradient@57.0.2.patch",
     "react-native-ios-context-menu@3.2.1": "patches/react-native-ios-context-menu@3.2.1.patch",
     "react-native-screens@4.26.2": "patches/react-native-screens@4.26.2.patch",
-    "@expo/ui@57.0.23": "patches/@expo-ui@57.0.23.patch"
+    "@expo/ui@57.0.23": "patches/@expo-ui@57.0.23.patch",
+    "expo-mpv@0.1.21": "patches/expo-mpv@0.1.21.patch"
   }
 }
