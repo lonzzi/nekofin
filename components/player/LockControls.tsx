@@ -1,6 +1,6 @@
 import { useTranslation } from '@/lib/i18n';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { usePlayer } from './PlayerContext';
@@ -10,7 +10,7 @@ import { useOverlayInsets } from './useOverlayInsets';
 export function LockControls() {
   const { t: tr } = useTranslation();
   const { lockFadeAnim, isLocked, onToggleLock, showLockControl } = usePlayer();
-  const { side, safeSideGap } = useOverlayInsets();
+  const { side, safeSideGap, bottomExtra } = useOverlayInsets();
   const insets = useSafeAreaInsets();
   const visible = showLockControl;
 
@@ -19,7 +19,13 @@ export function LockControls() {
       accessibilityElementsHidden={!visible}
       importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'}
       pointerEvents="box-none"
-      style={[styles.container, { right: Math.max(side, insets.right + safeSideGap) }]}
+      style={[
+        styles.container,
+        {
+          right: Math.max(side, insets.right + safeSideGap),
+          bottom: insets.bottom + (Platform.OS === 'ios' ? 16 : 24) + bottomExtra,
+        },
+      ]}
     >
       <PlayerGlassSurface
         fadeProgress={lockFadeAnim}
@@ -47,8 +53,6 @@ export function LockControls() {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: '50%',
-    marginTop: -22,
     zIndex: 30,
   },
   button: {
