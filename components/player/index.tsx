@@ -82,6 +82,8 @@ import {
   deriveNativeSubtitleState,
   deriveSubtitleMenuTracks,
   requiresServerSubtitleSwitch,
+  resolveSubtitleMenuSelection,
+  shouldReloadSubtitleStream,
   subtitleChoiceForSource,
   type SubtitleChoice,
 } from './playerSubtitleMenu';
@@ -399,19 +401,15 @@ export const VideoPlayer = ({
     ? resolvePlaybackSelection([subtitleMenuSource], playbackSelection, preferences)
         .subtitleStreamIndex
     : undefined;
-  const usesServerSubtitleTracks = requiresServerSubtitleSwitch(
-    streamInfo?.mediaSource,
-    activeServerTrackChoice?.subtitle ?? defaultSubtitleIndex,
-    playbackSourceUrl,
-  );
-  const selectedSubtitleIndex = usesServerSubtitleTracks
-    ? (activeServerTrackChoice?.subtitle ?? defaultSubtitleIndex)
-    : (requestedSubtitleIndex ??
-      (defaultSubtitleIndex != null &&
-      defaultSubtitleIndex >= 0 &&
-      !activeNativeSubtitles?.ids.has(defaultSubtitleIndex)
-        ? defaultSubtitleIndex
-        : (activeNativeSubtitles?.selectedIndex ?? defaultSubtitleIndex)));
+  const { selectedIndex: selectedSubtitleIndex, usesServerTracks: usesServerSubtitleTracks } =
+    resolveSubtitleMenuSelection({
+      source: streamInfo?.mediaSource,
+      playbackUrl: playbackSourceUrl,
+      requestedIndex: requestedSubtitleIndex,
+      serverIndex: activeServerTrackChoice?.subtitle,
+      defaultIndex: defaultSubtitleIndex,
+      nativeState: activeNativeSubtitles,
+    });
   const menuTracks = {
     audio: usesServerTracks
       ? deriveTracks(streamInfo?.mediaSource?.MediaStreams ?? []).audio
@@ -432,8 +430,21 @@ export const VideoPlayer = ({
       const sourceId = streamInfo?.mediaSource?.Id;
       if (!sourceId) return;
       if (type === 'subtitle') {
+        const localIndex = subtitleChoiceForSource(subtitleChoiceRef.current, itemId, sourceId);
+        subtitleChoiceRef.current = null;
+        setSubtitleChoice(null);
         rememberedTrackChoice.current.subtitle = undefined;
         manualTrackChoice.current.subtitle = false;
+        if (
+          shouldReloadSubtitleStream(
+            index,
+            localIndex,
+            activeServerTrackChoice?.subtitle ?? defaultSubtitleIndex,
+          )
+        ) {
+          activePlaybackContextRef.current = null;
+          setPlaybackAttempt((attempt) => attempt + 1);
+        }
       }
       resumePausedRef.current = !isPlaying;
       setVersionChoice({ itemId, id: sourceId });
@@ -453,7 +464,15 @@ export const VideoPlayer = ({
         [type]: index,
       }));
     },
-    [itemId, streamInfo?.mediaSource, isPlaying, requestedSubtitleIndex, selectedSubtitleIndex],
+    [
+      itemId,
+      streamInfo?.mediaSource,
+      isPlaying,
+      requestedSubtitleIndex,
+      selectedSubtitleIndex,
+      activeServerTrackChoice?.subtitle,
+      defaultSubtitleIndex,
+    ],
   );
 
   useEffect(() => {
@@ -1284,8 +1303,6 @@ export const VideoPlayer = ({
   const handleSubtitleTrackChange = useCallback(
     async (trackId: number) => {
       if (requiresServerSubtitleSwitch(streamInfo?.mediaSource, trackId, playbackSourceUrl)) {
-        subtitleChoiceRef.current = null;
-        setSubtitleChoice(null);
         changeServerTrack('subtitle', trackId);
         return;
       }

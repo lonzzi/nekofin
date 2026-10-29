@@ -47,6 +47,46 @@ export function subtitleChoiceForSource(
   return choice?.itemId === itemId && choice.sourceId === sourceId ? choice.index : undefined;
 }
 
+export function resolveSubtitleMenuSelection({
+  source,
+  playbackUrl,
+  requestedIndex,
+  serverIndex,
+  defaultIndex,
+  nativeState,
+}: {
+  source: Parameters<typeof requiresServerSubtitleSwitch>[0];
+  playbackUrl?: string | null;
+  requestedIndex?: number;
+  serverIndex?: number;
+  defaultIndex?: number;
+  nativeState?: { ids: ReadonlyMap<number, number>; selectedIndex?: number } | null;
+}) {
+  const negotiatedIndex = serverIndex ?? defaultIndex;
+  const usesServerTracks = requiresServerSubtitleSwitch(
+    source,
+    requestedIndex ?? negotiatedIndex,
+    playbackUrl,
+  );
+  const selectedIndex =
+    requestedIndex ??
+    (usesServerTracks
+      ? negotiatedIndex
+      : defaultIndex != null && defaultIndex >= 0 && !nativeState?.ids.has(defaultIndex)
+        ? defaultIndex
+        : (nativeState?.selectedIndex ?? defaultIndex));
+  return { selectedIndex, usesServerTracks };
+}
+
+/** Local sid changes do not alter the negotiated HLS query or its cached session. */
+export function shouldReloadSubtitleStream(
+  selectedIndex: number,
+  localIndex: number | undefined,
+  negotiatedIndex: number | undefined,
+) {
+  return localIndex != null && localIndex !== selectedIndex && negotiatedIndex === selectedIndex;
+}
+
 export function isSubtitlePending(
   index: number | undefined,
   nativeIds: ReadonlyMap<number, number> | undefined,
