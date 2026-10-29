@@ -86,15 +86,19 @@ export function usePlayerQueries({
   const { data: mediaSegments = EMPTY_SEGMENTS, isPending: segmentsPending } = useQuery(
     mediaSegmentsQueryOptions({ adapter: mediaAdapter, currentServer, itemId }),
   );
-  const playbackSelection = useMemo(
-    () =>
-      resolvePreferredPlaybackTracks(
-        playbackInfo?.mediaSources ?? [],
-        streamInfoKeyOptions,
-        preferences,
-      ),
-    [playbackInfo, streamInfoKeyOptions, preferences],
-  );
+  const playbackSelection = useMemo(() => {
+    const preferred = resolvePreferredPlaybackTracks(
+      playbackInfo?.mediaSources ?? [],
+      streamInfoKeyOptions,
+      preferences,
+    );
+    const source = playbackInfo?.mediaSources[0];
+    // Some servers ignore stream indices until they are scoped to a media source.
+    // Direct player entry must use the same version as the detail playback menu.
+    return !preferred.mediaSourceId && source
+      ? { ...preferred, mediaSourceId: source.id }
+      : preferred;
+  }, [playbackInfo, streamInfoKeyOptions, preferences]);
   const subtitlePrefetchSelection = resolvePlaybackSelection(
     playbackInfo?.mediaSources ?? [],
     playbackSelection,
@@ -126,6 +130,7 @@ export function usePlayerQueries({
     enabled:
       streamOptions.enabled &&
       hasFreshPlaybackItem &&
+      (!!streamInfoKeyOptions.mediaSourceId || !tracksPending) &&
       (!needsPlaybackPreferenceTracks(streamInfoKeyOptions, preferences) || !tracksPending),
   });
 

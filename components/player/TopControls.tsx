@@ -30,16 +30,8 @@ export function TopControls() {
   const { t: tr } = useTranslation();
   const { side, safeSideGap, topExtra, maxContentWidth, isCompact } = useOverlayInsets();
   const insets = useSafeAreaInsets();
-  const {
-    currentItem,
-    danmakuComments,
-    fadeAnim,
-    hdrState,
-    mediaStats,
-    setShowControls,
-    showControls,
-    title,
-  } = usePlayer();
+  const { currentItem, danmakuComments, fadeAnim, hdrState, mediaStats, showControls, title } =
+    usePlayer();
   const router = useTracedRouter('player-top-controls');
   const { type: networkType } = useNetworkState();
   const [now, setNow] = useState('');
@@ -58,7 +50,6 @@ export function TopControls() {
   }, []);
 
   const handleBackPress = () => {
-    setShowControls(false);
     if (router.canGoBack()) {
       router.back();
       return;

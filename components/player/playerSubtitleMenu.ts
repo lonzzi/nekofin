@@ -7,12 +7,84 @@ import { serverIndexForNativeTrack } from './playerQualitySelection';
 
 export type SubtitleChoice = { itemId: string; sourceId: string; index: number };
 
+/** Video transcoding does not require server-side switching of external subtitles. */
+export function requiresServerSubtitleSwitch(
+  source: { TranscodingUrl?: string | null; MediaStreams?: RawMediaStream[] | null } | undefined,
+  index: number | undefined,
+  playbackUrl?: string | null,
+) {
+  if (!source) return false;
+  if (source.TranscodingUrl) {
+    try {
+      const url = new URL(playbackUrl ?? source.TranscodingUrl, 'https://media.invalid');
+      if (
+        [...url.searchParams].some(
+          ([key, value]) =>
+            key.toLowerCase() === 'subtitlemethod' && value.toLowerCase() === 'encode',
+        )
+      )
+        return true;
+    } catch {
+      // Fall back to the negotiated stream metadata.
+    }
+  }
+  if (index == null || index < 0) return false;
+  const track = source.MediaStreams?.find(
+    (stream) => stream.Type === 'Subtitle' && stream.Index === index,
+  );
+  return (
+    !!track &&
+    (track.DeliveryMethod === 'Encode' ||
+      (!!source.TranscodingUrl && !track.IsExternal && track.DeliveryMethod !== 'External'))
+  );
+}
+
 export function subtitleChoiceForSource(
   choice: SubtitleChoice | null,
   itemId: string,
   sourceId: string | undefined,
 ) {
   return choice?.itemId === itemId && choice.sourceId === sourceId ? choice.index : undefined;
+}
+
+export function resolveSubtitleMenuSelection({
+  source,
+  playbackUrl,
+  requestedIndex,
+  serverIndex,
+  defaultIndex,
+  nativeState,
+}: {
+  source: Parameters<typeof requiresServerSubtitleSwitch>[0];
+  playbackUrl?: string | null;
+  requestedIndex?: number;
+  serverIndex?: number;
+  defaultIndex?: number;
+  nativeState?: { ids: ReadonlyMap<number, number>; selectedIndex?: number } | null;
+}) {
+  const negotiatedIndex = serverIndex ?? defaultIndex;
+  const usesServerTracks = requiresServerSubtitleSwitch(
+    source,
+    requestedIndex ?? negotiatedIndex,
+    playbackUrl,
+  );
+  const selectedIndex =
+    requestedIndex ??
+    (usesServerTracks
+      ? negotiatedIndex
+      : defaultIndex != null && defaultIndex >= 0 && !nativeState?.ids.has(defaultIndex)
+        ? defaultIndex
+        : (nativeState?.selectedIndex ?? defaultIndex));
+  return { selectedIndex, usesServerTracks };
+}
+
+/** Local sid changes do not alter the negotiated HLS query or its cached session. */
+export function shouldReloadSubtitleStream(
+  selectedIndex: number,
+  localIndex: number | undefined,
+  negotiatedIndex: number | undefined,
+) {
+  return localIndex != null && localIndex !== selectedIndex && negotiatedIndex === selectedIndex;
 }
 
 export function isSubtitlePending(
@@ -49,13 +121,16 @@ export function deriveNativeSubtitleState(
   serverStreams: RawMediaStream[],
   selectedNativeId: number,
   externalIds?: ReadonlyMap<number, number>,
+  isTranscoding = false,
 ) {
+  // Embedded HLS subtitles have a different order from the original file.
+  const tracks = isTranscoding ? nativeTracks.filter((track) => track.isExternal) : nativeTracks;
   const ids = new Map<number, number>();
-  for (const track of nativeTracks.filter((entry) => entry.type === 'sub')) {
+  for (const track of tracks.filter((entry) => entry.type === 'sub')) {
     const index = serverIndexForNativeTrack({
       type: 'Subtitle',
       nativeId: track.id,
-      nativeTracks,
+      nativeTracks: tracks,
       serverStreams,
       externalIds,
     });
@@ -66,7 +141,7 @@ export function deriveNativeSubtitleState(
     selectedIndex: serverIndexForNativeTrack({
       type: 'Subtitle',
       nativeId: selectedNativeId,
-      nativeTracks,
+      nativeTracks: tracks,
       serverStreams,
       externalIds,
     }),

@@ -1,7 +1,10 @@
 import { GroupedStackRoutes } from '@/components/GroupedStackRoutes';
 import { useNativeListStackOptions } from '@/components/navigation/nativeListStackOptions';
+import {
+  nativeStackTransitionProps,
+  useNativeStackScreenListeners,
+} from '@/components/navigation/useNativeStackScreenListeners';
 import { useTranslation } from '@/lib/i18n';
-import { usePerformanceStackScreenListeners } from '@/lib/performance/PerformanceMonitorContext';
 import { useAppTheme } from '@/lib/theme';
 import { Stack } from 'expo-router';
 
@@ -10,11 +13,12 @@ export default function ServersLayout() {
   const theme = useAppTheme();
   const backgroundColor = theme.colors.backgroundGrouped;
   const libraryBackgroundColor = theme.colors.background;
-  const stackScreenListeners = usePerformanceStackScreenListeners('servers');
+  const stackScreenListeners = useNativeStackScreenListeners('servers');
 
   const stackOptions = useNativeListStackOptions(backgroundColor);
   return (
     <Stack
+      unstable_nativeProps={nativeStackTransitionProps('servers')}
       screenListeners={stackScreenListeners}
       screenOptions={{
         ...stackOptions,

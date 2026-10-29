@@ -7,6 +7,9 @@ const state = vi.hoisted(() => ({
   sources: [] as MediaSource[],
   prefetch: vi.fn(),
   events: [] as string[],
+  sourcesPending: false,
+  streamOptions: vi.fn(),
+  streamEnabled: false,
 }));
 vi.mock('react', () => ({ useMemo: (fn: () => unknown) => fn() }));
 vi.mock('@/hooks/useSubtitlePrefetch', () => ({
@@ -31,15 +34,19 @@ vi.mock('@/services/media/queryOptions', () => ({
   playbackItemDetailQueryOptions: () => ({ queryKey: ['item'] }),
   mediaSourcesQueryOptions: () => ({ queryKey: ['sources'] }),
   mediaSegmentsQueryOptions: () => ({ queryKey: ['segments'] }),
-  streamInfoQueryOptions: () => ({ queryKey: ['stream'], enabled: true }),
+  streamInfoQueryOptions: (options: unknown) => {
+    state.streamOptions(options);
+    return { queryKey: ['stream'], enabled: true };
+  },
   episodesBySeasonQueryOptions: () => ({ queryKey: ['episodes'] }),
 }));
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: ({ queryKey: [key] }: { queryKey: string[] }) => {
+  useQuery: ({ queryKey: [key], enabled }: { queryKey: string[]; enabled?: boolean }) => {
     state.events.push(key);
+    if (key === 'stream') state.streamEnabled = enabled === true;
     return {
       data: key === 'sources' ? { mediaSources: state.sources } : undefined,
-      isPending: key !== 'sources',
+      isPending: key === 'sources' ? state.sourcesPending : true,
       isFetchedAfterMount: true,
     };
   },
@@ -48,6 +55,8 @@ vi.mock('@tanstack/react-query', () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   state.events = [];
+  state.sourcesPending = false;
+  state.streamEnabled = false;
   state.sources = [
     {
       id: 'version',
@@ -89,6 +98,47 @@ it('warms the server default before stream negotiation finishes on direct player
   expect(state.events.indexOf('prefetch')).toBeLessThan(state.events.indexOf('stream'));
 });
 
+it('scopes automatic playback to the same version as the detail playback menu', () => {
+  useQueries();
+  expect(state.streamOptions).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      keyOptions: expect.objectContaining({ mediaSourceId: 'version' }),
+    }),
+  );
+});
+
+it.each([-1, 0])(
+  'scopes subtitle selection %s to a media source on direct player entry',
+  (index) => {
+    useQueries({ subtitleStreamIndex: index });
+    expect(state.streamOptions).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        keyOptions: expect.objectContaining({
+          mediaSourceId: 'version',
+          subtitleStreamIndex: index,
+        }),
+      }),
+    );
+  },
+);
+
+it('waits for the source before allocating an automatic playback session', () => {
+  state.sourcesPending = true;
+  state.sources = [];
+  useQueries();
+  expect(state.streamEnabled).toBe(false);
+  state.sourcesPending = false;
+  state.sources = [{ id: 'version', mediaStreams: [] } as unknown as MediaSource];
+  useQueries();
+  expect(state.streamEnabled).toBe(true);
+});
+
+it('starts an explicitly selected version while optional track metadata is loading', () => {
+  state.sourcesPending = true;
+  useQueries({ mediaSourceId: 'version', subtitleStreamIndex: -1 });
+  expect(state.streamEnabled).toBe(true);
+});
+
 it('keeps prefetch scoped to the selected video version and subtitle', () => {
   const version = {
     id: 'another-version',
@@ -117,4 +167,5 @@ it('keeps the player renderable before source metadata arrives', () => {
   state.sources = [];
   expect(() => useQueries()).not.toThrow();
   expect(state.prefetch).toHaveBeenLastCalledWith('movie', undefined, undefined);
+  expect(state.streamEnabled).toBe(true);
 });

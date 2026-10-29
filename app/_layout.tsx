@@ -1,6 +1,7 @@
 import { PLAYER_LAB_AVAILABLE } from '@/components/dev/player-lab/PlayerLabEntry';
 import { nativeStatusBarOptions } from '@/components/navigation/nativeStackConfig';
 import { platformHeaderOptions } from '@/components/navigation/platformHeaderOptions';
+import { useNativeStackScreenListeners } from '@/components/navigation/useNativeStackScreenListeners';
 import { PerformanceOverlay } from '@/components/performance/PerformanceOverlay';
 import { ToastHost } from '@/components/ui/ToastHost';
 import { useIsTablet } from '@/hooks/useIsTablet';
@@ -10,10 +11,10 @@ import { DanmakuSourcesProvider } from '@/lib/contexts/DanmakuSourcesContext';
 import { MediaServerProvider } from '@/lib/contexts/MediaServerContext';
 import { ThemePreferenceProvider } from '@/lib/contexts/ThemePreferenceContext';
 import { LanguageProvider } from '@/lib/i18n/LanguageProvider';
+import { finishNavigationScope, yieldToNavigationIdle } from '@/lib/navigationWork';
 import {
   PerformanceMonitorProvider,
   PerformanceRouteObserver,
-  usePerformanceStackScreenListeners,
 } from '@/lib/performance/PerformanceMonitorContext';
 import {
   resolveVideoOrientationLock,
@@ -21,7 +22,7 @@ import {
 } from '@/lib/playerOrientation';
 import {
   QUERY_CACHE_MAX_AGE_MS,
-  serializeQueryCache,
+  serializeQueryCacheAsync,
   shouldPersistQuery,
 } from '@/lib/queryCachePolicy';
 import { createAppQueryClient } from '@/lib/queryClient';
@@ -50,7 +51,7 @@ const queryClient = createAppQueryClient();
 const persister = createAsyncStoragePersister({
   key: QUERY_CACHE_STORAGE_KEY,
   throttleTime: 2000,
-  serialize: serializeQueryCache,
+  serialize: (client) => serializeQueryCacheAsync(client, yieldToNavigationIdle),
   storage: queryPersistenceStorage,
 });
 
@@ -99,7 +100,7 @@ function RootNavigation() {
   const tablet = useIsTablet();
   const pathname = usePathname();
   const [videoOrientation] = useMMKVString('videoOrientation', storage);
-  const stackScreenListeners = usePerformanceStackScreenListeners('root');
+  const stackScreenListeners = useNativeStackScreenListeners('root');
   const isPlayerRoute = pathname === '/player' || pathname.startsWith('/player/');
   const isPlayerLabRoute = PLAYER_LAB_AVAILABLE && pathname.startsWith('/player-lab');
   const orientationLock = isPlayerRoute
@@ -157,21 +158,17 @@ function RootNavigation() {
     <ThemeProvider value={navigationTheme}>
       <Stack
         screenListeners={stackScreenListeners}
-        unstable_nativeProps={
-          Platform.OS === 'android'
-            ? {
-                // A retained screen has no enter animation, and the popped route's
-                // listeners are removed. The stack still reports the completed pop.
-                onFinishTransitioning: () => {
-                  if (!deferOrientationRestore.current) return;
-                  deferOrientationRestore.current = false;
-                  void ScreenOrientation.lockAsync(desiredOrientationLock.current).catch((error) =>
-                    console.warn('Failed to restore the route orientation', error),
-                  );
-                },
-              }
-            : undefined
-        }
+        unstable_nativeProps={{
+          // The popped route can lose its listeners before native completion.
+          onFinishTransitioning: () => {
+            finishNavigationScope('root');
+            if (!deferOrientationRestore.current) return;
+            deferOrientationRestore.current = false;
+            void ScreenOrientation.lockAsync(desiredOrientationLock.current).catch((error) =>
+              console.warn('Failed to restore the route orientation', error),
+            );
+          },
+        }}
         screenOptions={{
           ...platformHeaderOptions,
           ...nativeStatusBarOptions(appTheme.isDark),

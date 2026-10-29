@@ -58,7 +58,7 @@
     "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.12",
     "expo-localization": "~57.0.2",
-    "expo-mpv": "0.1.21",
+    "expo-mpv": "0.1.23",
     "expo-navigation-bar": "~57.0.3",
     "expo-network": "~57.0.2",
     "expo-router": "~57.0.26",

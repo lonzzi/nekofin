@@ -31,10 +31,21 @@ export function shouldPersistQuery(query: Query) {
 
 /** Count UTF-8 bytes without allocating a second multi-megabyte buffer on Hermes. */
 export function utf8Bytes(value: string) {
-  let bytes = 0;
-  for (const char of value) {
-    const point = char.codePointAt(0)!;
-    bytes += point < 0x80 ? 1 : point < 0x800 ? 2 : point < 0x10000 ? 3 : 4;
+  let bytes = value.length;
+  // Index UTF-16 units directly: iterating code points allocates a temporary
+  // string for every character, which stalls Hermes on the catalog cache.
+  for (let index = 0; index < value.length; index++) {
+    const unit = value.charCodeAt(index);
+    if (unit < 0x80) continue;
+    if (unit < 0x800) {
+      bytes += 1;
+      continue;
+    }
+    bytes += 2;
+    if (unit >= 0xd800 && unit <= 0xdbff) {
+      const next = value.charCodeAt(index + 1);
+      if (next >= 0xdc00 && next <= 0xdfff) index++;
+    }
   }
   return bytes;
 }
@@ -81,7 +92,7 @@ function stripVolatileData(value: unknown): unknown {
 }
 
 /** Persist a bounded recent catalog, never playback sessions, signed tracks or comment payloads. */
-export function serializeQueryCache(client: PersistedClient) {
+function* queryCacheChunks(client: PersistedClient): Generator<void, string> {
   const queries = client.clientState.queries
     .filter(
       (query) =>
@@ -113,11 +124,38 @@ export function serializeQueryCache(client: PersistedClient) {
       state: { ...query.state, data: stripVolatileData(data) },
     });
     const size = utf8Bytes(encoded) + (kept.length ? 1 : 0);
-    if (size > 512 * 1024 || bytes + size > QUERY_CACHE_MAX_BYTES) continue;
-    kept.push(encoded);
-    bytes += size;
-    if (kept.length === QUERY_CACHE_MAX_QUERIES) break;
+    if (size <= 512 * 1024 && bytes + size <= QUERY_CACHE_MAX_BYTES) {
+      kept.push(encoded);
+      bytes += size;
+      if (kept.length === QUERY_CACHE_MAX_QUERIES) break;
+    }
+    yield;
   }
   // Only replace the known empty array at the end; catalog payloads are already encoded once.
   return base.replace(/"queries":\[\](?=\}\}$)/, () => `"queries":[${kept.join(',')}]`);
+}
+
+export function serializeQueryCache(client: PersistedClient) {
+  const chunks = queryCacheChunks(client);
+  let step = chunks.next();
+  while (!step.done) step = chunks.next();
+  return step.value;
+}
+
+/** Keep optional disk persistence out of navigation, yielding between catalog entries. */
+export async function serializeQueryCacheAsync(
+  client: PersistedClient,
+  yieldControl: () => Promise<void>,
+) {
+  await yieldControl();
+  const chunks = queryCacheChunks(client);
+  let started = performance.now();
+  for (;;) {
+    const step = chunks.next();
+    if (step.done) return step.value;
+    if (performance.now() - started >= 4) {
+      await yieldControl();
+      started = performance.now();
+    }
+  }
 }

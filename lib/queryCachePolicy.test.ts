@@ -1,9 +1,10 @@
 import { dehydrate, QueryClient } from '@tanstack/react-query';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   QUERY_CACHE_MAX_BYTES,
   serializeQueryCache,
+  serializeQueryCacheAsync,
   shouldPersistQuery,
   utf8Bytes,
 } from './queryCachePolicy';
@@ -12,6 +13,25 @@ function persisted(client: QueryClient) {
   return { timestamp: Date.now(), buster: 'test', clientState: dehydrate(client) };
 }
 const key = (id: string) => ['media', 'server', 'account', 'item-detail', id, 'user'];
+
+it('counts UTF-8 storage bytes like the platform encoder, including surrogate pairs and malformed strings', () => {
+  for (const text of [
+    '',
+    'plain ASCII',
+    'éø',
+    '字幕日本語',
+    '😀𐀀',
+    'a😀中é',
+    '\ud800',
+    '\udc00',
+    '\ud800x',
+    'x\udc00',
+    '\ud800\ud800\udc00',
+    '中😀aé'.repeat(1000),
+  ]) {
+    expect(utf8Bytes(text)).toBe(new TextEncoder().encode(text).length);
+  }
+});
 
 describe('bounded catalog persistence', () => {
   it('persists catalog fields needed by artwork without storing playback sessions, signed URLs or comments', () => {
@@ -100,4 +120,34 @@ describe('bounded catalog persistence', () => {
     expect(client.getQueryData(queryKey)).toEqual(data);
     client.clear();
   });
+});
+
+it('serializes the same sanitized cache in idle slices, including oversized entries', async () => {
+  const client = new QueryClient();
+  client.setQueryData(key('one'), { name: '字幕', raw: { accessToken: 'secret' } });
+  client.setQueryData(key('huge'), { name: '中'.repeat(200000) });
+  client.setQueryData(key('two'), { name: 'two' });
+  const cache = persisted(client);
+  let now = 0;
+  const clock = vi.spyOn(performance, 'now').mockImplementation(() => (now += 8));
+  let resume!: () => void;
+  const yieldControl = vi.fn(
+    () =>
+      new Promise<void>((resolve) => {
+        resume = resolve;
+      }),
+  );
+  const result = serializeQueryCacheAsync(cache, yieldControl);
+  expect(yieldControl).toHaveBeenCalledOnce();
+  for (let turn = 0; turn < 4; turn++) {
+    resume();
+    await Promise.resolve();
+  }
+  const encoded = await result;
+  expect(encoded).toBe(serializeQueryCache(cache));
+  expect(encoded).not.toContain('secret');
+  expect(encoded).not.toContain('huge');
+  expect(yieldControl).toHaveBeenCalledTimes(4);
+  clock.mockRestore();
+  client.clear();
 });
