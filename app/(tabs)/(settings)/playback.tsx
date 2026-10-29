@@ -40,6 +40,8 @@ export default function PlaybackSettings() {
     setBrightnessGestureEnabled,
     volumeGestureEnabled,
     setVolumeGestureEnabled,
+    seekGestureEnabled,
+    setSeekGestureEnabled,
   } = usePlayerGestureSettings();
   const [autoPlayNext = true, setAutoPlayNext] = useMMKVBoolean('playback.autoPlayNext', storage);
   const [autoSkipIntro = false, setAutoSkipIntro] = useMMKVBoolean(
@@ -132,6 +134,12 @@ export default function PlaybackSettings() {
             subtitle={<SettingsSubtitle primary={tr('player.volumeGestureDescription')} />}
             value={volumeGestureEnabled}
             onValueChange={setVolumeGestureEnabled}
+          />
+          <NativeSettingsSwitch
+            title={<SettingsTitle>{tr('player.seekGesture')}</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={tr('player.seekGestureDescription')} />}
+            value={seekGestureEnabled}
+            onValueChange={setSeekGestureEnabled}
           />
         </NativeSettingsSection>
         <NativeSettingsSection

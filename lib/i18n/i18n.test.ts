@@ -33,12 +33,14 @@ describe('bundled translations', () => {
       derivePlaybackMenuActions(1, 'fit', t, {
         brightnessGestureEnabled: false,
         volumeGestureEnabled: true,
+        seekGestureEnabled: false,
       })[2],
     ).toMatchObject({
       title: 'Gesture controls',
       subactions: [
         { title: 'Brightness gesture', state: 'off' },
         { title: 'Volume gesture', state: 'on' },
+        { title: 'Seek gesture', state: 'off' },
       ],
     });
     expect(() => buildConnectionAddress('')).toThrow('Enter a server URL');

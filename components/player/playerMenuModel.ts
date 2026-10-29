@@ -18,6 +18,7 @@ export const PLAYER_MENU_ACTION_IDS = {
   autoSkipOutro: 'playback:autoSkipOutro',
   brightnessGestureToggle: 'playback:gesture:brightness',
   volumeGestureToggle: 'playback:gesture:volume',
+  seekGestureToggle: 'playback:gesture:seek',
 } as const;
 
 const AUDIO_PREFIX = 'track:audio:';
@@ -55,6 +56,7 @@ export type PlayerMenuSelection =
   | { kind: 'autoSkipOutro' }
   | { kind: 'brightnessGestureToggle' }
   | { kind: 'volumeGestureToggle' }
+  | { kind: 'seekGestureToggle' }
   | { kind: 'audioTrack'; trackIndex: number }
   | { kind: 'subtitleTrack'; trackIndex: number }
   | { kind: 'mediaSource'; id: string }
@@ -193,7 +195,7 @@ export function derivePlaybackMenuActions(
   rate: number,
   aspectRatio = 'fit',
   translate = tr,
-  { brightnessGestureEnabled = true, volumeGestureEnabled = true } = {},
+  { brightnessGestureEnabled = true, volumeGestureEnabled = true, seekGestureEnabled = true } = {},
 ): MenuAction[] {
   const aspectLabel =
     PLAYER_ASPECT_OPTIONS.find((option) => option.value === aspectRatio)?.label ?? aspectRatio;
@@ -229,6 +231,11 @@ export function derivePlaybackMenuActions(
           id: PLAYER_MENU_ACTION_IDS.volumeGestureToggle,
           state: selectedState(volumeGestureEnabled),
           title: translate('player.volumeGesture'),
+        },
+        {
+          id: PLAYER_MENU_ACTION_IDS.seekGestureToggle,
+          state: selectedState(seekGestureEnabled),
+          title: translate('player.seekGesture'),
         },
       ],
     },
@@ -316,6 +323,8 @@ export function parsePlayerMenuAction(actionId: string): PlayerMenuSelection | n
       return { kind: 'brightnessGestureToggle' };
     case PLAYER_MENU_ACTION_IDS.volumeGestureToggle:
       return { kind: 'volumeGestureToggle' };
+    case PLAYER_MENU_ACTION_IDS.seekGestureToggle:
+      return { kind: 'seekGestureToggle' };
   }
 
   if (actionId.startsWith(AUDIO_PREFIX)) {

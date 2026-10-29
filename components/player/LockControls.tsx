@@ -1,7 +1,6 @@
 import { useTranslation } from '@/lib/i18n';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { useDerivedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { usePlayer } from './PlayerContext';
@@ -10,11 +9,10 @@ import { useOverlayInsets } from './useOverlayInsets';
 
 export function LockControls() {
   const { t: tr } = useTranslation();
-  const { fadeAnim, isLocked, isPanelOpen, onToggleLock, showControls } = usePlayer();
+  const { lockFadeAnim, isLocked, onToggleLock, showLockControl } = usePlayer();
   const { side, safeSideGap } = useOverlayInsets();
   const insets = useSafeAreaInsets();
-  const visible = !isPanelOpen && (isLocked || showControls);
-  const fadeProgress = useDerivedValue(() => (isLocked ? 1 : fadeAnim.get()));
+  const visible = showLockControl;
 
   return (
     <View
@@ -24,7 +22,7 @@ export function LockControls() {
       style={[styles.container, { right: Math.max(side, insets.right + safeSideGap) }]}
     >
       <PlayerGlassSurface
-        fadeProgress={fadeProgress}
+        fadeProgress={lockFadeAnim}
         radius={22}
         style={styles.button}
         visible={visible}

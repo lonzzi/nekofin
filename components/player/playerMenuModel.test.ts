@@ -150,12 +150,13 @@ describe('player native menu model', () => {
     ).toMatchObject({ state: 'on' });
   });
 
-  it('shows both gesture toggles enabled by default and reflects independent preferences', () => {
+  it('shows all gesture toggles enabled by default and reflects independent preferences', () => {
     expect(derivePlaybackMenuActions(1)[2]).toMatchObject({
       title: '手势控制',
       subactions: [
         { id: 'playback:gesture:brightness', title: '亮度手势', state: 'on' },
         { id: 'playback:gesture:volume', title: '音量手势', state: 'on' },
+        { id: 'playback:gesture:seek', title: '进度手势', state: 'on' },
       ],
     });
     expect(
@@ -163,18 +164,26 @@ describe('player native menu model', () => {
         brightnessGestureEnabled: false,
         volumeGestureEnabled: true,
       })[2].subactions,
-    ).toMatchObject([{ state: 'off' }, { state: 'on' }]);
+    ).toMatchObject([{ state: 'off' }, { state: 'on' }, { state: 'on' }]);
     expect(
       derivePlaybackMenuActions(1, 'fit', undefined, {
         brightnessGestureEnabled: true,
         volumeGestureEnabled: false,
       })[2].subactions,
-    ).toMatchObject([{ state: 'on' }, { state: 'off' }]);
+    ).toMatchObject([{ state: 'on' }, { state: 'off' }, { state: 'on' }]);
+    expect(
+      derivePlaybackMenuActions(1, 'fit', undefined, {
+        seekGestureEnabled: false,
+      })[2].subactions,
+    ).toMatchObject([{ state: 'on' }, { state: 'on' }, { state: 'off' }]);
     expect(parsePlayerMenuAction('playback:gesture:brightness')).toEqual({
       kind: 'brightnessGestureToggle',
     });
     expect(parsePlayerMenuAction('playback:gesture:volume')).toEqual({
       kind: 'volumeGestureToggle',
+    });
+    expect(parsePlayerMenuAction('playback:gesture:seek')).toEqual({
+      kind: 'seekGestureToggle',
     });
     expect(parsePlayerMenuAction('playback:gesture:unknown')).toBeNull();
   });
