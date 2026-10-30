@@ -346,7 +346,9 @@ async function main(env = process.env, { run = execFileSync, fetchImpl = fetch }
 function syncGitTag(repository, token, tag, { run = execFileSync, env = process.env } = {}) {
   validateRepository(repository);
   if (!/^[a-zA-Z0-9][a-zA-Z0-9.+_-]{0,160}$/.test(tag)) throw new Error('Invalid artifact tag');
-  run('git', ['fetch', '--no-tags', 'origin', `refs/tags/${tag}:refs/tags/${tag}`], {
+  // Tag-triggered checkout can replace an annotated tag with a lightweight local ref.
+  // Restore GitHub's tag object locally; the CNB push below must remain unforced.
+  run('git', ['fetch', '--no-tags', 'origin', `+refs/tags/${tag}:refs/tags/${tag}`], {
     stdio: 'pipe',
   });
   const commit = run('git', ['rev-parse', `refs/tags/${tag}^{commit}`], {
