@@ -26,16 +26,16 @@ export type MenuAction = Omit<NativeMenuAction, 'image' | 'subactions' | 'imageC
 type Props = Omit<MenuComponentProps, 'actions'> & ViewProps & { actions: MenuAction[] };
 
 const resourceIcons: Record<string, ImageSourcePropType> = {
-  ic_menu_slideshow: require('../../assets/drawables/film.png'),
-  ic_lock_silent_mode_off: require('../../assets/drawables/volume_up.png'),
-  ic_menu_edit: require('../../assets/drawables/chat_bubble.png'),
-  ic_menu_manage: require('../../assets/drawables/settings.png'),
+  ic_menu_slideshow: require('../../assets/drawables/film.xml'),
+  ic_lock_silent_mode_off: require('../../assets/drawables/volume_up.xml'),
+  ic_menu_edit: require('../../assets/drawables/chat_bubble.xml'),
+  ic_menu_manage: require('../../assets/drawables/settings.xml'),
   ic_media_play: require('../../assets/drawables/play_arrow.xml'),
   ic_menu_info_details: require('../../assets/drawables/info.xml'),
-  ic_menu_favorite: require('../../assets/drawables/heart_outline.png'),
-  ic_menu_view: require('../../assets/drawables/checkmark_circle.png'),
-  ic_menu_view_off: require('../../assets/drawables/checkmark_circle_outline.png'),
-  ic_menu_person: require('../../assets/drawables/person.png'),
+  ic_menu_favorite: require('../../assets/drawables/heart_outline.xml'),
+  ic_menu_view: require('../../assets/drawables/checkmark_circle.xml'),
+  ic_menu_view_off: require('../../assets/drawables/checkmark_circle_outline.xml'),
+  ic_menu_person: require('../../assets/drawables/person.xml'),
   ic_menu_delete: require('../../assets/drawables/delete.xml'),
 };
 

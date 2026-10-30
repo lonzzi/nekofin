@@ -62,7 +62,7 @@ export function FilterButton({ label, title, options, onSelect }: FilterButtonPr
           </FilterChip.Label>
           <FilterChip.TrailingIcon>
             <Icon
-              source={require('../../assets/drawables/chevron_left.png')}
+              source={require('../../assets/drawables/chevron_left.xml')}
               size={16}
               tint={theme.colors.textSecondary}
               modifiers={[rotate(-90)]}

@@ -33,7 +33,7 @@ function HeaderBackButton() {
       >
         <HeaderIconButton onClick={() => router.back()}>
           <Icon
-            source={require('../../assets/drawables/chevron_left.png')}
+            source={require('../../assets/drawables/chevron_left.xml')}
             size={NAVIGATION_ICON_SIZE}
             tint={theme.colors.text}
             contentDescription={tr('common.back')}

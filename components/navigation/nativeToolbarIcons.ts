@@ -15,15 +15,15 @@ export type NativeToolbarIOSIcon =
   | 'plus';
 
 const ANDROID_TOOLBAR_ICONS = {
-  add: require('../../assets/drawables/add.png'),
-  checkmarkCircle: require('../../assets/drawables/checkmark_circle.png'),
-  checkmarkCircleOutline: require('../../assets/drawables/checkmark_circle_outline.png'),
-  film: require('../../assets/drawables/film.png'),
-  heart: require('../../assets/drawables/heart.png'),
-  heartOutline: require('../../assets/drawables/heart_outline.png'),
-  person: require('../../assets/drawables/person.png'),
-  save: require('../../assets/drawables/save.png'),
-  search: require('../../assets/drawables/search.png'),
+  add: require('../../assets/drawables/add.xml'),
+  checkmarkCircle: require('../../assets/drawables/checkmark_circle.xml'),
+  checkmarkCircleOutline: require('../../assets/drawables/checkmark_circle_outline.xml'),
+  film: require('../../assets/drawables/film.xml'),
+  heart: require('../../assets/drawables/heart.xml'),
+  heartOutline: require('../../assets/drawables/heart_outline.xml'),
+  person: require('../../assets/drawables/person.xml'),
+  save: require('../../assets/drawables/save.xml'),
+  search: require('../../assets/drawables/search.xml'),
 } as const satisfies Record<AndroidToolbarDrawable, ImageSourcePropType>;
 
 export const DETAIL_MORE_MENU_ICONS = {
