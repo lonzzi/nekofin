@@ -79,6 +79,7 @@ React Native · Expo · Expo Router · MPV · TypeScript
 
 - **Stable**：[最新正式版](https://github.com/lonzzi/nekofin/releases/latest)
 - **Pre-release**：[版本列表](https://github.com/lonzzi/nekofin/releases)中标记为 Pre-release 的版本
+- **CNB 下载**：[CNB Releases](https://cnb.cool/lonzzi/nekofin/-/releases)。同步完成的版本也会在 GitHub Release 说明中提供 CNB 页面和安装包直链。
 - **iOS 侧载源**：AltStore Classic 和支持 Sources 的 LiveContainer 可添加[正式版源](https://github.com/lonzzi/nekofin/releases/download/app-sources/stable.json)或 [Beta 源](https://github.com/lonzzi/nekofin/releases/download/app-sources/beta.json)。首次发布包含源功能的新版本后可用，之后随版本发布自动更新。
 
 版本 tag 自动设置构建版本并发布 APK、未签名 IPA 和校验文件；发布成功后自动把版本号同步回 `main`。在线更新通过 GitHub Actions 单独发布，详见[发布流程](docs/releasing.md)。

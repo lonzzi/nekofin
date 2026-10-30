@@ -79,6 +79,7 @@ React Native · Expo · Expo Router · MPV · TypeScript
 
 - **Stable**: [Latest stable release](https://github.com/lonzzi/nekofin/releases/latest)
 - **Pre-release**: Builds marked as Pre-release in the [release list](https://github.com/lonzzi/nekofin/releases)
+- **CNB downloads**: [CNB Releases](https://cnb.cool/lonzzi/nekofin/-/releases). Each mirrored version also includes CNB release and installer links in its GitHub release notes.
 - **iOS sideloading sources**: Add the [stable source](https://github.com/lonzzi/nekofin/releases/download/app-sources/stable.json) or [beta source](https://github.com/lonzzi/nekofin/releases/download/app-sources/beta.json) in AltStore Classic or a version of LiveContainer that supports Sources. These sources become available with the first release that includes source support, then update automatically with each release.
 
 Version tags set the build version and publish an APK, an unsigned IPA, and checksum files. After a successful release, the version number is synced back to `main`. Resource updates are published separately through GitHub Actions. See the [release process](docs/releasing.md) for details.
