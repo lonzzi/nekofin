@@ -83,16 +83,29 @@ React Native · Expo · Expo Router · MPV · TypeScript
 
 ### iOS 侧载源
 
-在 iPhone / iPad 上点按图片，添加到 AltStore Classic 或支持 Sources 的 LiveContainer。Beta 源包含预发布版和正式版，正式版源只包含正式版；尚无正式版时请选 Beta。
+在 iPhone / iPad 上点按图片，添加到 AltStore Classic（2.2+）或支持 Sources 的 LiveContainer。Beta 源包含预发布版和正式版，正式版源只包含正式版；尚无正式版时请选 Beta。
 
-| 源                                                                                          | AltStore Classic                                                                                                                                              | LiveContainer                                                                                                                                                        |
-| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Beta · CNB](https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/beta.json)     | [![Add to AltStore Classic](assets/readme/add-altstore.svg)](https://nekofin-updates-ronki.vercel.app/api/add-source?tool=altstore&channel=beta&source=cnb)   | [![Add to LiveContainer](assets/readme/add-livecontainer.svg)](https://nekofin-updates-ronki.vercel.app/api/add-source?tool=livecontainer&channel=beta&source=cnb)   |
-| [Stable · CNB](https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/stable.json) | [![Add to AltStore Classic](assets/readme/add-altstore.svg)](https://nekofin-updates-ronki.vercel.app/api/add-source?tool=altstore&channel=stable&source=cnb) | [![Add to LiveContainer](assets/readme/add-livecontainer.svg)](https://nekofin-updates-ronki.vercel.app/api/add-source?tool=livecontainer&channel=stable&source=cnb) |
+<!-- Official artwork: AltStore FAQ download badge and LiveContainer project icon. -->
+
+**[Beta · CNB](https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/beta.json)**
+
+<p>
+  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=beta&tool=altstore&source=cnb"><img src="https://raw.githubusercontent.com/altstoreio/FAQ/bcbf9fc229391828e7bd7c47ad3a0cacc5c9ac06/.gitbook/assets/DownloadBadge_dark%20(1).png" width="175" height="56" alt="Download on AltStore" /></a>
+  &nbsp;
+  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=beta&tool=livecontainer&source=cnb"><img src="https://raw.githubusercontent.com/LiveContainer/LiveContainer/9108ae624ea001f7d7696d48407f890b48fa2653/screenshots/livecontainer_icon.png" width="56" height="56" alt="" /> LiveContainer</a>
+</p>
+
+**[Stable · CNB](https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/stable.json)**
+
+<p>
+  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=stable&tool=altstore&source=cnb"><img src="https://raw.githubusercontent.com/altstoreio/FAQ/bcbf9fc229391828e7bd7c47ad3a0cacc5c9ac06/.gitbook/assets/DownloadBadge_dark%20(1).png" width="175" height="56" alt="Download on AltStore" /></a>
+  &nbsp;
+  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=stable&tool=livecontainer&source=cnb"><img src="https://raw.githubusercontent.com/LiveContainer/LiveContainer/9108ae624ea001f7d7696d48407f890b48fa2653/screenshots/livecontainer_icon.png" width="56" height="56" alt="" /> LiveContainer</a>
+</p>
 
 GitHub 备用源：[Beta](https://github.com/lonzzi/nekofin/releases/download/app-sources/beta.json) · [Stable](https://github.com/lonzzi/nekofin/releases/download/app-sources/stable.json)。
 
-未自动打开时，可在跳转页再次点按「添加源」或复制 JSON 地址。应用内「帮助与关于 → 更新源」可选择 GitHub / CNB，同时用于安装包和资源热更新的检查、下载及自动更新。iOS 安装包由侧载工具下载、签名和安装。
+点按图片会直接唤起对应工具；系统可能询问是否打开应用。无法唤起时，复制上方对应的 JSON 源地址，在工具中手动添加。应用内「帮助与关于 → 更新源」可选择 GitHub / CNB，同时用于安装包和资源热更新的检查、下载及自动更新。iOS 安装包由侧载工具下载、签名和安装。
 
 版本 tag 自动生成中英双语更新说明，设置构建版本并发布 APK、未签名 IPA 和校验文件；发布成功后自动把版本号同步回 `main`。在线更新通过 GitHub Actions 单独发布，详见[发布流程](docs/releasing.md)。
 

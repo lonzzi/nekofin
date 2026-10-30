@@ -83,16 +83,29 @@ React Native · Expo · Expo Router · MPV · TypeScript
 
 ### iOS sideloading sources
 
-Tap a badge on iPhone or iPad to add the source to AltStore Classic or LiveContainer with Sources support. Beta includes prereleases and stable builds; Stable includes stable builds only. Choose Beta while no stable build is available.
+Tap an image on iPhone or iPad to add the source to AltStore Classic 2.2 or later, or LiveContainer with Sources support. Beta includes prereleases and stable builds; Stable includes stable builds only. Choose Beta while no stable build is available.
 
-| Source                                                                                      | AltStore Classic                                                                                                                                              | LiveContainer                                                                                                                                                        |
-| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Beta · CNB](https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/beta.json)     | [![Add to AltStore Classic](assets/readme/add-altstore.svg)](https://nekofin-updates-ronki.vercel.app/api/add-source?tool=altstore&channel=beta&source=cnb)   | [![Add to LiveContainer](assets/readme/add-livecontainer.svg)](https://nekofin-updates-ronki.vercel.app/api/add-source?tool=livecontainer&channel=beta&source=cnb)   |
-| [Stable · CNB](https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/stable.json) | [![Add to AltStore Classic](assets/readme/add-altstore.svg)](https://nekofin-updates-ronki.vercel.app/api/add-source?tool=altstore&channel=stable&source=cnb) | [![Add to LiveContainer](assets/readme/add-livecontainer.svg)](https://nekofin-updates-ronki.vercel.app/api/add-source?tool=livecontainer&channel=stable&source=cnb) |
+<!-- Official artwork: AltStore FAQ download badge and LiveContainer project icon. -->
+
+**[Beta · CNB](https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/beta.json)**
+
+<p>
+  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=beta&tool=altstore&source=cnb"><img src="https://raw.githubusercontent.com/altstoreio/FAQ/bcbf9fc229391828e7bd7c47ad3a0cacc5c9ac06/.gitbook/assets/DownloadBadge_dark%20(1).png" width="175" height="56" alt="Download on AltStore" /></a>
+  &nbsp;
+  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=beta&tool=livecontainer&source=cnb"><img src="https://raw.githubusercontent.com/LiveContainer/LiveContainer/9108ae624ea001f7d7696d48407f890b48fa2653/screenshots/livecontainer_icon.png" width="56" height="56" alt="" /> LiveContainer</a>
+</p>
+
+**[Stable · CNB](https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/stable.json)**
+
+<p>
+  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=stable&tool=altstore&source=cnb"><img src="https://raw.githubusercontent.com/altstoreio/FAQ/bcbf9fc229391828e7bd7c47ad3a0cacc5c9ac06/.gitbook/assets/DownloadBadge_dark%20(1).png" width="175" height="56" alt="Download on AltStore" /></a>
+  &nbsp;
+  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=stable&tool=livecontainer&source=cnb"><img src="https://raw.githubusercontent.com/LiveContainer/LiveContainer/9108ae624ea001f7d7696d48407f890b48fa2653/screenshots/livecontainer_icon.png" width="56" height="56" alt="" /> LiveContainer</a>
+</p>
 
 GitHub alternatives: [Beta](https://github.com/lonzzi/nekofin/releases/download/app-sources/beta.json) · [Stable](https://github.com/lonzzi/nekofin/releases/download/app-sources/stable.json).
 
-If the app does not open, tap “Add source” on the linked page or copy its JSON URL. In NekoFin, “Help and about → Update source” selects GitHub or CNB for app and resource update checks, downloads, and automatic updates. Your sideloading tool downloads, signs, and installs iOS packages.
+Tap an image to open the sideloading app; iOS may ask for confirmation. If it does not open, copy the corresponding JSON source URL above and add it in your sideloading app. In NekoFin, “Help and about → Update source” selects GitHub or CNB for app and resource update checks, downloads, and automatic updates. Your sideloading tool downloads, signs, and installs iOS packages.
 
 Version tags generate Chinese and English release notes, set the build version, and publish an APK, an unsigned IPA, and checksum files. After a successful release, the version number is synced back to `main`. Resource updates are published separately through GitHub Actions. See the [release process](docs/releasing.md) for details.
 

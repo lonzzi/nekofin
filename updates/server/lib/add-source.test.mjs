@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import { createAddSourceResponse } from './add-source.mjs';
 
-test('all README buttons open the selected app with the canonical channel and provider', async () => {
+test('all source links redirect directly without rendering an intermediate page', async () => {
   for (const tool of ['altstore', 'livecontainer'])
     for (const channel of ['stable', 'beta'])
       for (const source of ['github', 'cnb']) {
@@ -12,18 +12,14 @@ test('all README buttons open the selected app with the canonical channel and pr
             `https://test/api/add-source?tool=${tool}&channel=${channel}&source=${source}`,
           ),
         );
-        assert.equal(response.status, 200);
-        const html = await response.text();
-        const match = /href="((?:altstore|livecontainer):[^"]+)"/.exec(html);
-        const link = new URL(match[1]);
-        assert.equal(link.protocol, `${tool}:`);
+        assert.equal(response.status, 302);
+        assert.equal(await response.text(), '');
+        assert.equal(response.headers.get('cache-control'), 'no-store');
+        const expected = `https://${source === 'cnb' ? 'cnb.cool/lonzzi/nekofin/-' : 'github.com/lonzzi/nekofin'}/releases/download/app-sources/${channel}.json`;
+        const link = new URL(response.headers.get('location'));
+        assert.equal(link.protocol, tool === 'altstore' ? 'altstore-classic:' : 'livecontainer:');
         assert.equal(link.hostname, 'source');
-        assert.equal(
-          link.searchParams.get('url'),
-          `https://${source === 'cnb' ? 'cnb.cool/lonzzi/nekofin/-' : 'github.com/lonzzi/nekofin'}/releases/download/app-sources/${channel}.json`,
-        );
-        assert.match(html, /navigator.maxTouchPoints > 1/);
-        assert.match(response.headers.get('content-security-policy'), /script-src 'sha256-/);
+        assert.equal(link.searchParams.get('url'), expected);
       }
 });
 
@@ -44,6 +40,6 @@ test('refuses arbitrary redirects, injected markup and ambiguous parameters', as
     405,
   );
   const head = createAddSourceResponse(new Request('https://test', { method: 'HEAD' }));
-  assert.equal(head.status, 200);
+  assert.equal(head.status, 302);
   assert.equal(await head.text(), '');
 });
