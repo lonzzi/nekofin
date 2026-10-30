@@ -5,7 +5,7 @@ import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import { MediaItem } from '@/services/media/types';
 import React, { useCallback, useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ItemImage } from '../ItemImage';
 import type { MediaItemSource } from '../media/mediaSource';
@@ -66,7 +66,7 @@ export const UserViewCard = React.memo(function UserViewCard({
             uri={imageInfo.url}
             placeholderBlurhash={imageInfo.blurhash}
             style={[styles.cover, { backgroundColor: theme.colors.surfaceMuted }]}
-            cachePolicy="disk"
+            cachePolicy={Platform.OS === 'android' ? 'memory-disk' : 'disk'}
             contentFit="cover"
           />
         </CoverFrame>

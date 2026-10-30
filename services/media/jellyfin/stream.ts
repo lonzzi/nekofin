@@ -7,6 +7,8 @@ import {
 } from '@jellyfin/sdk/lib/generated-client/models';
 import { getMediaInfoApi } from '@jellyfin/sdk/lib/utils/api';
 
+import { selectPlaybackMediaSource } from '../playbackNegotiation';
+
 export type StreamInfo = {
   url: string | null;
   sessionId: string | null;
@@ -177,7 +179,7 @@ export const getStreamInfo = async ({
     );
 
     sessionId = res.data.PlaySessionId || null;
-    mediaSource = res.data.MediaSources?.[0];
+    mediaSource = selectPlaybackMediaSource(res.data, mediaSourceId);
     const url = getPlaybackUrl(api, item.ChannelId!, mediaSource, {
       subtitleStreamIndex,
       audioStreamIndex,
@@ -221,10 +223,7 @@ export const getStreamInfo = async ({
   }
 
   sessionId = res.data.PlaySessionId || null;
-  mediaSource =
-    (mediaSourceId
-      ? res.data.MediaSources?.find((source) => source.Id === mediaSourceId)
-      : undefined) ?? res.data.MediaSources?.[0];
+  mediaSource = selectPlaybackMediaSource(res.data, mediaSourceId);
 
   const url = getPlaybackUrl(api, item.Id!, mediaSource, {
     subtitleStreamIndex,

@@ -1,7 +1,7 @@
 import { useAppTheme } from '@/lib/theme';
 import { Image, ImageProps, ImageStyle } from 'expo-image';
 import { ReactNode, useMemo, useState } from 'react';
-import { StyleProp, StyleSheet, View } from 'react-native';
+import { Platform, StyleProp, StyleSheet, View } from 'react-native';
 
 import { IconSymbol } from './ui/IconSymbol';
 
@@ -54,8 +54,14 @@ function ItemImageContent({
 
   return (
     <View style={[styles.frame, style]}>
-      {!uri || status !== 'loaded' ? (
-        <View style={StyleSheet.absoluteFill}>
+      {/* Keep the fallback mounted: a grid of cache hits must not remove dozens
+          of native subtrees while the screen is animating. */}
+      {Platform.OS === 'android' || !uri || status !== 'loaded' ? (
+        <View
+          pointerEvents="none"
+          importantForAccessibility={uri && status === 'loaded' ? 'no-hide-descendants' : 'auto'}
+          style={[StyleSheet.absoluteFill, uri && status === 'loaded' && styles.hidden]}
+        >
           {fallback ?? (
             <View style={[styles.placeholder, { backgroundColor: theme.colors.surfaceMuted }]}>
               <IconSymbol name="video.fill" size={36} color={theme.colors.textTertiary} />
@@ -93,5 +99,6 @@ function ItemImageContent({
 
 const styles = StyleSheet.create({
   frame: { overflow: 'hidden' },
+  hidden: { opacity: 0 },
   placeholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });

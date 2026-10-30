@@ -9,11 +9,13 @@ import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import useRefresh from '@/hooks/useRefresh';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { t as tr, useTranslation } from '@/lib/i18n';
+import { scheduleAfterNavigation } from '@/lib/navigationWork';
 import { useAppTheme } from '@/lib/theme';
 import { availableFiltersQueryOptions } from '@/services/media/queryOptions';
 import { MediaItem, MediaItemType, MediaSortBy } from '@/services/media/types';
 import { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
+import { useNavigation, type NativeStackNavigationProp } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -83,6 +85,30 @@ export function ItemGridScreen({
   const { numColumns, itemWidth, gap } = useGridLayout(type, layout === 'grid' ? 160 : undefined);
   const episodeLayout = useGridLayout('episode');
   const viewport = useContentDimensions();
+  const navigation = useNavigation<NativeStackNavigationProp<Record<string, undefined>>>();
+  const [renderAheadReady, setRenderAheadReady] = useState(Platform.OS !== 'android');
+
+  useEffect(() => {
+    if (Platform.OS !== 'android' || renderAheadReady) return;
+    // Present the visible grid immediately; mount offscreen native image/menu
+    // trees after this screen's push. An idle callback during the first commit
+    // can run before transitionStart has even arrived from the native stack.
+    let task: ReturnType<typeof scheduleAfterNavigation> | undefined;
+    const finish = () => {
+      clearTimeout(fallback);
+      task ??= scheduleAfterNavigation(() => setRenderAheadReady(true));
+    };
+    const unsubscribe = navigation.addListener('transitionEnd', (event) => {
+      if (!event.data.closing) finish();
+    });
+    // Initial routes and restored tabs can mount without an opening animation.
+    const fallback = setTimeout(finish, 1000);
+    return () => {
+      clearTimeout(fallback);
+      unsubscribe();
+      task?.cancel();
+    };
+  }, [navigation, renderAheadReady]);
 
   const { currentServer } = useMediaServers();
   const mediaAdapter = useMediaAdapter();
@@ -106,6 +132,9 @@ export function ItemGridScreen({
     Platform.OS === 'android'
       ? getMediaGridListConfig({
           viewportHeight: viewport.height,
+          numColumns:
+            layout === 'grid' ? Math.max(numColumns, episodeLayout.numColumns) : numColumns,
+          renderAheadReady,
           rowHeight:
             layout === 'grid'
               ? Math.min(posterRowHeight, episodeRowHeight)

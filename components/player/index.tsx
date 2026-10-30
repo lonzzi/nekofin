@@ -41,7 +41,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { ActivityIndicator, Alert, Platform, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Platform, StyleSheet, Text, View } from 'react-native';
 import { useMMKVBoolean } from 'react-native-mmkv';
 import { useSharedValue } from 'react-native-reanimated';
 
@@ -234,6 +234,14 @@ export const VideoPlayer = ({
   const [autoSkipOutro = false] = useMMKVBoolean('playback.autoSkipOutro', storage);
   const [playbackCompletion, setPlaybackCompletion] = useState<PlaybackCompletion | null>(null);
   const [autoNext] = useState(createPlayerAutoNext);
+  const [appActive, setAppActive] = useState(() => AppState.currentState === 'active');
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      setAppActive(state === 'active');
+    });
+    return () => subscription.remove();
+  }, []);
 
   // Playback settings only change on a settings round-trip (which remounts this
   // screen), so read them once instead of on every render of the player.
@@ -981,6 +989,16 @@ export const VideoPlayer = ({
     return formatPlayerTitle(itemDetail);
   }, [itemDetail]);
 
+  const mediaMetadata = useMemo(
+    () => ({
+      title: formattedTitle,
+      artwork: itemDetail
+        ? mediaAdapter?.getImageInfo({ item: itemDetail, opts: { width: 512 } }).url
+        : undefined,
+    }),
+    [formattedTitle, itemDetail, mediaAdapter],
+  );
+
   const { hasPreviousEpisode, hasNextEpisode, previousEpisode, nextEpisode } = useMemo(
     () => deriveEpisodeNavigation(itemId, episodes),
     [itemId, episodes],
@@ -1387,7 +1405,15 @@ export const VideoPlayer = ({
     (episodeId?: string) => {
       if (!episodeId || episodeId === itemId) return;
       activePlaybackContextRef.current = null;
-      router.replace({ pathname: '/player', params: { itemId: episodeId } });
+      // Update the episode in place, retaining the native route's presentation
+      // and orientation while React remounts the episode's playback state.
+      router.setParams({
+        itemId: episodeId,
+        mediaSourceId: undefined,
+        audioStreamIndex: undefined,
+        subtitleStreamIndex: undefined,
+        quality: undefined,
+      });
     },
     [itemId, router],
   );
@@ -1427,6 +1453,7 @@ export const VideoPlayer = ({
       completion: playbackCompletion,
       activeContext: activePlaybackContextRef.current,
       enabled: autoPlayNext,
+      appActive: appActive && AppState.currentState === 'active',
       itemId,
       itemType: itemDetail?.type,
       nextEpisodeId: nextEpisode?.id,
@@ -1437,6 +1464,7 @@ export const VideoPlayer = ({
   }, [
     autoNext,
     autoPlayNext,
+    appActive,
     playbackCompletion,
     itemId,
     itemDetail?.type,
@@ -1457,6 +1485,8 @@ export const VideoPlayer = ({
           source={playbackSourceUrl}
           startPosition={deriveStartPositionSeconds(sourceStart.positionMs, duration)}
           speed={rate}
+          showNotificationControls
+          metadata={mediaMetadata}
           onPlaybackStateChange={({ nativeEvent }) => {
             if (!isPlaybackContextActive(playbackContext)) return;
             playbackStateRef.current = nativeEvent.state;

@@ -24,7 +24,9 @@ export function useMediaActions(item: MediaItem, serverOverride?: MediaServerInf
     return createMediaAdapterWithApi(serverOverride.type, api);
   }, [currentMediaAdapter, serverOverride]);
 
-  const [localUserData, setLocalUserData] = useState<MediaUserData | null>(null);
+  const [localUserData, setLocalUserData] = useState<MediaUserData | null>(
+    () => item.userData ?? null,
+  );
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {

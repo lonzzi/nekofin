@@ -8,6 +8,7 @@ function completedEpisode() {
     completion: { context, reason: 'ended' as const },
     activeContext: context,
     enabled: true,
+    appActive: true,
     itemId: 'episode-1',
     itemType: 'Episode',
     nextEpisodeId: 'episode-2',
@@ -15,6 +16,25 @@ function completedEpisode() {
 }
 
 describe('automatic next episode', () => {
+  it('retains a background completion until the app becomes active, then advances once', () => {
+    const autoNext = createPlayerAutoNext();
+    const playback = completedEpisode();
+    for (let index = 0; index < 20; index++) {
+      expect(autoNext.claim({ ...playback, appActive: false })).toBeNull();
+    }
+    expect(autoNext.claim(playback)).toBe('episode-2');
+    expect(autoNext.claim({ ...playback, appActive: false })).toBeNull();
+    expect(autoNext.claim(playback)).toBeNull();
+  });
+
+  it('does not resume a pending background completion after the source has changed', () => {
+    const autoNext = createPlayerAutoNext();
+    const playback = completedEpisode();
+    expect(autoNext.claim({ ...playback, appActive: false })).toBeNull();
+    expect(autoNext.claim({ ...playback, activeContext: {} })).toBeNull();
+    expect(autoNext.claim(completedEpisode())).toBe('episode-2');
+  });
+
   it('advances exactly once when a playing episode finishes naturally', () => {
     const autoNext = createPlayerAutoNext();
     const playback = completedEpisode();

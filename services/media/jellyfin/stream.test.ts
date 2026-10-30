@@ -128,4 +128,24 @@ describe('Jellyfin stream urls', () => {
     });
     expect(result?.mediaSource?.Id).toBe('chosen');
   });
+
+  it.each([
+    { ErrorCode: 'NoCompatibleStream', MediaSources: [{ Id: 'chosen' }] },
+    { MediaSources: [] },
+    { MediaSources: [{ Id: 'another-version' }] },
+  ])('rejects unsuccessful negotiation before building a playback URL: %j', async (data) => {
+    playbackInfo.mockResolvedValue({ status: 200, data });
+    await expect(
+      getStreamInfo({
+        api,
+        item: { Id: 'item-1' },
+        userId: 'user-1',
+        startTimeTicks: 0,
+        deviceProfile: {},
+        mediaSourceId: 'chosen',
+        audioStreamIndex: 2,
+        subtitleStreamIndex: 5,
+      }),
+    ).rejects.toThrow();
+  });
 });

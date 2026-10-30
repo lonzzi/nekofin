@@ -4,6 +4,7 @@ import { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
 
 import type { StreamInfo } from '../jellyfin/stream';
 import { mapRawItemToMediaItem } from '../mappers';
+import { selectPlaybackMediaSource } from '../playbackNegotiation';
 import {
   GetRandomItemsParams,
   MediaAdapter,
@@ -544,10 +545,7 @@ export class EmbyAdapter extends MediaAdapter {
       MediaSourceId: mediaSourceId,
     });
     const playback = res.data as EmbyPlaybackInfoResponse;
-    const mediaSource =
-      (mediaSourceId
-        ? playback.MediaSources?.find((source) => source.Id === mediaSourceId)
-        : undefined) ?? playback.MediaSources?.[0];
+    const mediaSource = selectPlaybackMediaSource(playback, mediaSourceId);
     const sessionId = playback.PlaySessionId || null;
 
     const url = buildEmbyStreamUrl({

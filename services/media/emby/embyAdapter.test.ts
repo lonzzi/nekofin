@@ -138,6 +138,30 @@ describe('EmbyAdapter instance client', () => {
     });
   });
 
+  it.each([
+    { ErrorCode: 'NoCompatibleStream', MediaSources: [{ Id: 'chosen' }] },
+    { MediaSources: [] },
+    { MediaSources: [{ Id: 'another-version' }] },
+  ])('rejects unsuccessful negotiation without reusing another version: %j', async (data) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify(data), { status: 200 })),
+    );
+    const adapter = new EmbyAdapter();
+    adapter.setApi({ basePath: 'https://emby.test', accessToken: 'token-1' });
+    await expect(
+      adapter.getStreamInfo({
+        item: { id: 'movie-1', name: 'Movie', type: 'Movie', raw: { Id: 'movie-1' } },
+        userId: 'user-1',
+        startTimeTicks: 0,
+        deviceProfile: {},
+        mediaSourceId: 'chosen',
+        audioStreamIndex: 2,
+        subtitleStreamIndex: 5,
+      }),
+    ).rejects.toThrow();
+  });
+
   it('normalizes paged item responses into MediaPage', async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(

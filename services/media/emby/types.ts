@@ -55,6 +55,7 @@ export type EmbyPlaybackInfoMediaSource = MediaSourceInfo;
 export type EmbyPlaybackInfoResponse = {
   PlaySessionId?: string;
   MediaSources?: EmbyPlaybackInfoMediaSource[];
+  ErrorCode?: string | null;
 };
 
 export type EmbyFiltersResponse = { Years?: number[]; Tags?: string[]; Genres?: string[] };
