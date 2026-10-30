@@ -22,7 +22,7 @@ function setup({
   installer = false,
   autoDownloadEnabled = false,
   source = 'github' as UpdateSource,
-  supportsSource = (_source: UpdateSource) => true,
+  supportsSource = (_source: UpdateSource): boolean => true,
 } = {}) {
   let time = 1_000;
   const values = new Map<string, number | string>();

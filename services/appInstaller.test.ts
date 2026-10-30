@@ -48,7 +48,7 @@ const release = {
 const download = {
   release: JSON.stringify(release),
   automatic: true,
-  status: 'downloading',
+  status: 'downloading' as const,
   progress: 20,
 };
 
