@@ -87,7 +87,7 @@ export const usePlaybackSync = ({
           positionTicks,
           PlaySessionId: playSessionId,
         });
-        await invalidatePlaybackWatchState(queryClient, currentServer.id, itemDetail.id);
+        await invalidatePlaybackWatchState(queryClient, currentServer.id);
       });
     },
     [mediaAdapter, currentServer, itemDetail, playSessionId, mediaSourceId, queryClient],

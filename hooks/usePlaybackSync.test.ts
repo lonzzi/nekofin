@@ -1,5 +1,5 @@
 import { mediaQueryKeys } from '@/services/media/queryKeys';
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { usePlaybackSync } from './usePlaybackSync';
@@ -42,6 +42,41 @@ afterEach(() => {
 });
 
 describe('playback stop watched state refresh', () => {
+  it('does not refetch a new active episode when the previous episode stop arrives late', async () => {
+    let acknowledge!: () => void;
+    state.reportStop.mockReturnValue(new Promise<void>((resolve) => (acknowledge = resolve)));
+    usePlaybackSync(props).syncPlaybackStop(120_000);
+
+    // Episode B mounts while episode A's stop request is still pending.
+    const nextKey = mediaQueryKeys.itemDetail('server-1', 'episode-2', 'user-1');
+    const posterKey = mediaQueryKeys.homeLatest('server-1', 'anime');
+    const nextItem = { id: 'episode-2', userData: { playbackPositionTicks: 450_000 } };
+    state.client.setQueryData(nextKey, nextItem);
+    state.client.setQueryData(posterKey, []);
+    const fetchNextItem = vi.fn(async () => ({
+      ...nextItem,
+      userData: { playbackPositionTicks: 0 },
+    }));
+    const observer = new QueryObserver(state.client, {
+      queryKey: nextKey,
+      queryFn: fetchNextItem,
+      staleTime: Infinity,
+    });
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      expect(fetchNextItem).not.toHaveBeenCalled();
+      acknowledge();
+      await vi.waitFor(() => {
+        expect(state.client.getQueryState(posterKey)?.isInvalidated).toBe(true);
+      });
+      expect(fetchNextItem).not.toHaveBeenCalled();
+      expect(state.client.getQueryData(nextKey)).toBe(nextItem);
+      expect(state.client.getQueryState(nextKey)?.isInvalidated).toBe(true);
+    } finally {
+      unsubscribe();
+    }
+  });
+
   it('waits for the server to acknowledge playback before invalidating the parent series', async () => {
     let acknowledge!: () => void;
     state.reportStop.mockReturnValue(new Promise<void>((resolve) => (acknowledge = resolve)));

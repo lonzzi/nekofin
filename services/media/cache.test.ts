@@ -95,7 +95,7 @@ describe('playback watched state refresh', () => {
     ];
     try {
       for (const key of [...changedKeys, ...unchangedKeys]) client.setQueryData(key, [mediaItem]);
-      await invalidatePlaybackWatchState(client, 'server-1', 'episode-1');
+      await invalidatePlaybackWatchState(client, 'server-1');
       for (const key of changedKeys) expect(client.getQueryState(key)?.isInvalidated).toBe(true);
       for (const key of unchangedKeys) expect(client.getQueryState(key)?.isInvalidated).toBe(false);
     } finally {
@@ -125,7 +125,7 @@ describe('playback watched state refresh', () => {
     const unsubscribePoster = posterObserver.subscribe(() => {});
     const unsubscribePlaying = playingObserver.subscribe(() => {});
     try {
-      await invalidatePlaybackWatchState(client, 'server-1', 'episode-1');
+      await invalidatePlaybackWatchState(client, 'server-1');
       expect(client.getQueryData<MediaItem[]>(posterKey)?.[0].userData?.played).toBe(true);
       expect(playbackFetches).toBe(0);
       expect(client.getQueryData(playingKey)).toBe(initialItem);

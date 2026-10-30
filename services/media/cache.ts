@@ -11,7 +11,6 @@ const watchStateQueryKinds = new Set([
   'view-all',
   'favorites',
   'detail-bundle',
-  'item-detail',
   'episodes',
   'first-episode-by-season',
   'search',
@@ -25,21 +24,16 @@ function containsServerWatchState(key: QueryKey, serverId: string) {
   return key[1] === 'server' && key[2] === serverId && watchStateQueryKinds.has(String(key[3]));
 }
 
-export async function invalidatePlaybackWatchState(
-  client: QueryClient,
-  serverId: string,
-  playingItemId: string,
-) {
-  // Refetching the playing item's detail restores its resume position in the
-  // player. Mark it stale for the next visit without changing the live source.
+export async function invalidatePlaybackWatchState(client: QueryClient, serverId: string) {
+  // Item-detail queries restore resume positions in the player. A delayed stop
+  // may arrive after another episode has started, so defer all item-detail
+  // refreshes until their next visit while refreshing catalog queries below.
   await client.invalidateQueries({
-    queryKey: [...mediaQueryKeys.server(serverId), 'item-detail', playingItemId],
+    queryKey: [...mediaQueryKeys.server(serverId), 'item-detail'],
     refetchType: 'none',
   });
   await client.invalidateQueries({
-    predicate: ({ queryKey }) =>
-      containsServerWatchState(queryKey, serverId) &&
-      !(queryKey[3] === 'item-detail' && queryKey[4] === playingItemId),
+    predicate: ({ queryKey }) => containsServerWatchState(queryKey, serverId),
   });
 }
 
