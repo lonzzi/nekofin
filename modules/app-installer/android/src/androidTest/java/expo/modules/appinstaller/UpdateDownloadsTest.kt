@@ -63,6 +63,29 @@ class UpdateDownloadsTest {
     assertEquals(-1, prefs.getLong("id", -1).toInt())
   }
 
+  private fun cnbRelease(): JSONObject = release(100, "a".repeat(64)).apply {
+    put("source", "cnb")
+    put("url", "https://cnb.cool/lonzzi/nekofin/-/releases/tag/$tag")
+    getJSONObject("installer").put("url", "https://cnb.cool/lonzzi/nekofin/-/releases/download/$tag/$name")
+  }
+
+  @Test fun acceptsCanonicalCnbDownloadsWithChecksums() {
+    val state = downloads().start(cnbRelease().toString(), true)
+    assertEquals("downloading", state["status"])
+    assertTrue(prefs.getLong("id", -1) > 0)
+  }
+
+  @Test fun rejectsMissingChecksumsMismatchedSourcesAndOffRepositoryCnbUrls() {
+    val missing = cnbRelease().apply { getJSONObject("installer").put("sha256", JSONObject.NULL) }
+    val mismatched = cnbRelease().apply { put("source", "github") }
+    val offRepository = cnbRelease().apply { getJSONObject("installer").put("url", "https://cnb.cool/other/nekofin/-/releases/download/$tag/$name") }
+    val query = cnbRelease().apply { getJSONObject("installer").put("url", "https://cnb.cool/lonzzi/nekofin/-/releases/download/$tag/$name?redirect=elsewhere") }
+    for (json in listOf(missing, mismatched, offRepository, query)) {
+      assertThrows(IllegalArgumentException::class.java) { downloads().start(json.toString(), false) }
+      assertEquals(-1, prefs.getLong("id", -1).toInt())
+    }
+  }
+
   /** The system downloads this test application's real APK from a local HTTP server. */
   private fun finishSystemDownload(corrupt: Boolean = false): Map<String, Any?> {
     val apk = File(context.applicationInfo.sourceDir)

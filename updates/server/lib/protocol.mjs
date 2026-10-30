@@ -5,6 +5,10 @@ export const REPOSITORY = 'lonzzi/nekofin';
 export const CATALOG_URL = `https://github.com/${REPOSITORY}/releases/download/ota-catalog/catalog.json`;
 export const BACKUP_CATALOG_URL = `https://github.com/${REPOSITORY}/releases/download/ota-catalog/catalog-backup.json`;
 export const SIGNING_KEY_ID = 'main';
+export const CNB_CATALOG_URL =
+  'https://cnb.cool/lonzzi/nekofin/-/releases/download/ota-catalog/catalog.json';
+export const CNB_BACKUP_CATALOG_URL =
+  'https://cnb.cool/lonzzi/nekofin/-/releases/download/ota-catalog/catalog-backup.json';
 
 const headers = {
   'expo-protocol-version': '1',
@@ -12,6 +16,7 @@ const headers = {
   'expo-manifest-filters': '',
   'expo-server-defined-headers': '',
   'cache-control': 'private, no-store',
+  vary: 'Expo-Extra-Params',
 };
 
 function reply(status, body = null, extraHeaders = {}) {
@@ -32,7 +37,7 @@ function multipartReply(name, body, signature) {
   return reply(200, multipart, { 'content-type': `multipart/mixed; boundary=${boundary}` });
 }
 
-function validAsset(asset) {
+function validAsset(asset, source) {
   if (!asset || !/^[A-Za-z0-9_-]{43}$/.test(asset.hash) || typeof asset.key !== 'string')
     return false;
   if (!asset.key || typeof asset.contentType !== 'string' || /[\r\n]/.test(asset.contentType))
@@ -40,8 +45,10 @@ function validAsset(asset) {
   try {
     const url = new URL(asset.url);
     return (
-      url.origin === 'https://github.com' &&
-      url.pathname.startsWith(`/${REPOSITORY}/releases/download/ota-`) &&
+      url.origin === (source === 'cnb' ? 'https://cnb.cool' : 'https://github.com') &&
+      url.pathname.startsWith(
+        `/${REPOSITORY}/${source === 'cnb' ? '-/' : ''}releases/download/ota-`,
+      ) &&
       !url.username &&
       !url.password &&
       !url.search &&
@@ -52,7 +59,10 @@ function validAsset(asset) {
   }
 }
 
-export function validateEntry(entry, { channel, platform, runtimeVersion, certificate }) {
+export function validateEntry(
+  entry,
+  { channel, platform, runtimeVersion, certificate, source = 'github' },
+) {
   if (!entry || typeof entry.body !== 'string' || typeof entry.signature !== 'string') {
     throw new Error('Invalid catalog entry');
   }
@@ -74,9 +84,9 @@ export function validateEntry(entry, { channel, platform, runtimeVersion, certif
       body.metadata?.platform !== platform ||
       !/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(body.id) ||
       !Number.isFinite(Date.parse(body.createdAt)) ||
-      !validAsset(body.launchAsset) ||
+      !validAsset(body.launchAsset, source) ||
       !Array.isArray(body.assets) ||
-      !body.assets.every(validAsset)
+      !body.assets.every((asset) => validAsset(asset, source))
     ) {
       throw new Error('Incompatible update manifest');
     }
@@ -97,21 +107,23 @@ export function validateEntry(entry, { channel, platform, runtimeVersion, certif
 }
 
 export function createUpdateHandler({ certificate, fetcher = fetch, now = Date.now }) {
-  let cachedCatalog = null;
-  let cachedAt = 0;
-  let fetching = null;
+  const cachedCatalogs = new Map();
+  const fetchingCatalogs = new Map();
 
-  async function loadCatalog() {
-    if (cachedCatalog && now() - cachedAt >= 0 && now() - cachedAt < 60_000) return cachedCatalog;
-    if (fetching) return fetching;
-    fetching = (async () => {
+  async function loadCatalog(source) {
+    const cached = cachedCatalogs.get(source);
+    if (cached && now() - cached.at >= 0 && now() - cached.at < 60_000) return cached.value;
+    if (fetchingCatalogs.has(source)) return fetchingCatalogs.get(source);
+    const fetching = (async () => {
       const options = {
         cache: 'no-store',
         signal: AbortSignal.timeout(10_000),
       };
-      let response = await fetcher(`${CATALOG_URL}?v=${Math.floor(now() / 60_000)}`, options);
+      const primary = source === 'cnb' ? CNB_CATALOG_URL : CATALOG_URL;
+      const backup = source === 'cnb' ? CNB_BACKUP_CATALOG_URL : BACKUP_CATALOG_URL;
+      let response = await fetcher(`${primary}?v=${Math.floor(now() / 60_000)}`, options);
       if (response.status === 404) {
-        response = await fetcher(`${BACKUP_CATALOG_URL}?v=${Math.floor(now() / 60_000)}`, options);
+        response = await fetcher(`${backup}?v=${Math.floor(now() / 60_000)}`, options);
       }
       if (response.status === 404) return { version: 1, entries: {} };
       if (!response.ok) throw new Error('Catalog unavailable');
@@ -126,14 +138,14 @@ export function createUpdateHandler({ certificate, fetcher = fetch, now = Date.n
       ) {
         throw new Error('Invalid catalog');
       }
-      cachedCatalog = catalog;
-      cachedAt = now();
+      cachedCatalogs.set(source, { value: catalog, at: now() });
       return catalog;
     })();
+    fetchingCatalogs.set(source, fetching);
     try {
       return await fetching;
     } finally {
-      fetching = null;
+      fetchingCatalogs.delete(source);
     }
   }
 
@@ -144,6 +156,17 @@ export function createUpdateHandler({ certificate, fetcher = fetch, now = Date.n
     const platform = request.headers.get('expo-platform');
     const runtimeVersion = request.headers.get('expo-runtime-version');
     const channel = request.headers.get('expo-channel-name');
+    const sourceParameters = (request.headers.get('expo-extra-params') ?? '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value) => /^nekofin-source\s*=/.test(value));
+    const sourceMatch =
+      sourceParameters.length === 1
+        ? /^nekofin-source\s*=\s*(?:"(github|cnb)"|(github|cnb))$/.exec(sourceParameters[0])
+        : null;
+    if (sourceParameters.length && (!sourceMatch || sourceParameters.length !== 1))
+      return reply(400, 'Invalid update source');
+    const source = sourceMatch?.[1] ?? sourceMatch?.[2] ?? 'github';
     if (
       !['ios', 'android'].includes(platform) ||
       !/^[a-f0-9]{40,64}$/.test(runtimeVersion ?? '') ||
@@ -160,14 +183,14 @@ export function createUpdateHandler({ certificate, fetcher = fetch, now = Date.n
       return reply(406, 'Unsupported response type');
     }
     try {
-      const catalog = await loadCatalog();
+      const catalog = await loadCatalog(source);
       const entry = catalog.entries[`${channel}/${platform}/${runtimeVersion}`];
       const noUpdate = () =>
         accepts(accept, 'multipart/mixed')
           ? reply(204)
           : reply(406, 'Multipart required for directives');
       if (!entry) return noUpdate();
-      const body = validateEntry(entry, { channel, platform, runtimeVersion, certificate });
+      const body = validateEntry(entry, { channel, platform, runtimeVersion, certificate, source });
       const signature = `sig="${entry.signature}", keyid="${SIGNING_KEY_ID}", alg="rsa-v1_5-sha256"`;
       if (entry.kind === 'update') {
         if (request.headers.get('expo-current-update-id') === body.id) return noUpdate();

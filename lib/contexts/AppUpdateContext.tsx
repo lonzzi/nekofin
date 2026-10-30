@@ -10,6 +10,13 @@ import { getIosSourceLink, getIosUpdateSource, type IosUpdateTool } from '@/lib/
 import { getNativeReleaseTag, isProductionBuild } from '@/lib/otaConfig';
 import { storage } from '@/lib/storage';
 import {
+  isUpdateSource,
+  OTA_SOURCE_PARAMETER,
+  resolveUpdateSource,
+  UPDATE_SOURCE_KEY,
+  UPDATE_SOURCES,
+} from '@/lib/updateSources';
+import {
   cancelAppInstallerDownload,
   canInstallAppUpdate,
   getAppInstallerDownload,
@@ -17,6 +24,7 @@ import {
   isInstallerNetworkUnmetered,
   setInstallerPlaybackActive,
   startAppInstallerDownload,
+  supportsInstallerSource,
 } from '@/services/appInstaller';
 import { fetchAppUpdate } from '@/services/appUpdates';
 import * as Application from 'expo-application';
@@ -43,6 +51,7 @@ type AppUpdateContextValue = UpdateSnapshot & {
   downloadResources: () => Promise<void>;
   cancelDownload: () => Promise<void>;
   setAutoDownloadEnabled: (value: boolean) => void;
+  setUpdateSource: (value: string) => void;
   addIosSource: (tool: IosUpdateTool) => Promise<void>;
   shareIosSource: () => void;
   canInstallPackage: boolean;
@@ -68,7 +77,9 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
   );
   async function addIosSource(tool: IosUpdateTool) {
     try {
-      await Linking.openURL(getIosSourceLink(tool, currentVersion));
+      await Linking.openURL(
+        getIosSourceLink(tool, currentVersion, controller.getSnapshot().source),
+      );
     } catch {
       Alert.alert(
         tr('updates.openSideloadingAppFailed'),
@@ -78,7 +89,9 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
           {
             text: tr('media.shareSourceUrl'),
             onPress: () => {
-              void Share.share({ message: getIosUpdateSource(currentVersion) });
+              void Share.share({
+                message: getIosUpdateSource(currentVersion, controller.getSnapshot().source),
+              });
             },
           },
         ],
@@ -101,10 +114,12 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
         },
       },
       {
-        text: tr('updates.downloadFromGithub'),
+        text: tr('updates.downloadFromSource', {
+          source: UPDATE_SOURCES[controller.getSnapshot().source].name,
+        }),
         onPress: () => {
           void Linking.openURL(url).catch(() =>
-            Alert.alert(tr('about.openGithubFailed'), tr('common.checkNetworkAndRetry')),
+            Alert.alert(tr('updates.openUpdatePageFailed'), tr('common.checkNetworkAndRetry')),
           );
         },
       },
@@ -130,6 +145,7 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
       automaticEnabled:
         !__DEV__ && isProductionBuild(Updates.channel, Constants.expoConfig?.extra?.appVariant),
       storage,
+      source: resolveUpdateSource(storage.getString(UPDATE_SOURCE_KEY)),
       autoDownloadEnabled: storage.getBoolean(AUTO_DOWNLOAD_UPDATES_KEY) ?? true,
       canAutoDownloadResources: async () => {
         if (canInstallAppUpdate) return isInstallerNetworkUnmetered();
@@ -140,32 +156,38 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
             network.type === Network.NetworkStateType.ETHERNET)
         );
       },
-      fetchUpdate: () => {
+      fetchUpdate: (source) => {
         if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
           return Promise.reject(new Error(tr('updates.nativeAppRequired')));
         }
-        return fetchAppUpdate(currentVersion!, Platform.OS);
+        return fetchAppUpdate(currentVersion!, Platform.OS, source);
       },
       openURL: openUpdateURL,
       resources:
         !__DEV__ && Updates.isEnabled
           ? {
-              check: async () => {
+              check: async (source) => {
                 if (pendingResource.current) return true;
+                await Updates.setExtraParamAsync(OTA_SOURCE_PARAMETER, source);
                 const result = await Updates.checkForUpdateAsync();
                 return result.isAvailable || !!result.isRollBackToEmbedded;
               },
-              download: async () =>
-                pendingResource.current ||
-                (await downloadHotUpdate({
-                  check: Updates.checkForUpdateAsync,
-                  fetch: Updates.fetchUpdateAsync,
-                })) === 'pending',
+              download: async (source) => {
+                if (pendingResource.current) return true;
+                await Updates.setExtraParamAsync(OTA_SOURCE_PARAMETER, source);
+                return (
+                  (await downloadHotUpdate({
+                    check: Updates.checkForUpdateAsync,
+                    fetch: Updates.fetchUpdateAsync,
+                  })) === 'pending'
+                );
+              },
               apply: Updates.reloadAsync,
             }
           : undefined,
       installer: canInstallAppUpdate
         ? {
+            supportsSource: supportsInstallerSource,
             start: startAppInstallerDownload,
             refresh: getAppInstallerDownload,
             cancel: cancelAppInstallerDownload,
@@ -176,7 +198,7 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
         const installation =
           Platform.OS === 'ios'
             ? tr('updates.iosUpdateDescription')
-            : canInstallAppUpdate
+            : supportsInstallerSource(controller.getSnapshot().source)
               ? tr('updates.androidUpdateDescription')
               : tr('updates.newBuildRequiredDescription');
         Alert.alert(
@@ -189,11 +211,11 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
             { text: tr('updates.skipVersion'), onPress: actions.ignore },
             { text: tr('updates.remindLater'), style: 'cancel', onPress: actions.later },
             {
-              text: canInstallAppUpdate
+              text: supportsInstallerSource(controller.getSnapshot().source)
                 ? tr('updates.downloadUpdate')
                 : Platform.OS === 'ios'
                   ? tr('updates.chooseUpdateMethod')
-                  : tr('about.openGithub'),
+                  : tr('updates.openReleasePage'),
               onPress: actions.open,
             },
           ],
@@ -286,11 +308,17 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
         downloadResources: controller.downloadResources,
         cancelDownload: controller.cancelDownload,
         setAutoDownloadEnabled,
+        setUpdateSource: (value) => {
+          if (isUpdateSource(value) && controller.setSource(value)) {
+            storage.set(UPDATE_SOURCE_KEY, value);
+            void controller.checkAutomatically();
+          }
+        },
         addIosSource,
         shareIosSource: () => {
-          void Share.share({ message: getIosUpdateSource(currentVersion) });
+          void Share.share({ message: getIosUpdateSource(currentVersion, snapshot.source) });
         },
-        canInstallPackage: canInstallAppUpdate,
+        canInstallPackage: supportsInstallerSource(snapshot.source),
         resourceVersion: !Updates.isEnabled
           ? null
           : Updates.isEmbeddedLaunch

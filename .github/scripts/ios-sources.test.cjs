@@ -33,6 +33,23 @@ function entry(tag, build, overrides = {}) {
   };
 }
 
+test('CNB catalogs have distinct identities and advertise only canonical CNB IPA URLs', () => {
+  const entries = [entry('v0.1.0-beta.8', '1.0.8')];
+  const github = buildSource(entries, 'beta');
+  const cnb = buildSource(entries, 'beta', 'cnb');
+  assert.notEqual(github.identifier, cnb.identifier);
+  assert.equal(
+    cnb.sourceURL,
+    'https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/beta.json',
+  );
+  assert.ok(cnb.apps[0].iconURL.startsWith('https://cnb.cool/'));
+  assert.equal(
+    cnb.apps[0].versions[0].downloadURL,
+    'https://cnb.cool/lonzzi/nekofin/-/releases/download/v0.1.0-beta.8/nekofin-v0.1.0-beta.8-ios-unsigned.ipa',
+  );
+  assert.deepEqual(buildSource(entries, 'stable', 'cnb').apps, []);
+});
+
 test('assigns unique, monotonic plist-compatible build numbers across beta release runs', () => {
   assert.equal(iosBuildNumber(3), '1.0.3');
   assert.equal(iosBuildNumber(4), '1.0.4');

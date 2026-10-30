@@ -80,9 +80,21 @@ React Native · Expo · Expo Router · MPV · TypeScript
 - **Stable**: [Latest stable release](https://github.com/lonzzi/nekofin/releases/latest)
 - **Pre-release**: Builds marked as Pre-release in the [release list](https://github.com/lonzzi/nekofin/releases)
 - **CNB downloads**: [CNB Releases](https://cnb.cool/lonzzi/nekofin/-/releases). Each mirrored version also includes CNB release and installer links in its GitHub release notes.
-- **iOS sideloading sources**: Add the [stable source](https://github.com/lonzzi/nekofin/releases/download/app-sources/stable.json) or [beta source](https://github.com/lonzzi/nekofin/releases/download/app-sources/beta.json) in AltStore Classic or a version of LiveContainer that supports Sources. These sources become available with the first release that includes source support, then update automatically with each release.
 
-Version tags set the build version and publish an APK, an unsigned IPA, and checksum files. After a successful release, the version number is synced back to `main`. Resource updates are published separately through GitHub Actions. See the [release process](docs/releasing.md) for details.
+### iOS sideloading sources
+
+Tap a badge on iPhone or iPad to add the source to AltStore Classic or LiveContainer with Sources support. Beta includes prereleases and stable builds; Stable includes stable builds only. Choose Beta while no stable build is available.
+
+| Source                                                                                      | AltStore Classic                                                                                                                                              | LiveContainer                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Beta · CNB](https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/beta.json)     | [![Add to AltStore Classic](assets/readme/add-altstore.svg)](https://nekofin-updates-ronki.vercel.app/api/add-source?tool=altstore&channel=beta&source=cnb)   | [![Add to LiveContainer](assets/readme/add-livecontainer.svg)](https://nekofin-updates-ronki.vercel.app/api/add-source?tool=livecontainer&channel=beta&source=cnb)   |
+| [Stable · CNB](https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/stable.json) | [![Add to AltStore Classic](assets/readme/add-altstore.svg)](https://nekofin-updates-ronki.vercel.app/api/add-source?tool=altstore&channel=stable&source=cnb) | [![Add to LiveContainer](assets/readme/add-livecontainer.svg)](https://nekofin-updates-ronki.vercel.app/api/add-source?tool=livecontainer&channel=stable&source=cnb) |
+
+GitHub alternatives: [Beta](https://github.com/lonzzi/nekofin/releases/download/app-sources/beta.json) · [Stable](https://github.com/lonzzi/nekofin/releases/download/app-sources/stable.json).
+
+If the app does not open, tap “Add source” on the linked page or copy its JSON URL. In NekoFin, “Help and about → Update source” selects GitHub or CNB for app and resource update checks, downloads, and automatic updates. Your sideloading tool downloads, signs, and installs iOS packages.
+
+Version tags generate Chinese and English release notes, set the build version, and publish an APK, an unsigned IPA, and checksum files. After a successful release, the version number is synced back to `main`. Resource updates are published separately through GitHub Actions. See the [release process](docs/releasing.md) for details.
 
 ## Acknowledgments
 

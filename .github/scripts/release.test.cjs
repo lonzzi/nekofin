@@ -134,6 +134,10 @@ function publish(
   const directory = mkdtempSync(path.join(tmpdir(), 'nekofin-release-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   mkdirSync(path.join(directory, 'release'));
+  writeFileSync(
+    path.join(directory, 'release', 'notes.md'),
+    '## 中文\n更新播放器。\n\n## English\nUpdate the player.\n',
+  );
   for (const name of [
     `nekofin-${tag}-android-arm64.apk`,
     `nekofin-${tag}-ios-unsigned.ipa`,
@@ -192,7 +196,8 @@ test('publishes stable assets from a draft and marks the release as latest', (t)
   );
   assert.ok(result.calls[1].includes('--draft'));
   assert.ok(result.calls[1].includes('--verify-tag'));
-  assert.ok(result.calls[1].includes('--generate-notes'));
+  assert.ok(result.calls[1].includes('--notes-file'));
+  assert.ok(result.calls[1].includes('release/notes.md'));
   assert.ok(result.calls[2].includes('release/nekofin-v0.2.0-android-arm64.apk'));
   assert.ok(result.calls[2].includes('release/nekofin-v0.2.0-ios-unsigned.ipa'));
   assert.ok(result.calls[2].includes('release/SHA256SUMS'));

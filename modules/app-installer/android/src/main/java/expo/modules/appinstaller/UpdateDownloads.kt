@@ -56,8 +56,14 @@ internal class UpdateDownloads(private val context: Context, private val expecte
     val name = "nekofin-$tag-android-arm64.apk"
     val url = Uri.parse(installer.getString("url"))
     require(installer.getString("name") == name && installer.getLong("size") > 0)
-    require(url.scheme == "https" && url.host == "github.com" && url.userInfo == null && url.query == null && url.fragment == null)
-    require(url.pathSegments == listOf("lonzzi", "nekofin", "releases", "download", tag, name))
+    val source = release.optString("source", "github")
+    require(source == "github" || source == "cnb")
+    val host = if (source == "cnb") "cnb.cool" else "github.com"
+    val segments = if (source == "cnb") listOf("lonzzi", "nekofin", "-", "releases", "download", tag, name)
+      else listOf("lonzzi", "nekofin", "releases", "download", tag, name)
+    require(url.scheme == "https" && url.host == host && url.port == -1 && url.userInfo == null && url.query == null && url.fragment == null)
+    require(url.pathSegments == segments)
+    if (source == "cnb") require(!installer.isNull("sha256"))
     if (!installer.isNull("sha256")) require(installer.getString("sha256").matches(Regex("[a-fA-F0-9]{64}")))
     return installer
   }

@@ -18,6 +18,9 @@ on:
       - '.github/scripts/**'
       - '.github/workflows/release.yml'
       - '.github/workflows/cnb-release.yml'
+      - '.github/workflows/cnb-ota.yml'
+      - '.github/workflows/release-notes.yml'
+      - '.github/actions/**'
       - '.github/workflows/build-apps.yml'
       - 'package.json'
       - 'bun.lock'
@@ -66,6 +69,8 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     env:
+      CNB_REPO: ${{ vars.CNB_REPO }}
+      CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
       APP_VARIANT: production
       NEKOFIN_RELEASE_TAG: ${{ inputs.native_tag }}
       NEKOFIN_OTA_URL: ${{ vars.NEKOFIN_OTA_URL }}
@@ -75,6 +80,8 @@ jobs:
       OTA_OPERATION: ${{ inputs.operation }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Set app version from target installer tag
         run: node .github/scripts/release-metadata.cjs "$NEKOFIN_RELEASE_TAG" --write-version
       - uses: oven-sh/setup-bun@v2
@@ -95,6 +102,9 @@ jobs:
           node -e 'const fs=require("node:fs"); if(!process.env.OTA_SIGNING_PRIVATE_KEY) throw new Error("Missing OTA_SIGNING_PRIVATE_KEY"); fs.writeFileSync("build/ota-private-key.pem",process.env.OTA_SIGNING_PRIVATE_KEY,{mode:0o600});'
       - name: Publish signed resources and promote catalog
         run: node scripts/ota/publish.mjs build/native-runtimes.json build/ota-private-key.pem "$OTA_OPERATION" "ota-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+      - name: Mirror signed resources and catalog to CNB
+        if: env.CNB_REPO != ''
+        run: node scripts/ota/mirror-cnb.mjs build/ota-private-key.pem
       - name: Remove temporary signing key
         if: always()
         run: rm -f build/ota-private-key.pem

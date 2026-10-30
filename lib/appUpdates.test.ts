@@ -121,6 +121,33 @@ describe('update selection', () => {
   it('does not turn missing local version metadata into an update recommendation', () => {
     expect(() => selectAppUpdate([], 'unknown', 'ios')).toThrow(/当前应用版本/);
   });
+
+  it('accepts CNB asset metadata while constructing URLs from the fixed repository', () => {
+    const item = release('v0.2.0');
+    const cnb = {
+      ...item,
+      html_url: 'https://evil.example',
+      assets: [
+        {
+          ...item.assets[0],
+          state: undefined,
+          hash_algo: 'SHA-256',
+          hash_value: 'b'.repeat(64),
+          browser_download_url: 'https://evil.example/app',
+        },
+      ],
+    };
+    const selected = selectAppUpdate([cnb], '0.1.0', 'ios', 'cnb');
+    expect(selected).toMatchObject({
+      source: 'cnb',
+      url: 'https://cnb.cool/lonzzi/nekofin/-/releases/tag/v0.2.0',
+      installer: {
+        url: 'https://cnb.cool/lonzzi/nekofin/-/releases/download/v0.2.0/nekofin-v0.2.0-ios-unsigned.ipa',
+        sha256: 'b'.repeat(64),
+      },
+    });
+    expect(selectAppUpdate([cnb], '0.1.0', 'ios')).toBeNull();
+  });
 });
 
 it.each(['/player', '/player/123', '/player-lab', '/player-lab/preview'])(
