@@ -1,6 +1,47 @@
+import type { QueryClient, QueryKey } from '@tanstack/react-query';
+
+import { mediaQueryKeys } from './queryKeys';
 import type { MediaUserData } from './types';
 
 type UserDataUpdater = (current: MediaUserData | null | undefined) => MediaUserData | null;
+
+const watchStateQueryKinds = new Set([
+  'home',
+  'folder-items',
+  'view-all',
+  'favorites',
+  'detail-bundle',
+  'item-detail',
+  'episodes',
+  'first-episode-by-season',
+  'search',
+]);
+
+function containsServerWatchState(key: QueryKey, serverId: string) {
+  if (key[0] !== 'media') return false;
+  if (key[1] === 'aggregate-search') {
+    return Array.isArray(key[2]) && key[2].includes(serverId);
+  }
+  return key[1] === 'server' && key[2] === serverId && watchStateQueryKinds.has(String(key[3]));
+}
+
+export async function invalidatePlaybackWatchState(
+  client: QueryClient,
+  serverId: string,
+  playingItemId: string,
+) {
+  // Refetching the playing item's detail restores its resume position in the
+  // player. Mark it stale for the next visit without changing the live source.
+  await client.invalidateQueries({
+    queryKey: [...mediaQueryKeys.server(serverId), 'item-detail', playingItemId],
+    refetchType: 'none',
+  });
+  await client.invalidateQueries({
+    predicate: ({ queryKey }) =>
+      containsServerWatchState(queryKey, serverId) &&
+      !(queryKey[3] === 'item-detail' && queryKey[4] === playingItemId),
+  });
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;

@@ -446,6 +446,8 @@
   "media.unknownVersion": "Unknown version",
   "media.unspecifiedSeasonOrSpecials": "Unspecified season / specials",
   "media.untitled": "Untitled",
+  "media.unwatchedEpisodesSuffix": ", unwatched episodes: {{value}}",
+  "media.unwatchedItemsSuffix": ", unwatched items: {{value}}",
   "media.userRoot": "User root",
   "media.userViews": "User views",
   "media.version": "Version",

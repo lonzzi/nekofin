@@ -1,4 +1,6 @@
+import { invalidatePlaybackWatchState } from '@/services/media/cache';
 import { MediaItem, MediaServerInfo } from '@/services/media/types';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
 import { SharedValue } from 'react-native-reanimated';
 
@@ -21,6 +23,7 @@ export const usePlaybackSync = ({
   mediaSourceId,
 }: UsePlaybackSyncProps) => {
   const mediaAdapter = useMediaAdapter();
+  const queryClient = useQueryClient();
   const lastProgressReportRef = useRef<{ position: number; ts: number } | null>(null);
 
   const syncPlaybackProgress = useCallback(
@@ -77,16 +80,17 @@ export const usePlaybackSync = ({
 
       lastProgressReportRef.current = { position: positionMs, ts: Date.now() };
       const positionTicks = Math.round(positionMs);
-      void sendPlaybackReport('stop', () =>
-        mediaAdapter.reportPlaybackStop({
+      void sendPlaybackReport('stop', async () => {
+        await mediaAdapter.reportPlaybackStop({
           itemId: itemDetail.id!,
           mediaSourceId,
           positionTicks,
           PlaySessionId: playSessionId,
-        }),
-      );
+        });
+        await invalidatePlaybackWatchState(queryClient, currentServer.id, itemDetail.id);
+      });
     },
-    [mediaAdapter, currentServer, itemDetail, playSessionId, mediaSourceId],
+    [mediaAdapter, currentServer, itemDetail, playSessionId, mediaSourceId, queryClient],
   );
 
   useEffect(() => {

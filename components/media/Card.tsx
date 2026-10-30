@@ -15,6 +15,11 @@ import { useAppTheme } from '@/lib/theme';
 import { ImageUrlInfo } from '@/lib/utils/image';
 import { rememberDetailArtwork } from '@/services/media/detailArtwork';
 import { MediaItem, MediaServerInfo } from '@/services/media/types';
+import {
+  getMediaUnplayedItemCount,
+  isMediaItemPlayed,
+  supportsMediaPlayedState,
+} from '@/services/media/watchState';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
 import { useQueryClient } from '@tanstack/react-query';
@@ -36,6 +41,8 @@ import { CoverFrame } from '../ui/CoverFrame';
 import { ShadowedGlassCard } from '../ui/GlassCard';
 import { IconSymbol } from '../ui/IconSymbol';
 import {
+  formatUnplayedCount,
+  getCardWatchStatusSuffix,
   getEpisodeCardRoute,
   getImagePreferenceOptions,
   getSeriesCardRoute,
@@ -61,6 +68,32 @@ function consumeCardLongPress() {
   // Pressability consume its release instead of also opening details or playback.
 }
 
+function WatchStateIndicator({ item }: { item: MediaItem }) {
+  const theme = useAppTheme();
+  const unplayedItemCount = getMediaUnplayedItemCount(item);
+  if (unplayedItemCount === null && !isMediaItemPlayed(item)) return null;
+
+  return (
+    <View
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+      pointerEvents="none"
+      style={[styles.playedOverlay, { backgroundColor: theme.colors.tint }]}
+    >
+      {unplayedItemCount !== null ? (
+        <Text
+          maxFontSizeMultiplier={1.2}
+          style={[styles.unplayedCount, { color: theme.colors.inverseText }]}
+        >
+          {formatUnplayedCount(unplayedItemCount)}
+        </Text>
+      ) : (
+        <IconSymbol name="checkmark" size={14} weight="semibold" color={theme.colors.inverseText} />
+      )}
+    </View>
+  );
+}
+
 function CardActionMenu({
   item,
   actionServer,
@@ -80,7 +113,7 @@ function CardActionMenu({
     handleMarkAsWatched,
     handleMarkAsUnwatched,
   } = useMediaActions(item, actionServer);
-  const isPlayed = currentUserData?.played === true;
+  const isPlayed = isMediaItemPlayed(item, currentUserData);
 
   return (
     <CardActionMenuRoot __unsafeIosProps={CARD_CONTEXT_MENU_IOS_PROPS}>
@@ -100,13 +133,15 @@ function CardActionMenu({
           <ItemIcon ios={{ name: 'heart' }} />
           <ItemTitle>{tr('media.addFavorite')}</ItemTitle>
         </Item>
-        <Item
-          key={isPlayed ? 'markAsUnwatched' : 'markAsWatched'}
-          onSelect={isPlayed ? handleMarkAsUnwatched : handleMarkAsWatched}
-        >
-          <ItemIcon ios={{ name: isPlayed ? 'eye.slash' : 'eye' }} />
-          <ItemTitle>{isPlayed ? tr('media.markUnwatched') : tr('media.markWatched')}</ItemTitle>
-        </Item>
+        {supportsMediaPlayedState(item) ? (
+          <Item
+            key={isPlayed ? 'markAsUnwatched' : 'markAsWatched'}
+            onSelect={isPlayed ? handleMarkAsUnwatched : handleMarkAsWatched}
+          >
+            <ItemIcon ios={{ name: isPlayed ? 'eye.slash' : 'eye' }} />
+            <ItemTitle>{isPlayed ? tr('media.markUnwatched') : tr('media.markWatched')}</ItemTitle>
+          </Item>
+        ) : null}
       </Content>
     </CardActionMenuRoot>
   );
@@ -196,7 +231,6 @@ export const EpisodeCard = React.memo(function EpisodeCard({
       ? Math.max(0, Math.min(100, rawPlayedPercentage))
       : undefined;
 
-  const isPlayed = currentUserData?.played === true;
   const itemTitle = item.seriesName || item.name || tr('media.untitled');
 
   return (
@@ -225,21 +259,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
                 </View>
               </BlurView>
             )}
-            {isPlayed && (
-              <View
-                accessible={false}
-                importantForAccessibility="no-hide-descendants"
-                pointerEvents="none"
-                style={[styles.playedOverlay, { backgroundColor: theme.colors.tint }]}
-              >
-                <IconSymbol
-                  name="checkmark"
-                  size={14}
-                  weight="semibold"
-                  color={theme.colors.inverseText}
-                />
-              </View>
-            )}
+            <WatchStateIndicator item={item} />
             {playedPercentage !== undefined && playedPercentage > 0 && playedPercentage < 100 && (
               <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, { width: `${playedPercentage}%` }]} />
@@ -275,7 +295,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
         <Pressable
           accessibilityLabel={tr('media.openItemWithStatus', {
             itemTitle: itemTitle,
-            value: isPlayed ? tr('media.watchedSuffix') : '',
+            value: getCardWatchStatusSuffix(item),
           })}
           accessibilityRole="button"
           disabled={disabled}
@@ -383,7 +403,10 @@ export const SeriesCard = React.memo(function SeriesCard({
   const card = (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={tr('media.openItem', { itemTitle: itemTitle })}
+      accessibilityLabel={tr('media.openItemWithStatus', {
+        itemTitle,
+        value: getCardWatchStatusSuffix(item),
+      })}
       style={[styles.card, { width: 120 }, style]}
       onLongPress={Platform.OS === 'ios' ? consumeCardLongPress : undefined}
       onPress={openDetails}
@@ -397,6 +420,7 @@ export const SeriesCard = React.memo(function SeriesCard({
             cachePolicy={Platform.OS === 'android' ? 'memory-disk' : 'disk'}
             contentFit="cover"
           />
+          <WatchStateIndicator item={item} />
         </CoverFrame>
         <View style={styles.cardCopy}>
           <Text
@@ -468,12 +492,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     right: 6,
-    width: 22,
+    minWidth: 22,
+    paddingHorizontal: 4,
     height: 22,
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,
+  },
+  unplayedCount: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   playButton: {
     position: 'absolute',

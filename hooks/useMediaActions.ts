@@ -100,14 +100,18 @@ export function useMediaActions(item: MediaItem, serverOverride?: MediaServerInf
 
   const handleMarkAsWatched = () =>
     runOptimisticUpdate(
-      { played: true, playedPercentage: 100 },
+      {
+        played: true,
+        playedPercentage: 100,
+        unplayedItemCount: 0,
+      },
       (ctx) => mediaAdapter.markItemPlayed({ ...ctx, datePlayed: new Date().toISOString() }),
       tr('media.markWatchedFailed'),
     );
 
   const handleMarkAsUnwatched = () =>
     runOptimisticUpdate(
-      { played: false, playedPercentage: 0 },
+      { played: false, playedPercentage: 0, unplayedItemCount: null },
       (ctx) => mediaAdapter.markItemUnplayed(ctx),
       tr('media.markUnwatchedFailed'),
     );

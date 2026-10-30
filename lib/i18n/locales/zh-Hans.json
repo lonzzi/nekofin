@@ -446,6 +446,8 @@
   "media.unknownVersion": "版本未知",
   "media.unspecifiedSeasonOrSpecials": "未标注季度 / 特别篇",
   "media.untitled": "未知标题",
+  "media.unwatchedEpisodesSuffix": "，还有 {{value}} 集未看",
+  "media.unwatchedItemsSuffix": "，还有 {{value}} 项未看",
   "media.userRoot": "用户根目录",
   "media.userViews": "用户视图",
   "media.version": "版本信息",
