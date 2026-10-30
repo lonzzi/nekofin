@@ -10,9 +10,11 @@ import { getIosSourceLink, getIosUpdateSource, type IosUpdateTool } from '@/lib/
 import { getNativeReleaseTag, isProductionBuild } from '@/lib/otaConfig';
 import { storage } from '@/lib/storage';
 import {
-  isUpdateSource,
+  isUpdateSourcePreference,
   OTA_SOURCE_PARAMETER,
   resolveUpdateSource,
+  resolveUpdateSourcePreference,
+  SELECTED_UPDATE_SOURCE_KEY,
   UPDATE_SOURCE_KEY,
   UPDATE_SOURCES,
 } from '@/lib/updateSources';
@@ -145,7 +147,8 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
       automaticEnabled:
         !__DEV__ && isProductionBuild(Updates.channel, Constants.expoConfig?.extra?.appVariant),
       storage,
-      source: resolveUpdateSource(storage.getString(UPDATE_SOURCE_KEY)),
+      source: resolveUpdateSource(storage.getString(SELECTED_UPDATE_SOURCE_KEY)),
+      sourcePreference: resolveUpdateSourcePreference(storage.getString(UPDATE_SOURCE_KEY)),
       autoDownloadEnabled: storage.getBoolean(AUTO_DOWNLOAD_UPDATES_KEY) ?? true,
       canAutoDownloadResources: async () => {
         if (canInstallAppUpdate) return isInstallerNetworkUnmetered();
@@ -309,7 +312,7 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
         cancelDownload: controller.cancelDownload,
         setAutoDownloadEnabled,
         setUpdateSource: (value) => {
-          if (isUpdateSource(value) && controller.setSource(value)) {
+          if (isUpdateSourcePreference(value) && controller.setSource(value)) {
             storage.set(UPDATE_SOURCE_KEY, value);
             void controller.checkAutomatically();
           }
@@ -318,7 +321,9 @@ export function AppUpdateProvider({ children }: { children: ReactNode }) {
         shareIosSource: () => {
           void Share.share({ message: getIosUpdateSource(currentVersion, snapshot.source) });
         },
-        canInstallPackage: supportsInstallerSource(snapshot.source),
+        canInstallPackage: supportsInstallerSource(
+          snapshot.release ? (snapshot.release.source ?? 'github') : snapshot.source,
+        ),
         resourceVersion: !Updates.isEnabled
           ? null
           : Updates.isEmbeddedLaunch

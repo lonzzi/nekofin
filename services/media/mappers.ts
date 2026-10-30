@@ -55,6 +55,7 @@ export function mapRawItemToMediaItem(item: BaseItemDto): MediaItem {
       ? {
           played: item.UserData.Played,
           playedPercentage: item.UserData.PlayedPercentage,
+          unplayedItemCount: item.UserData.UnplayedItemCount,
           isFavorite: item.UserData.IsFavorite,
           playbackPositionTicks: item.UserData.PlaybackPositionTicks,
         }

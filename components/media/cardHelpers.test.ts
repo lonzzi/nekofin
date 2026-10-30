@@ -2,6 +2,8 @@ import { MediaItem } from '@/services/media/types';
 import { describe, expect, it } from 'vitest';
 
 import {
+  formatUnplayedCount,
+  getCardWatchStatusSuffix,
   getEpisodeCardRoute,
   getImagePreferenceOptions,
   getSeriesCardRoute,
@@ -17,6 +19,25 @@ const item = (item: Partial<MediaItem>): MediaItem => ({
 });
 
 describe('cardHelpers', () => {
+  it('keeps numeric badges compact and the full remaining count accessible', () => {
+    expect(formatUnplayedCount(1)).toBe('1');
+    expect(formatUnplayedCount(99)).toBe('99');
+    expect(formatUnplayedCount(100)).toBe('99+');
+    expect(formatUnplayedCount(205)).toBe('99+');
+    expect(
+      getCardWatchStatusSuffix(item({ type: 'Series', userData: { unplayedItemCount: 205 } })),
+    ).toBe('，还有 205 集未看');
+    expect(
+      getCardWatchStatusSuffix(item({ type: 'Season', userData: { unplayedItemCount: 3 } })),
+    ).toBe('，还有 3 集未看');
+    expect(
+      getCardWatchStatusSuffix(item({ type: 'BoxSet', userData: { unplayedItemCount: 3 } })),
+    ).toBe('，还有 3 项未看');
+    expect(getCardWatchStatusSuffix(item({ userData: { played: true } }))).toBe('，已观看');
+    expect(getCardWatchStatusSuffix(item({ userData: {} }))).toBe('');
+    expect(getCardWatchStatusSuffix(item({ type: 'Photo', userData: { played: true } }))).toBe('');
+  });
+
   it('formats episode subtitles with season and episode numbers', () => {
     expect(
       getSubtitle(

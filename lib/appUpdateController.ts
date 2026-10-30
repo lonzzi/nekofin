@@ -2,7 +2,13 @@ import { t as tr } from '@/lib/i18n';
 import { gt } from 'semver';
 
 import type { AppRelease, InstallerDownload } from './appUpdates';
-import { type UpdateSource } from './updateSources';
+import { selectAutomaticUpdateSource } from './automaticUpdateSources';
+import {
+  isUpdateSource,
+  SELECTED_UPDATE_SOURCE_KEY,
+  type UpdateSource,
+  type UpdateSourcePreference,
+} from './updateSources';
 
 export const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
@@ -14,6 +20,7 @@ type UpdateStorage = {
 
 export type UpdateSnapshot = {
   source: UpdateSource;
+  sourcePreference: UpdateSourcePreference;
   status: 'idle' | 'checking' | 'available' | 'current' | 'error';
   release: AppRelease | null;
   error?: string;
@@ -46,6 +53,7 @@ type Dependencies = {
   automaticEnabled: boolean;
   storage: UpdateStorage;
   source?: UpdateSource;
+  sourcePreference?: UpdateSourcePreference;
   fetchUpdate: (source: UpdateSource) => Promise<AppRelease | null>;
   showUpdate: (release: AppRelease, actions: UpdatePromptActions) => void;
   showMessage: (title: string, message: string, dismiss: () => void) => void;
@@ -74,11 +82,13 @@ export function createAppUpdateController(dependencies: Dependencies) {
   const now = dependencies.now ?? Date.now;
   // A newly installed release gets its own first check, even on the same day.
   const lastCheckKey = () =>
-    `appUpdate.lastCheckAt.${currentVersion ?? 'unknown'}${snapshot.source === 'github' ? '' : `.${snapshot.source}`}`;
+    `appUpdate.lastCheckAt.${currentVersion ?? 'unknown'}${snapshot.sourcePreference === 'github' ? '' : `.${snapshot.sourcePreference}`}`;
   const ignoredVersionKey = 'appUpdate.ignoredVersion';
   const listeners = new Set<() => void>();
+  const sourcePreference = dependencies.sourcePreference ?? dependencies.source ?? 'github';
   let snapshot: UpdateSnapshot = {
-    source: dependencies.source ?? 'github',
+    source: isUpdateSource(sourcePreference) ? sourcePreference : (dependencies.source ?? 'github'),
+    sourcePreference,
     status: 'idle',
     release: null,
     resourceStatus: dependencies.resources ? 'idle' : 'unavailable',
@@ -100,9 +110,8 @@ export function createAppUpdateController(dependencies: Dependencies) {
   let installerUri: string | null = null;
 
   function hasSupportedInstaller() {
-    return (
-      !!dependencies.installer && (dependencies.installer.supportsSource?.(snapshot.source) ?? true)
-    );
+    const source = snapshot.release ? (snapshot.release.source ?? 'github') : snapshot.source;
+    return !!dependencies.installer && (dependencies.installer.supportsSource?.(source) ?? true);
   }
 
   function publish(next: UpdateSnapshot) {
@@ -423,13 +432,30 @@ export function createAppUpdateController(dependencies: Dependencies) {
     });
     // Also throttle failed automatic attempts so foreground/network churn stays quiet.
     storage.set(lastCheckKey(), now());
+    const packageCheck = Promise.resolve().then(async () => {
+      if (!currentVersion) throw new Error(tr('updates.appVersionUnreadable'));
+      if (snapshot.sourcePreference === 'auto') {
+        const supported = (['github', 'cnb'] as const).filter(
+          (source) =>
+            !dependencies.installer || (dependencies.installer.supportsSource?.(source) ?? true),
+        );
+        const selected = await selectAutomaticUpdateSource(
+          dependencies.fetchUpdate,
+          supported.length ? supported : undefined,
+        );
+        storage.set(SELECTED_UPDATE_SOURCE_KEY, selected.source);
+        publish({ ...snapshot, source: selected.source });
+        return selected.release;
+      }
+      return dependencies.fetchUpdate(snapshot.source);
+    });
     inFlight = Promise.allSettled([
-      Promise.resolve().then(() => {
-        if (!currentVersion) throw new Error(tr('updates.appVersionUnreadable'));
-        return dependencies.fetchUpdate(snapshot.source);
-      }),
+      packageCheck,
       checkResources
-        ? Promise.resolve().then(() => dependencies.resources!.check(snapshot.source))
+        ? (snapshot.sourcePreference === 'auto'
+            ? packageCheck.catch(() => null)
+            : Promise.resolve()
+          ).then(() => dependencies.resources!.check(snapshot.source))
         : Promise.resolve(null),
     ])
       .then(([packageResult, resourceResult]) => {
@@ -548,8 +574,8 @@ export function createAppUpdateController(dependencies: Dependencies) {
     downloadResources: () => downloadResources(),
     cancelDownload,
     refreshDownload,
-    setSource(source: UpdateSource) {
-      if (source === snapshot.source) return false;
+    setSource(preference: UpdateSourcePreference) {
+      if (preference === snapshot.sourcePreference) return false;
       if (
         inFlight ||
         operation ||
@@ -563,7 +589,8 @@ export function createAppUpdateController(dependencies: Dependencies) {
       const keepDownloaded = snapshot.downloadStatus === 'ready';
       publish({
         ...snapshot,
-        source,
+        source: isUpdateSource(preference) ? preference : snapshot.source,
+        sourcePreference: preference,
         status: keepDownloaded ? 'available' : 'idle',
         release: keepDownloaded ? snapshot.release : null,
         error: undefined,

@@ -446,6 +446,8 @@
   "media.unknownVersion": "Unknown version",
   "media.unspecifiedSeasonOrSpecials": "Unspecified season / specials",
   "media.untitled": "Untitled",
+  "media.unwatchedEpisodesSuffix": ", unwatched episodes: {{value}}",
+  "media.unwatchedItemsSuffix": ", unwatched items: {{value}}",
   "media.userRoot": "User root",
   "media.userViews": "User views",
   "media.version": "Version",
@@ -769,6 +771,7 @@
   "updates.autoDownload": "Download updates automatically",
   "updates.autoDownloadResources": "Automatically download compatible resource updates",
   "updates.automaticDownloadDescription": "Automatic downloads use unmetered networks. Downloads and installation prompts wait until playback ends. Manual downloads use the current network.",
+  "updates.automaticSource": "Automatic",
   "updates.availableVersion": "Update available: v{{version}}",
   "updates.backgroundDownloadBuildRequired": "Install the latest version from GitHub to enable background downloads.",
   "updates.backgroundDownloadProgress": "Downloading in background {{value}}%",
@@ -860,6 +863,5 @@
   "updates.waitingForUnmeteredNetwork": "Waiting for an unmetered network or system retry",
   "updates.downloadFromSource": "Download from {{source}}",
   "updates.openReleasePage": "Open release page",
-  "updates.source": "Update source",
-  "updates.sourceDescription": "Check versions and download app and resource updates"
+  "updates.source": "Update source"
 }

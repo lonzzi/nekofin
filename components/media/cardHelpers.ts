@@ -1,5 +1,6 @@
 import { t as tr } from '@/lib/i18n';
 import { MediaItem } from '@/services/media/types';
+import { getMediaUnplayedItemCount, isMediaItemPlayed } from '@/services/media/watchState';
 import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
 
 export type CardRoute =
@@ -15,6 +16,23 @@ export type CardRoute =
       pathname: '/series/[id]';
       params: { id: string };
     };
+
+export function getCardWatchStatusSuffix(item: MediaItem): string {
+  const count = getMediaUnplayedItemCount(item);
+  if (count !== null) {
+    return tr(
+      item.type === 'Series' || item.type === 'Season'
+        ? 'media.unwatchedEpisodesSuffix'
+        : 'media.unwatchedItemsSuffix',
+      { value: count },
+    );
+  }
+  return isMediaItemPlayed(item) ? tr('media.watchedSuffix') : '';
+}
+
+export function formatUnplayedCount(count: number): string {
+  return count >= 100 ? '99+' : String(count);
+}
 
 export const getSubtitle = (item: MediaItem) => {
   if (item.type === 'Episode') {

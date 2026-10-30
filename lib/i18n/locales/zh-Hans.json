@@ -446,6 +446,8 @@
   "media.unknownVersion": "版本未知",
   "media.unspecifiedSeasonOrSpecials": "未标注季度 / 特别篇",
   "media.untitled": "未知标题",
+  "media.unwatchedEpisodesSuffix": "，还有 {{value}} 集未看",
+  "media.unwatchedItemsSuffix": "，还有 {{value}} 项未看",
   "media.userRoot": "用户根目录",
   "media.userViews": "用户视图",
   "media.version": "版本信息",
@@ -769,6 +771,7 @@
   "updates.autoDownload": "自动下载更新",
   "updates.autoDownloadResources": "自动下载兼容的资源更新",
   "updates.automaticDownloadDescription": "自动下载仅使用非计费网络，播放时延后开始下载和安装提醒。手动下载可使用当前网络。",
+  "updates.automaticSource": "自动",
   "updates.availableVersion": "可更新至 v{{version}}",
   "updates.backgroundDownloadBuildRequired": "请先从 GitHub 安装新版，以启用后台下载。",
   "updates.backgroundDownloadProgress": "后台下载中 {{value}}%",
@@ -860,6 +863,5 @@
   "updates.waitingForUnmeteredNetwork": "等待非计费网络或系统重试",
   "updates.downloadFromSource": "从 {{source}} 下载",
   "updates.openReleasePage": "打开版本页面",
-  "updates.source": "更新源",
-  "updates.sourceDescription": "用于检查新版本、下载应用和资源更新"
+  "updates.source": "更新源"
 }

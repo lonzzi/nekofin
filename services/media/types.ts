@@ -34,6 +34,7 @@ export type MediaSortOrder = 'Ascending' | 'Descending';
 export interface MediaUserData {
   played?: boolean | null;
   playedPercentage?: number | null;
+  unplayedItemCount?: number | null;
   isFavorite?: boolean | null;
   playbackPositionTicks?: number | null;
 }
