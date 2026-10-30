@@ -41,10 +41,13 @@ def translate(changes):
                         text = text.replace("重播", "播放").replace("回放", "播放")
                     if re.search(r"\bsegment skipping\b", change["title"], re.I):
                         text = text.replace("节跳过", "分段跳过").replace("跳过段", "跳过分段")
-                    if re.search(r"\bright-aligned\b", change["title"], re.I):
+                    if re.search(r"\bright-aligned\b", change["title"], re.I) and "右侧对齐" not in text:
                         text = text.replace("对齐的", "右侧对齐的")
                     if re.search(r"\bgesture controls\b", change["title"], re.I):
                         text = text.replace("手势控件", "手势控制")
+                elif "卡顿" in change["title"]:
+                    # OPUS can mistake the technical term 卡顿 for a person's name.
+                    text = re.sub(r"\bCaden\b", "stalls", text)
                 change[language] = text.strip()
         del model
     return [{"sha": change["sha"], "zh": change["zh"], "en": change["en"]} for change in changes]
