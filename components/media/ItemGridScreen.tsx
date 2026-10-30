@@ -45,6 +45,8 @@ import {
 import { getSourcedMediaKey, type GetMediaItemSource } from './mediaSource';
 import { getMediaRailListConfig } from './railPerformanceConfig';
 
+const nativeListBudgetEnabled = Platform.OS === 'android' || Platform.OS === 'ios';
+
 export type ItemGridScreenProps = {
   title: string;
   query?: UseInfiniteQueryResult<
@@ -86,10 +88,10 @@ export function ItemGridScreen({
   const episodeLayout = useGridLayout('episode');
   const viewport = useContentDimensions();
   const navigation = useNavigation<NativeStackNavigationProp<Record<string, undefined>>>();
-  const [renderAheadReady, setRenderAheadReady] = useState(Platform.OS !== 'android');
+  const [renderAheadReady, setRenderAheadReady] = useState(!nativeListBudgetEnabled);
 
   useEffect(() => {
-    if (Platform.OS !== 'android' || renderAheadReady) return;
+    if (!nativeListBudgetEnabled || renderAheadReady) return;
     // Present the visible grid immediately; mount offscreen native image/menu
     // trees after this screen's push. An idle callback during the first commit
     // can run before transitionStart has even arrived from the native stack.
@@ -128,21 +130,19 @@ export function ItemGridScreen({
     theme.spacing.lg * 2;
   const posterRowHeight = itemWidth * 1.5 + cardCopyHeight;
   const episodeRowHeight = episodeLayout.itemWidth * (9 / 16) + cardCopyHeight;
-  const gridBatching =
-    Platform.OS === 'android'
-      ? getMediaGridListConfig({
-          viewportHeight: viewport.height,
-          numColumns:
-            layout === 'grid' ? Math.max(numColumns, episodeLayout.numColumns) : numColumns,
-          renderAheadReady,
-          rowHeight:
-            layout === 'grid'
-              ? Math.min(posterRowHeight, episodeRowHeight)
-              : useThreeCols
-                ? posterRowHeight
-                : itemWidth * (9 / 16) + cardCopyHeight,
-        })
-      : {};
+  const gridBatching = nativeListBudgetEnabled
+    ? getMediaGridListConfig({
+        viewportHeight: viewport.height,
+        numColumns: layout === 'grid' ? Math.max(numColumns, episodeLayout.numColumns) : numColumns,
+        renderAheadReady,
+        rowHeight:
+          layout === 'grid'
+            ? Math.min(posterRowHeight, episodeRowHeight)
+            : useThreeCols
+              ? posterRowHeight
+              : itemWidth * (9 / 16) + cardCopyHeight,
+      })
+    : {};
 
   const items = useMemo(() => {
     if (dataProp) {
@@ -412,7 +412,7 @@ export function ItemGridScreen({
             </Text>
           )}
           <FlatList
-            {...(Platform.OS === 'android'
+            {...(nativeListBudgetEnabled
               ? getMediaRailListConfig({
                   viewportWidth: viewport.width,
                   cardWidth: groupItemWidth,
