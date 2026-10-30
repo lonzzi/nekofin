@@ -26,7 +26,7 @@ export function PlayerPanelHost(props: PlayerPanelHostProps) {
           {panel.onBack ? (
             <IconButton onClick={panel.onBack}>
               <Icon
-                source={require('../../../assets/drawables/chevron_left.png')}
+                source={require('../../../assets/drawables/chevron_left.xml')}
                 size={24}
                 tint={theme.colors.text}
                 contentDescription={tr('common.goBack')}
@@ -42,7 +42,7 @@ export function PlayerPanelHost(props: PlayerPanelHostProps) {
           </Text>
           <IconButton onClick={onDismiss}>
             <Icon
-              source={require('../../../assets/drawables/close.png')}
+              source={require('../../../assets/drawables/close.xml')}
               size={24}
               tint={theme.colors.text}
               contentDescription={tr('common.closeTitle', { title: panel.title })}

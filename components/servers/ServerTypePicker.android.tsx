@@ -31,7 +31,7 @@ export function ServerTypePicker({ onSelect }: { onSelect: (type: MediaServerTyp
             leading={<Icon source={getServerMenuIcon(type)} size={36} tint={null} />}
             trailing={
               <Icon
-                source={require('../../assets/drawables/chevron_left.png')}
+                source={require('../../assets/drawables/chevron_left.xml')}
                 size={16}
                 tint={theme.colors.textTertiary}
                 modifiers={[rotate(180)]}
