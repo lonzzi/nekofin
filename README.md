@@ -85,25 +85,12 @@ React Native · Expo · Expo Router · MPV · TypeScript
 
 在 iPhone / iPad 上点按图片，添加到 AltStore Classic（2.2+）或支持 Sources 的 LiveContainer。Beta 源包含预发布版和正式版，正式版源只包含正式版；尚无正式版时请选 Beta。
 
-<!-- Official artwork: AltStore FAQ download badge and LiveContainer project icon. -->
-
-**[Beta · CNB](https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/beta.json)**
-
-<p>
-  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=beta&tool=altstore&source=cnb"><img src="https://raw.githubusercontent.com/altstoreio/FAQ/bcbf9fc229391828e7bd7c47ad3a0cacc5c9ac06/.gitbook/assets/DownloadBadge_dark%20(1).png" width="175" height="56" align="middle" alt="Download on AltStore" /></a>
-  &nbsp;
-  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=beta&tool=livecontainer&source=cnb"><img src="https://raw.githubusercontent.com/LiveContainer/LiveContainer/9108ae624ea001f7d7696d48407f890b48fa2653/screenshots/livecontainer_icon.png" width="56" height="56" align="middle" alt="" /> LiveContainer</a>
-</p>
-
-**[Stable · CNB](https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/stable.json)**
-
-<p>
-  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=stable&tool=altstore&source=cnb"><img src="https://raw.githubusercontent.com/altstoreio/FAQ/bcbf9fc229391828e7bd7c47ad3a0cacc5c9ac06/.gitbook/assets/DownloadBadge_dark%20(1).png" width="175" height="56" align="middle" alt="Download on AltStore" /></a>
-  &nbsp;
-  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=stable&tool=livecontainer&source=cnb"><img src="https://raw.githubusercontent.com/LiveContainer/LiveContainer/9108ae624ea001f7d7696d48407f890b48fa2653/screenshots/livecontainer_icon.png" width="56" height="56" align="middle" alt="" /> LiveContainer</a>
-</p>
-
-GitHub 备用源：[Beta](https://github.com/lonzzi/nekofin/releases/download/app-sources/beta.json) · [Stable](https://github.com/lonzzi/nekofin/releases/download/app-sources/stable.json)。
+| 更新源 · 渠道                                                                                  | AltStore Classic                                                                                                                                                                                                                                                                                                                        | LiveContainer                                                                                                                                                                                                                                            |
+| ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [CNB · Beta](https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/beta.json)        | <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=beta&tool=altstore&source=cnb"><img src="https://raw.githubusercontent.com/altstoreio/FAQ/bcbf9fc229391828e7bd7c47ad3a0cacc5c9ac06/.gitbook/assets/DownloadBadge_dark%20(1).png" width="175" height="56" align="middle" alt="Download on AltStore" /></a>      | <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=beta&tool=livecontainer&source=cnb"><img src="assets/readme/download-on-livecontainer.svg" width="175" height="56" align="middle" alt="Add source to LiveContainer" /></a>      |
+| [CNB · Stable](https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/stable.json)    | <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=stable&tool=altstore&source=cnb"><img src="https://raw.githubusercontent.com/altstoreio/FAQ/bcbf9fc229391828e7bd7c47ad3a0cacc5c9ac06/.gitbook/assets/DownloadBadge_dark%20(1).png" width="175" height="56" align="middle" alt="Download on AltStore" /></a>    | <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=stable&tool=livecontainer&source=cnb"><img src="assets/readme/download-on-livecontainer.svg" width="175" height="56" align="middle" alt="Add source to LiveContainer" /></a>    |
+| [GitHub · Beta](https://github.com/lonzzi/nekofin/releases/download/app-sources/beta.json)     | <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=beta&tool=altstore&source=github"><img src="https://raw.githubusercontent.com/altstoreio/FAQ/bcbf9fc229391828e7bd7c47ad3a0cacc5c9ac06/.gitbook/assets/DownloadBadge_dark%20(1).png" width="175" height="56" align="middle" alt="Download on AltStore" /></a>   | <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=beta&tool=livecontainer&source=github"><img src="assets/readme/download-on-livecontainer.svg" width="175" height="56" align="middle" alt="Add source to LiveContainer" /></a>   |
+| [GitHub · Stable](https://github.com/lonzzi/nekofin/releases/download/app-sources/stable.json) | <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=stable&tool=altstore&source=github"><img src="https://raw.githubusercontent.com/altstoreio/FAQ/bcbf9fc229391828e7bd7c47ad3a0cacc5c9ac06/.gitbook/assets/DownloadBadge_dark%20(1).png" width="175" height="56" align="middle" alt="Download on AltStore" /></a> | <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=stable&tool=livecontainer&source=github"><img src="assets/readme/download-on-livecontainer.svg" width="175" height="56" align="middle" alt="Add source to LiveContainer" /></a> |
 
 点按图片会直接唤起对应工具；系统可能询问是否打开应用。无法唤起时，复制上方对应的 JSON 源地址，在工具中手动添加。应用内「帮助与关于 → 更新源」可选择 GitHub / CNB，同时用于安装包和资源热更新的检查、下载及自动更新。iOS 安装包由侧载工具下载、签名和安装。
 
