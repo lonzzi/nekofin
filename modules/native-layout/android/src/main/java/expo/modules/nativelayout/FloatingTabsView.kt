@@ -48,7 +48,7 @@ class FloatingTabsView(context: Context, appContext: AppContext) : ExpoView(cont
   }.apply {
     orientation = LinearLayout.HORIZONTAL
     gravity = Gravity.CENTER_VERTICAL
-    setPadding(dp(4), dp(2), dp(4), dp(2))
+    setPadding(dp(4), dp(2), dp(2), dp(2))
   }
   private var renderedDark: Boolean? = null
   private var renderedKind: String? = null
@@ -63,7 +63,9 @@ class FloatingTabsView(context: Context, appContext: AppContext) : ExpoView(cont
 
   fun updateTabs(animated: Boolean = true) {
     val destinationTabs = kind == "destinations"
-    row.setPadding(dp(if (destinationTabs) 4 else 0), dp(if (destinationTabs) 2 else 0), dp(if (destinationTabs) 4 else 0), dp(if (destinationTabs) 2 else 0))
+    // Equal top, bottom and trailing insets keep search concentric with the capsule's end.
+    val inset = if (destinationTabs) dp(2) else 0
+    row.setPadding(if (destinationTabs) dp(4) else 0, inset, inset, inset)
     val items = destinations.map { listOf(it.key, it.title, it.drawable, it.role) }
     if (renderedDark != dark || renderedKind != kind || renderedDestinations != items) {
       row.removeAllViews()
