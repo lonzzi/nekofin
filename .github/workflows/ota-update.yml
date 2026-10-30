@@ -17,6 +17,7 @@ on:
       - 'fingerprint.config.js'
       - '.github/scripts/**'
       - '.github/workflows/release.yml'
+      - '.github/workflows/cnb-release.yml'
       - '.github/workflows/build-apps.yml'
       - 'package.json'
       - 'bun.lock'
