@@ -41,7 +41,7 @@ export const tabletDestinations = [
       return tr('search.title');
     },
     icon: 'magnifyingglass',
-    href: '/(tabs)/(search)',
+    href: '/(tabs)/(search)/(root)',
     get section() {
       return tr('media.media');
     },
