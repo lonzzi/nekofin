@@ -45,6 +45,7 @@ function ItemImageContent({
   transition,
 }: ItemImageProps) {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const imageLoaded = !!uri && status === 'loaded';
   const theme = useAppTheme();
   const source = useMemo(() => (uri ? { uri } : undefined), [uri]);
   const placeholder = useMemo(
@@ -56,11 +57,12 @@ function ItemImageContent({
     <View style={[styles.frame, style]}>
       {/* Keep the fallback mounted: a grid of cache hits must not remove dozens
           of native subtrees while the screen is animating. */}
-      {Platform.OS === 'android' || !uri || status !== 'loaded' ? (
+      {Platform.OS !== 'web' || !imageLoaded ? (
         <View
           pointerEvents="none"
-          importantForAccessibility={uri && status === 'loaded' ? 'no-hide-descendants' : 'auto'}
-          style={[StyleSheet.absoluteFill, uri && status === 'loaded' && styles.hidden]}
+          accessibilityElementsHidden={imageLoaded}
+          importantForAccessibility={imageLoaded ? 'no-hide-descendants' : 'auto'}
+          style={[StyleSheet.absoluteFill, imageLoaded && styles.hidden]}
         >
           {fallback ?? (
             <View style={[styles.placeholder, { backgroundColor: theme.colors.surfaceMuted }]}>
