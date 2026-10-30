@@ -90,17 +90,17 @@ Tap an image on iPhone or iPad to add the source to AltStore Classic 2.2 or late
 **[Beta · CNB](https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/beta.json)**
 
 <p>
-  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=beta&tool=altstore&source=cnb"><img src="https://raw.githubusercontent.com/altstoreio/FAQ/bcbf9fc229391828e7bd7c47ad3a0cacc5c9ac06/.gitbook/assets/DownloadBadge_dark%20(1).png" width="175" height="56" alt="Download on AltStore" /></a>
+  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=beta&tool=altstore&source=cnb"><img src="https://raw.githubusercontent.com/altstoreio/FAQ/bcbf9fc229391828e7bd7c47ad3a0cacc5c9ac06/.gitbook/assets/DownloadBadge_dark%20(1).png" width="175" height="56" align="middle" alt="Download on AltStore" /></a>
   &nbsp;
-  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=beta&tool=livecontainer&source=cnb"><img src="https://raw.githubusercontent.com/LiveContainer/LiveContainer/9108ae624ea001f7d7696d48407f890b48fa2653/screenshots/livecontainer_icon.png" width="56" height="56" alt="" /> LiveContainer</a>
+  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=beta&tool=livecontainer&source=cnb"><img src="https://raw.githubusercontent.com/LiveContainer/LiveContainer/9108ae624ea001f7d7696d48407f890b48fa2653/screenshots/livecontainer_icon.png" width="56" height="56" align="middle" alt="" /> LiveContainer</a>
 </p>
 
 **[Stable · CNB](https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/stable.json)**
 
 <p>
-  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=stable&tool=altstore&source=cnb"><img src="https://raw.githubusercontent.com/altstoreio/FAQ/bcbf9fc229391828e7bd7c47ad3a0cacc5c9ac06/.gitbook/assets/DownloadBadge_dark%20(1).png" width="175" height="56" alt="Download on AltStore" /></a>
+  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=stable&tool=altstore&source=cnb"><img src="https://raw.githubusercontent.com/altstoreio/FAQ/bcbf9fc229391828e7bd7c47ad3a0cacc5c9ac06/.gitbook/assets/DownloadBadge_dark%20(1).png" width="175" height="56" align="middle" alt="Download on AltStore" /></a>
   &nbsp;
-  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=stable&tool=livecontainer&source=cnb"><img src="https://raw.githubusercontent.com/LiveContainer/LiveContainer/9108ae624ea001f7d7696d48407f890b48fa2653/screenshots/livecontainer_icon.png" width="56" height="56" alt="" /> LiveContainer</a>
+  <a href="https://nekofin-updates-ronki.vercel.app/api/add-source?channel=stable&tool=livecontainer&source=cnb"><img src="https://raw.githubusercontent.com/LiveContainer/LiveContainer/9108ae624ea001f7d7696d48407f890b48fa2653/screenshots/livecontainer_icon.png" width="56" height="56" align="middle" alt="" /> LiveContainer</a>
 </p>
 
 GitHub alternatives: [Beta](https://github.com/lonzzi/nekofin/releases/download/app-sources/beta.json) · [Stable](https://github.com/lonzzi/nekofin/releases/download/app-sources/stable.json).
