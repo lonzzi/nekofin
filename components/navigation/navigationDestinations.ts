@@ -49,7 +49,7 @@ export const navigationDestinations = [
     get title() {
       return tr('search.title');
     },
-    drawable: 'search',
+    drawable: 'search_outline',
     sf: { default: 'magnifyingglass', selected: 'magnifyingglass' },
   },
 ] as const;
