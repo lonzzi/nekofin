@@ -20,3 +20,15 @@ it('rejects build numbers that cannot be written into a valid iOS IPA', () => {
   for (const invalid of ['0', 'beta.4', '1.00.4', '1.100.1', '10000', '1.0.4.1'])
     expect(() => resolveIosBuildNumber(invalid)).toThrow();
 });
+
+it('adds CNB sources to both sideloading tools without changing the release channel', () => {
+  for (const [version, channel] of [
+    ['0.1.0-beta.8', 'beta'],
+    ['0.1.0', 'stable'],
+  ]) {
+    const source = `https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/${channel}.json`;
+    expect(getIosUpdateSource(version, 'cnb')).toBe(source);
+    for (const tool of ['altstore', 'livecontainer'] as const)
+      expect(new URL(getIosSourceLink(tool, version, 'cnb')).searchParams.get('url')).toBe(source);
+  }
+});

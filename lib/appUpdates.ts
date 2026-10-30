@@ -1,9 +1,11 @@
 import { t as tr } from '@/lib/i18n';
+import { getUpdateDownloadURL, UPDATE_SOURCES, type UpdateSource } from '@/lib/updateSources';
 import { gt, parse, rcompare, valid } from 'semver';
 
 export type UpdatePlatform = 'ios' | 'android';
 
 export type AppRelease = {
+  source?: UpdateSource;
   tag: string;
   version: string;
   url: string;
@@ -59,6 +61,7 @@ export function selectAppUpdate(
   releases: unknown[],
   currentVersion: string,
   platform: UpdatePlatform,
+  source: UpdateSource = 'github',
 ): AppRelease | null {
   const current = parse(currentVersion);
   if (!current) throw new Error(tr('updates.appVersionUnreadableReinstall'));
@@ -90,7 +93,7 @@ export function selectAppUpdate(
       (asset) =>
         isRecord(asset) &&
         asset.name === assetName &&
-        asset.state === 'uploaded' &&
+        (source === 'cnb' || asset.state === 'uploaded') &&
         typeof asset.size === 'number' &&
         Number.isSafeInteger(asset.size) &&
         asset.size > 0,
@@ -98,17 +101,23 @@ export function selectAppUpdate(
     if (!isRecord(installer)) continue;
 
     candidates.push({
+      ...(source === 'cnb' ? { source } : {}),
       tag,
       version,
-      url: `${RELEASES_URL}/tag/${encodeURIComponent(tag)}`,
+      url: `${UPDATE_SOURCES[source].releases}/tag/${encodeURIComponent(tag)}`,
       installer: {
         name: assetName,
-        url: `${RELEASES_URL}/download/${encodeURIComponent(tag)}/${encodeURIComponent(assetName)}`,
+        url: getUpdateDownloadURL(source, tag, assetName),
         size: installer.size as number,
         sha256:
           typeof installer.digest === 'string' && /^sha256:[a-f0-9]{64}$/i.test(installer.digest)
             ? installer.digest.slice(7).toLowerCase()
-            : null,
+            : typeof installer.hash_algo === 'string' &&
+                installer.hash_algo.toLowerCase().replace('-', '') === 'sha256' &&
+                typeof installer.hash_value === 'string' &&
+                /^[a-f0-9]{64}$/i.test(installer.hash_value)
+              ? installer.hash_value.toLowerCase()
+              : null,
       },
     });
   }

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="202" height="44" viewBox="0 0 202 44" role="img" aria-label="Add to LiveContainer">
+  <rect width="202" height="44" rx="10" fill="#4356a4"/>
+  <path d="M24 13v18m-9-9h18" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="47" y="18" fill="#e7ebff" font-family="system-ui,sans-serif" font-size="10">ADD SOURCE</text>
+  <text x="47" y="33" fill="#fff" font-family="system-ui,sans-serif" font-size="15" font-weight="600">LiveContainer</text>
+</svg>

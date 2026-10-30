@@ -3,6 +3,7 @@ import { OuterTitle } from '@/components/outer/OuterPrimitives';
 import {
   NativeSettingsForm,
   NativeSettingsItem,
+  NativeSettingsPicker,
   NativeSettingsSection,
   NativeSettingsSwitch,
 } from '@/components/ui/NativeSettings';
@@ -16,6 +17,7 @@ import { useAppUpdate } from '@/lib/contexts/AppUpdateContext';
 import { useTranslation } from '@/lib/i18n';
 import { usePerformanceMonitorActions } from '@/lib/performance/PerformanceMonitorContext';
 import { usePerformanceDiagnosticsUnlock } from '@/lib/performance/usePerformanceDiagnosticsUnlock';
+import { UPDATE_SOURCES } from '@/lib/updateSources';
 import { useCallback } from 'react';
 import { Linking, Platform } from 'react-native';
 
@@ -125,7 +127,9 @@ export default function AboutScreen() {
                       ? tr('updates.downloadNewVersion')
                       : Platform.OS === 'ios'
                         ? tr('updates.chooseUpdateMethod')
-                        : tr('updates.downloadLatestFromGithub')}
+                        : tr('updates.downloadFromSource', {
+                            source: UPDATE_SOURCES[update.source].name,
+                          })}
                 </SettingsActionTitle>
               ) : (
                 <SettingsTitle>{tr('updates.appUpdate')}</SettingsTitle>
@@ -187,6 +191,17 @@ export default function AboutScreen() {
               : tr('updates.iosResourceUpdateDescription')
           }
         >
+          <NativeSettingsPicker
+            title={<SettingsTitle>{tr('updates.source')}</SettingsTitle>}
+            subtitle={<SettingsSubtitle primary={tr('updates.sourceDescription')} />}
+            value={update.source}
+            options={[
+              { title: 'GitHub', value: 'github' },
+              { title: 'CNB', value: 'cnb' },
+            ]}
+            onValueChange={update.setUpdateSource}
+            disabled={busy}
+          />
           <NativeSettingsSwitch
             title={<SettingsTitle>{tr('updates.autoDownload')}</SettingsTitle>}
             subtitle={

@@ -1,11 +1,13 @@
 import { selectAppUpdate, type AppRelease, type InstallerDownload } from '@/lib/appUpdates';
 import { t as tr } from '@/lib/i18n';
+import { isUpdateSource, type UpdateSource } from '@/lib/updateSources';
 import { requireOptionalNativeModule } from 'expo';
 import { Platform } from 'react-native';
 import { prerelease } from 'semver';
 
 type NativeDownload = Omit<InstallerDownload, 'release'> & { release: string };
 type NativeInstaller = {
+  supportedUpdateSources?: string[];
   startDownloadAsync: (release: string, automatic: boolean) => Promise<NativeDownload>;
   getDownloadAsync: () => Promise<NativeDownload | null>;
   cancelDownloadAsync: () => Promise<void>;
@@ -19,10 +21,20 @@ const native =
 // Older binaries receiving JS must keep a usable browser fallback.
 export const canInstallAppUpdate = typeof native?.startDownloadAsync === 'function';
 
+export function supportsInstallerSource(source: UpdateSource) {
+  return (
+    canInstallAppUpdate &&
+    (source === 'github' || native?.supportedUpdateSources?.includes(source) === true)
+  );
+}
+
 export function parseInstallerDownload(value: NativeDownload | null): InstallerDownload | null {
   if (!value) return null;
   try {
     const saved: AppRelease = JSON.parse(value.release);
+    const source = saved.source ?? 'github';
+    if (!isUpdateSource(source)) return null;
+    if (source === 'cnb' && !saved.installer.sha256) return null;
     const selected = selectAppUpdate(
       [
         {
@@ -41,6 +53,7 @@ export function parseInstallerDownload(value: NativeDownload | null): InstallerD
       ],
       '0.0.0-0',
       'android',
+      source,
     );
     if (
       !selected ||

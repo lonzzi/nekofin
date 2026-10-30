@@ -6,6 +6,7 @@ import {
   type UpdatePromptActions,
 } from './appUpdateController';
 import type { AppRelease, InstallerDownload } from './appUpdates';
+import type { UpdateSource } from './updateSources';
 
 const update: AppRelease = {
   version: '0.2.0-beta.2',
@@ -20,10 +21,14 @@ function setup({
   resources = false,
   installer = false,
   autoDownloadEnabled = false,
+  source = 'github' as UpdateSource,
+  supportsSource = (_source: UpdateSource): boolean => true,
 } = {}) {
   let time = 1_000;
   const values = new Map<string, number | string>();
-  const fetchUpdate = vi.fn<() => Promise<AppRelease | null>>().mockResolvedValue(update);
+  const fetchUpdate = vi
+    .fn<(source: UpdateSource) => Promise<AppRelease | null>>()
+    .mockResolvedValue(update);
   const showUpdate = vi.fn<(release: AppRelease, actions: UpdatePromptActions) => void>();
   const showMessage = vi.fn<(title: string, message: string, dismiss: () => void) => void>();
   const openURL = vi.fn().mockResolvedValue(undefined);
@@ -34,6 +39,7 @@ function setup({
     apply: vi.fn().mockResolvedValue(undefined),
   };
   const installerAPI = {
+    supportsSource,
     start: vi.fn().mockResolvedValue({
       release: update,
       automatic: false,
@@ -50,6 +56,7 @@ function setup({
     vi.fn<(kind: 'package' | 'resources', install: () => void, dismiss: () => void) => void>();
   const controller = createAppUpdateController({
     currentVersion,
+    source,
     automaticEnabled,
     storage: {
       getNumber: (key) => values.get(key) as number | undefined,
@@ -92,6 +99,102 @@ function setup({
 const settle = async () => {
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
 };
+
+describe('update source coordination', () => {
+  it('uses CNB for manual installer checks, resource checks and resource downloads', async () => {
+    const test = setup({ source: 'cnb', automaticEnabled: false, resources: true });
+    test.fetchUpdate.mockResolvedValue(null);
+    test.resourceAPI.check.mockResolvedValue(true);
+    test.controller.setCanPrompt(true);
+    await test.controller.checkManually();
+    expect(test.fetchUpdate).toHaveBeenCalledWith('cnb');
+    expect(test.resourceAPI.check).toHaveBeenCalledWith('cnb');
+    test.showResourceUpdate.mock.calls[0][1]();
+    await test.controller.downloadResources();
+    expect(test.resourceAPI.download).toHaveBeenCalledWith('cnb');
+  });
+  it('checks the new source immediately without inheriting the other source daily throttle', async () => {
+    const test = setup({ resources: true, autoDownloadEnabled: true });
+    test.fetchUpdate.mockResolvedValue(null);
+    test.controller.setCanPrompt(true);
+    await settle();
+    expect(test.controller.setSource('cnb')).toBe(true);
+    test.resourceAPI.check.mockResolvedValue(true);
+    await test.controller.checkAutomatically();
+    await settle();
+    expect(test.fetchUpdate.mock.calls.map(([source]) => source)).toEqual(['github', 'cnb']);
+    expect(test.resourceAPI.download).toHaveBeenCalledWith('cnb');
+    expect(test.values.has('appUpdate.lastCheckAt.0.2.0-beta.1.cnb')).toBe(true);
+  });
+  it('refuses source changes during requests and while a prompt is open', async () => {
+    const test = setup({ automaticEnabled: false });
+    let finish!: (value: AppRelease) => void;
+    test.fetchUpdate.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    test.controller.setCanPrompt(true);
+    const checking = test.controller.checkManually();
+    expect(test.controller.setSource('cnb')).toBe(false);
+    await Promise.resolve();
+    finish(update);
+    await checking;
+    expect(test.controller.setSource('cnb')).toBe(false);
+    test.showUpdate.mock.calls[0][1].later();
+    expect(test.controller.setSource('cnb')).toBe(true);
+    expect(test.controller.getSnapshot()).toMatchObject({
+      source: 'cnb',
+      release: null,
+      status: 'idle',
+    });
+  });
+  it('preserves a verified installer after switching source, even if it is absent in that mirror', async () => {
+    const test = setup({ installer: true, automaticEnabled: false });
+    test.controller.setCanPrompt(true);
+    await test.controller.checkManually();
+    test.showUpdate.mock.calls[0][1].later();
+    await test.controller.downloadRelease();
+    test.showReady.mock.calls[0][2]();
+    expect(test.controller.setSource('cnb')).toBe(true);
+    test.fetchUpdate.mockResolvedValue(null);
+    await test.controller.checkManually();
+    expect(test.controller.getSnapshot()).toMatchObject({
+      source: 'cnb',
+      release: update,
+      downloadStatus: 'ready',
+      status: 'available',
+    });
+    test.showMessage.mock.calls.at(-1)?.[2]();
+    await test.controller.installRelease();
+    expect(test.installerAPI.install).toHaveBeenCalledWith('file:///update.apk');
+    expect(test.installerAPI.start).toHaveBeenCalledTimes(1);
+  });
+  it('keeps unsupported older native CNB downloads manual while continuing automatic resource updates', async () => {
+    const test = setup({
+      source: 'cnb',
+      installer: true,
+      resources: true,
+      autoDownloadEnabled: true,
+      supportsSource: (source) => source === 'github',
+    });
+    const mirrored = {
+      ...update,
+      source: 'cnb' as const,
+      url: 'https://cnb.cool/lonzzi/nekofin/-/releases/tag/v0.2.0-beta.2',
+    };
+    test.fetchUpdate.mockResolvedValue(mirrored);
+    test.resourceAPI.check.mockResolvedValue(true);
+    test.controller.setCanPrompt(true);
+    await settle();
+    expect(test.installerAPI.start).not.toHaveBeenCalled();
+    expect(test.openURL).not.toHaveBeenCalled();
+    expect(test.resourceAPI.download).toHaveBeenCalledWith('cnb');
+    test.showUpdate.mock.calls[0][1].open();
+    await settle();
+    expect(test.openURL).toHaveBeenCalledWith(mirrored.url);
+  });
+});
 
 describe('automatic and manual update coordination', () => {
   it('checks once per day across foreground transitions and retries after later', async () => {

@@ -3,7 +3,7 @@ import { Buffer } from 'node:buffer';
 import { generateKeyPairSync, randomUUID, sign } from 'node:crypto';
 import { test } from 'node:test';
 
-import { createUpdateHandler } from './protocol.mjs';
+import { CATALOG_URL, CNB_CATALOG_URL, createUpdateHandler } from './protocol.mjs';
 
 const { privateKey, publicKey: certificate } = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const runtimeVersion = 'a'.repeat(40);
@@ -173,4 +173,78 @@ test('uses the signed backup while catalog promotion temporarily removes the pri
   assert.equal(response.status, 200);
   assert.equal((await response.json()).id, body.id);
   assert.equal(calls, 2);
+});
+
+test('routes persisted Expo extra parameters to independently cached, signed CNB catalogs', async () => {
+  const original = update();
+  const mirroredAsset = {
+    ...asset,
+    url: 'https://cnb.cool/lonzzi/nekofin/-/releases/download/ota-test/asset.bin',
+  };
+  const mirrored = { ...original, launchAsset: mirroredAsset, assets: [mirroredAsset] };
+  const urls = [];
+  const server = handler(null, {
+    fetcher: async (url) => {
+      urls.push(url);
+      return new Response(
+        JSON.stringify({
+          version: 1,
+          entries: { [key]: signed(url.startsWith(CNB_CATALOG_URL) ? mirrored : original) },
+        }),
+      );
+    },
+  });
+  const cnbRequest = request({ 'expo-extra-params': 'other="value", nekofin-source="cnb"' });
+  const responses = await Promise.all([
+    server.handle(request()),
+    server.handle(cnbRequest),
+    server.handle(cnbRequest),
+  ]);
+  assert.deepEqual(await responses[0].json(), original);
+  assert.deepEqual(await responses[1].json(), mirrored);
+  assert.equal(responses[2].headers.get('vary'), 'Expo-Extra-Params');
+  assert.equal(urls.length, 2);
+  assert.ok(urls.some((url) => url.startsWith(CATALOG_URL)));
+  assert.ok(urls.some((url) => url.startsWith(CNB_CATALOG_URL)));
+  assert.equal(
+    (
+      await server.handle(
+        request({
+          'expo-extra-params': 'nekofin-source=cnb',
+          'expo-current-update-id': original.id,
+        }),
+      )
+    ).status,
+    204,
+  );
+});
+
+test('rejects unknown or duplicate update sources before reading any catalog', async () => {
+  const server = handler(null);
+  for (const value of [
+    'nekofin-source="evil"',
+    'nekofin-source=cnb, nekofin-source=github',
+    'nekofin-source="cnb";unsafe=?1',
+  ])
+    assert.equal((await server.handle(request({ 'expo-extra-params': value }))).status, 400);
+  assert.equal(server.fetches(), 0);
+});
+
+test('requires signatures and source-specific origins even for a trusted signed catalog', async () => {
+  const cnbAsset = {
+    ...asset,
+    url: 'https://cnb.cool/lonzzi/nekofin/-/releases/download/ota-test/asset.bin',
+  };
+  const cnb = signed(update({ launchAsset: cnbAsset, assets: [cnbAsset] }));
+  assert.equal((await handler(cnb).handle(request())).status, 503);
+  assert.equal(
+    (await handler(signed(update())).handle(request({ 'expo-extra-params': 'nekofin-source=cnb' })))
+      .status,
+    503,
+  );
+  cnb.body += ' ';
+  assert.equal(
+    (await handler(cnb).handle(request({ 'expo-extra-params': 'nekofin-source=cnb' }))).status,
+    503,
+  );
 });

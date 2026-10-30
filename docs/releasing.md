@@ -50,7 +50,11 @@ tag 是发布版本号的来源。工作流会在计算运行时和构建两个�
 - `nekofin-v0.2.0-beta.1-ios-source.json`：从实际 IPA 提取的侧载源元数据。
 - `SHA256SUMS`
 
-更新说明由 GitHub 自动生成。发布先创建草稿，上传全部附件后再公开；上传失败会保留草稿，可以在 Actions 中重跑失败任务。已公开的 Release 不会在重跑时替换附件。
+更新说明按当前 tag 与前一个已发布、且属于同一提交历史的版本 tag 之间的提交自动生成，包含中文和英文，按功能、修复、性能与其他改进分组。CI 使用固定版本的 Helsinki-NLP OPUS 模型在 runner 本地翻译，无需额外 AI API Key；模型来源和许可见 `.github/scripts/translate-release-notes.py`。需要精确措辞时，可在提交正文中添加 `Release-Note-ZH: 中文条目` 和 `Release-Note-EN: English entry`，生成时优先采用。翻译或校验失败会阻止发布说明写入。
+
+已公开版本可运行 **Update bilingual release notes**，填写已有 tag，补齐双语说明并刷新两处侧载源；安装包和 tag 不会被重建或替换。生成区以注释标记，重复运行保留区外的人工说明和已验证的 CNB 下载链接。
+
+发布先创建草稿，上传全部附件后再公开；上传失败会保留草稿，可以在 Actions 中重跑失败任务。已公开的 Release 不会在重跑时替换附件。
 
 双端构建通过 `NEKOFIN_NATIVE_RUNTIME` 将准备阶段生成的运行时固定到 Expo 原生配置。Android 的 EAS 构建会重新设置内部的 `EXPO_UPDATES_FINGERPRINT_OVERRIDE`，因此发布流程不依赖该内部变量。上传安装包前会读取 APK 编译后的 manifest / 资源或 iOS Archive 的 Expo.plist（必要时解析内置 fingerprint 文件），运行时与发布契约不一致会直接阻止发布。
 
@@ -76,13 +80,17 @@ iOS 发布构建使用 `xcode-27` runner 和 Xcode 27.0，EAS 的 iOS profiles �
 
 CNB 同步与侧载源更新、版本号回写独立执行。同步失败时，GitHub 安装包仍可用，也不会写入未经验证的下载链接。可重跑失败任务，或手动运行 **Mirror release to CNB**，填写已公开的版本 tag，单独补传旧版本，无需重建应用。已有 CNB 草稿会继续上传；已公开 CNB 安装包不会被替换，只重新校验并补齐 GitHub 说明。Git tag 不强推，若同名 tag 指向不同源代码则停止并报错。
 
-CNB 同步仅处理安装包 Release；AltStore / LiveContainer 订阅源和 OTA 资源仍使用现有地址。
+CNB 安装包公开后，独立串行任务从 CNB 已公开且含侧载元数据的版本重建 AltStore / LiveContainer 源，同时发布 `app-sources/updates.json` 公开版本目录。CNB 的版本列表 API 需要登录，只有 CI 使用 Token 调用；手机从公开目录检查安装包，不需要 Token。尚未同步完成的版本不会出现在 CNB 源中。资源发布工作流也会同步 CNB：先匿名校验所有不可变资源，再发布使用同一证书重新签名的 CNB 目录，保留更新 ID、运行时、时间和 SHA-256。目录替换前先保存已验证的备份；任何资源同步失败都不会推进新目录。
+
+已有资源目录可手动运行 **Mirror resources to CNB** 补传，无需生成新的资源更新；所有资源发布、回退及补传共用同一串行锁。
 
 ## 热更新与回退
 
-应用通过 `expo-updates` 从 GitHub Releases 下载 JS 与资源，Vercel 提供签名清单接口；无需 EAS Update。「帮助与关于 → 检查更新」同时检查安装包与兼容当前运行时的资源更新，分别显示检查结果；其中一个检查失败不会被当作已是最新。正式版仅提示更高的正式版，beta / rc 安装包也会检查更新的预发布版，例如 `beta.3 → beta.4`。
+应用通过 `expo-updates` 从所选 GitHub 或 CNB Releases 下载 JS 与资源，Vercel 提供签名清单接口；无需 EAS Update。「帮助与关于 → 检查更新」同时检查安装包与兼容当前运行时的资源更新，分别显示检查结果；其中一个检查失败不会被当作已是最新。正式版仅提示更高的正式版，beta / rc 安装包也会检查更新的预发布版，例如 `beta.3 → beta.4`。
 
-「自动下载更新」默认开启。Android APK 由系统 DownloadManager 托管，自动任务仅使用非计费网络，手动下载可使用当前网络；切到后台或应用进程退出后，系统仍管理任务，重开应用会恢复状态。页面可查看进度或取消下载，完成后经过文件大小、SHA-256（Release 提供时）和包名校验，才询问是否安装。播放时延后启动自动下载及安装提醒；后台完成通知为静音通知，播放时不发送。通知权限未授予时，下载任务仍可运行，返回应用后显示安装提示。首次安装需在系统设置中允许 NekoFin 安装应用，返回后点按「安装新版本」。这些能力包含原生模块和权限，需要新版 APK；旧安装包保留 GitHub 下载兜底。
+「更新源」可选择 GitHub 或 CNB，默认 GitHub，选择会持久保存，同时控制安装包和资源的手动及自动检查、下载。两处来源分别记录每日检查时间，切换后可立即检查；正在检查、下载或显示更新确认时禁止切换，已验证的安装包和已下载资源继续保留。资源使用 Expo 的持久额外请求参数传递来源，服务端按来源分别缓存并验证签名与附件地址，不需要禁用 Expo 防损坏保护。
+
+「自动下载更新」默认开启。Android APK 由系统 DownloadManager 托管，自动任务仅使用非计费网络，手动下载可使用当前网络；切到后台或应用进程退出后，系统仍管理任务，重开应用会恢复状态。页面可查看进度或取消下载，完成后经过文件大小、SHA-256（Release 提供时）和包名校验，才询问是否安装。播放时延后启动自动下载及安装提醒；后台完成通知为静音通知，播放时不发送。通知权限未授予时，下载任务仍可运行，返回应用后显示安装提示。首次安装需在系统设置中允许 NekoFin 安装应用，返回后点按「安装新版本」。这些能力包含原生模块和权限，需要新版 APK；旧安装包不支持 CNB 原生下载白名单时使用 CNB 浏览器手动下载兜底，资源热更新仍可使用 CNB；完整的 CNB 后台 APK 下载需要包含新白名单的 APK。
 
 资源自动下载在 Wi-Fi／非计费网络可用时开始；播放时延后开始，不自动重新载入。下载后询问是否应用，选择稍后会保留已下载资源，下次冷启动也可使用。关闭开关会停止正在进行的自动 APK 任务，并停止后续资源自动下载；手动 APK 下载不受开关影响。Expo 原生启动检查设为 `NEVER`，由应用统一调度，避免绕过用户的自动下载设置。
 
@@ -90,12 +98,16 @@ CNB 同步仅处理安装包 Release；AltStore / LiveContainer 订阅源和 OTA
 
 ## iOS 侧载源
 
-AltStore Classic 和支持 Sources 的 LiveContainer 可共用以下 JSON 源：
+AltStore Classic 和支持 Sources 的 LiveContainer 可共用以下 JSON 源。README 提供 HTTPS 图片按钮，跳转页在 iPhone / iPad 上调用所选工具的添加源协议，并显示可复制的地址：
 
 - 正式版：`https://github.com/lonzzi/nekofin/releases/download/app-sources/stable.json`
 - Beta（也包含更新的正式版）：`https://github.com/lonzzi/nekofin/releases/download/app-sources/beta.json`
+- CNB 正式版：`https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/stable.json`
+- CNB Beta：`https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/beta.json`
 
-「帮助与关于」提供添加到两个工具及分享源地址的入口；当前安装的是预发布版时选择 Beta 源。发现安装包更新后也可选择侧载工具或 GitHub。源负责提供 IPA，下载、签名及替换由对应工具完成；在 LiveContainer 内运行应用的完整兼容性仍需真机验证。
+两处源使用不同标识，可同时添加。CNB 源的 IPA、图标和源地址均指向 CNB，不依赖 GitHub 下载。
+
+「帮助与关于」提供添加到两个工具及分享源地址的入口；当前安装的是预发布版时选择 Beta 源。发现安装包更新后也可选择侧载工具或所选更新源的发布页面。源负责提供 IPA，下载、签名及替换由对应工具完成；在 LiveContainer 内运行应用的完整兼容性仍需真机验证。
 
 Release 工作流成功发布安装包后，在独立串行任务中读取所有已公开的版本及 `ios-source.json`，按 SemVer 重建两个源，更新专用 `app-sources` Release。首次发布包含该功能的安装包后，源地址才会可用。旧版没有元数据的 Release 不会自动加入源；草稿、OTA 和其他非版本 Release 不会进入源。该源 Release 不设为 Latest。
 
@@ -123,7 +135,7 @@ OTA 工作流同样会先把构建工作区版本同步到目标安装包的 tag
 
 热更新需要 Actions variable `NEKOFIN_OTA_URL`（与 `config/updates.json` 中的接口地址一致）和 secret `OTA_SIGNING_PRIVATE_KEY`。私钥必须与公开证书 `updates/server/ota-certificate.crt` 匹配，不能提交私钥。更换证书或更新接口地址后需要重新构建安装包。
 
-将 `updates/server/` 部署到 Vercel，保持 `/api/manifest` 公开可读；该服务只读取公开 GitHub 清单，不需要 GitHub token、数据库或签名私钥。修改服务源码后需重新部署。
+将 `updates/server/` 部署到 Vercel，保持 `/api/manifest` 公开可读；该服务按来源读取公开 GitHub / CNB 清单，不需要 GitHub token、数据库或签名私钥。修改服务源码后需重新部署。
 
 本地检查发布脚本：
 
@@ -132,6 +144,6 @@ node --test .github/scripts/*.test.cjs
 bun run test:ota
 ```
 
-这些测试覆盖版本校验、正式版 / 预发布标记、草稿重试、上传失败、缺失附件，以及 CNB 同步的校验、公开下载验证和说明更新，不会调用真实 GitHub / CNB API。工作流还会执行原有的应用 smoke tests。
+这些测试覆盖双语生成与人工条目、来源切换与缓存隔离、签名重签与源域名限制、侧载源及添加按钮，以及版本校验、正式版 / 预发布标记、草稿重试、上传失败、缺失附件，以及 CNB 同步的校验、公开下载验证和说明更新，不会调用真实 GitHub / CNB API。工作流还会执行原有的应用 smoke tests。
 
 流程参考：[Jellyfin Android 的版本 tag 触发](https://github.com/jellyfin/jellyfin-android/blob/master/.github/workflows/app-publish.yaml)、[LocalSend 的可复用构建与 Release 分工](https://github.com/localsend/localsend/blob/main/.github/workflows/release.yml)。iOS 版本格式见 [Expo 配置文档](https://docs.expo.dev/versions/latest/config/app/#version)。

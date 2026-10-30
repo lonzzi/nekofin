@@ -1,0 +1,39 @@
+name: Mirror resources to CNB
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ota-catalog
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Write temporary signing key
+        env:
+          OTA_SIGNING_PRIVATE_KEY: ${{ secrets.OTA_SIGNING_PRIVATE_KEY }}
+        run: |
+          mkdir -p build
+          node -e 'const fs=require("node:fs"); if(!process.env.OTA_SIGNING_PRIVATE_KEY) throw new Error("Missing signing key"); fs.writeFileSync("build/ota-private-key.pem",process.env.OTA_SIGNING_PRIVATE_KEY,{mode:0o600});'
+      - name: Mirror current signed resources
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+          CNB_REPO: ${{ vars.CNB_REPO }}
+        run: node scripts/ota/mirror-cnb.mjs build/ota-private-key.pem
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f build/ota-private-key.pem
