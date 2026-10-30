@@ -6,7 +6,11 @@ import {
   type UpdatePromptActions,
 } from './appUpdateController';
 import type { AppRelease, InstallerDownload } from './appUpdates';
-import type { UpdateSource } from './updateSources';
+import {
+  SELECTED_UPDATE_SOURCE_KEY,
+  type UpdateSource,
+  type UpdateSourcePreference,
+} from './updateSources';
 
 const update: AppRelease = {
   version: '0.2.0-beta.2',
@@ -22,6 +26,7 @@ function setup({
   installer = false,
   autoDownloadEnabled = false,
   source = 'github' as UpdateSource,
+  sourcePreference = undefined as UpdateSourcePreference | undefined,
   supportsSource = (_source: UpdateSource): boolean => true,
 } = {}) {
   let time = 1_000;
@@ -57,6 +62,7 @@ function setup({
   const controller = createAppUpdateController({
     currentVersion,
     source,
+    sourcePreference,
     automaticEnabled,
     storage: {
       getNumber: (key) => values.get(key) as number | undefined,
@@ -101,6 +107,77 @@ const settle = async () => {
 };
 
 describe('update source coordination', () => {
+  it('retains automatic preference while using the selected source for package and resource updates', async () => {
+    const test = setup({ sourcePreference: 'auto', automaticEnabled: false, resources: true });
+    let finishGithub!: (value: AppRelease | null) => void;
+    const mirrored = { ...update, source: 'cnb' as const };
+    test.fetchUpdate.mockImplementation((source) =>
+      source === 'cnb'
+        ? Promise.resolve(mirrored)
+        : new Promise((resolve) => {
+            finishGithub = resolve;
+          }),
+    );
+    test.resourceAPI.check.mockResolvedValue(true);
+    test.controller.setCanPrompt(true);
+    const checking = test.controller.checkManually();
+    await settle();
+    expect(test.resourceAPI.check).not.toHaveBeenCalled();
+    expect(test.controller.setSource('github')).toBe(false);
+    finishGithub(update);
+    await checking;
+    expect(test.controller.getSnapshot()).toMatchObject({
+      source: 'cnb',
+      sourcePreference: 'auto',
+      release: mirrored,
+    });
+    expect(test.values.get(SELECTED_UPDATE_SOURCE_KEY)).toBe('cnb');
+    expect(test.resourceAPI.check).toHaveBeenCalledWith('cnb');
+    test.showUpdate.mock.calls[0][1].later();
+    await test.controller.downloadResources();
+    expect(test.resourceAPI.download).toHaveBeenCalledWith('cnb');
+  });
+
+  it('keeps the daily throttle tied to automatic preference after choosing a different source', async () => {
+    const test = setup({ sourcePreference: 'auto', source: 'cnb' });
+    test.fetchUpdate.mockResolvedValue(null);
+    test.controller.setCanPrompt(true);
+    await settle();
+    test.controller.setCanPrompt(false);
+    test.controller.setCanPrompt(true);
+    await settle();
+    expect(test.fetchUpdate).toHaveBeenCalledTimes(2);
+    expect(test.values.has('appUpdate.lastCheckAt.0.2.0-beta.1.auto')).toBe(true);
+  });
+
+  it('keeps automatic package updates on a supported source in older binaries', async () => {
+    const test = setup({
+      sourcePreference: 'auto',
+      installer: true,
+      automaticEnabled: false,
+      supportsSource: (source) => source === 'github',
+    });
+    await test.controller.checkManually();
+    expect(test.fetchUpdate).toHaveBeenCalledTimes(1);
+    expect(test.fetchUpdate).toHaveBeenCalledWith('github');
+    expect(test.controller.getSnapshot()).toMatchObject({
+      sourcePreference: 'auto',
+      source: 'github',
+    });
+  });
+
+  it('checks only a manually chosen source and permits switching back to automatic', async () => {
+    const test = setup({ sourcePreference: 'cnb', automaticEnabled: false });
+    test.fetchUpdate.mockResolvedValue(null);
+    await test.controller.checkManually();
+    expect(test.fetchUpdate).toHaveBeenCalledTimes(1);
+    expect(test.fetchUpdate).toHaveBeenCalledWith('cnb');
+    expect(test.controller.setSource('auto')).toBe(true);
+    test.fetchUpdate.mockClear();
+    await test.controller.checkManually();
+    expect(test.fetchUpdate.mock.calls.map(([source]) => source)).toEqual(['github', 'cnb']);
+  });
+
   it('uses CNB for manual installer checks, resource checks and resource downloads', async () => {
     const test = setup({ source: 'cnb', automaticEnabled: false, resources: true });
     test.fetchUpdate.mockResolvedValue(null);

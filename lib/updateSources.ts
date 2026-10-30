@@ -1,6 +1,8 @@
 export type UpdateSource = 'github' | 'cnb';
+export type UpdateSourcePreference = 'auto' | UpdateSource;
 
 export const UPDATE_SOURCE_KEY = 'appUpdate.source';
+export const SELECTED_UPDATE_SOURCE_KEY = 'appUpdate.selectedSource';
 export const OTA_SOURCE_PARAMETER = 'nekofin-source';
 
 export const UPDATE_SOURCES = {
@@ -24,6 +26,14 @@ export function isUpdateSource(value: unknown): value is UpdateSource {
 
 export function resolveUpdateSource(value: unknown): UpdateSource {
   return isUpdateSource(value) ? value : 'github';
+}
+
+export function isUpdateSourcePreference(value: unknown): value is UpdateSourcePreference {
+  return value === 'auto' || isUpdateSource(value);
+}
+
+export function resolveUpdateSourcePreference(value: unknown): UpdateSourcePreference {
+  return isUpdateSourcePreference(value) ? value : 'auto';
 }
 
 export function getUpdateDownloadURL(source: UpdateSource, tag: string, name: string) {

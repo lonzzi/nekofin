@@ -193,9 +193,9 @@ export default function AboutScreen() {
         >
           <NativeSettingsPicker
             title={<SettingsTitle>{tr('updates.source')}</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary={tr('updates.sourceDescription')} />}
-            value={update.source}
+            value={update.sourcePreference}
             options={[
+              { title: tr('updates.automaticSource'), value: 'auto' },
               { title: 'GitHub', value: 'github' },
               { title: 'CNB', value: 'cnb' },
             ]}
