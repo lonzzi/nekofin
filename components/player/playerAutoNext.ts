@@ -11,6 +11,7 @@ export function createPlayerAutoNext() {
       completion,
       activeContext,
       enabled,
+      appActive,
       itemId,
       itemType,
       nextEpisodeId,
@@ -18,12 +19,14 @@ export function createPlayerAutoNext() {
       completion: PlaybackCompletion | null;
       activeContext: object | null;
       enabled: boolean;
+      appActive: boolean;
       itemId: string;
       itemType?: string;
       nextEpisodeId?: string | null;
     }) {
       if (
         !enabled ||
+        !appActive ||
         completion?.reason !== 'ended' ||
         completion.context !== activeContext ||
         advancedContext === activeContext ||

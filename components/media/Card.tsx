@@ -208,7 +208,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
               uri={imageUrl}
               style={[styles.cover, { backgroundColor: theme.colors.surfaceMuted }]}
               placeholderBlurhash={imageInfo.blurhash}
-              cachePolicy="disk"
+              cachePolicy={Platform.OS === 'android' ? 'memory-disk' : 'disk'}
               contentFit="cover"
             />
             {showPlayButton && (
@@ -394,7 +394,7 @@ export const SeriesCard = React.memo(function SeriesCard({
             uri={imageUrl}
             style={[styles.posterCover, { backgroundColor: theme.colors.surfaceMuted }]}
             placeholderBlurhash={imageInfo.blurhash}
-            cachePolicy="disk"
+            cachePolicy={Platform.OS === 'android' ? 'memory-disk' : 'disk'}
             contentFit="cover"
           />
         </CoverFrame>
