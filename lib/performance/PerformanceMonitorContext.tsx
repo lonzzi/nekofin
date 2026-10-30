@@ -1,5 +1,7 @@
 import { storage } from '@/lib/storage';
 import { useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
+import { getNetworkStateAsync } from 'expo-network';
 import { useGlobalSearchParams, usePathname } from 'expo-router';
 import {
   createContext,
@@ -7,11 +9,16 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
+import { AppState } from 'react-native';
 
+import { captureAxiosDiagnostics } from './axiosDiagnostics';
+import { readDiagnosticEnvironment } from './diagnosticEnvironment';
+import { formatDiagnosticReport, sanitizeDiagnosticData } from './diagnosticReport';
 import { readNativePerformanceSnapshot } from './nativePerformance';
 import {
   clearStoredPerformanceLogs,
@@ -94,7 +101,7 @@ type NativeTransitionTrace = {
 
 const STORAGE_KEY = 'performanceMonitor.settings.v1';
 const SAMPLE_BUFFER_SIZE = 300;
-const EVENT_BUFFER_SIZE = 240;
+const EVENT_BUFFER_SIZE = 600;
 const LOG_PERSIST_THROTTLE_MS = 5000;
 const DEFAULT_SETTINGS: PerformanceMonitorSettings = {
   enabled: false,
@@ -190,6 +197,10 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
   }, []);
   const [settings, setSettings] = useState(loadSettings);
   const effectiveSettings = isUnlocked ? settings : LOCKED_SETTINGS;
+  const captureSettingsRef = useRef(effectiveSettings);
+  useLayoutEffect(() => {
+    captureSettingsRef.current = effectiveSettings;
+  }, [effectiveSettings]);
   const sampleBufferRef = useRef(createRingBuffer<PerformanceSample>(SAMPLE_BUFFER_SIZE));
   const eventBufferRef = useRef(createRingBuffer<PerformanceEvent>(EVENT_BUFFER_SIZE));
   const didHydrateStoredLogsRef = useRef(false);
@@ -215,32 +226,37 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
     storage.set(STORAGE_KEY, JSON.stringify(settings));
   }, [settings]);
 
-  const persistLogs = useCallback(
-    (force = false) => {
-      if (!effectiveSettings.enabled || !effectiveSettings.persistentLogsEnabled) return;
+  const persistLogs = useCallback((force = false) => {
+    if (!captureSettingsRef.current.enabled || !captureSettingsRef.current.persistentLogsEnabled)
+      return;
 
-      const timestamp = Date.now();
-      if (!force && timestamp - lastLogPersistedAtRef.current < LOG_PERSIST_THROTTLE_MS) return;
+    const timestamp = Date.now();
+    if (!force && timestamp - lastLogPersistedAtRef.current < LOG_PERSIST_THROTTLE_MS) return;
 
-      lastLogPersistedAtRef.current = timestamp;
+    lastLogPersistedAtRef.current = timestamp;
+    try {
       saveStoredPerformanceLogs({
         events: eventBufferRef.current.toArray(),
         samples: sampleBufferRef.current.toArray(),
       });
-    },
-    [effectiveSettings.enabled, effectiveSettings.persistentLogsEnabled],
-  );
+    } catch {
+      // Diagnostic storage must not interrupt playback when the disk is full.
+    }
+  }, []);
 
   const recordEvent = useCallback(
     (event: Omit<PerformanceEvent, 'id' | 'timestamp'>) => {
-      if (!effectiveSettings.enabled) return;
+      if (!captureSettingsRef.current.enabled) return;
       eventBufferRef.current.push({
-        ...event,
+        ...(sanitizeDiagnosticData(event) as typeof event),
         id: makeEventId(event.type),
         timestamp: Date.now(),
       });
+      persistLogs(
+        event.status === 'error' || (event.type === 'playback' && event.name !== 'player.snapshot'),
+      );
     },
-    [effectiveSettings.enabled],
+    [persistLogs],
   );
 
   const mark = useCallback(
@@ -253,7 +269,7 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
   const beginTrace = useCallback(
     (name: string, type: PerformanceEventType = 'trace', detail?: string): TraceHandle => {
       const id = makeEventId(type);
-      if (!effectiveSettings.enabled) {
+      if (!captureSettingsRef.current.enabled) {
         return { end: () => undefined, id };
       }
 
@@ -263,6 +279,7 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
         startedAt: now(),
         type,
       });
+      if (type === 'network') recordEvent({ name, detail, type, status: 'pending' });
 
       return {
         end: (status: PerformanceEventStatus = 'ok', endDetail?: string) => {
@@ -287,7 +304,7 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
         id,
       };
     },
-    [effectiveSettings.enabled, effectiveSettings.slowTraceThresholdMs, recordEvent],
+    [effectiveSettings.slowTraceThresholdMs, recordEvent],
   );
 
   const traceNavigation = useCallback(
@@ -433,11 +450,19 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
 
   const updateSettings = useCallback((patch: Partial<PerformanceMonitorSettings>) => {
     setSettings((current) => {
-      if (current.enabled && patch.enabled === false && current.persistentLogsEnabled) {
-        saveStoredPerformanceLogs({
-          events: eventBufferRef.current.toArray(),
-          samples: sampleBufferRef.current.toArray(),
-        });
+      if (
+        current.enabled &&
+        current.persistentLogsEnabled &&
+        (patch.enabled === false || patch.persistentLogsEnabled === false)
+      ) {
+        try {
+          saveStoredPerformanceLogs({
+            events: eventBufferRef.current.toArray(),
+            samples: sampleBufferRef.current.toArray(),
+          });
+        } catch {
+          /* In-memory records can still be exported. */
+        }
         lastLogPersistedAtRef.current = Date.now();
       }
 
@@ -448,24 +473,65 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
   const exportText = useCallback(() => {
     const samples = sampleBufferRef.current.toArray();
     const events = eventBufferRef.current.toArray();
-    const summary = summarizePerformanceSamples(samples);
-    return JSON.stringify(
-      {
-        events,
-        generatedAt: new Date().toISOString(),
-        nativeMetrics: {
-          lastError: samples[samples.length - 1]?.nativeMetricsError,
-          sampleCount: samples.filter((sample) => sample.nativeMetricsAvailable).length,
-          source: 'react-native-performance-toolkit',
-        },
-        samples,
-        settings: effectiveSettings,
-        summary,
+    return formatDiagnosticReport({
+      events,
+      generatedAt: new Date().toISOString(),
+      environment: readDiagnosticEnvironment(),
+      samples,
+      settings: {
+        ...effectiveSettings,
+        eventLimit: EVENT_BUFFER_SIZE,
+        sampleLimit: SAMPLE_BUFFER_SIZE,
       },
-      null,
-      2,
-    );
+      pendingTraces: [...activeTracesRef.current.values()].map((trace) => ({
+        ...trace,
+        durationMs: now() - trace.startedAt,
+      })),
+    });
   }, [effectiveSettings]);
+
+  useEffect(() => {
+    if (!effectiveSettings.enabled) {
+      activeTracesRef.current.clear();
+      pendingNavigationRef.current = null;
+      nativeTransitionsRef.current.clear();
+      return;
+    }
+    recordEvent({
+      name: 'diagnostics.capture.started',
+      type: 'mark',
+      status: 'ok',
+      data: readDiagnosticEnvironment(),
+    });
+    let cancelled = false;
+    const readNetwork = () => {
+      void getNetworkStateAsync()
+        .then((network) => {
+          if (!cancelled)
+            recordEvent({ name: 'diagnostics.network', type: 'mark', status: 'ok', data: network });
+        })
+        .catch((error) => {
+          if (!cancelled)
+            recordEvent({
+              name: 'diagnostics.network.failed',
+              type: 'mark',
+              status: 'error',
+              data: { error },
+            });
+        });
+    };
+    readNetwork();
+    const listener = AppState.addEventListener('change', (state) => {
+      recordEvent({ name: 'application.state', type: 'mark', status: 'ok', data: { state } });
+      if (state !== 'active') persistLogs(true);
+      else readNetwork();
+    });
+    return () => {
+      cancelled = true;
+      listener.remove();
+      persistLogs(true);
+    };
+  }, [effectiveSettings.enabled, recordEvent, persistLogs]);
 
   useEffect(() => {
     if (!effectiveSettings.enabled) return;
@@ -556,6 +622,7 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
     if (!effectiveSettings.enabled || !effectiveSettings.networkCaptureEnabled) return;
 
     const originalFetch = globalThis.fetch;
+    const stopAxiosCapture = captureAxiosDiagnostics(axios, (name) => beginTrace(name, 'network'));
     const monitoredFetch: typeof fetch = async (input, init) => {
       const method = getFetchInputMethod(input, init);
       const url = getFetchInputUrl(input);
@@ -574,6 +641,7 @@ export function PerformanceMonitorProvider({ children }: PropsWithChildren) {
     globalThis.fetch = monitoredFetch;
 
     return () => {
+      stopAxiosCapture();
       if (globalThis.fetch === monitoredFetch) {
         globalThis.fetch = originalFetch;
       }

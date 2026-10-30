@@ -23,8 +23,8 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
 import { useQueryClient } from '@tanstack/react-query';
-import { BlurView } from 'expo-blur';
-import React, { useCallback, useMemo } from 'react';
+import { BlurTargetView, BlurView } from 'expo-blur';
+import React, { useCallback, useMemo, useRef } from 'react';
 import {
   Platform,
   Pressable,
@@ -176,6 +176,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
 }) {
   const { t: tr } = useTranslation();
   const router = useTracedRouter('episode-card');
+  const blurTarget = useRef<View>(null);
   const queryClient = useQueryClient();
   const { currentServer, setCurrentServer } = useMediaServers();
   const theme = useAppTheme();
@@ -238,18 +239,21 @@ export const EpisodeCard = React.memo(function EpisodeCard({
       <View style={[styles.card, { width: 200 }, style]}>
         <ShadowedGlassCard radius={12} surface="transparent">
           <CoverFrame aspectRatio={16 / 9} emphasized={showBorder} radius={14}>
-            <ItemImage
-              uri={imageUrl}
-              style={[styles.cover, { backgroundColor: theme.colors.surfaceMuted }]}
-              placeholderBlurhash={imageInfo.blurhash}
-              cachePolicy="memory-disk"
-              contentFit="cover"
-            />
+            <BlurTargetView ref={blurTarget} style={StyleSheet.absoluteFill}>
+              <ItemImage
+                uri={imageUrl}
+                style={[styles.cover, { backgroundColor: theme.colors.surfaceMuted }]}
+                placeholderBlurhash={imageInfo.blurhash}
+                cachePolicy="memory-disk"
+                contentFit="cover"
+              />
+            </BlurTargetView>
             {showPlayButton && (
               <BlurView
                 intensity={36}
                 tint="systemUltraThinMaterialDark"
                 blurMethod="dimezisBlurViewSdk31Plus"
+                blurTarget={blurTarget}
                 blurReductionFactor={2}
                 style={styles.playButton}
                 pointerEvents="none"

@@ -146,6 +146,8 @@ export function PlayerActionBar() {
     onMediaSourceChange,
     quality = 'auto',
     onQualityChange,
+    decodingMode,
+    onDecodingModeChange,
   } = usePlayer();
   const { settings, setSettings } = useDanmakuSettings();
   const [autoSkipIntro = false, setAutoSkipIntro] = useMMKVBoolean(
@@ -202,6 +204,7 @@ export function PlayerActionBar() {
         brightnessGestureEnabled,
         volumeGestureEnabled,
         seekGestureEnabled,
+        decodingMode,
       }),
       ...deriveAutoSkipMenuActions({ intro: autoSkipIntro, outro: autoSkipOutro }, tr),
     ],
@@ -217,6 +220,7 @@ export function PlayerActionBar() {
       brightnessGestureEnabled,
       volumeGestureEnabled,
       seekGestureEnabled,
+      decodingMode,
     ],
   );
   const qualityMenuActions = useMemo(() => deriveQualityMenuActions(quality, tr), [quality, tr]);
@@ -264,6 +268,8 @@ export function PlayerActionBar() {
         onRateChange?.(selection.rate);
       } else if (selection?.kind === 'aspectRatio') {
         onAspectRatioChange?.(selection.aspectRatio);
+      } else if (selection?.kind === 'decoding') {
+        onDecodingModeChange?.(selection.mode);
       } else if (selection?.kind === 'chapter' && canSeek && duration > 0) {
         onSeek(selection.timeMs / duration);
       } else if (selection?.kind === 'autoSkipIntro') {
@@ -280,6 +286,7 @@ export function PlayerActionBar() {
     },
     [
       onAspectRatioChange,
+      onDecodingModeChange,
       onRateChange,
       canSeek,
       duration,

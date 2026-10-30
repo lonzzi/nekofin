@@ -1,8 +1,9 @@
 import { useAppTheme } from '@/lib/theme';
-import { Image, ImageProps, ImageStyle } from 'expo-image';
+import { ImageProps, ImageStyle } from 'expo-image';
 import { ReactNode, useMemo, useState } from 'react';
 import { Platform, StyleProp, StyleSheet, View } from 'react-native';
 
+import { RetryableImage } from './RetryableImage';
 import { IconSymbol } from './ui/IconSymbol';
 
 type ItemImageProps = {
@@ -47,7 +48,6 @@ function ItemImageContent({
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const imageLoaded = !!uri && status === 'loaded';
   const theme = useAppTheme();
-  const source = useMemo(() => (uri ? { uri } : undefined), [uri]);
   const placeholder = useMemo(
     () => (placeholderBlurhash ? { blurhash: placeholderBlurhash } : undefined),
     [placeholderBlurhash],
@@ -72,8 +72,8 @@ function ItemImageContent({
         </View>
       ) : null}
       {uri && status !== 'error' ? (
-        <Image
-          source={source}
+        <RetryableImage
+          uri={uri}
           style={StyleSheet.absoluteFill}
           placeholder={placeholder}
           cachePolicy={cachePolicy}

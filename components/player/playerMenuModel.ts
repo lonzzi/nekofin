@@ -8,6 +8,11 @@ import { playbackSourceLabel } from '@/services/media/playbackSelection';
 import type { MediaChapter, MediaSource } from '@/services/media/types';
 import type { MenuAction } from '@react-native-menu/menu';
 
+import {
+  parsePlaybackDecodingMode,
+  PLAYBACK_DECODING_MODES,
+  type PlaybackDecodingMode,
+} from './playbackDecoding';
 import type { MediaTrack, MediaTracks, TrackInfo } from './PlayerContext';
 
 export const PLAYER_MENU_ACTION_IDS = {
@@ -28,6 +33,7 @@ const RATE_PREFIX = 'playback:rate:';
 const ASPECT_PREFIX = 'playback:aspect:';
 const QUALITY_PREFIX = 'playback:quality:';
 const CHAPTER_PREFIX = 'playback:chapter:';
+const DECODING_PREFIX = 'playback:decoding:';
 
 export const PLAYER_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
 
@@ -62,6 +68,7 @@ export type PlayerMenuSelection =
   | { kind: 'mediaSource'; id: string }
   | { kind: 'rate'; rate: number }
   | { kind: 'quality'; quality: PlaybackQuality }
+  | { kind: 'decoding'; mode: PlaybackDecodingMode }
   | { kind: 'chapter'; timeMs: number }
   | { aspectRatio: string; kind: 'aspectRatio' };
 
@@ -195,7 +202,17 @@ export function derivePlaybackMenuActions(
   rate: number,
   aspectRatio = 'fit',
   translate = tr,
-  { brightnessGestureEnabled = true, volumeGestureEnabled = true, seekGestureEnabled = true } = {},
+  {
+    brightnessGestureEnabled = true,
+    volumeGestureEnabled = true,
+    seekGestureEnabled = true,
+    decodingMode,
+  }: {
+    brightnessGestureEnabled?: boolean;
+    volumeGestureEnabled?: boolean;
+    seekGestureEnabled?: boolean;
+    decodingMode?: PlaybackDecodingMode;
+  } = {},
 ): MenuAction[] {
   const aspectLabel =
     PLAYER_ASPECT_OPTIONS.find((option) => option.value === aspectRatio)?.label ?? aspectRatio;
@@ -239,6 +256,20 @@ export function derivePlaybackMenuActions(
         },
       ],
     },
+    ...(decodingMode
+      ? [
+          {
+            title: translate('player.selectedDecodingMode', {
+              value: translate(`player.decoding.${decodingMode}`),
+            }),
+            subactions: PLAYBACK_DECODING_MODES.map((mode) => ({
+              id: `${DECODING_PREFIX}${mode}`,
+              title: translate(`player.decoding.${mode}`),
+              state: selectedState(mode === decodingMode),
+            })),
+          },
+        ]
+      : []),
   ];
 }
 
@@ -297,6 +328,10 @@ export function deriveChapterMenuAction(
 }
 
 export function parsePlayerMenuAction(actionId: string): PlayerMenuSelection | null {
+  if (actionId.startsWith(DECODING_PREFIX)) {
+    const mode = parsePlaybackDecodingMode(actionId.slice(DECODING_PREFIX.length));
+    return mode ? { kind: 'decoding', mode } : null;
+  }
   if (actionId.startsWith(CHAPTER_PREFIX)) {
     const value = actionId.slice(CHAPTER_PREFIX.length);
     const timeMs = Number(value);

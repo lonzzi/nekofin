@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/SettingsVisual';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useTranslation } from '@/lib/i18n';
+import { exportDiagnosticLog } from '@/lib/performance/exportDiagnosticLog';
 import {
   formatDurationMs,
   formatFps,
@@ -22,8 +23,8 @@ import {
 } from '@/lib/performance/performanceMetrics';
 import { usePerformanceMonitor } from '@/lib/performance/PerformanceMonitorContext';
 import { usePerformanceDiagnosticsUnlock } from '@/lib/performance/usePerformanceDiagnosticsUnlock';
-import { useCallback } from 'react';
-import { Share } from 'react-native';
+import { toast } from '@/lib/toast';
+import { useCallback, useState } from 'react';
 
 export default function PerformanceSettingsScreen() {
   const { t: tr } = useTranslation();
@@ -31,14 +32,19 @@ export default function PerformanceSettingsScreen() {
   const monitor = usePerformanceMonitor();
   const { clear, exportText, settings, snapshot, updateSettings } = monitor;
   const { lock } = usePerformanceDiagnosticsUnlock();
-  const hasDiagnosticLogs = snapshot.samples.length > 0 || snapshot.events.length > 0;
+  const [exporting, setExporting] = useState(false);
 
-  const handleExport = useCallback(() => {
-    void Share.share({
-      message: exportText(),
-      title: 'Nekofin performance trace',
-    });
-  }, [exportText]);
+  const handleExport = useCallback(async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportDiagnosticLog(exportText(), tr('diagnostics.exportLog'));
+    } catch {
+      toast.error(tr('diagnostics.exportFailed'));
+    } finally {
+      setExporting(false);
+    }
+  }, [exportText, exporting, tr]);
 
   const handleHideDiagnostics = useCallback(() => {
     updateSettings({ enabled: false, overlayVisible: false });
@@ -107,6 +113,22 @@ export default function PerformanceSettingsScreen() {
       </NativeSettingsSection>
 
       <NativeSettingsSection title={tr('diagnostics.liveMetrics')}>
+        <NativeSettingsItem
+          title={<SettingsTitle>{tr('diagnostics.collectionStatus')}</SettingsTitle>}
+          subtitle={
+            <SettingsSubtitle
+              primary={tr('diagnostics.recordCounts', {
+                samples: snapshot.samples.length,
+                events: snapshot.events.length,
+              })}
+            />
+          }
+          value={
+            settings.enabled
+              ? tr('diagnostics.collectionActive')
+              : tr('diagnostics.collectionStopped')
+          }
+        />
         <NativeSettingsItem
           title={<SettingsTitle>{tr('diagnostics.nativeMetrics')}</SettingsTitle>}
           subtitle={
@@ -182,12 +204,11 @@ export default function PerformanceSettingsScreen() {
       <NativeSettingsSection title={tr('diagnostics.data')}>
         <NativeSettingsItem
           title={
-            <SettingsActionTitle tone={hasDiagnosticLogs ? 'accent' : 'muted'}>
-              {tr('diagnostics.exportJson')}
-            </SettingsActionTitle>
+            <SettingsActionTitle tone="accent">{tr('diagnostics.exportLog')}</SettingsActionTitle>
           }
-          onPress={handleExport}
-          disabled={!hasDiagnosticLogs}
+          subtitle={<SettingsSubtitle primary={tr('diagnostics.exportDescription')} lines={3} />}
+          onPress={() => void handleExport()}
+          disabled={exporting}
         />
         <NativeSettingsItem
           title={<SettingsActionTitle>{tr('diagnostics.clearRecords')}</SettingsActionTitle>}

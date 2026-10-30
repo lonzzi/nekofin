@@ -7,6 +7,7 @@ import { createContext, useContext } from 'react';
 import { SharedValue } from 'react-native-reanimated';
 
 import type { PlayerPanelRoute } from './panels/playerPanelRoute';
+import type { PlaybackDecodingMode } from './playbackDecoding';
 import type { PlaybackSourceInfo } from './playbackInfo';
 
 export type TrackInfo = {
@@ -70,6 +71,8 @@ export type PlayerContextValue = {
   onMediaSourceChange?: (id: string) => void;
   quality?: PlaybackQuality;
   onQualityChange?: (quality: PlaybackQuality) => void;
+  decodingMode?: PlaybackDecodingMode;
+  onDecodingModeChange?: (mode: PlaybackDecodingMode) => void;
   playbackSourceInfo?: PlaybackSourceInfo;
   readPlaybackMediaInfo?: () => Promise<MediaInfo | null>;
   aspectRatio?: string;

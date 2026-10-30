@@ -42,13 +42,14 @@ import {
   useState,
 } from 'react';
 import { ActivityIndicator, Alert, AppState, Platform, StyleSheet, Text, View } from 'react-native';
-import { useMMKVBoolean } from 'react-native-mmkv';
+import { useMMKVBoolean, useMMKVString } from 'react-native-mmkv';
 import { useSharedValue } from 'react-native-reanimated';
 
 import { usePlaybackSync } from '../../hooks/usePlaybackSync';
 import { Controls } from './Controls';
 import { DanmakuLayer, DanmakuLayerRef } from './DanmakuLayer';
 import { createExternalSubtitleCache } from './externalSubtitleCache';
+import { parsePlaybackDecodingMode, playbackHwdec } from './playbackDecoding';
 import { derivePlaybackSourceInfo } from './playbackInfo';
 import {
   acknowledgePlaybackSeek,
@@ -96,6 +97,7 @@ import {
   selectPlayerSubtitleTrack,
 } from './playerTrackLoading';
 import { createSubtitleFontController } from './subtitleFontSettings';
+import { usePlaybackDiagnostics } from './usePlaybackDiagnostics';
 import { usePlayerQueries } from './usePlayerQueries';
 
 type BufferInfo = { percent: number; rate: number };
@@ -155,9 +157,11 @@ export const VideoPlayer = ({
   const [isLoaded, setIsLoaded] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
   const [initialTime, setInitialTime] = useState<number>(-1);
-  const [sourceStart, setSourceStart] = useState<{ context: object; positionMs: number } | null>(
-    null,
-  );
+  const [sourceStart, setSourceStart] = useState<{
+    context: object;
+    positionMs: number;
+    paused: boolean;
+  } | null>(null);
   const [playbackAttempt, setPlaybackAttempt] = useState(0);
   const [loadFailure, setLoadFailure] = useState<string | null>(null);
   const [rate, setRate] = useState(() => storage.getNumber('playback.defaultRate') ?? 1);
@@ -267,6 +271,12 @@ export const VideoPlayer = ({
     [quality, playbackDefaults],
   );
 
+  const [storedDecodingMode, setStoredDecodingMode] = useMMKVString(
+    'playback.decodingMode',
+    storage,
+  );
+  const decodingMode = parsePlaybackDecodingMode(storedDecodingMode) ?? 'auto';
+  const hwdec = Platform.OS === 'web' ? undefined : playbackHwdec(decodingMode, Platform.OS);
   const player = useRef<ExpoMpvViewRef>(null);
   const isExitingRef = useRef(false);
   const exitPreparation = useContext(PlayerExitPreparationContext);
@@ -507,8 +517,8 @@ export const VideoPlayer = ({
   ]);
 
   const playbackContext = useMemo(
-    () => ({ itemId, sourceUrl: playbackSourceUrl, playbackAttempt }),
-    [itemId, playbackSourceUrl, playbackAttempt],
+    () => ({ itemId, sourceUrl: playbackSourceUrl, playbackAttempt, decodingMode }),
+    [itemId, playbackSourceUrl, playbackAttempt, decodingMode],
   );
 
   useLayoutEffect(() => {
@@ -588,6 +598,21 @@ export const VideoPlayer = ({
     const info = await target.getMediaInfo();
     return isPlaybackContextActive(playbackContext, target) ? info : null;
   }, [playbackContext, isPlaybackContextActive]);
+  const { record: recordPlaybackDiagnostic, recordProgress: recordPlaybackProgress } =
+    usePlaybackDiagnostics({
+      context: playbackContext,
+      player,
+      itemId,
+      title: formatPlayerTitle(itemDetail),
+      source: streamInfo?.mediaSource,
+      url: playbackSourceUrl,
+      selection: playbackSelection,
+      sourceInfo: playbackSourceInfo,
+      loaded: isLoaded,
+      buffering: isBuffering,
+      state: playbackState,
+      appActive,
+    });
   const handleQualityChange = useCallback(
     async (next: PlaybackQuality) => {
       if (next === quality) return;
@@ -745,7 +770,7 @@ export const VideoPlayer = ({
     setHdrState(null);
     setBufferInfo(null);
     isBufferingRef.current = false;
-  }, [clearPlaybackSeekWatchdog, currentTime, playbackSourceUrl, playbackAttempt]);
+  }, [clearPlaybackSeekWatchdog, currentTime, playbackSourceUrl, playbackAttempt, decodingMode]);
 
   const handleCommentsLoaded = (data: DanmakuCommentsData) => {
     setManualDanmaku(data);
@@ -863,12 +888,27 @@ export const VideoPlayer = ({
             subtitle != null &&
             subtitle !== ids.sid
           ) {
+            recordPlaybackDiagnostic(
+              'subtitle.native-select.started',
+              { serverIndex: chosenSubtitle, nativeId: subtitle, previousNativeId: ids.sid },
+              'pending',
+            );
             selectedIds = await selectPlayerSubtitleTrack(targetPlayer, subtitle, isActive);
             if (!selectedIds) return;
+            recordPlaybackDiagnostic('subtitle.native-select.confirmed', {
+              serverIndex: chosenSubtitle,
+              nativeId: subtitle,
+              selectedIds,
+            });
           }
         }
         const confirmedIds = selectedIds ?? (await targetPlayer.getCurrentTrackIds());
         if (isActive()) {
+          recordPlaybackDiagnostic('player.tracks', {
+            tracks: list,
+            selectedIds: confirmedIds,
+            requestedSubtitle: chosenSubtitle,
+          });
           setCurrentTrackIds(confirmedIds);
           if (source?.Id && list) {
             setNativeSubtitleState({
@@ -885,6 +925,12 @@ export const VideoPlayer = ({
           }
         }
       } catch (e) {
+        if (isActive())
+          recordPlaybackDiagnostic(
+            'player.tracks.failed',
+            { error: e, requestedSubtitle: chosenSubtitle },
+            'error',
+          );
         if (isActive() && chosenSubtitle != null) {
           subtitleChoiceRef.current = null;
           setSubtitleChoice(null);
@@ -898,7 +944,7 @@ export const VideoPlayer = ({
         console.warn('refreshMpvTracks error:', e);
       }
     },
-    [streamInfo, playbackSelection, preferences, itemId],
+    [streamInfo, playbackSelection, preferences, itemId, recordPlaybackDiagnostic],
   );
 
   const externalSubtitles = useMemo(() => {
@@ -931,13 +977,14 @@ export const VideoPlayer = ({
 
   const retryPlayback = useCallback(() => {
     if (!isMountedRef.current) return;
+    recordPlaybackDiagnostic('player.retry', { state: playbackStateRef.current });
     // Invalidate the old view immediately: mpv sends END_FILE after onError,
     // and that late event must not stop or report the replacement playback.
     activePlaybackContextRef.current = null;
     resumePausedRef.current ||= playbackStateRef.current === 'paused';
     setLoadFailure(null);
     setPlaybackAttempt((attempt) => attempt + 1);
-  }, []);
+  }, [recordPlaybackDiagnostic]);
 
   useEffect(() => {
     if (!loadFailure) return;
@@ -1017,7 +1064,11 @@ export const VideoPlayer = ({
     if (initialTime < 0 || !playbackContext.sourceUrl) return;
     // Snapshot each load after the initial item position has been restored. Source
     // changes and retries capture the live position without reading it during render.
-    setSourceStart({ context: playbackContext, positionMs: currentTime.get() });
+    setSourceStart({
+      context: playbackContext,
+      positionMs: currentTime.get(),
+      paused: resumePausedRef.current,
+    });
   }, [currentTime, initialTime, playbackContext]);
 
   useEffect(() => {
@@ -1099,12 +1150,47 @@ export const VideoPlayer = ({
           const request = loads.requests.load(
             key,
             async () => {
+              const startedAt = Date.now();
+              recordPlaybackDiagnostic(
+                'track.prepare.started',
+                { type, index: track.index, name: track.name, url: track.url },
+                'pending',
+              );
               try {
                 const prepared =
                   type === 'sub' ? await loads.subtitleCache.prepare(track, isActive) : track;
                 if (!prepared || !isActive()) return;
-                return await loadExternalPlayerTrack(targetPlayer, type, prepared, isActive);
+                recordPlaybackDiagnostic('track.prepare.ready', {
+                  type,
+                  index: track.index,
+                  elapsedMs: Date.now() - startedAt,
+                });
+                recordPlaybackDiagnostic(
+                  'track.native-add.started',
+                  { type, index: track.index },
+                  'pending',
+                );
+                const nativeId = await loadExternalPlayerTrack(
+                  targetPlayer,
+                  type,
+                  prepared,
+                  isActive,
+                );
+                if (isActive())
+                  recordPlaybackDiagnostic('track.native-add.completed', {
+                    type,
+                    index: track.index,
+                    nativeId,
+                    elapsedMs: Date.now() - startedAt,
+                  });
+                return nativeId;
               } catch (error) {
+                if (isActive())
+                  recordPlaybackDiagnostic(
+                    'track.load.failed',
+                    { type, index: track.index, elapsedMs: Date.now() - startedAt, error },
+                    'error',
+                  );
                 console.warn('External player track load failed', {
                   type,
                   index: track.index,
@@ -1154,6 +1240,7 @@ export const VideoPlayer = ({
     streamInfo?.mediaSource,
     preferredExternalSubtitleIndex,
     subtitleChoice,
+    recordPlaybackDiagnostic,
   ]);
 
   const handlePlayPause = useCallback(() => {
@@ -1209,6 +1296,11 @@ export const VideoPlayer = ({
       playbackSeekGateRef.current = requestedState;
       const pendingSeek = requestedState.pendingSeek;
       if (!pendingSeek) return;
+      recordPlaybackDiagnostic(
+        'player.seek.started',
+        { targetTimeMs, generation: pendingSeek.generation },
+        'pending',
+      );
 
       clearPlaybackSeekWatchdog();
       setIsNativeSeeking(true);
@@ -1227,19 +1319,26 @@ export const VideoPlayer = ({
         );
         playbackSeekGateRef.current = recovered.state;
         if (recovered.completion) applyPlaybackSeekCompletion(recovered.completion);
+        recordPlaybackDiagnostic(
+          'player.seek.watchdog',
+          { generation, recovered: !!recovered.completion },
+          'slow',
+        );
       }, PLAYBACK_SEEK_WATCHDOG_MS);
 
       void playerView
         .seekTo(pendingSeek.targetTimeMs / 1000)
         .then(() => {
           if (!isPlaybackContextActive(requestContext, playerView)) return;
+          recordPlaybackDiagnostic('player.seek.command-completed', { generation });
           playbackSeekGateRef.current = resolvePlaybackSeekCommand(
             playbackSeekGateRef.current,
             generation,
           );
         })
-        .catch(() => {
+        .catch((error) => {
           if (!isPlaybackContextActive(requestContext, playerView)) return;
+          recordPlaybackDiagnostic('player.seek.failed', { generation, error }, 'error');
           const failed = failPlaybackSeek(
             playbackSeekGateRef.current,
             generation,
@@ -1255,6 +1354,7 @@ export const VideoPlayer = ({
       currentTime,
       isPlaybackContextActive,
       rate,
+      recordPlaybackDiagnostic,
     ],
   );
 
@@ -1320,6 +1420,20 @@ export const VideoPlayer = ({
 
   const handleSubtitleTrackChange = useCallback(
     async (trackId: number) => {
+      recordPlaybackDiagnostic(
+        'subtitle.selection.requested',
+        {
+          serverIndex: trackId,
+          sourceId: subtitleMenuSource?.id,
+          loaded: isPlayerReadyRef.current,
+          requiresServerSwitch: requiresServerSubtitleSwitch(
+            streamInfo?.mediaSource,
+            trackId,
+            playbackSourceUrl,
+          ),
+        },
+        'pending',
+      );
       if (requiresServerSubtitleSwitch(streamInfo?.mediaSource, trackId, playbackSourceUrl)) {
         changeServerTrack('subtitle', trackId);
         return;
@@ -1375,6 +1489,7 @@ export const VideoPlayer = ({
       menuTracks.subtitle,
       externalSubtitles,
       itemId,
+      recordPlaybackDiagnostic,
     ],
   );
 
@@ -1479,16 +1594,19 @@ export const VideoPlayer = ({
       initialTime >= 0 &&
       !loadFailure ? (
         <ExpoMpvView
-          key={`${itemId}:${playbackSourceUrl}:${playbackAttempt}`}
+          key={`${itemId}:${playbackSourceUrl}:${playbackAttempt}:${decodingMode}`}
           ref={player}
           style={styles.video}
           source={playbackSourceUrl}
           startPosition={deriveStartPositionSeconds(sourceStart.positionMs, duration)}
+          paused={sourceStart.paused}
           speed={rate}
+          hwdec={hwdec}
           showNotificationControls
           metadata={mediaMetadata}
           onPlaybackStateChange={({ nativeEvent }) => {
             if (!isPlaybackContextActive(playbackContext)) return;
+            recordPlaybackDiagnostic('player.state', nativeEvent);
             playbackStateRef.current = nativeEvent.state;
             setPlaybackState(nativeEvent.state);
             setIsPlaying(nativeEvent.state !== 'ended' && nativeEvent.isPlaying);
@@ -1511,6 +1629,7 @@ export const VideoPlayer = ({
             ) {
               return;
             }
+            recordPlaybackProgress(nativeEvent);
             const positionMs = nativeEvent.position * 1000;
             const decision = evaluatePlaybackProgress({
               isPlaying: playbackStateRef.current === 'playing',
@@ -1584,6 +1703,7 @@ export const VideoPlayer = ({
           }}
           onLoad={({ nativeEvent }) => {
             if (!isPlaybackContextActive(playbackContext)) return;
+            recordPlaybackDiagnostic('player.loaded', nativeEvent);
             isPlayerReadyRef.current = true;
             loadedSourceRef.current = playbackSourceUrl;
             // Fill crops the video, so keep plain-text subtitles within the screen.
@@ -1609,10 +1729,16 @@ export const VideoPlayer = ({
           }}
           onBuffer={({ nativeEvent }) => {
             if (!isPlaybackContextActive(playbackContext)) return;
+            recordPlaybackDiagnostic(
+              'player.buffer',
+              nativeEvent,
+              nativeEvent.isBuffering ? 'pending' : 'ok',
+            );
             setIsBuffering(nativeEvent.isBuffering);
           }}
           onError={({ nativeEvent }) => {
             if (!isPlaybackContextActive(playbackContext)) return;
+            recordPlaybackDiagnostic('player.error', nativeEvent, 'error');
             // mpv reports async sub-add/audio-add failures through the same event
             // as video failures. The loader handles missing tracks separately.
             if (isExternalTrackCommandError(nativeEvent.error)) return;
@@ -1632,6 +1758,8 @@ export const VideoPlayer = ({
             setLoadFailure(playbackFailureMessage(nativeEvent.error));
           }}
           onEnd={({ nativeEvent }) => {
+            if (isPlaybackContextActive(playbackContext))
+              recordPlaybackDiagnostic('player.end', nativeEvent);
             if (nativeEvent.reason === 'ended') completePlayback(playbackContext);
           }}
         />
@@ -1694,6 +1822,20 @@ export const VideoPlayer = ({
               setSubtitleChoice(null);
               resumePausedRef.current = !isPlaying;
               setVersionChoice({ itemId, id });
+            }}
+            decodingMode={Platform.OS === 'web' ? undefined : decodingMode}
+            onDecodingModeChange={(mode) => {
+              if (mode === decodingMode) return;
+              // Changing hwdec on an active decoder can block the native player
+              // thread. A fresh view applies the choice before loading media.
+              activePlaybackContextRef.current = null;
+              if (isPlayerReadyRef.current) resumePausedRef.current = !isPlaying;
+              recordPlaybackDiagnostic('player.decoder.requested', {
+                mode,
+                hwdec: playbackHwdec(mode, Platform.OS),
+                restart: true,
+              });
+              setStoredDecodingMode(mode);
             }}
             quality={quality}
             onQualityChange={handleQualityChange}
