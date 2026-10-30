@@ -18,6 +18,7 @@ class AppInstallerModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Name("AppInstaller")
+    Constants("supportedUpdateSources" to listOf("github", "cnb"))
     Function("setLocalizedStrings") { json: String -> downloads().setLocalizedStrings(json) }
     AsyncFunction("startDownloadAsync") { json: String, automatic: Boolean -> downloads().start(json, automatic) }
     AsyncFunction("getDownloadAsync") { downloads().snapshot() }

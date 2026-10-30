@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
   install: vi.fn(),
   available: true,
   platform: 'android',
+  sources: undefined as string[] | undefined,
 }));
 vi.mock('expo', () => ({
   requireOptionalNativeModule: () =>
@@ -20,6 +21,7 @@ vi.mock('expo', () => ({
           setPlaybackActiveAsync: state.playing,
           prepareInstallAsync: state.prepare,
           installApkAsync: state.install,
+          supportedUpdateSources: state.sources,
         }
       : null,
 }));
@@ -46,7 +48,7 @@ const release = {
 const download = {
   release: JSON.stringify(release),
   automatic: true,
-  status: 'downloading',
+  status: 'downloading' as const,
   progress: 20,
 };
 
@@ -55,6 +57,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   state.available = true;
   state.platform = 'android';
+  state.sources = undefined;
   state.start.mockResolvedValue(download);
   state.refresh.mockResolvedValue(download);
   state.cancel.mockResolvedValue(undefined);
@@ -64,6 +67,34 @@ beforeEach(() => {
 });
 
 describe('system-owned Android downloads', () => {
+  it('uses native capability detection to keep older APKs on a manual CNB fallback', async () => {
+    let api = await import('./appInstaller');
+    expect(api.supportsInstallerSource('github')).toBe(true);
+    expect(api.supportsInstallerSource('cnb')).toBe(false);
+    state.sources = ['github', 'cnb'];
+    vi.resetModules();
+    api = await import('./appInstaller');
+    expect(api.supportsInstallerSource('cnb')).toBe(true);
+  });
+  it('restores CNB downloads only with the correct canonical URL and a SHA256', async () => {
+    const { parseInstallerDownload } = await import('./appInstaller');
+    const cnb = {
+      ...release,
+      source: 'cnb',
+      url: `https://cnb.cool/lonzzi/nekofin/-/releases/tag/${tag}`,
+      installer: {
+        ...release.installer,
+        url: `https://cnb.cool/lonzzi/nekofin/-/releases/download/${tag}/${name}`,
+      },
+    };
+    expect(parseInstallerDownload({ ...download, release: JSON.stringify(cnb) })).toMatchObject({
+      release: cnb,
+    });
+    for (const installer of [{ ...cnb.installer, sha256: null }, release.installer])
+      expect(
+        parseInstallerDownload({ ...download, release: JSON.stringify({ ...cnb, installer }) }),
+      ).toBeNull();
+  });
   it('starts a durable automatic task and restores progress without starting another task', async () => {
     const api = await import('./appInstaller');
     expect(await api.startAppInstallerDownload(release, true)).toMatchObject({

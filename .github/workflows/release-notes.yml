@@ -1,0 +1,54 @@
+name: Update bilingual release notes
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published version tag to update
+        required: true
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: ios-app-sources
+  cancel-in-progress: false
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/release-notes
+        with:
+          tag: ${{ inputs.tag }}
+          publish: 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+          CNB_REPO: ${{ vars.CNB_REPO }}
+      - name: Refresh sideloading descriptions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .github/scripts/ios-sources.cjs
+  cnb-sources:
+    needs: notes
+    if: vars.CNB_REPO != ''
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ios-app-sources-cnb
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Refresh CNB sideloading descriptions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+          CNB_REPO: ${{ vars.CNB_REPO }}
+        run: node .github/scripts/ios-sources-cnb.cjs

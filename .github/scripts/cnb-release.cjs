@@ -318,35 +318,8 @@ async function main(env = process.env, { run = execFileSync, fetchImpl = fetch }
       ...assetNames(tag).flatMap((name) => ['--pattern', name]),
     );
     const assets = await validateAssets(directory, tag);
-    run('git', ['fetch', '--no-tags', 'origin', `refs/tags/${tag}:refs/tags/${tag}`], {
-      stdio: 'pipe',
-    });
-    const commit = run('git', ['rev-parse', `refs/tags/${tag}^{commit}`], {
-      encoding: 'utf8',
-    }).trim();
     console.log(`Syncing the source tag and installer release to CNB for ${tag}...`);
-    // Keep source provenance identical without force-pushing tags or changing CNB branches.
-    const authorization = Buffer.from(`cnb:${env.CNB_TOKEN}`).toString('base64');
-    try {
-      run(
-        'git',
-        ['push', `https://cnb.cool/${repository}.git`, `refs/tags/${tag}:refs/tags/${tag}`],
-        {
-          stdio: 'pipe',
-          env: {
-            ...env,
-            GIT_TERMINAL_PROMPT: '0',
-            GIT_CONFIG_COUNT: '1',
-            GIT_CONFIG_KEY_0: 'http.https://cnb.cool/.extraHeader',
-            GIT_CONFIG_VALUE_0: `Authorization: Basic ${authorization}`,
-          },
-        },
-      );
-    } catch {
-      throw new Error(
-        'Could not push the release tag to CNB. Check repo-code permission and existing tags.',
-      );
-    }
+    const commit = syncGitTag(repository, env.CNB_TOKEN, tag, { run, env });
     const url = await mirrorRelease({
       repository,
       token: env.CNB_TOKEN,
@@ -370,6 +343,39 @@ async function main(env = process.env, { run = execFileSync, fetchImpl = fetch }
   }
 }
 
+function syncGitTag(repository, token, tag, { run = execFileSync, env = process.env } = {}) {
+  validateRepository(repository);
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9.+_-]{0,160}$/.test(tag)) throw new Error('Invalid artifact tag');
+  run('git', ['fetch', '--no-tags', 'origin', `refs/tags/${tag}:refs/tags/${tag}`], {
+    stdio: 'pipe',
+  });
+  const commit = run('git', ['rev-parse', `refs/tags/${tag}^{commit}`], {
+    encoding: 'utf8',
+  }).trim();
+  const authorization = Buffer.from(`cnb:${token}`).toString('base64');
+  try {
+    run(
+      'git',
+      ['push', `https://cnb.cool/${repository}.git`, `refs/tags/${tag}:refs/tags/${tag}`],
+      {
+        stdio: 'pipe',
+        env: {
+          ...env,
+          GIT_TERMINAL_PROMPT: '0',
+          GIT_CONFIG_COUNT: '1',
+          GIT_CONFIG_KEY_0: 'http.https://cnb.cool/.extraHeader',
+          GIT_CONFIG_VALUE_0: `Authorization: Basic ${authorization}`,
+        },
+      },
+    );
+  } catch {
+    throw new Error(
+      'Could not push the release tag to CNB. Check repo-code permission and existing tags.',
+    );
+  }
+  return commit;
+}
+
 module.exports = {
   assetNames,
   createClient,
@@ -378,6 +384,10 @@ module.exports = {
   validateAssets,
   validateRepository,
   withMirrorNotes,
+  withoutMirrorNotes,
+  syncGitTag,
+  uploadAsset,
+  verifyPublicAssets,
 };
 if (require.main === module)
   main().catch((error) => {

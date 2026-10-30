@@ -1,13 +1,17 @@
 import { prerelease } from 'semver';
 
-export type IosUpdateTool = 'altstore' | 'livecontainer';
-const ROOT = 'https://github.com/lonzzi/nekofin/releases/download/app-sources';
+import { getUpdateDownloadURL, type UpdateSource } from './updateSources';
 
-export function getIosUpdateSource(currentVersion: string | null) {
+export type IosUpdateTool = 'altstore' | 'livecontainer';
+export function getIosUpdateSource(currentVersion: string | null, source: UpdateSource = 'github') {
   const channel = currentVersion && prerelease(currentVersion)?.length ? 'beta' : 'stable';
-  return `${ROOT}/${channel}.json`;
+  return getUpdateDownloadURL(source, 'app-sources', `${channel}.json`);
 }
 
-export function getIosSourceLink(tool: IosUpdateTool, currentVersion: string | null) {
-  return `${tool}://source?url=${encodeURIComponent(getIosUpdateSource(currentVersion))}`;
+export function getIosSourceLink(
+  tool: IosUpdateTool,
+  currentVersion: string | null,
+  source: UpdateSource = 'github',
+) {
+  return `${tool}://source?url=${encodeURIComponent(getIosUpdateSource(currentVersion, source))}`;
 }

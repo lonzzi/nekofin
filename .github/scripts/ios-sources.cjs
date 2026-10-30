@@ -11,8 +11,13 @@ function metadataName(tag) {
   return `nekofin-${tag}-ios-source.json`;
 }
 
-function buildSource(entries, channel) {
+function buildSource(entries, channel, source = 'github') {
   if (!['stable', 'beta'].includes(channel)) throw new Error('Invalid source channel');
+  if (!['github', 'cnb'].includes(source)) throw new Error('Invalid download source');
+  const downloadRoot =
+    source === 'cnb'
+      ? `https://cnb.cool/${REPOSITORY}/-/releases/download`
+      : `https://github.com/${REPOSITORY}/releases/download`;
   const releases = entries
     .filter(
       ({ release }) =>
@@ -54,7 +59,7 @@ function buildSource(entries, channel) {
       marketingVersion: tag.slice(1),
       date: release.published_at,
       localizedDescription: release.body || `NekoFin ${tag}`,
-      downloadURL: `https://github.com/${REPOSITORY}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(name)}`,
+      downloadURL: `${downloadRoot}/${encodeURIComponent(tag)}/${encodeURIComponent(name)}`,
       size: asset.size,
       minOSVersion: metadata.minOSVersion,
     };
@@ -66,9 +71,9 @@ function buildSource(entries, channel) {
   }
   permissions.entitlements = [...new Set(permissions.entitlements)].sort();
   return {
-    name: `NekoFin${channel === 'beta' ? ' Beta' : ''}`,
-    identifier: `com.lonzzi.nekofin.source.${channel}`,
-    sourceURL: `${SOURCE_ROOT}/${channel}.json`,
+    name: `NekoFin${channel === 'beta' ? ' Beta' : ''}${source === 'cnb' ? ' (CNB)' : ''}`,
+    identifier: `com.lonzzi.nekofin.source.${source === 'cnb' ? 'cnb.' : ''}${channel}`,
+    sourceURL: `${downloadRoot}/${CATALOG_TAG}/${channel}.json`,
     website: `https://github.com/${REPOSITORY}`,
     apps: versions.length
       ? [
@@ -78,7 +83,10 @@ function buildSource(entries, channel) {
             developerName: 'lonzzi',
             subtitle: 'Jellyfin 与 Emby 播放器',
             localizedDescription: '连接自己的媒体服务器，浏览和播放影音内容。',
-            iconURL: `https://raw.githubusercontent.com/${REPOSITORY}/main/assets/images/icon.png`,
+            iconURL:
+              source === 'cnb'
+                ? `${downloadRoot}/${CATALOG_TAG}/icon.png`
+                : `https://raw.githubusercontent.com/${REPOSITORY}/main/assets/images/icon.png`,
             tintColor: '#1E1E1E',
             versions,
             appPermissions: permissions,

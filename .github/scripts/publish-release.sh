@@ -37,13 +37,17 @@ if draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft'); then
     exit 0
   fi
 else
+  notes_file="${RELEASE_NOTES_FILE:-release/notes.md}"
+  if [[ ! -s "$notes_file" ]]; then
+    echo 'Missing bilingual release notes. Generate them before publishing.' >&2
+    exit 1
+  fi
   gh release create "$RELEASE_TAG" \
     --verify-tag \
     --draft \
     --prerelease="$PRERELEASE" \
     --title "$RELEASE_TAG" \
-    --generate-notes \
-    --notes 'Downloads: Android arm64 APK and unsigned iOS IPA (requires sideload signing). SHA256SUMS contains file checksums.'
+    --notes-file "$notes_file"
 fi
 
 # Only replace assets while the release is a draft, so a failed upload can be retried.

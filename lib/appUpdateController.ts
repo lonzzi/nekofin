@@ -2,6 +2,7 @@ import { t as tr } from '@/lib/i18n';
 import { gt } from 'semver';
 
 import type { AppRelease, InstallerDownload } from './appUpdates';
+import { type UpdateSource } from './updateSources';
 
 export const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
@@ -12,6 +13,7 @@ type UpdateStorage = {
 };
 
 export type UpdateSnapshot = {
+  source: UpdateSource;
   status: 'idle' | 'checking' | 'available' | 'current' | 'error';
   release: AppRelease | null;
   error?: string;
@@ -43,16 +45,18 @@ type Dependencies = {
   currentVersion: string | null;
   automaticEnabled: boolean;
   storage: UpdateStorage;
-  fetchUpdate: () => Promise<AppRelease | null>;
+  source?: UpdateSource;
+  fetchUpdate: (source: UpdateSource) => Promise<AppRelease | null>;
   showUpdate: (release: AppRelease, actions: UpdatePromptActions) => void;
   showMessage: (title: string, message: string, dismiss: () => void) => void;
   openURL: (url: string) => Promise<unknown>;
   resources?: {
-    check: () => Promise<boolean>;
-    download: () => Promise<boolean>;
+    check: (source: UpdateSource) => Promise<boolean>;
+    download: (source: UpdateSource) => Promise<boolean>;
     apply: () => Promise<void>;
   };
   installer?: {
+    supportsSource?: (source: UpdateSource) => boolean;
     start: (release: AppRelease, automatic: boolean) => Promise<InstallerDownload>;
     refresh: () => Promise<InstallerDownload | null>;
     cancel: () => Promise<void>;
@@ -69,10 +73,12 @@ export function createAppUpdateController(dependencies: Dependencies) {
   const { storage, currentVersion } = dependencies;
   const now = dependencies.now ?? Date.now;
   // A newly installed release gets its own first check, even on the same day.
-  const lastCheckKey = `appUpdate.lastCheckAt.${currentVersion ?? 'unknown'}`;
+  const lastCheckKey = () =>
+    `appUpdate.lastCheckAt.${currentVersion ?? 'unknown'}${snapshot.source === 'github' ? '' : `.${snapshot.source}`}`;
   const ignoredVersionKey = 'appUpdate.ignoredVersion';
   const listeners = new Set<() => void>();
   let snapshot: UpdateSnapshot = {
+    source: dependencies.source ?? 'github',
     status: 'idle',
     release: null,
     resourceStatus: dependencies.resources ? 'idle' : 'unavailable',
@@ -92,6 +98,12 @@ export function createAppUpdateController(dependencies: Dependencies) {
   const promptedReady = new Set<string>();
   let autoDecision: Promise<void> | null = null;
   let installerUri: string | null = null;
+
+  function hasSupportedInstaller() {
+    return (
+      !!dependencies.installer && (dependencies.installer.supportsSource?.(snapshot.source) ?? true)
+    );
+  }
 
   function publish(next: UpdateSnapshot) {
     snapshot = next;
@@ -203,7 +215,7 @@ export function createAppUpdateController(dependencies: Dependencies) {
       queueReady('package');
       return Promise.resolve();
     }
-    if (!dependencies.installer) {
+    if (!hasSupportedInstaller()) {
       return dependencies.openURL(release.url).then(
         () => {},
         () => {
@@ -259,7 +271,7 @@ export function createAppUpdateController(dependencies: Dependencies) {
   function maybeAutoDownload() {
     if (!snapshot.autoDownloadEnabled || !canPrompt || inFlight || operation || refreshing) return;
     const release = snapshot.release;
-    if (release && dependencies.installer) {
+    if (release && hasSupportedInstaller()) {
       if (
         snapshot.downloadStatus === 'idle' &&
         !autoAttempted.has(release.tag) &&
@@ -324,7 +336,7 @@ export function createAppUpdateController(dependencies: Dependencies) {
     }
     publish({ ...snapshot, resourceStatus: 'downloading', resourceError: undefined });
     operation = Promise.resolve()
-      .then(() => dependencies.resources!.download())
+      .then(() => dependencies.resources!.download(snapshot.source))
       .then((ready) => {
         publish({ ...snapshot, resourceStatus: ready ? 'ready' : 'current' });
         if (ready) queueReady('resources');
@@ -393,7 +405,7 @@ export function createAppUpdateController(dependencies: Dependencies) {
 
     if (requestMode === 'automatic') {
       if (!dependencies.automaticEnabled || !canPrompt || !currentVersion) return Promise.resolve();
-      const lastCheck = storage.getNumber(lastCheckKey);
+      const lastCheck = storage.getNumber(lastCheckKey());
       const elapsed = lastCheck === undefined ? Infinity : now() - lastCheck;
       if (elapsed >= 0 && elapsed < UPDATE_CHECK_INTERVAL_MS) return Promise.resolve();
     }
@@ -410,21 +422,28 @@ export function createAppUpdateController(dependencies: Dependencies) {
       resourceError: checkResources ? undefined : snapshot.resourceError,
     });
     // Also throttle failed automatic attempts so foreground/network churn stays quiet.
-    storage.set(lastCheckKey, now());
+    storage.set(lastCheckKey(), now());
     inFlight = Promise.allSettled([
       Promise.resolve().then(() => {
         if (!currentVersion) throw new Error(tr('updates.appVersionUnreadable'));
-        return dependencies.fetchUpdate();
+        return dependencies.fetchUpdate(snapshot.source);
       }),
       checkResources
-        ? Promise.resolve().then(() => dependencies.resources!.check())
+        ? Promise.resolve().then(() => dependencies.resources!.check(snapshot.source))
         : Promise.resolve(null),
     ])
       .then(([packageResult, resourceResult]) => {
         const fetchedRelease = packageResult.status === 'fulfilled' ? packageResult.value : null;
         // A failed refresh must not hide an installer the user already downloaded.
-        const release =
-          packageResult.status === 'fulfilled' ? packageResult.value : snapshot.release;
+        const keepDownloaded =
+          snapshot.downloadStatus === 'ready' &&
+          snapshot.release &&
+          (!fetchedRelease || !gt(fetchedRelease.version, snapshot.release.version));
+        const release = keepDownloaded
+          ? snapshot.release
+          : packageResult.status === 'fulfilled'
+            ? packageResult.value
+            : snapshot.release;
         const error =
           packageResult.status === 'rejected'
             ? packageResult.reason instanceof Error
@@ -445,7 +464,7 @@ export function createAppUpdateController(dependencies: Dependencies) {
         publish({
           ...snapshot,
           status:
-            fetchedRelease || resourceAvailable
+            fetchedRelease || (keepDownloaded && !error) || resourceAvailable
               ? 'available'
               : error || resourceError
                 ? 'error'
@@ -465,7 +484,7 @@ export function createAppUpdateController(dependencies: Dependencies) {
           downloadStatus: sameRelease ? snapshot.downloadStatus : 'idle',
           downloadError: sameRelease ? snapshot.downloadError : undefined,
         });
-        const autoPackage = snapshot.autoDownloadEnabled && !!dependencies.installer;
+        const autoPackage = snapshot.autoDownloadEnabled && hasSupportedInstaller();
         if (fetchedRelease && !autoPackage && snapshot.downloadStatus !== 'ready') {
           if (
             mode === 'manual' ||
@@ -523,11 +542,43 @@ export function createAppUpdateController(dependencies: Dependencies) {
       };
     },
     checkManually: () => check('manual'),
+    checkAutomatically: () => check('automatic'),
     downloadRelease: () => downloadPackage(),
     installRelease: installPackage,
     downloadResources: () => downloadResources(),
     cancelDownload,
     refreshDownload,
+    setSource(source: UpdateSource) {
+      if (source === snapshot.source) return false;
+      if (
+        inFlight ||
+        operation ||
+        refreshing ||
+        promptOpen ||
+        snapshot.downloadStatus === 'downloading'
+      )
+        return false;
+      pending = null;
+      autoAttempted.clear();
+      const keepDownloaded = snapshot.downloadStatus === 'ready';
+      publish({
+        ...snapshot,
+        source,
+        status: keepDownloaded ? 'available' : 'idle',
+        release: keepDownloaded ? snapshot.release : null,
+        error: undefined,
+        downloadStatus: keepDownloaded ? 'ready' : 'idle',
+        downloadError: undefined,
+        resourceStatus:
+          snapshot.resourceStatus === 'ready'
+            ? 'ready'
+            : dependencies.resources
+              ? 'idle'
+              : 'unavailable',
+        resourceError: undefined,
+      });
+      return true;
+    },
     setAutoDownloadEnabled(value: boolean) {
       publish({ ...snapshot, autoDownloadEnabled: value });
       if (!value && downloadAutomatic && snapshot.downloadStatus === 'downloading')
