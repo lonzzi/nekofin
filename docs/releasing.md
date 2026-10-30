@@ -100,7 +100,7 @@ CNB 安装包公开后，独立串行任务从 CNB 已公开且含侧载元数�
 
 ## iOS 侧载源
 
-AltStore Classic 和支持 Sources 的 LiveContainer 可共用以下 JSON 源。README 提供 HTTPS 图片按钮，跳转页在 iPhone / iPad 上调用所选工具的添加源协议，并显示可复制的地址：
+AltStore Classic 和支持 Sources 的 LiveContainer 可共用以下 JSON 源。README 使用 [AltStore 官方下载徽章](https://faq.altstore.io/developers/download-on-altstore-badge)和 [LiveContainer 官方图标](https://github.com/LiveContainer/LiveContainer/blob/main/screenshots/livecontainer_icon.png)，保留上游原始图像。两个工具都通过无正文的 HTTP 302 跳转添加源：AltStore Classic 使用 `altstore-classic://source?url=...`（2.2+），LiveContainer 使用 `livecontainer://source?url=...`。没有中间页面或二次点击；Classic 使用专用协议，避免打开 AltStore PAL。GitHub 会移除 README 中的自定义协议链接，因此保留这个 HTTPS 跳转入口。接口只允许固定工具、渠道与下载来源，不能重定向到用户指定的任意地址。未安装工具或无法唤起时，可复制下列 JSON 地址手动添加：
 
 - 正式版：`https://github.com/lonzzi/nekofin/releases/download/app-sources/stable.json`
 - Beta（也包含更新的正式版）：`https://github.com/lonzzi/nekofin/releases/download/app-sources/beta.json`
