@@ -132,6 +132,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash .github/scripts/publish-release.sh
 
+  cnb-release:
+    name: Mirror installers to CNB
+    needs: [prepare, publish]
+    if: ${{ vars.CNB_REPO != '' }}
+    permissions:
+      contents: write
+    uses: ./.github/workflows/cnb-release.yml
+    with:
+      tag: ${{ needs.prepare.outputs.tag }}
+    secrets: inherit
+
   ios-sources:
     name: Update AltStore and LiveContainer sources
     needs: [prepare, publish]

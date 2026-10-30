@@ -62,6 +62,22 @@ iOS 发布构建使用 `xcode-27` runner 和 Xcode 27.0，EAS 的 iOS profiles �
 
 `Build Apps` 仍支持手动构建指定平台、Android profile 和 iOS Release / Development；手动构建只生成 Actions Artifacts。
 
+## CNB 应用分发
+
+[CNB Releases](https://cnb.cool/lonzzi/nekofin/-/releases) 提供额外的公开下载入口。配置完成后，GitHub Release 公开会启动独立的 CNB 同步任务，复用该版本的 APK、未签名 IPA、运行时契约、侧载元数据和 `SHA256SUMS`，无需重新构建。iOS IPA 仍需通过侧载工具签名安装。
+
+一次性设置：
+
+1. 在 CNB 创建公开仓库 `lonzzi/nekofin`。
+2. 创建仅用于该仓库的访问令牌，授予 `repo-code`（Git 客户端凭据）和 `repo-release` 读写权限，保存为 GitHub Actions secret `CNB_TOKEN`。
+3. 添加 GitHub Actions variable `CNB_REPO=lonzzi/nekofin`，启用自动同步。未设置时，Release 工作流跳过 CNB 任务；设置后缺少 Token 或权限会明确报错。
+
+同步会检查下载文件的 SHA-256，将原始 Git 版本 tag 推到 CNB，再创建同名草稿 Release、上传并确认所有附件。附件设置永久保留；全部上传成功后才公开，beta / rc 不设为 Latest，补传旧正式版也不会降低已有 Latest。随后以匿名访问下载全部 CNB 附件并比对文件大小及 SHA-256，通过后才在 GitHub 说明中写入当前版本的 CNB Release、APK、IPA 和校验文件链接，保留原有更新日志及人工编辑。
+
+CNB 同步与侧载源更新、版本号回写独立执行。同步失败时，GitHub 安装包仍可用，也不会写入未经验证的下载链接。可重跑失败任务，或手动运行 **Mirror release to CNB**，填写已公开的版本 tag，单独补传旧版本，无需重建应用。已有 CNB 草稿会继续上传；已公开 CNB 安装包不会被替换，只重新校验并补齐 GitHub 说明。Git tag 不强推，若同名 tag 指向不同源代码则停止并报错。
+
+CNB 同步仅处理安装包 Release；AltStore / LiveContainer 订阅源和 OTA 资源仍使用现有地址。
+
 ## 热更新与回退
 
 应用通过 `expo-updates` 从 GitHub Releases 下载 JS 与资源，Vercel 提供签名清单接口；无需 EAS Update。「帮助与关于 → 检查更新」同时检查安装包与兼容当前运行时的资源更新，分别显示检查结果；其中一个检查失败不会被当作已是最新。正式版仅提示更高的正式版，beta / rc 安装包也会检查更新的预发布版，例如 `beta.3 → beta.4`。
@@ -116,6 +132,6 @@ node --test .github/scripts/*.test.cjs
 bun run test:ota
 ```
 
-这些测试覆盖版本校验、正式版 / 预发布标记、草稿重试、上传失败和缺失附件，不会调用 GitHub API。工作流还会执行原有的应用 smoke tests。
+这些测试覆盖版本校验、正式版 / 预发布标记、草稿重试、上传失败、缺失附件，以及 CNB 同步的校验、公开下载验证和说明更新，不会调用真实 GitHub / CNB API。工作流还会执行原有的应用 smoke tests。
 
 流程参考：[Jellyfin Android 的版本 tag 触发](https://github.com/jellyfin/jellyfin-android/blob/master/.github/workflows/app-publish.yaml)、[LocalSend 的可复用构建与 Release 分工](https://github.com/localsend/localsend/blob/main/.github/workflows/release.yml)。iOS 版本格式见 [Expo 配置文档](https://docs.expo.dev/versions/latest/config/app/#version)。
