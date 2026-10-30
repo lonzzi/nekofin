@@ -85,10 +85,10 @@ describe('CNB update requests', () => {
     ...release,
     assets: [{ name: release.assets[0].name, size: 100 }],
   };
-  it('reads anonymous CNB releases and requires the installer checksum from SHA256SUMS', async () => {
+  it('reads the public CNB index without credentials and requires an installer checksum', async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify([cnbRelease])))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ version: 1, releases: [cnbRelease] })))
       .mockResolvedValueOnce(new Response(`${sha}  ${release.assets[0].name}\n`));
     vi.stubGlobal('fetch', fetchMock);
     const update = await fetchAppUpdate('0.1.0', 'android', 'cnb');
@@ -101,9 +101,11 @@ describe('CNB update requests', () => {
     });
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      'https://api.cnb.cool/lonzzi/nekofin/-/releases?page_size=100&page=1',
+      expect.stringMatching(
+        /^https:\/\/cnb\.cool\/lonzzi\/nekofin\/-\/releases\/download\/app-sources\/updates\.json\?v=\d+$/,
+      ),
       {
-        headers: { Accept: 'application/vnd.cnb.api+json' },
+        headers: { Accept: 'application/json' },
         signal: expect.any(AbortSignal),
       },
     );
@@ -113,26 +115,32 @@ describe('CNB update requests', () => {
       { signal: expect.any(AbortSignal) },
     );
   });
-  it('uses CNB pagination and authenticated asset metadata without fetching a checksum file', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(new Response('[]', { headers: { 'x-cnb-total': '101' } }))
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify([
+  it('uses published SHA256 metadata without accessing the authenticated CNB API', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          version: 1,
+          releases: [
             {
               ...cnbRelease,
               assets: [{ ...cnbRelease.assets[0], hash_algo: 'SHA256', hash_value: sha }],
             },
-          ]),
-          { headers: { 'x-cnb-total': '101' } },
-        ),
-      );
+          ],
+        }),
+      ),
+    );
     vi.stubGlobal('fetch', fetchMock);
     expect((await fetchAppUpdate('0.1.0', 'android', 'cnb'))?.installer.sha256).toBe(sha);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[1][0]).toContain('page=2');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).not.toContain('api.cnb.cool');
   });
+  it.each([[], {}, { version: 2, releases: [] }, { version: 1, releases: {} }])(
+    'rejects incompatible public index formats',
+    async (payload) => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(payload))));
+      await expect(fetchAppUpdate('0.1.0', 'android', 'cnb')).rejects.toThrow(/无效/);
+    },
+  );
   it.each([
     '',
     'invalid',
@@ -143,7 +151,7 @@ describe('CNB update requests', () => {
       'fetch',
       vi
         .fn()
-        .mockResolvedValueOnce(new Response(JSON.stringify([cnbRelease])))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ version: 1, releases: [cnbRelease] })))
         .mockResolvedValueOnce(new Response(text)),
     );
     await expect(fetchAppUpdate('0.1.0', 'android', 'cnb')).rejects.toThrow(/无效/);

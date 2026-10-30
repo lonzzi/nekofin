@@ -39,7 +39,9 @@ export async function fetchAppUpdate(
   try {
     for (let page = 1; page <= 10; page++) {
       const response = await fetch(
-        `${provider.api}?${source === 'cnb' ? 'page_size' : 'per_page'}=100&page=${page}`,
+        source === 'cnb'
+          ? `${provider.api}?v=${Math.floor(Date.now() / 60_000)}`
+          : `${provider.api}?per_page=100&page=${page}`,
         {
           headers: { Accept: provider.accept },
           signal: controller.signal,
@@ -53,15 +55,22 @@ export async function fetchAppUpdate(
       const data: unknown = await response.json().catch(() => {
         throw new Error(tr('updates.invalidVersionResponse'));
       });
+      if (source === 'cnb') {
+        if (
+          !data ||
+          typeof data !== 'object' ||
+          !('version' in data) ||
+          data.version !== 1 ||
+          !('releases' in data) ||
+          !Array.isArray(data.releases)
+        )
+          throw new Error(tr('updates.invalidVersionResponse'));
+        releases.push(...data.releases);
+        return await select();
+      }
       if (!Array.isArray(data)) throw new Error(tr('updates.invalidVersionResponse'));
       releases.push(...data);
-      const total = response.headers.get('x-cnb-total');
-      const hasNext =
-        source === 'github'
-          ? response.headers.get('link')?.includes('rel="next"')
-          : total && /^\d+$/.test(total)
-            ? page * 100 < Number(total)
-            : data.length === 100;
+      const hasNext = response.headers.get('link')?.includes('rel="next"');
       if (!hasNext) {
         return await select();
       }

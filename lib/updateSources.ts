@@ -13,8 +13,8 @@ export const UPDATE_SOURCES = {
   cnb: {
     name: 'CNB',
     releases: 'https://cnb.cool/lonzzi/nekofin/-/releases',
-    api: 'https://api.cnb.cool/lonzzi/nekofin/-/releases',
-    accept: 'application/vnd.cnb.api+json',
+    api: 'https://cnb.cool/lonzzi/nekofin/-/releases/download/app-sources/updates.json',
+    accept: 'application/json',
   },
 } as const;
 
