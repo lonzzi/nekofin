@@ -20,7 +20,7 @@ export type PerformanceSample = {
   jsHeapMB?: number;
 };
 
-export type PerformanceEventType = 'mark' | 'navigation' | 'network' | 'trace';
+export type PerformanceEventType = 'mark' | 'navigation' | 'network' | 'trace' | 'playback';
 
 export type PerformanceEventStatus = 'ok' | 'slow' | 'error' | 'pending';
 
@@ -30,6 +30,7 @@ export type PerformanceEvent = {
   type: PerformanceEventType;
   name: string;
   detail?: string;
+  data?: Record<string, unknown>;
   durationMs?: number;
   status: PerformanceEventStatus;
 };

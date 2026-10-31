@@ -1,5 +1,5 @@
+import { RetryableImage } from '@/components/RetryableImage';
 import { useLargeContentLayout } from '@/hooks/useContentDimensions';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo } from 'react';
 import { Easing, Platform, StyleSheet, View } from 'react-native';
@@ -34,7 +34,6 @@ export function HomeAtmosphereBackdrop({
 }: HomeAtmosphereBackdropProps) {
   const imageOpacity = isDark ? 0.42 : 0.58;
   const large = useLargeContentLayout();
-  const source = useMemo(() => (imageUrl ? { uri: imageUrl } : undefined), [imageUrl]);
   const placeholder = useMemo(() => (blurhash ? { blurhash } : undefined), [blurhash]);
   const imageLoadingProps = optimizeImageLoading
     ? ({ enforceEarlyResizing: true, priority: 'low' } as const)
@@ -65,8 +64,8 @@ export function HomeAtmosphereBackdrop({
   return (
     <View style={[styles.backdrop, { backgroundColor }]}>
       {(!!imageUrl || !!blurhash) && (
-        <Image
-          source={source}
+        <RetryableImage
+          uri={imageUrl}
           style={[styles.baseImage, { opacity: imageOpacity }]}
           placeholder={placeholder}
           cachePolicy="memory-disk"

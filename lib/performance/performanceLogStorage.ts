@@ -1,5 +1,7 @@
 import { storage } from '@/lib/storage';
 
+import { clearDiagnosticLogFiles, diagnosticLogFileBytes } from './diagnosticLogFiles';
+import { sanitizeDiagnosticData } from './diagnosticReport';
 import {
   PerformanceEvent,
   PerformanceSample,
@@ -16,10 +18,11 @@ export type StoredPerformanceLogs = {
 
 export function clearStoredPerformanceLogs() {
   storage.delete(PERFORMANCE_LOG_STORAGE_KEY);
+  clearDiagnosticLogFiles();
 }
 
 export function getStoredPerformanceLogBytes() {
-  return storage.getString(PERFORMANCE_LOG_STORAGE_KEY)?.length ?? 0;
+  return (storage.getString(PERFORMANCE_LOG_STORAGE_KEY)?.length ?? 0) + diagnosticLogFileBytes();
 }
 
 export function loadStoredPerformanceLogs(): StoredPerformanceLogs {
@@ -35,8 +38,25 @@ export function loadStoredPerformanceLogs(): StoredPerformanceLogs {
   try {
     const parsed = JSON.parse(raw) as Partial<StoredPerformanceLogs>;
     return {
-      events: Array.isArray(parsed.events) ? parsed.events : [],
-      samples: Array.isArray(parsed.samples) ? parsed.samples : [],
+      events: Array.isArray(parsed.events)
+        ? parsed.events
+            .filter(
+              (event) =>
+                event &&
+                Number.isFinite(event.timestamp) &&
+                typeof event.name === 'string' &&
+                typeof event.type === 'string' &&
+                typeof event.status === 'string',
+            )
+            .map((event) => sanitizeDiagnosticData(event) as PerformanceEvent)
+        : [],
+      samples: Array.isArray(parsed.samples)
+        ? parsed.samples
+            .filter(
+              (sample) => sample && Number.isFinite(sample.timestamp) && Number.isFinite(sample.id),
+            )
+            .map((sample) => sanitizeDiagnosticData(sample) as PerformanceSample)
+        : [],
       savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : '',
     };
   } catch {
@@ -52,7 +72,8 @@ export function saveStoredPerformanceLogs(logs: Pick<StoredPerformanceLogs, 'eve
   storage.set(
     PERFORMANCE_LOG_STORAGE_KEY,
     JSON.stringify({
-      ...logs,
+      events: logs.events.map((event) => sanitizeDiagnosticData(event)),
+      samples: logs.samples.map((sample) => sanitizeDiagnosticData(sample)),
       savedAt: new Date().toISOString(),
       summary: summarizePerformanceSamples(logs.samples),
     }),

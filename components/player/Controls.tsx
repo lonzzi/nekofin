@@ -29,6 +29,7 @@ import {
   playerPanelReducer,
   type PlayerPanelRoute,
 } from './panels/playerPanelRoute';
+import type { PlaybackDecodingMode } from './playbackDecoding';
 import type { PlaybackSourceInfo } from './playbackInfo';
 import { MediaStats, MediaTrack, MediaTracks, PlayerContext } from './PlayerContext';
 import { canSeekPlayback } from './playerControlModel';
@@ -60,6 +61,8 @@ type ControlsProps = {
   onMediaSourceChange?: (id: string) => void;
   quality?: PlaybackQuality;
   onQualityChange?: (quality: PlaybackQuality) => void;
+  decodingMode?: PlaybackDecodingMode;
+  onDecodingModeChange?: (mode: PlaybackDecodingMode) => void;
   playbackSourceInfo?: PlaybackSourceInfo;
   readPlaybackMediaInfo?: () => Promise<MediaInfo | null>;
   aspectRatio?: string;
@@ -105,6 +108,8 @@ export function Controls({
   onMediaSourceChange,
   quality,
   onQualityChange,
+  decodingMode,
+  onDecodingModeChange,
   playbackSourceInfo,
   readPlaybackMediaInfo,
   aspectRatio,
@@ -354,6 +359,8 @@ export function Controls({
     onMediaSourceChange,
     quality,
     onQualityChange,
+    decodingMode,
+    onDecodingModeChange,
     playbackSourceInfo,
     readPlaybackMediaInfo,
     aspectRatio,

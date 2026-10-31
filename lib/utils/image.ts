@@ -45,7 +45,7 @@ export function getItemImageUrl(
       break;
     }
     case 3: {
-      args[2] = { ...args[2], ...imageDefaultOptions() };
+      args[2] = { ...imageDefaultOptions(), ...args[2] };
       break;
     }
   }
@@ -71,11 +71,13 @@ function getImageUrlWithSize(
     height,
     quality,
     ratio = 1,
+    tag,
   }: {
     width?: number;
     height?: number;
     quality?: number;
     ratio?: number;
+    tag?: string;
   } = {},
   imgType?: ImageType,
 ) {
@@ -84,6 +86,7 @@ function getImageUrlWithSize(
   }
 
   return getItemImageUrl(api, itemId, imgType, {
+    tag,
     quality,
     maxWidth: isNil(width) ? undefined : Math.round(width * ratio),
     maxHeight: isNil(height) ? undefined : Math.round(height * ratio),
@@ -297,6 +300,7 @@ export function getImageInfo(
         height,
         quality,
         ratio,
+        tag: imageTag,
       },
       imageType,
     ),
@@ -353,6 +357,7 @@ export function getLogo(
             width,
             quality,
             ratio,
+            tag: imgTag,
           },
           imgType,
         ),
