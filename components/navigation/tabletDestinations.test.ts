@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { tabletDestinationKey } from './tabletDestinations';
+import { tabletDestinationKey, tabletDestinations } from './tabletDestinations';
 
 describe('tablet sidebar route selection', () => {
+  it('preserves sidebar ordering while sharing app route definitions', () => {
+    expect(tabletDestinations.map((entry) => entry.key)).toEqual([
+      'home',
+      'servers',
+      'favorites',
+      'search',
+      'settings',
+    ]);
+  });
   it.each([
     [['(tabs)', '(home)', 'movie', 'film'], 'home'],
     [['(tabs)', '(servers)', 'library'], 'servers'],

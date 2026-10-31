@@ -1,9 +1,12 @@
 import { EpisodeCard, SeriesCard } from '@/components/media/Card';
 import { ItemGridScreen } from '@/components/media/ItemGridScreen';
+import { getMediaRailListConfig } from '@/components/media/railPerformanceConfig';
 import { NativeListTitle } from '@/components/navigation/NativeListTitle';
 import PageScrollView from '@/components/PageScrollView';
 import { SkeletonHorizontalSection } from '@/components/ui/Skeleton';
+import { useContentDimensions } from '@/hooks/useContentDimensions';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
+import { useNativeSearchHeader } from '@/hooks/useNativeSearchHeader';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
@@ -18,6 +21,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   ListRenderItem,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -34,8 +38,10 @@ export default function ServerSearchScreen() {
   const mediaAdapter = useMediaAdapter();
   const theme = useAppTheme();
   const backgroundColor = theme.colors.background;
+  const { width } = useContentDimensions();
 
   const searchBarRef = useRef<SearchBarCommands>(null);
+  const searchHeader = useNativeSearchHeader();
 
   const { data: recommendedData = [] } = useQueryWithFocus(
     recommendedSearchItemsQueryOptions({
@@ -107,6 +113,7 @@ export default function ServerSearchScreen() {
         {effectiveKeyword.length === 0 ? tr('media.recommended') : tr('search.title')}
       </NativeListTitle>
       <Stack.SearchBar
+        {...searchHeader}
         ref={searchBarRef}
         placeholder={
           currentServer?.name
@@ -147,7 +154,10 @@ export default function ServerSearchScreen() {
   return (
     <>
       {header}
-      <PageScrollView style={[styles.container, { backgroundColor }]}>
+      <PageScrollView
+        removeClippedSubviews={Platform.OS === 'android'}
+        style={[styles.container, { backgroundColor }]}
+      >
         {loadingResults && <SkeletonHorizontalSection />}
 
         {groupedResults.length === 0 && !loadingResults && (
@@ -204,10 +214,20 @@ export default function ServerSearchScreen() {
               {group.title}
             </Text>
             <FlatList
+              {...getMediaRailListConfig({
+                viewportWidth: width,
+                cardWidth:
+                  group.key === 'Series'
+                    ? theme.layout.mediaRail.posterCardWidth
+                    : theme.layout.mediaRail.episodeCardWidth - theme.spacing.xl,
+                gap: theme.spacing.lg,
+                horizontalPadding: theme.spacing.lg,
+              })}
               data={group.items}
               renderItem={renderItem}
               keyExtractor={keyExtractor}
               horizontal
+              removeClippedSubviews={false}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{
                 paddingHorizontal: theme.spacing.lg,

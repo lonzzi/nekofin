@@ -80,6 +80,7 @@ export default function ParallaxScrollView({
   headerOverscrollExtent = 0,
   style,
   onScroll,
+  removeClippedSubviews,
   ...props
 }: Props) {
   const colorScheme = useColorScheme() ?? 'light';
@@ -113,8 +114,12 @@ export default function ParallaxScrollView({
     });
   }, [enableBlurEffect, gradientStartColor, gradientEndColor]);
 
+  // Carry native clipping through the wrappers so offscreen rows can be detached.
   const content = (
-    <ThemedView style={[styles.content, contentStyle]}>
+    <ThemedView
+      style={[styles.content, contentStyle]}
+      removeClippedSubviews={removeClippedSubviews}
+    >
       {!!contentBackground && (
         <View pointerEvents="none" style={styles.contentBackground}>
           {contentBackground}
@@ -146,9 +151,10 @@ export default function ParallaxScrollView({
       ref={scrollRef}
       scrollEventThrottle={16}
       onScroll={scrollHandler}
+      removeClippedSubviews={removeClippedSubviews}
       {...props}
     >
-      <View style={styles.scrollBody}>
+      <View style={styles.scrollBody} removeClippedSubviews={removeClippedSubviews}>
         {!!scrollBackground && (
           <View pointerEvents="none" style={styles.scrollBackground}>
             {scrollBackground}

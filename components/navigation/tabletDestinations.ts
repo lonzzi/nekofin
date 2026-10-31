@@ -1,73 +1,24 @@
 import { t as tr } from '@/lib/i18n';
-import type { Href } from 'expo-router';
 
-export const tabletDestinations = [
-  {
-    key: 'home',
+import { navigationDestinations } from './navigationDestinations';
+
+/** iPad sidebar presentation of the shared app destinations. */
+const sidebarOrder = ['home', 'servers', 'favorites', 'search', 'settings'] as const;
+export const tabletDestinations = sidebarOrder.map((key) => {
+  const destination = navigationDestinations.find((entry) => entry.key === key)!;
+  return {
+    key: destination.key,
     get title() {
-      return tr('navigation.home');
+      return destination.title;
     },
-    icon: 'house',
-    href: '/(tabs)/(home)',
+    icon: destination.sf.default,
+    href: destination.href,
     get section() {
-      return tr('media.media');
+      return tr(destination.key === 'settings' ? 'navigation.settings' : 'media.media');
     },
-  },
-  {
-    key: 'servers',
-    get title() {
-      return tr('navigation.servers');
-    },
-    icon: 'externaldrive',
-    href: '/(tabs)/(servers)',
-    get section() {
-      return tr('media.media');
-    },
-  },
-  {
-    key: 'favorites',
-    get title() {
-      return tr('navigation.favorites');
-    },
-    icon: 'heart',
-    href: '/(tabs)/(favorites)',
-    get section() {
-      return tr('media.media');
-    },
-  },
-  {
-    key: 'search',
-    get title() {
-      return tr('search.title');
-    },
-    icon: 'magnifyingglass',
-    href: '/(tabs)/(search)/(root)',
-    get section() {
-      return tr('media.media');
-    },
-  },
-  {
-    key: 'settings',
-    get title() {
-      return tr('navigation.settings');
-    },
-    icon: 'gearshape',
-    href: '/(tabs)/(settings)',
-    get section() {
-      return tr('navigation.settings');
-    },
-  },
-] as const satisfies readonly {
-  key: string;
-  title: string;
-  icon: string;
-  href: Href;
-  section: string;
-}[];
+  };
+});
 
 export function tabletDestinationKey(segments: readonly string[]) {
-  const group = segments.find((segment) =>
-    /^\((home|servers|favorites|search|settings)\)$/.test(segment),
-  );
-  return group?.slice(1, -1) ?? 'home';
+  return navigationDestinations.find((entry) => segments.includes(entry.name))?.key ?? 'home';
 }

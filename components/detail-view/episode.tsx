@@ -1,4 +1,6 @@
+import { getMediaRailListConfig } from '@/components/media/railPerformanceConfig';
 import { MenuView } from '@/components/ui/MenuView';
+import { useContentDimensions } from '@/hooks/useContentDimensions';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
@@ -16,6 +18,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { EpisodeCard } from '../media/Card';
 import { ThemedText } from '../ThemedText';
 import { detailViewStyles, ItemOverview } from './common';
+import { DeferredDetailSections } from './DeferredDetailSections';
 import { PeopleSection, SimilarItemsSection } from './DetailMediaSections';
 import { DetailPlaybackControls } from './DetailPlaybackControls';
 import { DetailSummary } from './DetailSummary';
@@ -25,6 +28,7 @@ import {
   findEpisodeIndex,
   getDisplayEpisodes,
   getEpisodeHeaderText,
+  getInitialEpisodeScrollIndex,
   getInitialSeasonId,
   getSeasonActions,
   getSeasonTitle,
@@ -90,6 +94,22 @@ export const EpisodeModeContent = ({
   const { setTitle, setSelectedItem } = useDetailView();
   const mediaAdapter = useMediaAdapter();
   const { currentServer } = useMediaServers();
+  const { width } = useContentDimensions();
+  const cardWidth = theme.layout.mediaRail.episodeCardWidth - theme.spacing.xl;
+  const railBatching = getMediaRailListConfig({
+    cardWidth,
+    gap: theme.spacing.md,
+    horizontalPadding: theme.spacing.page + theme.spacing.sm,
+    viewportWidth: width,
+  });
+  const getEpisodeLayout = useCallback(
+    (_data: ArrayLike<MediaItem> | null | undefined, index: number) => ({
+      index,
+      length: cardWidth,
+      offset: index * (cardWidth + theme.spacing.md),
+    }),
+    [cardWidth, theme.spacing.md],
+  );
 
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>(() =>
     getInitialSeasonId(seasons, seasonId),
@@ -195,69 +215,74 @@ export const EpisodeModeContent = ({
         overview={<ItemOverview item={selectedEpisode} showEmptyPlaceholder />}
       />
 
-      {seasons && seasons.length > 0 && (
-        <View
-          style={[
-            detailViewStyles.sectionBlock,
-            { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
-          ]}
-        >
-          <MenuView
-            actions={getSeasonActions(seasons, selectedSeasonId)}
-            onPressAction={({ nativeEvent }) => {
-              setSelectedSeasonId(nativeEvent.event);
-            }}
-          >
-            <Pressable
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: theme.spacing.xs,
-              }}
+      <DeferredDetailSections>
+        <>
+          {seasons && seasons.length > 0 && (
+            <View
+              style={[
+                detailViewStyles.sectionBlock,
+                { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
+              ]}
             >
-              <Text style={[theme.typography.bodyEmphasized, { color: textColor }]}>
-                {getSeasonTitle(seasons.find((s) => s.id === selectedSeasonId))}
-              </Text>
-              <Ionicons name="chevron-down" size={16} color={textColor} />
-            </Pressable>
-          </MenuView>
-        </View>
-      )}
+              <MenuView
+                actions={getSeasonActions(seasons, selectedSeasonId)}
+                onPressAction={({ nativeEvent }) => {
+                  setSelectedSeasonId(nativeEvent.event);
+                }}
+              >
+                <Pressable
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: theme.spacing.xs,
+                  }}
+                >
+                  <Text style={[theme.typography.bodyEmphasized, { color: textColor }]}>
+                    {getSeasonTitle(seasons.find((s) => s.id === selectedSeasonId))}
+                  </Text>
+                  <Ionicons name="chevron-down" size={16} color={textColor} />
+                </Pressable>
+              </MenuView>
+            </View>
+          )}
 
-      {displayEpisodes && displayEpisodes.length > 0 && (
-        <View style={detailViewStyles.sectionBlock}>
-          <FlatList
-            ref={flatListRef}
-            horizontal
-            removeClippedSubviews={false}
-            data={displayEpisodes}
-            style={detailViewStyles.edgeToEdge}
-            onScrollToIndexFailed={() => {
-              setTimeout(() => {
-                const index = findEpisodeIndex(displayEpisodes, selectedEpisode.id);
-                if (flatListRef.current && index >= 0) {
-                  flatListRef.current.scrollToIndex({ index, animated: true, viewOffset: 20 });
-                }
-              }, 50);
-            }}
-            renderItem={renderEpisodeItem}
-            keyExtractor={extractEpisodeKey}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={detailViewStyles.horizontalList}
-          />
-        </View>
-      )}
+          {displayEpisodes && displayEpisodes.length > 0 && (
+            <View style={detailViewStyles.sectionBlock}>
+              <FlatList
+                {...railBatching}
+                ref={flatListRef}
+                horizontal
+                removeClippedSubviews={false}
+                data={displayEpisodes}
+                getItemLayout={getEpisodeLayout}
+                initialScrollIndex={getInitialEpisodeScrollIndex({
+                  selectedIndex: findEpisodeIndex(displayEpisodes, selectedEpisodeId),
+                  episodeCount: displayEpisodes.length,
+                  cardWidth,
+                  gap: theme.spacing.md,
+                  horizontalPadding: theme.spacing.page + theme.spacing.sm,
+                  viewportWidth: width,
+                })}
+                style={detailViewStyles.edgeToEdge}
+                renderItem={renderEpisodeItem}
+                keyExtractor={extractEpisodeKey}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={detailViewStyles.horizontalList}
+              />
+            </View>
+          )}
+        </>
+        <PeopleSection items={people} />
+        <SimilarItemsSection items={similarItems} />
 
-      <PeopleSection items={people} />
-      <SimilarItemsSection items={similarItems} />
-
-      <EpisodeMediaInfoList
-        key={selectedEpisode.id}
-        mediaSources={mediaSources}
-        isPending={isMediaInfoPending}
-        isError={isMediaInfoError}
-        onRetry={() => void refetchMediaSources()}
-      />
+        <EpisodeMediaInfoList
+          key={selectedEpisode.id}
+          mediaSources={mediaSources}
+          isPending={isMediaInfoPending}
+          isError={isMediaInfoError}
+          onRetry={() => void refetchMediaSources()}
+        />
+      </DeferredDetailSections>
     </>
   );
 };

@@ -1,3 +1,4 @@
+import { resolveImageCandidate } from '@/lib/utils/imageCandidates';
 import { MediaItem } from '@/services/media/types';
 import { describe, expect, it } from 'vitest';
 
@@ -73,7 +74,42 @@ describe('cardHelpers', () => {
       preferThumb: true,
       preferBanner: false,
       preferLogo: false,
+      preferParentPoster: false,
       width: 400,
+    });
+  });
+
+  it('uses a parent poster for portrait episode cards and a still for landscape cards', () => {
+    const episode = {
+      Id: 'episode-1',
+      Type: 'Episode' as const,
+      ImageTags: { Primary: 'still-tag' },
+      PrimaryImageAspectRatio: 16 / 9,
+      ParentPrimaryImageItemId: 'season-1',
+      ParentPrimaryImageTag: 'season-poster-tag',
+      SeriesId: 'series-1',
+      SeriesPrimaryImageTag: 'series-poster-tag',
+    };
+
+    expect(resolveImageCandidate(episode, getImagePreferenceOptions('Primary'))).toMatchObject({
+      imageType: 'Primary',
+      imageTag: 'season-poster-tag',
+      itemId: 'season-1',
+      height: undefined,
+    });
+    expect(resolveImageCandidate(episode, getImagePreferenceOptions('Thumb'))).toMatchObject({
+      imageType: 'Primary',
+      imageTag: 'still-tag',
+      itemId: 'episode-1',
+      height: 225,
+    });
+    expect(
+      resolveImageCandidate(episode, getImagePreferenceOptions('Primary', 'landscape')),
+    ).toMatchObject({
+      imageType: 'Primary',
+      imageTag: 'still-tag',
+      itemId: 'episode-1',
+      height: 225,
     });
   });
 

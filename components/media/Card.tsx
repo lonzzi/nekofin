@@ -189,7 +189,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
       imgInfo ??
       mediaAdapter.getImageInfo({
         item,
-        opts: getImagePreferenceOptions(imgType),
+        opts: getImagePreferenceOptions(imgType, 'landscape'),
       }),
     [imgInfo, mediaAdapter, item, imgType],
   );

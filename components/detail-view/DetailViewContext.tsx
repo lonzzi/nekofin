@@ -22,9 +22,11 @@ export const DetailViewProvider = ({
 }: {
   children: ReactNode;
 } & DetailViewProps) => {
-  const [title, setTitle] = useState<string>('');
-  const [item, setItem] = useState<MediaItem | null>(null);
-  const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
+  const [title, setTitle] = useState(() => query.data?.item.name ?? '');
+  const [item, setItem] = useState<MediaItem | null>(() => query.data?.item ?? null);
+  const [selectedItem, setSelectedItem] = useState<MediaItem | null>(() =>
+    mode === 'episode' ? (query.data?.item ?? null) : null,
+  );
 
   return (
     <DetailViewContext.Provider

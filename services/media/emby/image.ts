@@ -22,7 +22,8 @@ export function getEmbyImageInfo({
   }
 
   const itemData = baseItemCandidate as BaseItemDto;
-  const { preferBackdrop, preferBanner, preferLogo, preferThumb, width } = opts ?? {};
+  const { preferBackdrop, preferBanner, preferLogo, preferThumb, preferParentPoster, width } =
+    opts ?? {};
 
   // The image-type priority ladder is identical across Jellyfin and Emby; only
   // the URL transport differs. Reuse the shared resolver and build the Emby URL.
@@ -31,6 +32,7 @@ export function getEmbyImageInfo({
     preferBanner,
     preferLogo,
     preferThumb,
+    preferParentPoster,
     width,
   });
 

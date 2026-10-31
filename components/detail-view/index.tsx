@@ -30,6 +30,7 @@ import { Platform, Share, Text, View } from 'react-native';
 import { ItemImage } from '../ItemImage';
 import { SafeAreaRefreshControl } from '../ui/SafeAreaRefreshControl';
 import { detailViewStyles } from './common';
+import { DetailSectionsProvider } from './DeferredDetailSections';
 import { getDetailExternalInfo } from './detailExternalLinks';
 import { DetailRequestState } from './DetailRequestState';
 import {
@@ -78,6 +79,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const mediaAdapter = useMediaAdapter();
 
   const item = bundle?.item;
+  const people = useMemo(() => (item?.people ?? []).slice(0, 20), [item?.people]);
   const currentItem = mode === 'episode' ? selectedItem : item;
   const currentItemId = currentItem?.id;
   const parentSeriesId =
@@ -304,24 +306,18 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
         <SeriesModeContent
           seasons={seasons}
           nextUpItems={nextUpItems}
-          people={(item?.people ?? []).slice(0, 20)}
+          people={people}
           similarItems={similarShows}
           item={item}
         />
       ),
-      movie: (
-        <MovieModeContent
-          people={(item?.people ?? []).slice(0, 20)}
-          similarItems={similarMovies}
-          item={item}
-        />
-      ),
+      movie: <MovieModeContent people={people} similarItems={similarMovies} item={item} />,
       episode: (
         <EpisodeModeContent
           seasons={seasons}
           episodes={episodes}
           item={item}
-          people={(item?.people ?? []).slice(0, 20)}
+          people={people}
           similarItems={similarMovies}
           seasonId={seasonId}
         />
@@ -374,7 +370,9 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
           ) : null
         }
       >
-        <View style={detailViewStyles.content}>{renderModeContent()}</View>
+        <View removeClippedSubviews={Platform.OS === 'android'} style={detailViewStyles.content}>
+          {renderModeContent()}
+        </View>
       </HomeAtmosphereScrollView>
     </View>
   );
@@ -385,8 +383,10 @@ export default function DetailView({ itemId, mode, ...rest }: Omit<DetailViewPro
   const detailViewKey = `${mode}:${itemId}:${rest.seasonId ?? ''}`;
 
   return (
-    <DetailViewProvider key={detailViewKey} itemId={itemId} mode={mode} query={query} {...rest}>
-      <DetailViewContent itemId={itemId} mode={mode} query={query} {...rest} />
-    </DetailViewProvider>
+    <DetailSectionsProvider key={detailViewKey}>
+      <DetailViewProvider itemId={itemId} mode={mode} query={query} {...rest}>
+        <DetailViewContent itemId={itemId} mode={mode} query={query} {...rest} />
+      </DetailViewProvider>
+    </DetailSectionsProvider>
   );
 }

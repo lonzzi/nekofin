@@ -13,6 +13,7 @@ import PageScrollView from '@/components/PageScrollView';
 import { HomeServerCard } from '@/components/servers/HomeServerCard';
 import { ServerTypePicker } from '@/components/servers/ServerTypePicker';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
+import { useAppNavigation } from '@/hooks/useAppNavigation';
 import { useContentDimensions } from '@/hooks/useContentDimensions';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
@@ -28,6 +29,7 @@ function ServersScreen() {
   const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const router = useTracedRouter('servers');
+  const goToDestination = useAppNavigation();
   const { servers, activeServers, setHomeServer, currentServer, removeServer, isInitialized } =
     useMediaServers();
   const accountGroups = groupServerAccounts(servers);
@@ -45,7 +47,7 @@ function ServersScreen() {
       : undefined;
   const open = (server: MediaServerInfo) => {
     setHomeServer(server);
-    router.navigate('/(tabs)/(home)');
+    goToDestination('home');
   };
   const settings = (server: MediaServerInfo) =>
     router.push({

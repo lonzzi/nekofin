@@ -77,11 +77,15 @@ export const getSubtitle = (item: MediaItem) => {
   return item.name;
 };
 
-export const getImagePreferenceOptions = (imgType: ImageType) => ({
+export const getImagePreferenceOptions = (
+  imgType: ImageType,
+  cardShape: 'poster' | 'landscape' = 'poster',
+) => ({
   preferBackdrop: imgType === 'Backdrop',
   preferThumb: imgType === 'Thumb',
   preferBanner: imgType === 'Banner',
   preferLogo: imgType === 'Logo',
+  preferParentPoster: imgType === 'Primary' && cardShape === 'poster',
   width: 400,
 });
 

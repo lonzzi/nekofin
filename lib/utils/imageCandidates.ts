@@ -13,6 +13,7 @@ export interface ImageInfoOptions {
   preferBanner?: boolean;
   preferLogo?: boolean;
   preferBackdrop?: boolean;
+  preferParentPoster?: boolean;
   inheritThumb?: boolean;
   width?: number;
   tag?: string;
@@ -36,6 +37,7 @@ export function resolveImageCandidate(
     preferBanner = false,
     preferLogo = false,
     preferBackdrop = false,
+    preferParentPoster = false,
     inheritThumb = true,
     width,
     tag,
@@ -104,6 +106,22 @@ export function resolveImageCandidate(
     imageType = ImageType.Backdrop;
     imageTag = item.ParentBackdropImageTags[0];
     itemId = item.ParentBackdropItemId;
+  } else if (
+    preferParentPoster &&
+    !preferThumb &&
+    item.Type === BaseItemKind.Episode &&
+    ((item.ParentPrimaryImageTag && item.ParentPrimaryImageItemId) ||
+      (item.SeriesPrimaryImageTag && item.SeriesId))
+  ) {
+    // Episode stills are landscape; portrait cards use the season/series poster.
+    imageType = ImageType.Primary;
+    if (item.ParentPrimaryImageTag && item.ParentPrimaryImageItemId) {
+      imageTag = item.ParentPrimaryImageTag;
+      itemId = item.ParentPrimaryImageItemId;
+    } else {
+      imageTag = item.SeriesPrimaryImageTag;
+      itemId = item.SeriesId;
+    }
   } else if (
     item.ImageTags?.Primary &&
     (item.Type !== BaseItemKind.Episode || item.ChildCount !== 0)

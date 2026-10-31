@@ -139,4 +139,36 @@ describe('resolveImageCandidate', () => {
       height: 200,
     });
   });
+
+  it.each([
+    {
+      name: 'series poster when the season has no poster',
+      images: { SeriesId: 'series-1', SeriesPrimaryImageTag: 'series-tag' },
+      imageTag: 'series-tag',
+      itemId: 'series-1',
+    },
+    {
+      name: 'series poster when the season poster has no item ID',
+      images: {
+        ParentPrimaryImageTag: 'orphan-tag',
+        SeriesId: 'series-1',
+        SeriesPrimaryImageTag: 'series-tag',
+      },
+      imageTag: 'series-tag',
+      itemId: 'series-1',
+    },
+    {
+      name: 'episode image when neither parent has a poster',
+      images: {},
+      imageTag: 'still-tag',
+      itemId: 'item-1',
+    },
+  ])('falls back to the $name in portrait cards', ({ images, imageTag, itemId }) => {
+    expect(
+      resolveImageCandidate(
+        item({ Type: BaseItemKind.Episode, ImageTags: { Primary: 'still-tag' }, ...images }),
+        { preferParentPoster: true },
+      ),
+    ).toEqual({ imageType: ImageType.Primary, imageTag, itemId, height: undefined });
+  });
 });

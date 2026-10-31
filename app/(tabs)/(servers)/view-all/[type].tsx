@@ -71,6 +71,7 @@ export default function ServerViewAllScreen() {
         refetch: () => Promise.allSettled([libraries.refetch(), query.refetch()]),
       }}
       type={viewAllItemLayoutType(type)}
+      disableGrouping={type === 'latest'}
       filters={filters}
       onChangeFilters={setFilters}
     />

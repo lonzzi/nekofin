@@ -10,7 +10,7 @@ import { useAppTheme, useMediaHeroHeight } from '@/lib/theme';
 import type { MediaItem } from '@/services/media/types';
 import { useIsFocused } from 'expo-router/react-navigation';
 import { useCallback, useState } from 'react';
-import { View, type LayoutChangeEvent } from 'react-native';
+import { Platform, View, type LayoutChangeEvent } from 'react-native';
 
 export type MediaHomeSection = HomeSectionWithStatus & { onViewAll?: () => void };
 
@@ -80,7 +80,10 @@ export function MediaHomeContent({
         ) : undefined
       }
     >
-      <View style={{ position: 'relative', gap: theme.spacing.lg, marginTop: theme.spacing.md }}>
+      <View
+        removeClippedSubviews={Platform.OS === 'android'}
+        style={{ position: 'relative', gap: theme.spacing.lg, marginTop: theme.spacing.md }}
+      >
         {notice}
         {sections.map((section) => {
           if (section.type === 'userview') {

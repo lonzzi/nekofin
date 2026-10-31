@@ -248,6 +248,7 @@ export function getImageInfo(
     preferBanner = false,
     preferLogo = false,
     preferBackdrop = false,
+    preferParentPoster = false,
     inheritThumb = true,
     quality = 90,
     width,
@@ -259,6 +260,7 @@ export function getImageInfo(
     preferBanner?: boolean;
     preferLogo?: boolean;
     preferBackdrop?: boolean;
+    preferParentPoster?: boolean;
     inheritThumb?: boolean;
     quality?: number;
     width?: number;
@@ -273,6 +275,7 @@ export function getImageInfo(
     preferBanner,
     preferLogo,
     preferBackdrop,
+    preferParentPoster,
     inheritThumb,
     width,
     tag,

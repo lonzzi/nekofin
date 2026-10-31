@@ -41,4 +41,23 @@ describe('getEmbyImageInfo', () => {
       blurhash: undefined,
     });
   });
+
+  it('requests parent artwork for portrait episodes while preserving landscape stills', () => {
+    const item = mapRawItemToMediaItem({
+      Id: 'episode-1',
+      Type: 'Episode',
+      ImageTags: { Primary: 'still-tag' },
+      ParentPrimaryImageItemId: 'season-1',
+      ParentPrimaryImageTag: 'poster-tag',
+    });
+
+    expect(
+      getEmbyImageInfo({ api, item, opts: { preferParentPoster: true, width: 400 } }).url,
+    ).toBe(
+      'https://emby.test/Items/season-1/Images/Primary?tag=poster-tag&maxWidth=400&quality=90',
+    );
+    expect(getEmbyImageInfo({ api, item, opts: { preferThumb: true, width: 400 } }).url).toBe(
+      'https://emby.test/Items/episode-1/Images/Primary?tag=still-tag&maxWidth=400&quality=90',
+    );
+  });
 });

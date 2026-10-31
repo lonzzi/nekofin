@@ -1,6 +1,7 @@
 import { MediaItem, MediaPerson } from '@/services/media/types';
 
 import { ItemInfoList, ItemMeta, ItemOverview } from './common';
+import { DeferredDetailSections } from './DeferredDetailSections';
 import { PeopleSection, SimilarItemsSection } from './DetailMediaSections';
 import { DetailPlaybackControls } from './DetailPlaybackControls';
 import { DetailSummary } from './DetailSummary';
@@ -25,8 +26,10 @@ export const MovieModeContent = ({
         <ItemInfoList item={item} />
       </DetailSummary>
 
-      <PeopleSection items={people} />
-      <SimilarItemsSection items={similarItems} />
+      <DeferredDetailSections>
+        <PeopleSection items={people} />
+        <SimilarItemsSection items={similarItems} />
+      </DeferredDetailSections>
     </>
   );
 };

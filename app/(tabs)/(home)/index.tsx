@@ -5,6 +5,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useAggregateHome } from '@/hooks/useAggregateHome';
+import { useAppNavigation } from '@/hooks/useAppNavigation';
 import useRefresh from '@/hooks/useRefresh';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
@@ -17,6 +18,7 @@ export default function AggregateHomeScreen() {
   const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const router = useTracedRouter('aggregate-home');
+  const goToDestination = useAppNavigation();
   const { activeServers: servers, isInitialized, homeServerId } = useMediaServers();
   const visibleServers = useMemo(
     () => (homeServerId ? servers.filter((server) => server.id === homeServerId) : servers),
@@ -63,7 +65,7 @@ export default function AggregateHomeScreen() {
             {tr('server.addAccountDescription')}
           </ThemedText>
           <Pressable
-            onPress={() => router.push('/(tabs)/(servers)')}
+            onPress={() => goToDestination('servers')}
             style={{
               backgroundColor: theme.colors.tint,
               borderRadius: theme.radius.md,

@@ -17,7 +17,7 @@ describe('home performance configuration', () => {
     });
     expect(getHomeRailListConfig({ ...baseInput, type: 'series' })).toEqual({
       initialNumToRender: 4,
-      maxToRenderPerBatch: 4,
+      maxToRenderPerBatch: 3,
       windowSize: 3,
     });
     expect(getHomeRailListConfig({ ...baseInput, type: 'userView' })).toEqual({
@@ -37,6 +37,11 @@ describe('home performance configuration', () => {
     expect(getHomeRailListConfig({ ...baseInput, type: 'episode' }).initialNumToRender).toBe(6);
     expect(getHomeRailListConfig({ ...baseInput, type: 'series' }).initialNumToRender).toBe(9);
     expect(getHomeRailListConfig({ ...baseInput, type: 'userView' }).initialNumToRender).toBe(6);
+    for (const type of ['episode', 'series', 'userView'] as const) {
+      expect(getHomeRailListConfig({ ...baseInput, type }).maxToRenderPerBatch).toBeLessThanOrEqual(
+        3,
+      );
+    }
   });
 
   it('falls back to one item before a valid viewport is available', () => {

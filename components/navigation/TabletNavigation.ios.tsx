@@ -1,3 +1,4 @@
+import { useAppNavigation } from '@/hooks/useAppNavigation';
 import { ContentDimensionsProvider } from '@/hooks/useContentDimensions';
 import { useTranslation } from '@/lib/i18n';
 import { useOuterTheme } from '@/lib/theme/OuterTheme';
@@ -33,7 +34,7 @@ import {
   resizable,
   tag,
 } from '@expo/ui/swift-ui/modifiers';
-import { useRouter, useSegments } from 'expo-router';
+import { useSegments } from 'expo-router';
 import { useCallback, useMemo, useState, type ComponentProps, type PropsWithChildren } from 'react';
 import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -53,17 +54,20 @@ export function TabletNavigation({ children }: PropsWithChildren) {
 
 function AdaptiveTabNavigation({ children }: PropsWithChildren) {
   const { t: tr } = useTranslation();
-  const router = useRouter();
+  const goToDestination = useAppNavigation();
   const segments = useSegments();
+  const selected = tabletDestinationKey(segments);
   const { items, homeServerId, selectServer } = useSidebarServers();
   return (
     <NativeTabSidebar
       style={{ flex: 1 }}
       serversTitle={tr('navigation.servers')}
       servers={items}
-      selectedServerId={tabletDestinationKey(segments) === 'home' ? (homeServerId ?? '') : ''}
+      selectedServerId={selected === 'home' ? (homeServerId ?? '') : ''}
       onServerSelected={({ nativeEvent }) => {
-        if (selectServer(nativeEvent.id)) router.navigate('/(tabs)/(home)');
+        if (selectServer(nativeEvent.id)) {
+          goToDestination('home');
+        }
       }}
     >
       {children}
@@ -74,7 +78,7 @@ function AdaptiveTabNavigation({ children }: PropsWithChildren) {
 function SplitNavigation({ children }: PropsWithChildren) {
   const { t: tr } = useTranslation();
   const theme = useOuterTheme();
-  const router = useRouter();
+  const goToDestination = useAppNavigation();
   const segments = useSegments();
   const selected = tabletDestinationKey(segments);
   const { items: servers, homeServerId, selectServer } = useSidebarServers();
@@ -85,7 +89,7 @@ function SplitNavigation({ children }: PropsWithChildren) {
   const showSidebar = useCallback(() => {
     setVisibility('all');
     setCompactColumn('sidebar');
-  }, []);
+  }, [setVisibility, setCompactColumn]);
   const sidebar = useMemo(
     () => ({ isCollapsed: visibility === 'detailOnly', showSidebar }),
     [visibility, showSidebar],
@@ -107,7 +111,7 @@ function SplitNavigation({ children }: PropsWithChildren) {
               onSelectionChange={([key]) => {
                 const destination = tabletDestinations.find((entry) => entry.key === key);
                 if (destination) {
-                  router.navigate(destination.href);
+                  goToDestination(destination.key);
                   setCompactColumn('detail');
                 }
               }}
@@ -132,7 +136,7 @@ function SplitNavigation({ children }: PropsWithChildren) {
                       key={server.id}
                       onPress={() => {
                         if (!selectServer(server.id)) return;
-                        router.navigate('/(tabs)/(home)');
+                        goToDestination('home');
                         setCompactColumn('detail');
                       }}
                       modifiers={[buttonStyle('plain')]}

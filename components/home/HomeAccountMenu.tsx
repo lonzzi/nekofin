@@ -1,4 +1,5 @@
 import { getNativeToolbarIcon } from '@/components/navigation/nativeToolbarIcons';
+import { useAppNavigation } from '@/hooks/useAppNavigation';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
 import { groupServerAccounts } from '@/lib/serverAccounts';
@@ -32,6 +33,7 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
   } = useMediaServers();
   const theme = useAppTheme();
   const router = useRouter();
+  const goToDestination = useAppNavigation();
   const [switching, setSwitching] = useState(false);
   const switchingRef = useRef(false);
   const [loadedAvatar, setLoadedAvatar] = useState<{ source: string; uri: string } | null>(null);
@@ -73,7 +75,7 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
 
   const selectView = (server: MediaServerInfo | null) => {
     setHomeServer(server);
-    router.navigate('/(tabs)/(home)');
+    goToDestination('home');
   };
   const connections = server ? getServerConnections(server) : [];
   const accounts =
@@ -135,7 +137,7 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
                     isOn={activeServers.some((active) => active.id === item.id)}
                     onPress={() => {
                       selectServerAccount(item);
-                      router.navigate('/(tabs)/(home)');
+                      goToDestination('home');
                     }}
                   >
                     {item.username}
@@ -225,7 +227,7 @@ export function HomeAccountMenu({ server: account }: { server?: MediaServerInfo 
               </AccountMenuAction>
             </AccountMenu>
           ) : null}
-          <AccountMenuAction onPress={() => router.navigate('/(tabs)/(servers)')}>
+          <AccountMenuAction onPress={() => goToDestination('servers')}>
             {tr('navigation.servers')}
           </AccountMenuAction>
         </AccountMenu>

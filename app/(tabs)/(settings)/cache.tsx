@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/SettingsVisual';
 import { TEMPORARY_FILE_CACHE_KEYS } from '@/lib/cachePolicy';
 import { useTranslation } from '@/lib/i18n';
+import { scheduleAfterNavigation } from '@/lib/navigationWork';
 import { getStoredPerformanceLogBytes } from '@/lib/performance/performanceLogStorage';
 import { usePerformanceMonitorActions } from '@/lib/performance/PerformanceMonitorContext';
 import {
@@ -32,6 +33,7 @@ import { font } from '@expo/ui/swift-ui/modifiers';
 import { useQueryClient } from '@tanstack/react-query';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
+import { useIsFocused } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Platform, View } from 'react-native';
 
@@ -93,16 +95,19 @@ const cacheUriGroups: Record<FileCacheKey, string[]> = {
   ]),
 };
 
-async function getUriSize(uri: string): Promise<number> {
+async function getUriSize(uri: string, signal: AbortSignal): Promise<number> {
   try {
+    if (signal.aborted) return 0;
     const info = await FileSystem.getInfoAsync(uri);
+    if (signal.aborted) return 0;
     if (!info.exists) return 0;
     if (!info.isDirectory) return info.size;
 
     const directoryUri = withTrailingSlash(uri);
     const children = await FileSystem.readDirectoryAsync(directoryUri);
+    if (signal.aborted) return 0;
     const childSizes = await Promise.all(
-      children.map((name) => getUriSize(`${directoryUri}${encodeURIComponent(name)}`)),
+      children.map((name) => getUriSize(`${directoryUri}${encodeURIComponent(name)}`, signal)),
     );
     return childSizes.reduce((total, size) => total + size, 0);
   } catch (error) {
@@ -111,8 +116,8 @@ async function getUriSize(uri: string): Promise<number> {
   }
 }
 
-async function getUrisSize(uris: string[]) {
-  const sizes = await Promise.all(uris.map(getUriSize));
+async function getUrisSize(uris: string[], signal: AbortSignal) {
+  const sizes = await Promise.all(uris.map((uri) => getUriSize(uri, signal)));
   return sizes.reduce((total, size) => total + size, 0);
 }
 
@@ -120,13 +125,13 @@ async function clearCacheUris(uris: string[]) {
   await Promise.all(uris.map((uri) => FileSystem.deleteAsync(uri, { idempotent: true })));
 }
 
-async function measureFileCacheSizes(): Promise<FileCacheSizes> {
+async function measureFileCacheSizes(signal: AbortSignal): Promise<FileCacheSizes> {
   const [video, image, subtitle, download, temporary] = await Promise.all([
-    getUrisSize(cacheUriGroups.video),
-    getUrisSize(cacheUriGroups.image),
-    getUrisSize(cacheUriGroups.subtitle),
-    getUrisSize(cacheUriGroups.download),
-    getUrisSize(cacheUriGroups.temporary),
+    getUrisSize(cacheUriGroups.video, signal),
+    getUrisSize(cacheUriGroups.image, signal),
+    getUrisSize(cacheUriGroups.subtitle, signal),
+    getUrisSize(cacheUriGroups.download, signal),
+    getUrisSize(cacheUriGroups.temporary, signal),
   ]);
 
   return {
@@ -148,32 +153,44 @@ export default function CacheSettingsScreen() {
   const [measuring, setMeasuring] = useState(true);
   const [clearingTarget, setClearingTarget] = useState<ClearTarget | null>(null);
   const clearingRef = useRef(false);
+  const focused = useIsFocused();
+  const [{ queryCacheBytes, diagnosticBytes }, setStoredCacheSizes] = useState({
+    queryCacheBytes: 0,
+    diagnosticBytes: 0,
+  });
 
-  const queryCacheBytes = getPersistedQueryCacheBytes();
-  const diagnosticBytes = getStoredPerformanceLogBytes();
   useEffect(() => {
-    let cancelled = false;
+    if (!focused) return;
+    const controller = new AbortController();
 
     setMeasuring(true);
-    measureFileCacheSizes()
-      .then((sizes) => {
-        if (!cancelled) {
-          setFileCacheSizes(sizes);
-        }
-      })
-      .catch((error) => {
-        console.warn('Failed to measure cache sizes', error);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setMeasuring(false);
-        }
-      });
+    // Parsing the persisted catalog and walking image directories are optional
+    // work. Present the form and finish the native transition before measuring.
+    const task = scheduleAfterNavigation(() => {
+      const storedSizes = {
+        queryCacheBytes: getPersistedQueryCacheBytes(),
+        diagnosticBytes: getStoredPerformanceLogBytes(),
+      };
+      void measureFileCacheSizes(controller.signal)
+        .then((sizes) => {
+          if (!controller.signal.aborted) {
+            setFileCacheSizes(sizes);
+            setStoredCacheSizes(storedSizes);
+          }
+        })
+        .catch((error) => {
+          console.warn('Failed to measure cache sizes', error);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setMeasuring(false);
+        });
+    });
 
     return () => {
-      cancelled = true;
+      controller.abort();
+      task.cancel();
     };
-  }, [revision]);
+  }, [focused, revision]);
 
   const refresh = useCallback(() => {
     setRevision((value) => value + 1);
@@ -398,7 +415,7 @@ export default function CacheSettingsScreen() {
             title={<SettingsTitle>{tr('cache.libraries')}</SettingsTitle>}
             subtitle={
               <SettingsSubtitle
-                primary={formatStorageBytes(queryCacheBytes)}
+                primary={sizeLabel(queryCacheBytes)}
                 secondary={tr('cache.libraryReloadDescription')}
               />
             }
@@ -410,7 +427,7 @@ export default function CacheSettingsScreen() {
             disabled={!!clearingTarget}
             busy={clearingTarget === 'diagnostics'}
             title={<SettingsTitle>{tr('diagnostics.logs')}</SettingsTitle>}
-            subtitle={<SettingsSubtitle primary={formatStorageBytes(diagnosticBytes)} />}
+            subtitle={<SettingsSubtitle primary={sizeLabel(diagnosticBytes)} />}
             trailing={<SettingsValue label={clearingLabel('diagnostics')} tone="danger" />}
             onPress={() => void clearTarget('diagnostics', clearDiagnosticsCache)}
           />

@@ -1,3 +1,4 @@
+import { useAppNavigation } from '@/hooks/useAppNavigation';
 import { DanmakuSettingsProvider, defaultSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { NavigationBar } from 'expo-navigation-bar';
 import { useRouter } from 'expo-router';
@@ -10,14 +11,15 @@ import { PlayerLabScreen } from './PlayerLabScreen';
 
 export function PlayerLabRoute() {
   const router = useRouter();
+  const goToDestination = useAppNavigation();
   const close = useCallback(() => {
     if (router.canGoBack()) {
       router.back();
       return;
     }
 
-    router.replace('/(tabs)/(settings)');
-  }, [router]);
+    goToDestination('settings');
+  }, [router, goToDestination]);
 
   useEffect(() => {
     if (Platform.OS === 'android') NavigationBar.setHidden(true);
