@@ -4,6 +4,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
+import { useAppNavigation } from '@/hooks/useAppNavigation';
 import { useHomeSections } from '@/hooks/useHomeSections';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
@@ -17,6 +18,7 @@ export default function HomeScreen() {
   const theme = useAppTheme();
 
   const router = useTracedRouter('server-library');
+  const goToDestination = useAppNavigation();
 
   const { sections, randomItemsQuery, isCarouselLoading } = useHomeSections(currentServer);
 
@@ -78,7 +80,7 @@ export default function HomeScreen() {
                 paddingVertical: theme.spacing.md,
               },
             ]}
-            onPress={() => router.push('/(tabs)/(servers)')}
+            onPress={() => goToDestination('servers')}
           >
             <ThemedText
               style={[theme.typography.bodyEmphasized, { color: theme.colors.inverseText }]}

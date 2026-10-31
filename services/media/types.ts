@@ -332,6 +332,7 @@ export interface GetImageInfoParams {
     preferLogo?: boolean;
     preferThumb?: boolean;
     preferBanner?: boolean;
+    preferParentPoster?: boolean;
   };
 }
 export interface GetStreamInfoParams {

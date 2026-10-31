@@ -4,7 +4,7 @@ import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
 import type { MediaItem, MediaPerson } from '@/services/media/types';
 import { memo } from 'react';
-import { FlatList, Platform, Text, View, type ListRenderItemInfo } from 'react-native';
+import { FlatList, Text, View, type ListRenderItemInfo } from 'react-native';
 
 import { SeriesCard } from '../media/Card';
 import { detailViewStyles } from './common';
@@ -30,15 +30,12 @@ export const PeopleSection = memo(function PeopleSection({ items }: { items: Med
   const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const { width } = useContentDimensions();
-  const batching =
-    Platform.OS === 'android'
-      ? getMediaRailListConfig({
-          cardWidth: theme.layout.mediaRail.personCardWidth,
-          gap: theme.spacing.md,
-          horizontalPadding: theme.spacing.page + theme.spacing.sm,
-          viewportWidth: width,
-        })
-      : {};
+  const batching = getMediaRailListConfig({
+    cardWidth: theme.layout.mediaRail.personCardWidth,
+    gap: theme.spacing.md,
+    horizontalPadding: theme.spacing.page + theme.spacing.sm,
+    viewportWidth: width,
+  });
   if (items.length === 0) return null;
 
   return (
@@ -69,15 +66,12 @@ export const SimilarItemsSection = memo(function SimilarItemsSection({
   const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const { width } = useContentDimensions();
-  const batching =
-    Platform.OS === 'android'
-      ? getMediaRailListConfig({
-          cardWidth: theme.layout.mediaRail.posterCardWidth,
-          gap: theme.spacing.md,
-          horizontalPadding: theme.spacing.page + theme.spacing.sm,
-          viewportWidth: width,
-        })
-      : {};
+  const batching = getMediaRailListConfig({
+    cardWidth: theme.layout.mediaRail.posterCardWidth,
+    gap: theme.spacing.md,
+    horizontalPadding: theme.spacing.page + theme.spacing.sm,
+    viewportWidth: width,
+  });
   if (items.length === 0) return null;
 
   return (

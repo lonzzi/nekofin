@@ -1,3 +1,4 @@
+import { useAppNavigation } from '@/hooks/useAppNavigation';
 import { ContentDimensionsProvider } from '@/hooks/useContentDimensions';
 import { resolveTabletChrome, usesAndroidNavigationRail } from '@/lib/adaptiveLayout';
 import { storage } from '@/lib/storage';
@@ -5,7 +6,7 @@ import { useAppTheme } from '@/lib/theme';
 import { AndroidFloatingTabs } from '@/modules/native-layout/AndroidFloatingTabs';
 import { AndroidNavigationRail } from '@/modules/native-layout/AndroidNavigationRail';
 import { AndroidNavigationSurface } from '@/modules/native-layout/AndroidNavigationSurface';
-import { useRouter, useSegments } from 'expo-router';
+import { useSegments } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react';
 import {
   BackHandler,
@@ -22,14 +23,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationCapsule } from './NavigationCapsule.android';
 import { navigationDestinations as destinations } from './navigationDestinations';
 import { TabletChromeContext } from './TabletChromeContext';
-import { tabletDestinationKey, tabletDestinations } from './tabletDestinations';
+import { tabletDestinationKey } from './tabletDestinations';
 import { useSidebarServers } from './useSidebarServers';
 
 export function TabletNavigation({ children }: PropsWithChildren) {
   const theme = useAppTheme();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const router = useRouter();
+  const goToDestination = useAppNavigation();
   const segments = useSegments();
   const { items: servers, homeServerId, selectServer: selectSidebarServer } = useSidebarServers();
   const destination = tabletDestinationKey(segments);
@@ -41,9 +42,19 @@ export function TabletNavigation({ children }: PropsWithChildren) {
     () => storage.getBoolean('androidPadSidebarCollapsed') ?? true,
   );
   const [drawerActive, setDrawerActive] = useState(false);
+  const [headerSearches, setHeaderSearches] = useState<ReadonlySet<string>>(() => new Set());
+  const setHeaderSearchActive = useCallback((owner: string, active: boolean) => {
+    setHeaderSearches((previous) => {
+      if (previous.has(owner) === active) return previous;
+      const next = new Set(previous);
+      if (active) next.add(owner);
+      else next.delete(owner);
+      return next;
+    });
+  }, []);
   const drawerRef = useRef<DrawerLayoutAndroid>(null);
   const collapsedRef = useRef(collapsed);
-  const tabsVisible = collapsed && !drawerActive;
+  const tabsVisible = collapsed && !drawerActive && headerSearches.size === 0;
   const tabsAnimation = useAnimatedStyle(() => ({
     opacity: withTiming(tabsVisible ? 1 : 0, { duration: 180 }),
   }));
@@ -77,28 +88,26 @@ export function TabletNavigation({ children }: PropsWithChildren) {
             titleMaxWidth: chrome.titleMaxWidth,
             leadingWidth: chrome.leadingWidth,
             toolbarHeight: chrome.toolbarHeight,
+            setHeaderSearchActive,
           }
         : null,
-    [rail, chrome.titleMaxWidth, chrome.leadingWidth, chrome.toolbarHeight],
+    [rail, chrome.titleMaxWidth, chrome.leadingWidth, chrome.toolbarHeight, setHeaderSearchActive],
   );
   const selectDestination = useCallback(
     ({ nativeEvent: { key } }: NativeSyntheticEvent<{ key: string }>) => {
-      const next = tabletDestinations.find((entry) => entry.key === key);
-      if (next) {
-        if (key !== 'search') Keyboard.dismiss();
-        changeSidebar(true);
-        router.navigate(next.href);
-      }
+      if (key !== 'search') Keyboard.dismiss();
+      changeSidebar(true);
+      goToDestination(key);
     },
-    [changeSidebar, router],
+    [changeSidebar, goToDestination],
   );
   const selectServer = useCallback(
     ({ nativeEvent: { id } }: NativeSyntheticEvent<{ id: string }>) => {
       if (!selectSidebarServer(id)) return;
       changeSidebar(true);
-      router.navigate('/(tabs)/(home)');
+      goToDestination('home');
     },
-    [selectSidebarServer, changeSidebar, router],
+    [selectSidebarServer, changeSidebar, goToDestination],
   );
 
   // Keep this native navigator subtree mounted through collapse and window resizing.

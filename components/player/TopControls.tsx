@@ -1,4 +1,5 @@
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
+import { useAppNavigation } from '@/hooks/useAppNavigation';
 import dayjs from '@/lib/dayjs';
 import { useTranslation } from '@/lib/i18n';
 import { formatBitrate } from '@/lib/utils';
@@ -33,6 +34,7 @@ export function TopControls() {
   const { currentItem, danmakuComments, fadeAnim, hdrState, mediaStats, showControls, title } =
     usePlayer();
   const router = useTracedRouter('player-top-controls');
+  const goToDestination = useAppNavigation();
   const { type: networkType } = useNetworkState();
   const [now, setNow] = useState('');
 
@@ -55,7 +57,7 @@ export function TopControls() {
       return;
     }
 
-    router.replace('/(tabs)/(servers)');
+    goToDestination('servers');
   };
 
   const hdrLabel = hdrState?.isHdr ? (hdrState.hdrFormat === 'hlg' ? 'HLG' : 'HDR') : null;

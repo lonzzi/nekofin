@@ -1,3 +1,4 @@
+import { useAppNavigation } from '@/hooks/useAppNavigation';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, type PropsWithChildren } from 'react';
 
@@ -11,6 +12,7 @@ export function PlayerLabHost({ children }: PropsWithChildren) {
 
 export function usePlayerLab(): PlayerLabController {
   const router = useRouter();
+  const goToDestination = useAppNavigation();
   const open = useCallback(() => router.push('/player-lab'), [router]);
   const close = useCallback(() => {
     if (router.canGoBack()) {
@@ -18,8 +20,8 @@ export function usePlayerLab(): PlayerLabController {
       return;
     }
 
-    router.replace('/(tabs)/(settings)');
-  }, [router]);
+    goToDestination('settings');
+  }, [router, goToDestination]);
 
   return useMemo(() => ({ available: PLAYER_LAB_AVAILABLE, close, open }), [close, open]);
 }

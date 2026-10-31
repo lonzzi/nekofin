@@ -7,6 +7,7 @@ import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { MediaFilters } from '@/hooks/useMediaFilters';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import useRefresh from '@/hooks/useRefresh';
+import { useScreenTransitionReady } from '@/hooks/useScreenTransitionReady';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { t as tr, useTranslation } from '@/lib/i18n';
 import { scheduleAfterNavigation } from '@/lib/navigationWork';
@@ -14,7 +15,6 @@ import { useAppTheme } from '@/lib/theme';
 import { availableFiltersQueryOptions } from '@/services/media/queryOptions';
 import { MediaItem, MediaItemType, MediaSortBy } from '@/services/media/types';
 import { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query';
-import { useNavigation, type NativeStackNavigationProp } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -85,30 +85,14 @@ export function ItemGridScreen({
   const { numColumns, itemWidth, gap } = useGridLayout(type, layout === 'grid' ? 160 : undefined);
   const episodeLayout = useGridLayout('episode');
   const viewport = useContentDimensions();
-  const navigation = useNavigation<NativeStackNavigationProp<Record<string, undefined>>>();
+  const transitionReady = useScreenTransitionReady();
   const [renderAheadReady, setRenderAheadReady] = useState(false);
 
   useEffect(() => {
-    if (renderAheadReady) return;
-    // Present the visible grid immediately; mount offscreen native image/menu
-    // trees after this screen's push. An idle callback during the first commit
-    // can run before transitionStart has even arrived from the native stack.
-    let task: ReturnType<typeof scheduleAfterNavigation> | undefined;
-    const finish = () => {
-      clearTimeout(fallback);
-      task ??= scheduleAfterNavigation(() => setRenderAheadReady(true));
-    };
-    const unsubscribe = navigation.addListener('transitionEnd', (event) => {
-      if (!event.data.closing) finish();
-    });
-    // Initial routes and restored tabs can mount without an opening animation.
-    const fallback = setTimeout(finish, 1000);
-    return () => {
-      clearTimeout(fallback);
-      unsubscribe();
-      task?.cancel();
-    };
-  }, [navigation, renderAheadReady]);
+    if (!transitionReady || renderAheadReady) return;
+    const task = scheduleAfterNavigation(() => setRenderAheadReady(true));
+    return () => task.cancel();
+  }, [transitionReady, renderAheadReady]);
 
   const { currentServer } = useMediaServers();
   const mediaAdapter = useMediaAdapter();
@@ -175,7 +159,9 @@ export function ItemGridScreen({
   const renderMediaCard = useCallback(
     (item: MediaItem, width: number) => {
       const itemStyle = { width };
-      if (item.type !== 'Episode' && useThreeCols) {
+      // Ungrouped grids keep one card shape and preserve the server's order,
+      // including latest-media responses that mix series with episodes.
+      if (useThreeCols && (disableGrouping || item.type !== 'Episode')) {
         return (
           <SeriesCard
             item={item}
@@ -194,7 +180,7 @@ export function ItemGridScreen({
         />
       );
     },
-    [useThreeCols, getItemSource, showServerSource],
+    [useThreeCols, disableGrouping, getItemSource, showServerSource],
   );
 
   const renderItem = useCallback(

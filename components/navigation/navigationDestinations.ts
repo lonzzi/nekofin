@@ -6,6 +6,8 @@ export const navigationDestinations = [
     key: 'home',
     role: 'tab',
     name: '(home)',
+    href: '/(tabs)/(home)',
+    root: 'index',
     get title() {
       return tr('navigation.home');
     },
@@ -16,6 +18,8 @@ export const navigationDestinations = [
     key: 'servers',
     role: 'tab',
     name: '(servers)',
+    href: '/(tabs)/(servers)',
+    root: 'index',
     get title() {
       return tr('navigation.servers');
     },
@@ -26,6 +30,8 @@ export const navigationDestinations = [
     key: 'favorites',
     role: 'tab',
     name: '(favorites)',
+    href: '/(tabs)/(favorites)',
+    root: 'index',
     get title() {
       return tr('navigation.favorites');
     },
@@ -36,6 +42,8 @@ export const navigationDestinations = [
     key: 'settings',
     role: 'tab',
     name: '(settings)',
+    href: '/(tabs)/(settings)',
+    root: 'index',
     get title() {
       return tr('navigation.settings');
     },
@@ -46,6 +54,8 @@ export const navigationDestinations = [
     key: 'search',
     role: 'search',
     name: '(search)',
+    href: '/(tabs)/(search)/(root)',
+    root: '(root)',
     get title() {
       return tr('search.title');
     },
@@ -53,3 +63,5 @@ export const navigationDestinations = [
     sf: { default: 'magnifyingglass', selected: 'magnifyingglass' },
   },
 ] as const;
+
+export type NavigationDestinationKey = (typeof navigationDestinations)[number]['key'];

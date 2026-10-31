@@ -31,6 +31,30 @@ export const findEpisodeIndex = (episodes: MediaItem[], selectedEpisodeId?: stri
   return episodes.findIndex((episode) => episode.id === selectedEpisodeId);
 };
 
+/** Keep the first rendered card inside the list's actual scrollable range. */
+export function getInitialEpisodeScrollIndex({
+  selectedIndex,
+  episodeCount,
+  cardWidth,
+  gap,
+  horizontalPadding,
+  viewportWidth,
+}: {
+  selectedIndex: number;
+  episodeCount: number;
+  cardWidth: number;
+  gap: number;
+  horizontalPadding: number;
+  viewportWidth: number;
+}) {
+  const stride = cardWidth + gap;
+  const contentWidth = episodeCount * stride - gap + horizontalPadding * 2;
+  const lastScrollableIndex = Math.floor(Math.max(0, contentWidth - viewportWidth) / stride);
+  // VirtualizedList skips cells before initialScrollIndex. If the native scroll
+  // offset is clamped at the end, skipping those cells would leave an empty gap.
+  return Math.max(0, Math.min(selectedIndex, lastScrollableIndex));
+}
+
 export const getSeasonTitle = (season?: MediaItem): string => {
   if (!season) return '';
 

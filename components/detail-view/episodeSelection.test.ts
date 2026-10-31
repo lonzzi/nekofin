@@ -5,6 +5,7 @@ import {
   findEpisodeIndex,
   getDisplayEpisodes,
   getEpisodeHeaderText,
+  getInitialEpisodeScrollIndex,
   getInitialSeasonId,
   getSeasonActions,
   getSeasonTitle,
@@ -61,6 +62,32 @@ describe('episodeSelection', () => {
     expect(findEpisodeIndex(episodes, 'episode-2')).toBe(1);
     expect(findEpisodeIndex(episodes, 'missing')).toBe(-1);
     expect(findEpisodeIndex(episodes)).toBe(-1);
+  });
+
+  it('renders the whole short season when all episodes fit on a tablet', () => {
+    expect(
+      getInitialEpisodeScrollIndex({
+        selectedIndex: 1,
+        episodeCount: 4,
+        cardWidth: 200,
+        gap: 12,
+        horizontalPadding: 28,
+        viewportWidth: 1219,
+      }),
+    ).toBe(0);
+  });
+
+  it('keeps preceding cards mounted when scrolling to the last episode is clamped', () => {
+    const geometry = {
+      episodeCount: 12,
+      cardWidth: 200,
+      gap: 12,
+      horizontalPadding: 28,
+      viewportWidth: 400,
+    };
+    expect(getInitialEpisodeScrollIndex({ ...geometry, selectedIndex: 11 })).toBe(10);
+    expect(getInitialEpisodeScrollIndex({ ...geometry, selectedIndex: 5 })).toBe(5);
+    expect(getInitialEpisodeScrollIndex({ ...geometry, selectedIndex: -1 })).toBe(0);
   });
 
   it('formats season actions and episode header text', () => {

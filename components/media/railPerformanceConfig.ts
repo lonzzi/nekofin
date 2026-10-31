@@ -28,7 +28,9 @@ export function getMediaRailListConfig({
 
   return {
     initialNumToRender,
-    maxToRenderPerBatch: initialNumToRender,
+    // Wide screens need a full initial viewport, but replenishing an entire
+    // tablet row at once can block JS for hundreds of milliseconds.
+    maxToRenderPerBatch: Math.min(3, initialNumToRender),
     windowSize: 3,
   } as const;
 }

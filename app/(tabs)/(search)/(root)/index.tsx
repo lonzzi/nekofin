@@ -11,6 +11,7 @@ import { emptyListContentStyle, EmptyListViewport } from '@/components/ui/EmptyL
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FilterChoice, FilterRow } from '@/components/ui/FilterControls';
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
+import { useNativeSearchHeader } from '@/hooks/useNativeSearchHeader';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
@@ -108,6 +109,7 @@ function AggregateSearchScreen() {
   const androidTablet = tabletChrome != null;
   const focused = useIsFocused();
   const searchBar = useRef<SearchBarCommands>(null);
+  const searchHeader = useNativeSearchHeader();
   useFocusEffect(
     useCallback(() => {
       if (!androidTablet) return;
@@ -152,6 +154,7 @@ function AggregateSearchScreen() {
     <>
       <OuterScreenOptions title={tr('search.title')} />
       <Stack.SearchBar
+        {...searchHeader}
         ref={searchBar}
         autoFocus={androidTablet && focused}
         placeholder={tr('search.allServers')}

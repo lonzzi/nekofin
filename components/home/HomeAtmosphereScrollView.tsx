@@ -125,6 +125,7 @@ export function HomeAtmosphereScrollView({
 
   const scroller = (
     <ParallaxScrollView
+      removeClippedSubviews={Platform.OS === 'android'}
       contentContainerStyle={{
         paddingBottom: Platform.OS === 'android' ? tabBarInset : insets.bottom,
       }}

@@ -6,6 +6,7 @@ export const TabletChromeContext = createContext<{
   titleMaxWidth: number;
   leadingWidth: number;
   toolbarHeight: number;
+  setHeaderSearchActive: (owner: string, active: boolean) => void;
 } | null>(null);
 
 export function TabletHeaderTitle({
