@@ -1,5 +1,6 @@
 import {
   PlayerEntryVisibilityContext,
+  PlayerExitingContext,
   PlayerExitPreparationContext,
 } from '@/components/player/PlayerEntryContext';
 import { createPlayerExitPreparation } from '@/components/player/playerExitPreparation';
@@ -140,7 +141,7 @@ export default function Layout() {
   }, [canFinishExit, navigation, pendingExit]);
 
   return (
-    <>
+    <PlayerExitingContext value={pendingExit !== null}>
       {/* Configure the root player route before dispatching the deferred pop. */}
       <Stack.Screen
         options={{
@@ -182,7 +183,7 @@ export default function Layout() {
           </PlayerEntryVisibilityContext>
         </PlayerExitPreparationContext>
       </View>
-    </>
+    </PlayerExitingContext>
   );
 }
 

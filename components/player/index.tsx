@@ -75,7 +75,11 @@ import {
   deriveTracks,
   formatPlayerTitle,
 } from './playerDerived';
-import { PlayerEntryVisibilityContext, PlayerExitPreparationContext } from './PlayerEntryContext';
+import {
+  PlayerEntryVisibilityContext,
+  PlayerExitingContext,
+  PlayerExitPreparationContext,
+} from './PlayerEntryContext';
 import { createPlayerLoadRecovery, playbackFailureMessage } from './playerLoadRecovery';
 import { serverIndexForNativeTrack } from './playerQualitySelection';
 import { createPlayerSegmentSkip } from './playerSegmentSkip';
@@ -142,6 +146,10 @@ export const VideoPlayer = ({
   useTranslation();
   const { currentServer, currentApi } = useMediaServers();
   const entryControlsVisible = useContext(PlayerEntryVisibilityContext);
+  const isExiting = useContext(PlayerExitingContext);
+  // iOS keeps the video mounted for exit rotation, but its overlays must disappear immediately.
+  const hideOverlaysForExit = Platform.OS === 'ios' && isExiting;
+  const overlaysVisible = entryControlsVisible && !hideOverlaysForExit;
   const router = useTracedRouter('player');
   const mediaAdapter = useMediaAdapter();
   const { settings } = useDanmakuSettings();
@@ -1765,14 +1773,14 @@ export const VideoPlayer = ({
         />
       ) : null}
 
-      {(showLoading || !entryControlsVisible) && (
+      {!hideOverlaysForExit && (showLoading || !entryControlsVisible) && (
         <LoadingIndicator
           bufferInfo={bufferInfo}
           title={playbackAttempt > 0 && !isLoaded ? tr('player.reloadingVideo') : undefined}
         />
       )}
 
-      {entryControlsVisible && settings.enabled && comments.length > 0 && initialTime >= 0 ? (
+      {overlaysVisible && settings.enabled && comments.length > 0 && initialTime >= 0 ? (
         <DanmakuLayer
           ref={danmakuLayer}
           currentTime={currentTime}
@@ -1784,7 +1792,7 @@ export const VideoPlayer = ({
         />
       ) : null}
 
-      {entryControlsVisible && (
+      {overlaysVisible && (
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
           <Controls
             isPlaying={isPlaying}
