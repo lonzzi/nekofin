@@ -75,13 +75,9 @@ import {
   deriveTracks,
   formatPlayerTitle,
 } from './playerDerived';
-import {
-  PlayerEntryVisibilityContext,
-  PlayerExitingContext,
-  PlayerExitPreparationContext,
-} from './PlayerEntryContext';
 import { createPlayerLoadRecovery, playbackFailureMessage } from './playerLoadRecovery';
 import { serverIndexForNativeTrack } from './playerQualitySelection';
+import { PlayerRouteContext } from './PlayerRouteContext';
 import { createPlayerSegmentSkip } from './playerSegmentSkip';
 import {
   deriveNativeSubtitleState,
@@ -145,8 +141,11 @@ export const VideoPlayer = ({
   // Translate callback messages live without restarting track effects on locale changes.
   useTranslation();
   const { currentServer, currentApi } = useMediaServers();
-  const entryControlsVisible = useContext(PlayerEntryVisibilityContext);
-  const isExiting = useContext(PlayerExitingContext);
+  const {
+    entryVisible: entryControlsVisible,
+    isExiting,
+    exitPreparation,
+  } = useContext(PlayerRouteContext);
   // iOS keeps the video mounted for exit rotation, but its overlays must disappear immediately.
   const hideOverlaysForExit = Platform.OS === 'ios' && isExiting;
   const overlaysVisible = entryControlsVisible && !hideOverlaysForExit;
@@ -287,7 +286,6 @@ export const VideoPlayer = ({
   const hwdec = Platform.OS === 'web' ? undefined : playbackHwdec(decodingMode, Platform.OS);
   const player = useRef<ExpoMpvViewRef>(null);
   const isExitingRef = useRef(false);
-  const exitPreparation = useContext(PlayerExitPreparationContext);
   useLayoutEffect(
     () =>
       exitPreparation?.register(() => {
