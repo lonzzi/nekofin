@@ -34,19 +34,18 @@ import {
 } from 'expo-mpv';
 import {
   useCallback,
-  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type PropsWithChildren,
 } from 'react';
 import { ActivityIndicator, Alert, AppState, Platform, StyleSheet, Text, View } from 'react-native';
 import { useMMKVBoolean, useMMKVString } from 'react-native-mmkv';
 import { useSharedValue } from 'react-native-reanimated';
 
 import { usePlaybackSync } from '../../hooks/usePlaybackSync';
-import { Controls } from './Controls';
 import { DanmakuLayer, DanmakuLayerRef } from './DanmakuLayer';
 import { createExternalSubtitleCache } from './externalSubtitleCache';
 import { parsePlaybackDecodingMode, playbackHwdec } from './playbackDecoding';
@@ -63,6 +62,7 @@ import {
   type PlaybackSeekCompletion,
 } from './playbackSeekGate';
 import { createPlayerAutoNext, type PlaybackCompletion } from './playerAutoNext';
+import type { PlayerLifecycleState } from './PlayerContext';
 import { canSeekPlayback } from './playerControlModel';
 import {
   deriveBufferedProgress,
@@ -76,8 +76,8 @@ import {
   formatPlayerTitle,
 } from './playerDerived';
 import { createPlayerLoadRecovery, playbackFailureMessage } from './playerLoadRecovery';
+import { PlayerProvider, type PlayerPlaybackInput } from './PlayerProvider';
 import { serverIndexForNativeTrack } from './playerQualitySelection';
-import { PlayerRouteContext } from './PlayerRouteContext';
 import { createPlayerSegmentSkip } from './playerSegmentSkip';
 import {
   deriveNativeSubtitleState,
@@ -134,18 +134,17 @@ const LoadingIndicator = ({
 export const VideoPlayer = ({
   itemId,
   initialSelection,
-}: {
+  lifecycle,
+  children,
+}: PropsWithChildren<{
   itemId: string;
   initialSelection?: PlaybackSelection;
-}) => {
+  lifecycle: PlayerLifecycleState;
+}>) => {
   // Translate callback messages live without restarting track effects on locale changes.
   useTranslation();
   const { currentServer, currentApi } = useMediaServers();
-  const {
-    entryVisible: entryControlsVisible,
-    isExiting,
-    exitPreparation,
-  } = useContext(PlayerRouteContext);
+  const { entryVisible: entryControlsVisible, isExiting, exitPreparation } = lifecycle;
   // iOS keeps the video mounted for exit rotation, but its overlays must disappear immediately.
   const hideOverlaysForExit = Platform.OS === 'ios' && isExiting;
   const overlaysVisible = entryControlsVisible && !hideOverlaysForExit;
@@ -1593,283 +1592,283 @@ export const VideoPlayer = ({
     goToEpisode,
   ]);
 
+  const playback = {
+    isPlaying,
+    isLoading: showLoading,
+    isPlayerReady: isLoaded && !loadFailure,
+    duration,
+    currentTime,
+    onSeek: handleSeek,
+    title: formattedTitle,
+    onPlayPause: handlePlayPause,
+    onRateChange: handleRateChange,
+    rate,
+    tracks: menuTracks,
+    selectedTracks: {
+      audio: menuTracks.audio.find(
+        (t) =>
+          t.index ===
+          (usesServerTracks
+            ? (activeServerTrackChoice?.audio ?? streamInfo?.mediaSource?.DefaultAudioStreamIndex)
+            : currentTrackIds.aid),
+      ),
+      subtitle: menuTracks.subtitle.find(
+        (t) => t.index === (hasServerSubtitleMenu ? selectedSubtitleIndex : currentTrackIds.sid),
+      ),
+    },
+    onAudioTrackChange: handleAudioTrackChange,
+    onSubtitleTrackChange: handleSubtitleTrackChange,
+    mediaSources,
+    selectedMediaSourceId: streamInfo?.mediaSource?.Id ?? selectedMediaSourceId,
+    onMediaSourceChange: (id) => {
+      if (id === streamInfo?.mediaSource?.Id) return;
+      subtitleChoiceRef.current = null;
+      setSubtitleChoice(null);
+      resumePausedRef.current = !isPlaying;
+      setVersionChoice({ itemId, id });
+    },
+    decodingMode: Platform.OS === 'web' ? undefined : decodingMode,
+    onDecodingModeChange: (mode) => {
+      if (mode === decodingMode) return;
+      // Changing hwdec on an active decoder can block the native player
+      // thread. A fresh view applies the choice before loading media.
+      activePlaybackContextRef.current = null;
+      if (isPlayerReadyRef.current) resumePausedRef.current = !isPlaying;
+      recordPlaybackDiagnostic('player.decoder.requested', {
+        mode,
+        hwdec: playbackHwdec(mode, Platform.OS),
+        restart: true,
+      });
+      setStoredDecodingMode(mode);
+    },
+    quality,
+    onQualityChange: handleQualityChange,
+    playbackSourceInfo,
+    readPlaybackMediaInfo,
+    aspectRatio,
+    onAspectRatioChange: handleAspectRatioChange,
+    hasPreviousEpisode,
+    hasNextEpisode,
+    onPreviousEpisode: handlePreviousEpisode,
+    onNextEpisode: handleNextEpisode,
+    mediaStats: null,
+    bufferedProgress,
+    hdrState,
+    onCommentsLoaded: handleCommentsLoaded,
+    danmakuEpisodeInfo,
+    danmakuComments: comments,
+    danmakuTracks: resolvedDanmaku.tracks,
+    danmakuSelection,
+    onDanmakuSelectionChange: setDanmakuSelectionOverride,
+    danmakuFailedSources: resolvedDanmaku.failedSources,
+    episodes,
+    currentItem: itemDetail,
+    onEpisodeSelect: handleEpisodeSelect,
+  } satisfies PlayerPlaybackInput;
+
   return (
-    <View style={styles.container}>
-      {playbackSourceUrl &&
-      sourceStart?.context === playbackContext &&
-      initialTime >= 0 &&
-      !loadFailure ? (
-        <ExpoMpvView
-          key={`${itemId}:${playbackSourceUrl}:${playbackAttempt}:${decodingMode}`}
-          ref={player}
-          style={styles.video}
-          source={playbackSourceUrl}
-          startPosition={deriveStartPositionSeconds(sourceStart.positionMs, duration)}
-          paused={sourceStart.paused}
-          speed={rate}
-          hwdec={hwdec}
-          showNotificationControls
-          metadata={mediaMetadata}
-          onPlaybackStateChange={({ nativeEvent }) => {
-            if (!isPlaybackContextActive(playbackContext)) return;
-            recordPlaybackDiagnostic('player.state', nativeEvent);
-            playbackStateRef.current = nativeEvent.state;
-            setPlaybackState(nativeEvent.state);
-            setIsPlaying(nativeEvent.state !== 'ended' && nativeEvent.isPlaying);
-            if (nativeEvent.state === 'playing' || nativeEvent.state === 'paused') {
-              completedPlaybackContextRef.current = null;
-              setPlaybackCompletion(null);
-              setIsStopped(false);
-            }
-            // With keep-open enabled, mpv can signal eof-reached without an
-            // end-file event. Both native EOF signals share the same completion gate.
-            if (nativeEvent.state === 'ended') completePlayback(playbackContext);
-            if (!nativeEvent.isPlaying && !playbackSeekGateRef.current.pendingSeek) {
-              syncPlaybackProgress(currentTime.value, true, { force: true });
-            }
-          }}
-          onProgress={({ nativeEvent }) => {
-            if (
-              !isPlaybackContextActive(playbackContext) ||
-              loadedSourceRef.current !== playbackSourceUrl
-            ) {
-              return;
-            }
-            recordPlaybackProgress(nativeEvent);
-            const positionMs = nativeEvent.position * 1000;
-            const decision = evaluatePlaybackProgress({
-              isPlaying: playbackStateRef.current === 'playing',
-              playbackRate: rate,
-              positionTimeMs: positionMs,
-              state: playbackSeekGateRef.current,
-              wallTimeMs: performance.now(),
-            });
-            playbackSeekGateRef.current = decision.state;
-            if (decision.accepted) {
-              if (decision.completion) {
-                applyPlaybackSeekCompletion(decision.completion);
-              } else {
-                danmakuLayer.current?.syncPlaybackTime(positionMs);
-                currentTime.set(positionMs);
-                syncPlaybackProgress(positionMs, playbackStateRef.current === 'paused');
+    <PlayerProvider playback={playback} lifecycle={lifecycle}>
+      <View style={styles.container}>
+        {playbackSourceUrl &&
+        sourceStart?.context === playbackContext &&
+        initialTime >= 0 &&
+        !loadFailure ? (
+          <ExpoMpvView
+            key={`${itemId}:${playbackSourceUrl}:${playbackAttempt}:${decodingMode}`}
+            ref={player}
+            style={styles.video}
+            source={playbackSourceUrl}
+            startPosition={deriveStartPositionSeconds(sourceStart.positionMs, duration)}
+            paused={sourceStart.paused}
+            speed={rate}
+            hwdec={hwdec}
+            showNotificationControls
+            metadata={mediaMetadata}
+            onPlaybackStateChange={({ nativeEvent }) => {
+              if (!isPlaybackContextActive(playbackContext)) return;
+              recordPlaybackDiagnostic('player.state', nativeEvent);
+              playbackStateRef.current = nativeEvent.state;
+              setPlaybackState(nativeEvent.state);
+              setIsPlaying(nativeEvent.state !== 'ended' && nativeEvent.isPlaying);
+              if (nativeEvent.state === 'playing' || nativeEvent.state === 'paused') {
+                completedPlaybackContextRef.current = null;
+                setPlaybackCompletion(null);
+                setIsStopped(false);
               }
-              const playerView = player.current;
+              // With keep-open enabled, mpv can signal eof-reached without an
+              // end-file event. Both native EOF signals share the same completion gate.
+              if (nativeEvent.state === 'ended') completePlayback(playbackContext);
+              if (!nativeEvent.isPlaying && !playbackSeekGateRef.current.pendingSeek) {
+                syncPlaybackProgress(currentTime.value, true, { force: true });
+              }
+            }}
+            onProgress={({ nativeEvent }) => {
               if (
-                !decision.completion &&
-                !playbackSeekGateRef.current.pendingSeek &&
-                playbackStateRef.current === 'playing' &&
-                isPlayerReadyRef.current &&
-                playerView
+                !isPlaybackContextActive(playbackContext) ||
+                loadedSourceRef.current !== playbackSourceUrl
               ) {
-                const segment = segmentSkip.claim(segments, positionMs, {
-                  intro: autoSkipIntro,
-                  outro: autoSkipOutro,
-                });
-                if (segment) {
-                  requestNativeSeek(playerView, segment.endTimeMs);
+                return;
+              }
+              recordPlaybackProgress(nativeEvent);
+              const positionMs = nativeEvent.position * 1000;
+              const decision = evaluatePlaybackProgress({
+                isPlaying: playbackStateRef.current === 'playing',
+                playbackRate: rate,
+                positionTimeMs: positionMs,
+                state: playbackSeekGateRef.current,
+                wallTimeMs: performance.now(),
+              });
+              playbackSeekGateRef.current = decision.state;
+              if (decision.accepted) {
+                if (decision.completion) {
+                  applyPlaybackSeekCompletion(decision.completion);
+                } else {
+                  danmakuLayer.current?.syncPlaybackTime(positionMs);
+                  currentTime.set(positionMs);
+                  syncPlaybackProgress(positionMs, playbackStateRef.current === 'paused');
+                }
+                const playerView = player.current;
+                if (
+                  !decision.completion &&
+                  !playbackSeekGateRef.current.pendingSeek &&
+                  playbackStateRef.current === 'playing' &&
+                  isPlayerReadyRef.current &&
+                  playerView
+                ) {
+                  const segment = segmentSkip.claim(segments, positionMs, {
+                    intro: autoSkipIntro,
+                    outro: autoSkipOutro,
+                  });
+                  if (segment) {
+                    requestNativeSeek(playerView, segment.endTimeMs);
+                  }
                 }
               }
-            }
-            bufferedProgress.set(
-              deriveBufferedProgress({
-                positionSeconds: nativeEvent.position,
-                durationSeconds: nativeEvent.duration,
-                bufferedDurationSeconds: nativeEvent.bufferedDuration,
-                bufferedPositionSeconds: nativeEvent.bufferedPosition,
-              }),
-            );
-            // Surface buffering stats (throttled) only while stalled for cache.
-            if (nativeEvent.bufferingPercent < 100) {
-              isBufferingRef.current = true;
-              const ts = Date.now();
-              if (ts - bufferInfoThrottleRef.current >= 500) {
-                bufferInfoThrottleRef.current = ts;
-                setBufferInfo({
-                  percent: nativeEvent.bufferingPercent,
-                  rate: nativeEvent.bufferRate,
-                });
+              bufferedProgress.set(
+                deriveBufferedProgress({
+                  positionSeconds: nativeEvent.position,
+                  durationSeconds: nativeEvent.duration,
+                  bufferedDurationSeconds: nativeEvent.bufferedDuration,
+                  bufferedPositionSeconds: nativeEvent.bufferedPosition,
+                }),
+              );
+              // Surface buffering stats (throttled) only while stalled for cache.
+              if (nativeEvent.bufferingPercent < 100) {
+                isBufferingRef.current = true;
+                const ts = Date.now();
+                if (ts - bufferInfoThrottleRef.current >= 500) {
+                  bufferInfoThrottleRef.current = ts;
+                  setBufferInfo({
+                    percent: nativeEvent.bufferingPercent,
+                    rate: nativeEvent.bufferRate,
+                  });
+                }
+              } else if (isBufferingRef.current) {
+                isBufferingRef.current = false;
+                setBufferInfo(null);
               }
-            } else if (isBufferingRef.current) {
-              isBufferingRef.current = false;
-              setBufferInfo(null);
-            }
-          }}
-          onSeek={() => {
-            if (
-              !isPlaybackContextActive(playbackContext) ||
-              loadedSourceRef.current !== playbackSourceUrl
-            ) {
-              return;
-            }
-            playbackSeekGateRef.current = acknowledgePlaybackSeek(playbackSeekGateRef.current);
-          }}
-          onHdrStateChange={({ nativeEvent }) => {
-            if (!isPlaybackContextActive(playbackContext)) return;
-            setHdrState(nativeEvent);
-          }}
-          onLoad={({ nativeEvent }) => {
-            if (!isPlaybackContextActive(playbackContext)) return;
-            recordPlaybackDiagnostic('player.loaded', nativeEvent);
-            isPlayerReadyRef.current = true;
-            loadedSourceRef.current = playbackSourceUrl;
-            // Fill crops the video, so keep plain-text subtitles within the screen.
-            void player.current?.setPropertyString(
-              'sub-use-margins',
-              aspectRatio === 'fill' ? 'yes' : 'no',
-            );
-            // Native loadfile applies startPosition before presenting its first frame.
-            setIsNativeSeeking(false);
-            setIsLoaded(true);
-            setIsBuffering(false);
-            setIsPlaying(!resumePausedRef.current);
-            if (resumePausedRef.current && !playbackSeekGateRef.current.pendingSeek) {
-              void player.current?.pause();
-              resumePausedRef.current = false;
-            }
-            setIsStopped(false);
-            setMediaInfo({
-              duration: nativeEvent.duration,
-              currentTime: currentTime.value / 1000,
-            });
-            syncPlaybackStart(currentTime.value);
-          }}
-          onBuffer={({ nativeEvent }) => {
-            if (!isPlaybackContextActive(playbackContext)) return;
-            recordPlaybackDiagnostic(
-              'player.buffer',
-              nativeEvent,
-              nativeEvent.isBuffering ? 'pending' : 'ok',
-            );
-            setIsBuffering(nativeEvent.isBuffering);
-          }}
-          onError={({ nativeEvent }) => {
-            if (!isPlaybackContextActive(playbackContext)) return;
-            recordPlaybackDiagnostic('player.error', nativeEvent, 'error');
-            // mpv reports async sub-add/audio-add failures through the same event
-            // as video failures. The loader handles missing tracks separately.
-            if (isExternalTrackCommandError(nativeEvent.error)) return;
-            if (loadRecovery.claimAutomaticRetry(nativeEvent.error, loadSelectionKey)) {
-              retryPlayback();
-              return;
-            }
-            failPendingNativeSeek();
-            activePlaybackContextRef.current = null;
-            isPlayerReadyRef.current = false;
-            loadedSourceRef.current = null;
-            setIsBuffering(false);
-            setIsPlaying(false);
-            setIsStopped(true);
-            syncPlaybackProgress(currentTime.value, true, { force: true });
-            syncPlaybackStop(currentTime.value);
-            setLoadFailure(playbackFailureMessage(nativeEvent.error));
-          }}
-          onEnd={({ nativeEvent }) => {
-            if (isPlaybackContextActive(playbackContext))
-              recordPlaybackDiagnostic('player.end', nativeEvent);
-            if (nativeEvent.reason === 'ended') completePlayback(playbackContext);
-          }}
-        />
-      ) : null}
-
-      {!hideOverlaysForExit && (showLoading || !entryControlsVisible) && (
-        <LoadingIndicator
-          bufferInfo={bufferInfo}
-          title={playbackAttempt > 0 && !isLoaded ? tr('player.reloadingVideo') : undefined}
-        />
-      )}
-
-      {overlaysVisible && settings.enabled && comments.length > 0 && initialTime >= 0 ? (
-        <DanmakuLayer
-          ref={danmakuLayer}
-          currentTime={currentTime}
-          isSeeking={isNativeSeeking}
-          playbackState={danmakuPlaybackState}
-          comments={comments}
-          playbackRate={rate}
-          {...settings}
-        />
-      ) : null}
-
-      {overlaysVisible && (
-        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-          <Controls
-            isPlaying={isPlaying}
-            isLoading={showLoading}
-            isPlayerReady={isLoaded && !loadFailure}
-            duration={duration}
-            currentTime={currentTime}
-            onSeek={handleSeek}
-            title={formattedTitle}
-            onPlayPause={handlePlayPause}
-            onRateChange={handleRateChange}
-            rate={rate}
-            tracks={menuTracks}
-            selectedTracks={{
-              audio: menuTracks.audio.find(
-                (t) =>
-                  t.index ===
-                  (usesServerTracks
-                    ? (activeServerTrackChoice?.audio ??
-                      streamInfo?.mediaSource?.DefaultAudioStreamIndex)
-                    : currentTrackIds.aid),
-              ),
-              subtitle: menuTracks.subtitle.find(
-                (t) =>
-                  t.index === (hasServerSubtitleMenu ? selectedSubtitleIndex : currentTrackIds.sid),
-              ),
             }}
-            onAudioTrackChange={handleAudioTrackChange}
-            onSubtitleTrackChange={handleSubtitleTrackChange}
-            mediaSources={mediaSources}
-            selectedMediaSourceId={streamInfo?.mediaSource?.Id ?? selectedMediaSourceId}
-            onMediaSourceChange={(id) => {
-              if (id === streamInfo?.mediaSource?.Id) return;
-              subtitleChoiceRef.current = null;
-              setSubtitleChoice(null);
-              resumePausedRef.current = !isPlaying;
-              setVersionChoice({ itemId, id });
+            onSeek={() => {
+              if (
+                !isPlaybackContextActive(playbackContext) ||
+                loadedSourceRef.current !== playbackSourceUrl
+              ) {
+                return;
+              }
+              playbackSeekGateRef.current = acknowledgePlaybackSeek(playbackSeekGateRef.current);
             }}
-            decodingMode={Platform.OS === 'web' ? undefined : decodingMode}
-            onDecodingModeChange={(mode) => {
-              if (mode === decodingMode) return;
-              // Changing hwdec on an active decoder can block the native player
-              // thread. A fresh view applies the choice before loading media.
-              activePlaybackContextRef.current = null;
-              if (isPlayerReadyRef.current) resumePausedRef.current = !isPlaying;
-              recordPlaybackDiagnostic('player.decoder.requested', {
-                mode,
-                hwdec: playbackHwdec(mode, Platform.OS),
-                restart: true,
+            onHdrStateChange={({ nativeEvent }) => {
+              if (!isPlaybackContextActive(playbackContext)) return;
+              setHdrState(nativeEvent);
+            }}
+            onLoad={({ nativeEvent }) => {
+              if (!isPlaybackContextActive(playbackContext)) return;
+              recordPlaybackDiagnostic('player.loaded', nativeEvent);
+              isPlayerReadyRef.current = true;
+              loadedSourceRef.current = playbackSourceUrl;
+              // Fill crops the video, so keep plain-text subtitles within the screen.
+              void player.current?.setPropertyString(
+                'sub-use-margins',
+                aspectRatio === 'fill' ? 'yes' : 'no',
+              );
+              // Native loadfile applies startPosition before presenting its first frame.
+              setIsNativeSeeking(false);
+              setIsLoaded(true);
+              setIsBuffering(false);
+              setIsPlaying(!resumePausedRef.current);
+              if (resumePausedRef.current && !playbackSeekGateRef.current.pendingSeek) {
+                void player.current?.pause();
+                resumePausedRef.current = false;
+              }
+              setIsStopped(false);
+              setMediaInfo({
+                duration: nativeEvent.duration,
+                currentTime: currentTime.value / 1000,
               });
-              setStoredDecodingMode(mode);
+              syncPlaybackStart(currentTime.value);
             }}
-            quality={quality}
-            onQualityChange={handleQualityChange}
-            playbackSourceInfo={playbackSourceInfo}
-            readPlaybackMediaInfo={readPlaybackMediaInfo}
-            aspectRatio={aspectRatio}
-            onAspectRatioChange={handleAspectRatioChange}
-            hasPreviousEpisode={hasPreviousEpisode}
-            hasNextEpisode={hasNextEpisode}
-            onPreviousEpisode={handlePreviousEpisode}
-            onNextEpisode={handleNextEpisode}
-            mediaStats={null}
-            bufferedProgress={bufferedProgress}
-            hdrState={hdrState}
-            onCommentsLoaded={handleCommentsLoaded}
-            danmakuEpisodeInfo={danmakuEpisodeInfo}
-            danmakuComments={comments}
-            danmakuTracks={resolvedDanmaku.tracks}
-            danmakuSelection={danmakuSelection}
-            onDanmakuSelectionChange={setDanmakuSelectionOverride}
-            danmakuFailedSources={resolvedDanmaku.failedSources}
-            episodes={episodes}
-            currentItem={itemDetail}
-            onEpisodeSelect={handleEpisodeSelect}
+            onBuffer={({ nativeEvent }) => {
+              if (!isPlaybackContextActive(playbackContext)) return;
+              recordPlaybackDiagnostic(
+                'player.buffer',
+                nativeEvent,
+                nativeEvent.isBuffering ? 'pending' : 'ok',
+              );
+              setIsBuffering(nativeEvent.isBuffering);
+            }}
+            onError={({ nativeEvent }) => {
+              if (!isPlaybackContextActive(playbackContext)) return;
+              recordPlaybackDiagnostic('player.error', nativeEvent, 'error');
+              // mpv reports async sub-add/audio-add failures through the same event
+              // as video failures. The loader handles missing tracks separately.
+              if (isExternalTrackCommandError(nativeEvent.error)) return;
+              if (loadRecovery.claimAutomaticRetry(nativeEvent.error, loadSelectionKey)) {
+                retryPlayback();
+                return;
+              }
+              failPendingNativeSeek();
+              activePlaybackContextRef.current = null;
+              isPlayerReadyRef.current = false;
+              loadedSourceRef.current = null;
+              setIsBuffering(false);
+              setIsPlaying(false);
+              setIsStopped(true);
+              syncPlaybackProgress(currentTime.value, true, { force: true });
+              syncPlaybackStop(currentTime.value);
+              setLoadFailure(playbackFailureMessage(nativeEvent.error));
+            }}
+            onEnd={({ nativeEvent }) => {
+              if (isPlaybackContextActive(playbackContext))
+                recordPlaybackDiagnostic('player.end', nativeEvent);
+              if (nativeEvent.reason === 'ended') completePlayback(playbackContext);
+            }}
           />
+        ) : null}
+
+        {!hideOverlaysForExit && (showLoading || !entryControlsVisible) && (
+          <LoadingIndicator
+            bufferInfo={bufferInfo}
+            title={playbackAttempt > 0 && !isLoaded ? tr('player.reloadingVideo') : undefined}
+          />
+        )}
+
+        {overlaysVisible && settings.enabled && comments.length > 0 && initialTime >= 0 ? (
+          <DanmakuLayer
+            ref={danmakuLayer}
+            currentTime={currentTime}
+            isSeeking={isNativeSeeking}
+            playbackState={danmakuPlaybackState}
+            comments={comments}
+            playbackRate={rate}
+            {...settings}
+          />
+        ) : null}
+
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+          {children}
         </View>
-      )}
-    </View>
+      </View>
+    </PlayerProvider>
   );
 };
 

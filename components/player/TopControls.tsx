@@ -31,8 +31,10 @@ export function TopControls() {
   const { t: tr } = useTranslation();
   const { side, safeSideGap, topExtra, maxContentWidth, isCompact } = useOverlayInsets();
   const insets = useSafeAreaInsets();
-  const { currentItem, danmakuComments, fadeAnim, hdrState, mediaStats, showControls, title } =
-    usePlayer();
+  const {
+    playback: { currentItem, danmakuComments, hdrState, mediaStats, title },
+    controls: { fadeAnim, showControls },
+  } = usePlayer();
   const router = useTracedRouter('player-top-controls');
   const goToDestination = useAppNavigation();
   const { type: networkType } = useNetworkState();

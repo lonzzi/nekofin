@@ -11,12 +11,8 @@ import { PlayerGlassSurface } from './PlayerGlassSurface';
 export function PlaybackInfoBadges() {
   const { t: tr } = useTranslation();
   const {
-    playbackSourceInfo,
-    readPlaybackMediaInfo,
-    showControls,
-    fadeAnim,
-    clearControlsTimeout,
-    hideControlsWithDelay,
+    playback: { playbackSourceInfo, readPlaybackMediaInfo },
+    controls: { showControls, fadeAnim, clearControlsTimeout, hideControlsWithDelay },
   } = usePlayer();
   const [foreground, setForeground] = useState(AppState.currentState === 'active');
   const [sample, setSample] = useState<{

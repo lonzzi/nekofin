@@ -1,5 +1,6 @@
 import { Controls } from '@/components/player/Controls';
 import { DanmakuLayer, type DanmakuLayerRef } from '@/components/player/DanmakuLayer';
+import { PlayerProvider, type PlayerPlaybackInput } from '@/components/player/PlayerProvider';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { getCommentsByEpisodeId, type DandanComment } from '@/services/dandanplay';
 import type { DanmakuCommentsData } from '@/services/danmaku';
@@ -308,109 +309,116 @@ export function PlayerLabScreen({ onClose }: PlayerLabScreenProps) {
     [seekToMs],
   );
 
+  const playback = {
+    aspectRatio,
+    bufferedProgress,
+    currentItem,
+    currentTime,
+    danmakuComments: comments,
+    danmakuEpisodeInfo,
+    duration: PLAYER_LAB_DURATION_MS,
+    episodes: MOCK_EPISODES,
+    hasNextEpisode: episodeIndex < MOCK_EPISODES.length - 1,
+    hasPreviousEpisode: episodeIndex > 0,
+    isLoading,
+    isPlayerReady: playbackState !== 'idle' && playbackState !== 'loading',
+    isPlaying,
+    onAspectRatioChange: setAspectRatio,
+    onAudioTrackChange: setSelectedAudioTrack,
+    onCommentsLoaded: handleCommentsLoaded,
+    onEpisodeSelect: selectEpisode,
+    onNextEpisode: () =>
+      selectEpisode(MOCK_EPISODES[Math.min(MOCK_EPISODES.length - 1, episodeIndex + 1)].id),
+    onPlayPause: handlePlayPause,
+    onPreviousEpisode: () => selectEpisode(MOCK_EPISODES[Math.max(0, episodeIndex - 1)].id),
+    onRateChange: handleRateChange,
+    onSeek: handleSeek,
+    onSubtitleTrackChange: setSelectedSubtitleTrack,
+    rate,
+    selectedTracks: {
+      audio: MOCK_TRACKS.audio.find((track) => track.index === selectedAudioTrack),
+      subtitle: MOCK_TRACKS.subtitle.find((track) => track.index === selectedSubtitleTrack),
+    },
+    title: 'Player Lab · UI 与弹幕压力测试',
+    tracks: MOCK_TRACKS,
+  } satisfies PlayerPlaybackInput;
+
   return (
-    <View style={styles.container}>
-      <TestPattern />
+    <PlayerProvider
+      playback={playback}
+      controlsOptions={{
+        autoHideControls: false,
+        initiallyVisible: true,
+      }}
+    >
+      <View style={styles.container}>
+        <TestPattern />
 
-      {settings.enabled && comments.length > 0 ? (
-        <DanmakuLayer
-          ref={danmakuLayerRef}
-          comments={comments}
-          currentTime={currentTime}
-          isSeeking={isSeeking}
-          playbackRate={rate}
-          playbackState={playbackState}
-          {...settings}
-        />
-      ) : null}
+        {settings.enabled && comments.length > 0 ? (
+          <DanmakuLayer
+            ref={danmakuLayerRef}
+            comments={comments}
+            currentTime={currentTime}
+            isSeeking={isSeeking}
+            playbackRate={rate}
+            playbackState={playbackState}
+            {...settings}
+          />
+        ) : null}
 
-      <Controls
-        aspectRatio={aspectRatio}
-        autoHideControls={false}
-        bufferedProgress={bufferedProgress}
-        currentItem={currentItem}
-        currentTime={currentTime}
-        danmakuComments={comments}
-        danmakuEpisodeInfo={danmakuEpisodeInfo}
-        duration={PLAYER_LAB_DURATION_MS}
-        episodes={MOCK_EPISODES}
-        hasNextEpisode={episodeIndex < MOCK_EPISODES.length - 1}
-        hasPreviousEpisode={episodeIndex > 0}
-        isLoading={isLoading}
-        isPlayerReady={playbackState !== 'idle' && playbackState !== 'loading'}
-        isPlaying={isPlaying}
-        initiallyVisible
-        onAspectRatioChange={setAspectRatio}
-        onAudioTrackChange={setSelectedAudioTrack}
-        onCommentsLoaded={handleCommentsLoaded}
-        onEpisodeSelect={selectEpisode}
-        onNextEpisode={() =>
-          selectEpisode(MOCK_EPISODES[Math.min(MOCK_EPISODES.length - 1, episodeIndex + 1)].id)
-        }
-        onPlayPause={handlePlayPause}
-        onPreviousEpisode={() => selectEpisode(MOCK_EPISODES[Math.max(0, episodeIndex - 1)].id)}
-        onRateChange={handleRateChange}
-        onSeek={handleSeek}
-        onSubtitleTrackChange={setSelectedSubtitleTrack}
-        rate={rate}
-        selectedTracks={{
-          audio: MOCK_TRACKS.audio.find((track) => track.index === selectedAudioTrack),
-          subtitle: MOCK_TRACKS.subtitle.find((track) => track.index === selectedSubtitleTrack),
-        }}
-        title="Player Lab · UI 与弹幕压力测试"
-        tracks={MOCK_TRACKS}
-      />
+        <Controls />
 
-      <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-        <Pressable
-          accessibilityLabel="关闭 Player Lab"
-          accessibilityRole="button"
-          onPress={onClose}
-          style={({ pressed }) => [
-            styles.chromeButton,
-            styles.closeButton,
-            { left: Math.max(24, insets.left + 8), top: insets.top + 10 },
-            pressed && styles.pressed,
-          ]}
-        >
-          <Ionicons color="#fff" name="close" size={23} />
-        </Pressable>
-        <Pressable
-          accessibilityLabel="打开 Player Lab 控制台"
-          accessibilityRole="button"
-          onPress={() => setInspectorVisible(true)}
-          style={({ pressed }) => [
-            styles.labButton,
-            { right: Math.max(24, insets.right + 8), top: insets.top + 64 },
-            pressed && styles.pressed,
-          ]}
-        >
-          <Ionicons color="#0B0D12" name="flask" size={16} />
-          <Text style={styles.labButtonText}>LAB</Text>
-        </Pressable>
+        <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+          <Pressable
+            accessibilityLabel="关闭 Player Lab"
+            accessibilityRole="button"
+            onPress={onClose}
+            style={({ pressed }) => [
+              styles.chromeButton,
+              styles.closeButton,
+              { left: Math.max(24, insets.left + 8), top: insets.top + 10 },
+              pressed && styles.pressed,
+            ]}
+          >
+            <Ionicons color="#fff" name="close" size={23} />
+          </Pressable>
+          <Pressable
+            accessibilityLabel="打开 Player Lab 控制台"
+            accessibilityRole="button"
+            onPress={() => setInspectorVisible(true)}
+            style={({ pressed }) => [
+              styles.labButton,
+              { right: Math.max(24, insets.right + 8), top: insets.top + 64 },
+              pressed && styles.pressed,
+            ]}
+          >
+            <Ionicons color="#0B0D12" name="flask" size={16} />
+            <Text style={styles.labButtonText}>LAB</Text>
+          </Pressable>
+        </View>
+
+        {inspectorVisible ? (
+          <Inspector
+            bufferedProgress={bufferLevel}
+            commentsCountLabel={sourceStats}
+            onBufferChange={(value) => {
+              setBufferLevel(value);
+              bufferedProgress.set(value);
+            }}
+            onClose={() => setInspectorVisible(false)}
+            onPlaybackStateChange={handlePlaybackStateChange}
+            onRateChange={(nextRate) => handleRateChange(nextRate)}
+            onSeek={seekToMs}
+            onSourceSelect={(sourceId) => void loadDanmakuSource(sourceId)}
+            playbackState={playbackState}
+            rate={rate}
+            selectedSourceId={selectedSourceId}
+            sourceError={sourceError}
+            sourceLoading={sourceLoading}
+          />
+        ) : null}
       </View>
-
-      {inspectorVisible ? (
-        <Inspector
-          bufferedProgress={bufferLevel}
-          commentsCountLabel={sourceStats}
-          onBufferChange={(value) => {
-            setBufferLevel(value);
-            bufferedProgress.set(value);
-          }}
-          onClose={() => setInspectorVisible(false)}
-          onPlaybackStateChange={handlePlaybackStateChange}
-          onRateChange={(nextRate) => handleRateChange(nextRate)}
-          onSeek={seekToMs}
-          onSourceSelect={(sourceId) => void loadDanmakuSource(sourceId)}
-          playbackState={playbackState}
-          rate={rate}
-          selectedSourceId={selectedSourceId}
-          sourceError={sourceError}
-          sourceLoading={sourceLoading}
-        />
-      ) : null}
-    </View>
+    </PlayerProvider>
   );
 }
 

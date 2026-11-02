@@ -1,5 +1,5 @@
 import { createPlayerExitPreparation } from '@/components/player/playerExitPreparation';
-import { PlayerRouteContext } from '@/components/player/PlayerRouteContext';
+import { PlayerSession, type PlayerParams } from '@/components/player/PlayerSession';
 import { usePlayerEntryVisibility } from '@/hooks/usePlayerEntryVisibility';
 import { beginNavigationTransition } from '@/lib/navigationWork';
 import {
@@ -29,7 +29,7 @@ export default function Layout() {
   const [exitPrepared, setExitPrepared] = useState(Platform.OS !== 'android');
   const [pendingExit, setPendingExit] = useState<NavigationAction | null>(null);
   const [portraitTransitionCompleted, setPortraitTransitionCompleted] = useState(false);
-  const routeContext = useMemo(
+  const lifecycle = useMemo(
     () => ({ entryVisible: entry.visible, isExiting: pendingExit !== null, exitPreparation }),
     [entry.visible, exitPreparation, pendingExit],
   );
@@ -141,7 +141,7 @@ export default function Layout() {
   }, [canFinishExit, navigation, pendingExit]);
 
   return (
-    <PlayerRouteContext value={routeContext}>
+    <>
       {/* Configure the root player route before dispatching the deferred pop. */}
       <Stack.Screen
         options={{
@@ -160,6 +160,11 @@ export default function Layout() {
       />
       <View style={styles.container} onLayout={entry.onLayout}>
         <Stack
+          screenLayout={({ children, route }) => (
+            <PlayerSession params={route.params as PlayerParams} lifecycle={lifecycle}>
+              {children}
+            </PlayerSession>
+          )}
           // The native stack remains visible while its SurfaceView is detached on Android.
           unstable_nativeProps={
             Platform.OS === 'android'
@@ -179,7 +184,7 @@ export default function Layout() {
           <Stack.Screen name="index" options={{ title: '', animation: 'none' }} />
         </Stack>
       </View>
-    </PlayerRouteContext>
+    </>
   );
 }
 
