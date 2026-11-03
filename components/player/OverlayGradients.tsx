@@ -5,7 +5,9 @@ import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { usePlayer } from './PlayerContext';
 
 export function ContentOverlayScrim() {
-  const { fadeAnim } = usePlayer();
+  const {
+    controls: { fadeAnim },
+  } = usePlayer();
 
   const fadeAnimatedStyle = useAnimatedStyle(() => ({
     opacity: fadeAnim.value,
@@ -20,7 +22,9 @@ export function ContentOverlayScrim() {
 }
 
 export function TopOverlayGradient() {
-  const { fadeAnim } = usePlayer();
+  const {
+    controls: { fadeAnim },
+  } = usePlayer();
 
   const fadeAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -44,7 +48,9 @@ export function TopOverlayGradient() {
 }
 
 export function BottomOverlayGradient() {
-  const { fadeAnim } = usePlayer();
+  const {
+    controls: { fadeAnim },
+  } = usePlayer();
 
   const fadeAnimatedStyle = useAnimatedStyle(() => {
     return {

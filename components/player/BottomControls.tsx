@@ -21,23 +21,20 @@ export function BottomControls() {
   const { side, safeSideGap, bottomExtra, maxContentWidth } = useOverlayInsets();
   const insets = useSafeAreaInsets();
   const {
-    bufferedProgress,
-    currentItem,
-    canSeek,
-    currentTime,
-    seekPreviewTime,
-    seekPreviewStartTime,
-    isGestureSeekingActive,
-    clearControlsTimeout,
-    duration,
-    fadeAnim,
-    hideControlsWithDelay,
-    isDragging,
-    isLocked,
-    isInteractionLocked,
-    onSeek,
-    setIsDragging,
-    showControls,
+    playback: { bufferedProgress, currentItem, canSeek, currentTime, duration, onSeek },
+    controls: {
+      seekPreviewTime,
+      seekPreviewStartTime,
+      isGestureSeekingActive,
+      clearControlsTimeout,
+      fadeAnim,
+      hideControlsWithDelay,
+      isDragging,
+      isLocked,
+      isInteractionLocked,
+      setIsDragging,
+      showControls,
+    },
   } = usePlayer();
   const displayedTime = useDerivedValue(() =>
     isDragging || isGestureSeekingActive.value ? seekPreviewTime.value : currentTime.value,

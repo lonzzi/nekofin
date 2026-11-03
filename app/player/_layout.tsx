@@ -1,8 +1,5 @@
-import {
-  PlayerEntryVisibilityContext,
-  PlayerExitPreparationContext,
-} from '@/components/player/PlayerEntryContext';
 import { createPlayerExitPreparation } from '@/components/player/playerExitPreparation';
+import { PlayerSession, type PlayerParams } from '@/components/player/PlayerSession';
 import { usePlayerEntryVisibility } from '@/hooks/usePlayerEntryVisibility';
 import { beginNavigationTransition } from '@/lib/navigationWork';
 import {
@@ -18,7 +15,7 @@ import {
   type ParamListBase,
 } from 'expo-router/react-navigation';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { AppState, Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useMMKVString } from 'react-native-mmkv';
 
@@ -32,6 +29,10 @@ export default function Layout() {
   const [exitPrepared, setExitPrepared] = useState(Platform.OS !== 'android');
   const [pendingExit, setPendingExit] = useState<NavigationAction | null>(null);
   const [portraitTransitionCompleted, setPortraitTransitionCompleted] = useState(false);
+  const lifecycle = useMemo(
+    () => ({ entryVisible: entry.visible, isExiting: pendingExit !== null, exitPreparation }),
+    [entry.visible, exitPreparation, pendingExit],
+  );
   // iPad multitasking can keep a landscape window despite a portrait orientation mask.
   const coordinatePortraitExit = Platform.OS === 'ios' && !Platform.isPad;
   const canFinishExit =
@@ -158,29 +159,30 @@ export default function Layout() {
         }}
       />
       <View style={styles.container} onLayout={entry.onLayout}>
-        <PlayerExitPreparationContext value={exitPreparation}>
-          <PlayerEntryVisibilityContext value={entry.visible}>
-            <Stack
-              // The native stack remains visible while its SurfaceView is detached on Android.
-              unstable_nativeProps={
-                Platform.OS === 'android'
-                  ? { nativeContainerStyle: { backgroundColor: '#000' } }
-                  : undefined
-              }
-              screenOptions={{
-                headerShown: false,
-                orientation: Platform.OS === 'ios' ? screenOrientation : undefined,
-                statusBarHidden: true,
-                navigationBarHidden: Platform.OS === 'android' ? true : undefined,
-                autoHideHomeIndicator: true,
-                contentStyle: { backgroundColor: '#000' },
-                unstable_nativeProps: androidPlayerScreenProps,
-              }}
-            >
-              <Stack.Screen name="index" options={{ title: '', animation: 'none' }} />
-            </Stack>
-          </PlayerEntryVisibilityContext>
-        </PlayerExitPreparationContext>
+        <Stack
+          screenLayout={({ children, route }) => (
+            <PlayerSession params={route.params as PlayerParams} lifecycle={lifecycle}>
+              {children}
+            </PlayerSession>
+          )}
+          // The native stack remains visible while its SurfaceView is detached on Android.
+          unstable_nativeProps={
+            Platform.OS === 'android'
+              ? { nativeContainerStyle: { backgroundColor: '#000' } }
+              : undefined
+          }
+          screenOptions={{
+            headerShown: false,
+            orientation: Platform.OS === 'ios' ? screenOrientation : undefined,
+            statusBarHidden: true,
+            navigationBarHidden: Platform.OS === 'android' ? true : undefined,
+            autoHideHomeIndicator: true,
+            contentStyle: { backgroundColor: '#000' },
+            unstable_nativeProps: androidPlayerScreenProps,
+          }}
+        >
+          <Stack.Screen name="index" options={{ title: '', animation: 'none' }} />
+        </Stack>
       </View>
     </>
   );

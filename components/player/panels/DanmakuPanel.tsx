@@ -106,12 +106,14 @@ const modeFilters = [
 export function DanmakuPanel({ onSearch }: DanmakuPanelProps) {
   const { t: tr } = useTranslation();
   const {
-    danmakuComments,
-    danmakuEpisodeInfo,
-    danmakuTracks,
-    danmakuSelection,
-    onDanmakuSelectionChange,
-    danmakuFailedSources,
+    playback: {
+      danmakuComments,
+      danmakuEpisodeInfo,
+      danmakuTracks,
+      danmakuSelection,
+      onDanmakuSelectionChange,
+      danmakuFailedSources,
+    },
   } = usePlayer();
   const { settings, setSettings } = useDanmakuSettings();
 

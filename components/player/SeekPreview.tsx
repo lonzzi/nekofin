@@ -28,14 +28,14 @@ import { getTrickplayFrame, getTrickplayManifest, getTrickplayTileUrl } from './
 
 export function SeekPreview() {
   const {
-    isDragging,
-    isGestureSeekingActive,
-    seekPreviewTime,
-    seekPreviewStartTime,
-    duration,
-    currentItem,
-    selectedMediaSourceId,
-    isPanelOpen,
+    playback: { duration, currentItem, selectedMediaSourceId },
+    controls: {
+      isDragging,
+      isGestureSeekingActive,
+      seekPreviewTime,
+      seekPreviewStartTime,
+      isPanelOpen,
+    },
   } = usePlayer();
   const { currentApi, currentServer } = useMediaServers();
   const info = useMemo(

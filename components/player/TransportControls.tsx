@@ -13,20 +13,20 @@ export function TransportControls() {
   const { t: tr } = useTranslation();
   const { isCompact } = useOverlayInsets();
   const {
-    canSeek,
-    currentTime,
-    duration,
-    fadeAnim,
-    hasNextEpisode,
-    hasPreviousEpisode,
-    hideControlsWithDelay,
-    isMovie,
-    isPlaying,
-    onNextEpisode,
-    onPlayPause,
-    onPreviousEpisode,
-    onSeek,
-    showControls,
+    playback: {
+      canSeek,
+      currentTime,
+      duration,
+      hasNextEpisode,
+      hasPreviousEpisode,
+      isMovie,
+      isPlaying,
+      onNextEpisode,
+      onPlayPause,
+      onPreviousEpisode,
+      onSeek,
+    },
+    controls: { fadeAnim, hideControlsWithDelay, showControls },
   } = usePlayer();
 
   const seekBy = useCallback(

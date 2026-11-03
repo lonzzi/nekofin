@@ -115,7 +115,9 @@ export function DanmakuSearchPanel({
   onNavigationChange,
 }: DanmakuSearchPanelProps) {
   const { t: tr } = useTranslation();
-  const { currentItem } = usePlayer();
+  const {
+    playback: { currentItem },
+  } = usePlayer();
   const { sources } = useDanmakuSources();
   const apiKey = danmakuSourcesKey(sources);
   const [episodeLoader] = useState(createDanmakuEpisodeLoader);

@@ -9,7 +9,9 @@ import { useOverlayInsets } from './useOverlayInsets';
 
 export function LockControls() {
   const { t: tr } = useTranslation();
-  const { lockFadeAnim, isLocked, onToggleLock, showLockControl } = usePlayer();
+  const {
+    controls: { lockFadeAnim, isLocked, onToggleLock, showLockControl },
+  } = usePlayer();
   const { side, safeSideGap, bottomExtra } = useOverlayInsets();
   const insets = useSafeAreaInsets();
   const visible = showLockControl;
