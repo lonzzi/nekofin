@@ -71,6 +71,8 @@ describe('playback watched state refresh', () => {
     const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     const changedKeys = [
       mediaQueryKeys.homeLatest('server-1', 'anime'),
+      mediaQueryKeys.homeVisibleSection('server-1', 'resume', ['anime'], 10),
+      mediaQueryKeys.homeVisibleSection('server-1', 'nextup', ['anime'], 10),
       mediaQueryKeys.folderItems('server-1', 'anime', {}),
       mediaQueryKeys.viewAll('server-1', 'latest', 'anime', {}),
       mediaQueryKeys.favorites('server-1', {}),
@@ -83,6 +85,8 @@ describe('playback watched state refresh', () => {
     ];
     const unchangedKeys = [
       mediaQueryKeys.homeLatest('server-2', 'anime'),
+      mediaQueryKeys.homeRandom('server-1', ['anime']),
+      mediaQueryKeys.homeRandom('server-1', ['anime', 'movies']),
       mediaQueryKeys.aggregateSearchItems(['server-2'], 'Neko'),
       mediaQueryKeys.detailArtwork('server-1', 'user-1', 'series-1'),
       mediaQueryKeys.mediaSources('server-1', 'episode-1', 'user-1'),
@@ -103,14 +107,25 @@ describe('playback watched state refresh', () => {
     }
   });
 
-  it('refreshes visible posters while leaving the playing item resume position untouched', async () => {
+  it('refreshes watch state without reshuffling the carousel or changing the playing position', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     const posterKey = mediaQueryKeys.homeLatest('server-1', 'anime');
+    const carouselKey = mediaQueryKeys.homeRandom('server-1', ['anime']);
     const playingKey = mediaQueryKeys.itemDetail('server-1', 'episode-1', 'user-1');
+    const initialCarousel = [mediaItem];
     const initialItem = { ...mediaItem, id: 'episode-1', userData: { playbackPositionTicks: 123 } };
     client.setQueryData(posterKey, [mediaItem]);
+    client.setQueryData(carouselKey, initialCarousel);
     client.setQueryData(playingKey, initialItem);
+    let carouselFetches = 0;
     let playbackFetches = 0;
+    const carouselObserver = new QueryObserver(client, {
+      queryKey: carouselKey,
+      queryFn: async () => {
+        carouselFetches++;
+        return [{ ...mediaItem, id: 'another-title' }];
+      },
+    });
     const posterObserver = new QueryObserver(client, {
       queryKey: posterKey,
       queryFn: async () => [{ ...mediaItem, userData: { played: true } }],
@@ -122,15 +137,25 @@ describe('playback watched state refresh', () => {
         return { ...initialItem, userData: { playbackPositionTicks: 0 } };
       },
     });
+    const unsubscribeCarousel = carouselObserver.subscribe(() => {});
     const unsubscribePoster = posterObserver.subscribe(() => {});
     const unsubscribePlaying = playingObserver.subscribe(() => {});
     try {
       await invalidatePlaybackWatchState(client, 'server-1');
       expect(client.getQueryData<MediaItem[]>(posterKey)?.[0].userData?.played).toBe(true);
+      expect(carouselFetches).toBe(0);
+      expect(client.getQueryData(carouselKey)).toBe(initialCarousel);
+      expect(client.getQueryState(carouselKey)?.isInvalidated).toBe(false);
       expect(playbackFetches).toBe(0);
       expect(client.getQueryData(playingKey)).toBe(initialItem);
       expect(client.getQueryState(playingKey)?.isInvalidated).toBe(true);
+
+      // Pull-to-refresh can still request a new selection intentionally.
+      await carouselObserver.refetch();
+      expect(carouselFetches).toBe(1);
+      expect(client.getQueryData<MediaItem[]>(carouselKey)?.[0].id).toBe('another-title');
     } finally {
+      unsubscribeCarousel();
       unsubscribePoster();
       unsubscribePlaying();
       client.clear();

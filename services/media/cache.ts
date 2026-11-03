@@ -21,6 +21,9 @@ function containsServerWatchState(key: QueryKey, serverId: string) {
   if (key[1] === 'aggregate-search') {
     return Array.isArray(key[2]) && key[2].includes(serverId);
   }
+  // Refetching random titles replaces the carousel and resets its images/index.
+  // Keep that selection until the user explicitly refreshes the home screen.
+  if (key[3] === 'home' && key[4] === 'random') return false;
   return key[1] === 'server' && key[2] === serverId && watchStateQueryKinds.has(String(key[3]));
 }
 

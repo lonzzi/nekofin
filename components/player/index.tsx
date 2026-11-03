@@ -2,6 +2,7 @@
 
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
+import { usePictureInPicture } from '@/hooks/usePictureInPicture';
 import { readPlaybackPreferences } from '@/hooks/usePlaybackPreferences';
 import { useSubtitleFonts } from '@/hooks/useSubtitleFonts';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
@@ -48,6 +49,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import { usePlaybackSync } from '../../hooks/usePlaybackSync';
 import { DanmakuLayer, DanmakuLayerRef } from './DanmakuLayer';
 import { createExternalSubtitleCache } from './externalSubtitleCache';
+import { createPictureInPictureOverlay } from './pictureInPictureOverlay';
 import { parsePlaybackDecodingMode, playbackHwdec } from './playbackDecoding';
 import { derivePlaybackSourceInfo } from './playbackInfo';
 import {
@@ -151,6 +153,7 @@ export const VideoPlayer = ({
   const router = useTracedRouter('player');
   const mediaAdapter = useMediaAdapter();
   const { settings } = useDanmakuSettings();
+  const pictureInPicture = usePictureInPicture();
   const { sourceSettings, sources } = useDanmakuSources();
   const sourceKey = danmakuSourcesKey(sources);
 
@@ -695,6 +698,13 @@ export const VideoPlayer = ({
     [danmakuData, danmakuSelection],
   );
   const comments = resolvedDanmaku.comments;
+  const pipOverlay = useMemo(
+    () =>
+      Platform.OS === 'android' && pictureInPicture.enabled
+        ? createPictureInPictureOverlay(comments, settings)
+        : null,
+    [comments, settings, pictureInPicture.enabled],
+  );
   const danmakuEpisodeInfo = resolvedDanmaku.episodeInfo;
   useEffect(() => {
     setManualDanmaku(undefined);
@@ -1684,6 +1694,12 @@ export const VideoPlayer = ({
             hwdec={hwdec}
             showNotificationControls
             metadata={mediaMetadata}
+            {...(Platform.OS === 'android'
+              ? {
+                  pictureInPictureEnabled: pictureInPicture.enabled && entryControlsVisible,
+                  pictureInPictureOverlay: pipOverlay,
+                }
+              : {})}
             onPlaybackStateChange={({ nativeEvent }) => {
               if (!isPlaybackContextActive(playbackContext)) return;
               recordPlaybackDiagnostic('player.state', nativeEvent);
