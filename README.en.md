@@ -46,6 +46,7 @@ Take a look around the app. Posters and library content depend on the media serv
 - **Explore details**: View movie, show, and episode information, and manage favorites and watched status
 - **Continue watching**: Sync playback progress with the MPV player, and choose audio tracks, subtitles, playback speed, and aspect ratio
 - **Customize danmaku**: Search for on-screen comments and adjust the font, opacity, speed, display area, and density
+- **Android picture-in-picture**: Return to your device’s home screen while playing to keep watching video and danmaku. Enabled by default; turn it off in “Settings → Playback and quality → Picture in picture”
 - **Choose your theme**: Use a light or dark theme, or follow your system settings
 - **App updates**: Go to “Help and about → Check for updates” to check for both app and resource updates, with an option to download automatically. On Android, updates download in the background before prompting you to install; reminders wait until playback ends
 
@@ -63,6 +64,8 @@ Requires Bun, plus Xcode for iOS builds. Xcode 27 or later is recommended: apps 
 bun install
 bun run ios:dev
 ```
+
+Android picture-in-picture requires rebuilding the native app; an OTA update alone cannot enable it.
 
 Run checks:
 

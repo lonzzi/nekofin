@@ -6,10 +6,12 @@ import {
   NativeSettingsSwitch,
 } from '@/components/ui/NativeSettings';
 import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
+import { usePictureInPicture } from '@/hooks/usePictureInPicture';
 import { usePlayerGestureSettings } from '@/hooks/usePlayerGestureSettings';
 import { useTranslation } from '@/lib/i18n';
 import { storage } from '@/lib/storage';
 import { useState } from 'react';
+import { Platform } from 'react-native';
 import { useMMKVBoolean } from 'react-native-mmkv';
 
 const bitrateOptions = [
@@ -35,6 +37,7 @@ const codecOptions = [
 
 export default function PlaybackSettings() {
   const { t: tr } = useTranslation();
+  const pictureInPicture = usePictureInPicture();
   const {
     brightnessGestureEnabled,
     setBrightnessGestureEnabled,
@@ -91,6 +94,13 @@ export default function PlaybackSettings() {
       <OuterTitle>{tr('settings.playbackAndQuality')}</OuterTitle>
       <NativeSettingsForm testID="playback-settings-form">
         <NativeSettingsSection title={tr('settings.playbackDefaults')}>
+          {Platform.OS === 'android' && (
+            <NativeSettingsSwitch
+              title={<SettingsTitle>{tr('player.pictureInPicture')}</SettingsTitle>}
+              value={pictureInPicture.enabled}
+              onValueChange={pictureInPicture.setEnabled}
+            />
+          )}
           <NativeSettingsSwitch
             title={<SettingsTitle>{tr('player.autoPlayNextEpisode')}</SettingsTitle>}
             value={autoPlayNext}
