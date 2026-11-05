@@ -34,6 +34,7 @@ const EpisodeSelectorItem = memo(function EpisodeSelectorItem({
   return (
     <EpisodeCard
       item={episode}
+      hideSeriesName
       style={[detailViewStyles.horizontalCard, !isSelected && styles.unselected]}
       imgType="Primary"
       selected={isSelected}

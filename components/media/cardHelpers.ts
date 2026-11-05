@@ -42,7 +42,7 @@ export const getSubtitle = (item: MediaItem) => {
     const episodeText = episode !== undefined ? `E${episode}` : '';
 
     if (seasonText || episodeText) {
-      return `${seasonText}${episodeText} - ${item.name}`;
+      return `${seasonText}${episodeText} · ${item.name}`;
     }
 
     return item.name;

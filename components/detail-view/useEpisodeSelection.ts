@@ -48,13 +48,24 @@ export function useEpisodeSelection({
   const [choice, setChoice] = useState(() =>
     getInitialEpisodeChoice(seasons, preferredEpisode, seasonId),
   );
-  const appliedPlayback = useRef(playback.data);
+  const selection = useRef({ playback: playback.data, manual: false });
 
   useEffect(() => {
-    if (!focused || !playback.data || appliedPlayback.current === playback.data) return;
-    appliedPlayback.current = playback.data;
-    setChoice(getInitialEpisodeChoice(seasons, playback.data.item));
-  }, [focused, playback.data, seasons]);
+    if (!focused) return;
+    if (playback.data && selection.current.playback !== playback.data) {
+      selection.current.playback = playback.data;
+      setChoice(getInitialEpisodeChoice(seasons, playback.data.item));
+      return;
+    }
+    // Refresh the automatic next-up choice without replacing a manual or local playback choice.
+    if (selection.current.manual || item.type !== 'Series' || playback.data) return;
+    const refreshed = getInitialEpisodeChoice(seasons, preferredEpisode, seasonId);
+    setChoice((previous) =>
+      previous.seasonId === refreshed.seasonId && previous.episodeId === refreshed.episodeId
+        ? previous
+        : refreshed,
+    );
+  }, [focused, item.type, playback.data, preferredEpisode, seasonId, seasons]);
 
   const episodeQuery = useQueryWithFocus({
     ...episodesBySeasonQueryOptions({ adapter, currentServer, seasonId: choice.seasonId }),
@@ -86,6 +97,7 @@ export function useEpisodeSelection({
   }
 
   const selectSeason = useCallback((nextSeasonId: string) => {
+    selection.current.manual = true;
     setChoice((previous) =>
       previous.seasonId === nextSeasonId
         ? previous
@@ -94,6 +106,7 @@ export function useEpisodeSelection({
   }, []);
   const selectEpisode = useCallback(
     (episode: MediaItem) => {
+      selection.current.manual = true;
       setChoice((previous) => ({
         seasonId: getEpisodeSeasonId(episode, seasons) || previous.seasonId,
         episodeId: episode.id,

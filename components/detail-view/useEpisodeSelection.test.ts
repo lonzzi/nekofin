@@ -144,6 +144,87 @@ describe('detail episode selection flow', () => {
     expect(render(props).selectedEpisode?.id).toBe(next.id);
   });
 
+  it('reconciles a cached next-up episode after the server refreshes it', () => {
+    const props = { item: series, seasons, nextUpItems: [first] };
+    expect(render(props).selectedEpisode?.id).toBe(first.id);
+    expect(render({ ...props, nextUpItems: [next] }).selectedEpisode?.id).toBe(next.id);
+  });
+
+  it('follows refreshed next-up into another season while its episodes load', () => {
+    const props = { item: series, seasons, nextUpItems: [first] };
+    render(props);
+    state.client.removeQueries({
+      queryKey: mediaQueryKeys.episodes(server.id, 'season-2', server.userId),
+    });
+    const refreshedProps = { ...props, nextUpItems: [secondSeason] };
+    let detail = render(refreshedProps);
+    expect(detail.selectedSeasonId).toBe('season-2');
+    expect(detail.selectedEpisode?.id).toBe(secondSeason.id);
+    expect(detail.isPending).toBe(true);
+    cacheEpisodes('season-2', [secondSeason]);
+    detail = render(refreshedProps);
+    expect(detail.displayEpisodes).toEqual([secondSeason]);
+    expect(detail.selectedEpisode?.id).toBe(secondSeason.id);
+  });
+
+  it('uses next-up when it first arrives after the page opens', () => {
+    const props = { item: series, seasons };
+    expect(render(props).selectedEpisode?.id).toBe(first.id);
+    expect(render({ ...props, nextUpItems: [secondSeason] }).selectedEpisode?.id).toBe(
+      secondSeason.id,
+    );
+  });
+
+  it('keeps an explicit episode choice when next-up refreshes', () => {
+    const props = { item: series, seasons, nextUpItems: [first] };
+    render(props).selectEpisode(next);
+    const detail = render({ ...props, nextUpItems: [secondSeason] });
+    expect(detail.selectedSeasonId).toBe('season-1');
+    expect(detail.selectedEpisode?.id).toBe(next.id);
+  });
+
+  it.each(['season-1', 'season-2'])('keeps an explicit %s choice when next-up refreshes', (id) => {
+    const props = { item: series, seasons, nextUpItems: [first] };
+    render(props).selectSeason(id);
+    const refreshed = id === 'season-1' ? secondSeason : next;
+    const detail = render({ ...props, nextUpItems: [refreshed] });
+    expect(detail.selectedSeasonId).toBe(id);
+    expect(detail.selectedEpisode?.id).toBe(id === 'season-1' ? first.id : secondSeason.id);
+  });
+
+  it('reconciles next-up on return without changing a hidden detail selection', () => {
+    const props = { item: series, seasons, nextUpItems: [first] };
+    render(props);
+    state.focused = false;
+    const refreshedProps = { ...props, nextUpItems: [secondSeason] };
+    expect(render(refreshedProps).selectedEpisode?.id).toBe(first.id);
+    state.focused = true;
+    expect(render(refreshedProps).selectedEpisode?.id).toBe(secondSeason.id);
+  });
+
+  it('keeps the local playback choice ahead of refreshed next-up data', () => {
+    play(next);
+    const props = { item: series, seasons, nextUpItems: [first] };
+    expect(render(props).selectedEpisode?.id).toBe(next.id);
+    expect(render({ ...props, nextUpItems: [secondSeason] }).selectedEpisode?.id).toBe(next.id);
+  });
+
+  it('keeps an explicit episode link when next-up refreshes', () => {
+    const props = { item: first, seasons, nextUpItems: [next] };
+    render(props);
+    expect(render({ ...props, nextUpItems: [secondSeason] }).selectedEpisode?.id).toBe(first.id);
+  });
+
+  it('still follows new playback after an explicit episode choice', () => {
+    const props = { item: series, seasons, nextUpItems: [first] };
+    render(props).selectEpisode(next);
+    state.focused = false;
+    play(secondSeason);
+    expect(render(props).selectedEpisode?.id).toBe(next.id);
+    state.focused = true;
+    expect(render(props).selectedEpisode?.id).toBe(secondSeason.id);
+  });
+
   it('follows the next played episode on return without changing hidden detail selection', () => {
     const props = { item: first, seasons };
     expect(render(props).selectedEpisode?.id).toBe(first.id);
