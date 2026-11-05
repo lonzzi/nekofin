@@ -1,17 +1,19 @@
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { usePlayerSeekSettings } from '@/hooks/usePlayerSeekSettings';
 import { useTranslation } from '@/lib/i18n';
 import * as Haptics from 'expo-haptics';
 import { useCallback, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { usePlayer } from './PlayerContext';
-import { getNormalizedSeekPosition, PLAYER_SEEK_INTERVAL_MS } from './playerControlModel';
+import { getNormalizedSeekPosition } from './playerControlModel';
 import { PlayerGlassSurface } from './PlayerGlassSurface';
 import { useOverlayInsets } from './useOverlayInsets';
 
 export function TransportControls() {
   const { t: tr } = useTranslation();
   const { isCompact } = useOverlayInsets();
+  const { backwardSeconds, forwardSeconds } = usePlayerSeekSettings();
   const {
     playback: {
       canSeek,
@@ -87,16 +89,15 @@ export function TransportControls() {
             <TransportButton
               disabled={!canSeek}
               icon={
-                <IconSymbol
-                  name="gobackward.10"
+                <SeekIcon
+                  direction="backward"
+                  seconds={backwardSeconds}
                   size={isCompact ? 21 : 23}
-                  color="#fff"
-                  weight="medium"
                 />
               }
               height={groupHeight}
-              label={tr('player.skipBackward')}
-              onPress={() => seekBy(-PLAYER_SEEK_INTERVAL_MS)}
+              label={tr('player.skipBackward', { seconds: backwardSeconds })}
+              onPress={() => seekBy(-backwardSeconds * 1000)}
               width={sideButtonWidth}
             />
             <TransportButton
@@ -119,16 +120,11 @@ export function TransportControls() {
             <TransportButton
               disabled={!canSeek}
               icon={
-                <IconSymbol
-                  name="goforward.10"
-                  size={isCompact ? 21 : 23}
-                  color="#fff"
-                  weight="medium"
-                />
+                <SeekIcon direction="forward" seconds={forwardSeconds} size={isCompact ? 21 : 23} />
               }
               height={groupHeight}
-              label={tr('player.skipForward')}
-              onPress={() => seekBy(PLAYER_SEEK_INTERVAL_MS)}
+              label={tr('player.skipForward', { seconds: forwardSeconds })}
+              onPress={() => seekBy(forwardSeconds * 1000)}
               width={sideButtonWidth}
             />
           </View>
@@ -181,6 +177,46 @@ export function TransportControls() {
           </PlayerGlassSurface>
         )}
       </View>
+    </View>
+  );
+}
+
+function SeekIcon({
+  direction,
+  seconds,
+  size,
+}: {
+  direction: 'backward' | 'forward';
+  seconds: number;
+  size: number;
+}) {
+  return (
+    <View style={{ width: size, height: size }}>
+      <IconSymbol
+        name={direction === 'backward' ? 'gobackward' : 'goforward'}
+        size={size}
+        color="#fff"
+        weight="medium"
+        style={
+          direction === 'forward' && Platform.OS !== 'ios'
+            ? { transform: [{ scaleX: -1 }] }
+            : undefined
+        }
+      />
+      <Text
+        style={{
+          position: 'absolute',
+          top: size * 0.3,
+          left: 0,
+          right: 0,
+          textAlign: 'center',
+          color: '#fff',
+          fontSize: size * 0.37,
+          fontWeight: '700',
+        }}
+      >
+        {seconds}
+      </Text>
     </View>
   );
 }

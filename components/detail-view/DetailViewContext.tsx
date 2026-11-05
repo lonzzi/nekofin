@@ -4,8 +4,6 @@ import { createContext, ReactNode, useContext, useState } from 'react';
 import { DetailViewProps } from '.';
 
 type DetailViewContextType = {
-  title: string;
-  setTitle: (title: string) => void;
   item?: MediaItem | null;
   setItem: (item: MediaItem | null) => void;
   selectedItem?: MediaItem | null;
@@ -22,7 +20,6 @@ export const DetailViewProvider = ({
 }: {
   children: ReactNode;
 } & DetailViewProps) => {
-  const [title, setTitle] = useState(() => query.data?.item.name ?? '');
   const [item, setItem] = useState<MediaItem | null>(() => query.data?.item ?? null);
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(() =>
     mode === 'episode' ? (query.data?.item ?? null) : null,
@@ -31,8 +28,6 @@ export const DetailViewProvider = ({
   return (
     <DetailViewContext.Provider
       value={{
-        title,
-        setTitle,
         item,
         setItem,
         selectedItem,

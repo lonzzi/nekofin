@@ -89,6 +89,37 @@ describe('player control model', () => {
     expect(actions.find((action) => action.key === 'nextEpisode')?.disabled).toBe(false);
   });
 
+  it('uses independent configured forward and backward intervals', () => {
+    const actions = deriveTransportActions({
+      durationMs: 60_000,
+      hasNextEpisode: false,
+      hasPreviousEpisode: false,
+      isMovie: true,
+      isPlaying: true,
+      backwardSeconds: 5,
+      forwardSeconds: 30,
+    });
+    expect(actions[0]).toMatchObject({ accessibilityLabel: '后退 5 秒', seekOffsetMs: -5000 });
+    expect(actions[2]).toMatchObject({ accessibilityLabel: '前进 30 秒', seekOffsetMs: 30000 });
+  });
+
+  it.each([-1, 0, 17, NaN, Infinity])(
+    'uses the default interval for unsupported saved values %s',
+    (seconds) => {
+      const actions = deriveTransportActions({
+        durationMs: 60_000,
+        hasNextEpisode: false,
+        hasPreviousEpisode: false,
+        isMovie: true,
+        isPlaying: true,
+        backwardSeconds: seconds,
+        forwardSeconds: seconds,
+      });
+      expect(actions[0].seekOffsetMs).toBe(-10_000);
+      expect(actions[2].seekOffsetMs).toBe(10_000);
+    },
+  );
+
   it('keeps danmaku as a first-level action and omits an unavailable episode list', () => {
     expect(
       derivePlayerActionButtons({ danmakuCount: 128, episodeCount: 12, isMovie: false }).map(

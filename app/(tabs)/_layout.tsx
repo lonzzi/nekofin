@@ -52,10 +52,8 @@ export default function TabLayout() {
                   ? { backgroundColor: theme.colors.background }
                   : undefined
               }
-              disableAutomaticContentInsets={
-                Platform.OS === 'android' ||
-                (tablet && (destination.key === 'home' || destination.key === 'servers'))
-              }
+              // Each page owns its scroll insets; the tab host must not override them.
+              disableAutomaticContentInsets
             >
               <NativeTabs.Trigger.Label>{destination.title}</NativeTabs.Trigger.Label>
               <NativeTabs.Trigger.Icon

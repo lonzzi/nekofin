@@ -1,4 +1,4 @@
-import type { MediaChapter, MediaSegment } from './types';
+import type { MediaChapter, MediaItem, MediaSegment } from './types';
 
 const TICKS_PER_MS = 10_000;
 const validTime = (value: unknown): value is number =>
@@ -42,7 +42,7 @@ export function mapMediaSegments(
   );
 }
 
-// Match explicit labels only; ordinary scene titles are never guessed by position.
+// Explicit labels take precedence over optional duration-based inference.
 function chapterSegmentType(name: string): MediaSegment['type'] | null {
   const label = name.normalize('NFKC').trim();
   if (
@@ -64,6 +64,7 @@ export function resolveMediaSegments(
   chapters: MediaChapter[],
   serverSegments: MediaSegment[],
   durationMs: number,
+  { inferAnimeChapters = false }: { inferAnimeChapters?: boolean } = {},
 ): MediaSegment[] {
   if (!validTime(durationMs) || durationMs === 0) return [];
   const ordered = chapters
@@ -107,7 +108,80 @@ export function resolveMediaSegments(
       endTimeMs: endMarker?.startTimeMs ?? nextChapter?.startTimeMs ?? durationMs,
     });
   });
-  return [...explicit, ...inferred].sort((a, b) => a.startTimeMs - b.startTimeMs);
+  const trusted = [...explicit, ...inferred];
+  const byDuration = inferAnimeChapters
+    ? inferAnimeChapterSegments(ordered, durationMs).filter(
+        (candidate) =>
+          !trusted.some((segment) => segment.type === candidate.type) &&
+          !ordered.some(
+            (chapter) =>
+              chapterSegmentType(chapter.name) === candidate.type ||
+              chapter.markerType === (candidate.type === 'Intro' ? 'IntroStart' : 'CreditsStart'),
+          ),
+      )
+    : [];
+  return [...trusted, ...byDuration].sort((a, b) => a.startTimeMs - b.startTimeMs);
+}
+
+/** Only animation episodes qualify; an animated movie still needs explicit markers. */
+export function isAnimeEpisode(
+  item: Pick<MediaItem, 'type' | 'genres' | 'tags'> | null | undefined,
+  series: Pick<MediaItem, 'genres' | 'tags'> | null | undefined,
+) {
+  return (
+    item?.type === 'Episode' &&
+    [
+      ...(item.genres ?? []),
+      ...(item.tags ?? []),
+      ...(series?.genres ?? []),
+      ...(series?.tags ?? []),
+    ].some((genre) =>
+      /^(?:animation|anime|动画|動畫|动漫|動漫|番剧|番劇|アニメ)$/i.test(genre.trim()),
+    )
+  );
+}
+
+function inferAnimeChapterSegments(chapters: MediaChapter[], durationMs: number): MediaSegment[] {
+  const range =
+    durationMs > 20 * 60_000
+      ? [80_000, 95_000]
+      : durationMs > 10 * 60_000
+        ? [55_000, 65_000]
+        : null;
+  if (!range || durationMs > 60 * 60_000) return [];
+  const ordinary = chapters.filter(
+    (chapter, index) =>
+      (!chapter.markerType || chapter.markerType === 'Chapter') &&
+      chapter.startTimeMs < durationMs &&
+      !chapters.slice(0, index).some((previous) => previous.startTimeMs === chapter.startTimeMs),
+  );
+  const candidates: MediaSegment[] = [];
+  const edgeWindowMs = Math.min(5 * 60_000, durationMs / 4);
+  for (const [index, chapter] of ordinary.entries()) {
+    const name = chapter.name.normalize('NFKC').trim();
+    // Generated numbers/timestamps carry no competing scene semantics.
+    if (
+      name &&
+      !/^(?:(?:chapter|chap|ch|章节|章節)\s*\d+|\d+|(?:\d{1,2}:)?\d{2}:\d{2}(?:[.,]\d{1,3})?)$/i.test(
+        name,
+      )
+    )
+      continue;
+    const endTimeMs = ordinary[index + 1]?.startTimeMs ?? durationMs;
+    const lengthMs = endTimeMs - chapter.startTimeMs;
+    if (lengthMs < range[0] || lengthMs > range[1]) continue;
+    const type =
+      endTimeMs <= edgeWindowMs
+        ? 'Intro'
+        : chapter.startTimeMs >= durationMs - edgeWindowMs && durationMs - endTimeMs <= 120_000
+          ? 'Outro'
+          : null;
+    if (type) candidates.push({ type, startTimeMs: chapter.startTimeMs, endTimeMs });
+  }
+  // Several similarly sized scenes at one end are ambiguous.
+  return candidates.filter(
+    (candidate) => candidates.filter((entry) => entry.type === candidate.type).length === 1,
+  );
 }
 
 export function segmentAtTime(segments: MediaSegment[], timeMs: number) {

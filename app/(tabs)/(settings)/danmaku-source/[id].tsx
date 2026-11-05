@@ -1,6 +1,6 @@
 import { HeaderButton, HeaderToolbar } from '@/components/navigation/HeaderToolbar';
+import { NativeScreenTitle } from '@/components/navigation/NativeScreenTitle';
 import { getNativeToolbarIcon } from '@/components/navigation/nativeToolbarIcons';
-import { OuterTitle } from '@/components/outer/OuterPrimitives';
 import {
   NativeSettingsForm,
   NativeSettingsItem,
@@ -77,7 +77,9 @@ export default function DanmakuSourceEditor() {
   };
   return (
     <>
-      <OuterTitle>{existing ? tr('danmaku.editApi') : tr('danmaku.addApi')}</OuterTitle>
+      <NativeScreenTitle>
+        {existing ? tr('danmaku.editApi') : tr('danmaku.addApi')}
+      </NativeScreenTitle>
       <HeaderToolbar placement="right">
         <HeaderButton
           accessibilityLabel={tr('danmaku.saveApi')}

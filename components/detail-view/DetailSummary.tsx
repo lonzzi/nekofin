@@ -15,6 +15,7 @@ import { useDetailView } from './DetailViewContext';
 
 type Props = {
   item: MediaItem;
+  episodeTitle?: string;
   metadata?: ReactNode;
   controls?: ReactNode;
   overview?: ReactNode;
@@ -35,28 +36,35 @@ export function DetailTitle({ title }: { title: string }) {
   );
 }
 
-export function DetailSummary({ item, metadata, controls, overview, children }: Props) {
+export function DetailSummary({
+  item,
+  episodeTitle,
+  metadata,
+  controls,
+  overview,
+  children,
+}: Props) {
   const adapter = useMediaAdapter();
-  const { title, item: detailItem } = useDetailView();
+  const { item: detailItem } = useDetailView();
   const tablet = useLargeContentLayout();
-  const heading = <DetailTitle title={title || item.name} />;
+  const heading = episodeTitle?.trim() ? <DetailTitle title={episodeTitle.trim()} /> : null;
   const logoItem = detailItem ?? item;
+  const logoFallback = <DetailTitle title={logoItem.seriesName || logoItem.name} />;
   const hasLogo =
     logoItem.imageTags?.Logo || (logoItem.parentLogoImageTag && logoItem.parentLogoItemId);
   const logoUrl =
     tablet && hasLogo
       ? adapter.getImageInfo({ item: logoItem, opts: { preferLogo: true, width: 600 } }).url
       : undefined;
+  const logo = logoUrl ? (
+    <ItemImage uri={logoUrl} contentFit="contain" style={styles.logo} fallback={logoFallback} />
+  ) : (
+    logoFallback
+  );
   return (
     <DetailSummaryLayout
-      heading={
-        logoUrl ? (
-          <ItemImage uri={logoUrl} contentFit="contain" style={styles.logo} fallback={heading} />
-        ) : (
-          heading
-        )
-      }
-      secondaryHeading={logoUrl && item.type === 'Episode' ? heading : null}
+      heading={tablet ? logo : heading}
+      secondaryHeading={tablet ? heading : null}
       metadata={metadata}
       controls={controls}
       overview={overview}
@@ -74,7 +82,7 @@ function DetailSummaryLayout({
   controls,
   overview,
   children,
-}: Omit<Props, 'item'> & { heading: ReactNode; secondaryHeading?: ReactNode }) {
+}: Omit<Props, 'item' | 'episodeTitle'> & { heading: ReactNode; secondaryHeading?: ReactNode }) {
   const tablet = useLargeContentLayout();
   const theme = useAppTheme();
   const pane = useContentDimensions();
@@ -140,7 +148,7 @@ export function DetailSummaryPlaceholder({
       <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <DetailSummaryLayout
           heading={
-            title ? (
+            mode === 'movie' ? null : mode === 'episode' && title ? (
               <DetailTitle title={title} />
             ) : (
               <SkeletonText width="68%" textStyle={[styles.title, tablet && styles.tabletTitle]} />
@@ -155,7 +163,7 @@ export function DetailSummaryPlaceholder({
               </View>
             )
           }
-          controls={mode !== 'series' ? <DetailPlaybackControlsPlaceholder /> : null}
+          controls={<DetailPlaybackControlsPlaceholder />}
           overview={
             <View style={detailViewStyles.overviewContainer}>
               <View>

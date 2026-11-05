@@ -6,6 +6,7 @@ import { usePlaybackSync } from './usePlaybackSync';
 
 const state = vi.hoisted(() => ({
   client: null as unknown as QueryClient,
+  reportStart: vi.fn<() => Promise<void>>(),
   reportStop: vi.fn<() => Promise<void>>(),
 }));
 
@@ -20,12 +21,22 @@ vi.mock('@tanstack/react-query', async (original) => ({
   useQueryClient: () => state.client,
 }));
 vi.mock('./useMediaAdapter', () => ({
-  useMediaAdapter: () => ({ reportPlaybackStop: state.reportStop }),
+  useMediaAdapter: () => ({
+    reportPlaybackStart: state.reportStart,
+    reportPlaybackStop: state.reportStop,
+  }),
 }));
 
 const props = {
-  currentServer: { id: 'server-1' },
-  itemDetail: { id: 'episode-1' },
+  currentServer: { id: 'server-1', userId: 'user-1' },
+  itemDetail: {
+    id: 'episode-1',
+    name: 'Episode 1',
+    type: 'Episode',
+    seriesId: 'series-1',
+    seasonId: 'season-1',
+    raw: {},
+  },
   currentTime: { value: 120_000 },
   playSessionId: 'session-1',
 } as Parameters<typeof usePlaybackSync>[0];
@@ -35,6 +46,7 @@ beforeEach(() => {
   state.client = new QueryClient();
   state.client.setQueryData(seriesKey, { userData: { played: false } });
   state.reportStop.mockReset();
+  state.reportStart.mockReset().mockResolvedValue(undefined);
 });
 afterEach(() => {
   state.client.clear();
@@ -42,6 +54,22 @@ afterEach(() => {
 });
 
 describe('playback stop watched state refresh', () => {
+  it('hands the current episode and position back before the server acknowledges stopping', async () => {
+    let acknowledge!: () => void;
+    state.reportStop.mockReturnValue(new Promise<void>((resolve) => (acknowledge = resolve)));
+    const playback = usePlaybackSync(props);
+    playback.syncPlaybackStart(0);
+    playback.syncPlaybackStop(45_000);
+    expect(
+      state.client.getQueryData(mediaQueryKeys.playbackEpisode('server-1', 'user-1', 'series-1')),
+    ).toMatchObject({
+      item: { id: 'episode-1', userData: { playbackPositionTicks: 450_000_000 } },
+    });
+    expect(state.client.getQueryState(seriesKey)?.isInvalidated).toBe(false);
+    acknowledge();
+    await vi.waitFor(() => expect(state.client.getQueryState(seriesKey)?.isInvalidated).toBe(true));
+  });
+
   it('does not refetch a new active episode when the previous episode stop arrives late', async () => {
     let acknowledge!: () => void;
     state.reportStop.mockReturnValue(new Promise<void>((resolve) => (acknowledge = resolve)));

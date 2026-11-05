@@ -1,6 +1,6 @@
 import { MenuView, type MenuComponentRef } from '@/components/ui/MenuView';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
-import { usePlaybackPreferences } from '@/hooks/usePlaybackPreferences';
+import { rememberSubtitlePreference, usePlaybackPreferences } from '@/hooks/usePlaybackPreferences';
 import { useSubtitlePrefetch } from '@/hooks/useSubtitlePrefetch';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
@@ -68,7 +68,7 @@ function ItemPlaybackControls({ item }: { item: MediaItem }) {
   const query = useQuery(mediaSourcesQueryOptions({ adapter, currentServer, itemId: item.id }));
   const sources = query.data?.mediaSources ?? [];
   const [choice, setChoice] = useState<PlaybackSelection>({});
-  const preferences = usePlaybackPreferences();
+  const preferences = usePlaybackPreferences({ server: currentServer, item });
   const selected = resolvePlaybackSelection(sources, choice, preferences);
   useSubtitlePrefetch(
     item.id,
@@ -140,7 +140,19 @@ function ItemPlaybackControls({ item }: { item: MediaItem }) {
               return;
             }
             const selection = menu.selections.get(nativeEvent.event);
-            if (selection) setChoice(selection);
+            if (selection) {
+              if (nativeEvent.event.startsWith('subtitle:')) {
+                const source = sources.find((entry) => entry.id === selection.mediaSourceId);
+                if (source && selection.subtitleStreamIndex != null) {
+                  rememberSubtitlePreference(
+                    { server: currentServer, item },
+                    source,
+                    selection.subtitleStreamIndex,
+                  );
+                }
+              }
+              setChoice(selection);
+            }
           }}
         >
           <View accessible={false} style={styles.optionsButton}>

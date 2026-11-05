@@ -155,8 +155,8 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   imgInfo,
   onPress,
   disabled = false,
+  selected,
   showPlayButton = false,
-  showBorder = false,
   actionServer: actionServerProp,
   source,
   showServerSource = true,
@@ -168,8 +168,8 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   imgInfo?: ImageUrlInfo;
   onPress?: () => void;
   disabled?: boolean;
+  selected?: boolean;
   showPlayButton?: boolean;
-  showBorder?: boolean;
   actionServer?: MediaServerInfo;
   source?: MediaItemSource;
   showServerSource?: boolean;
@@ -238,7 +238,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
     <CardActionMenu item={item} actionServer={actionServer}>
       <View style={[styles.card, { width: 200 }, style]}>
         <ShadowedGlassCard radius={12} surface="transparent">
-          <CoverFrame aspectRatio={16 / 9} emphasized={showBorder} radius={14}>
+          <CoverFrame aspectRatio={16 / 9} radius={14}>
             <BlurTargetView ref={blurTarget} style={StyleSheet.absoluteFill}>
               <ItemImage
                 uri={imageUrl}
@@ -302,6 +302,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
             value: getCardWatchStatusSuffix(item),
           })}
           accessibilityRole="button"
+          accessibilityState={{ disabled, selected }}
           disabled={disabled}
           onLongPress={Platform.OS === 'ios' ? consumeCardLongPress : undefined}
           onPress={onPress || openDetails}
@@ -333,7 +334,6 @@ export const SeriesCard = React.memo(function SeriesCard({
   imgType = 'Primary',
   imgInfo,
   hideSubtitle = false,
-  showBorder = false,
   onPress,
   actionServer: actionServerProp,
   source,
@@ -344,7 +344,6 @@ export const SeriesCard = React.memo(function SeriesCard({
   imgType?: ImageType;
   imgInfo?: ImageUrlInfo;
   hideSubtitle?: boolean;
-  showBorder?: boolean;
   onPress?: () => void;
   actionServer?: MediaServerInfo;
   source?: MediaItemSource;
@@ -416,7 +415,7 @@ export const SeriesCard = React.memo(function SeriesCard({
       onPress={openDetails}
     >
       <ShadowedGlassCard radius={12} surface="transparent">
-        <CoverFrame aspectRatio={2 / 3} emphasized={showBorder} radius={14}>
+        <CoverFrame aspectRatio={2 / 3} radius={14}>
           <ItemImage
             uri={imageUrl}
             style={[styles.posterCover, { backgroundColor: theme.colors.surfaceMuted }]}

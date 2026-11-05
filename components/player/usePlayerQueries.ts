@@ -1,3 +1,4 @@
+import { readPlaybackPreferences } from '@/hooks/usePlaybackPreferences';
 import { useSubtitlePrefetch } from '@/hooks/useSubtitlePrefetch';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { useDanmakuSources } from '@/lib/contexts/DanmakuSourcesContext';
@@ -19,11 +20,17 @@ import {
   playbackItemDetailQueryOptions,
   streamInfoQueryOptions,
 } from '@/services/media/queryOptions';
-import type { MediaAdapter, MediaSegment, MediaServerInfo } from '@/services/media/types';
+import type {
+  MediaAdapter,
+  MediaChapter,
+  MediaSegment,
+  MediaServerInfo,
+} from '@/services/media/types';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 const EMPTY_SEGMENTS: MediaSegment[] = [];
+const EMPTY_CHAPTERS: MediaChapter[] = [];
 
 export function usePlayerQueries({
   itemId,
@@ -34,7 +41,7 @@ export function usePlayerQueries({
   streamDeviceProfile,
   streamDeviceId,
   playbackAttempt,
-  preferences,
+  preferences: defaultPreferences,
   subtitlePrefetchChoice,
 }: {
   itemId: string;
@@ -66,6 +73,26 @@ export function usePlayerQueries({
     }),
   );
 
+  // Snapshot manual choices for this load. A local subtitle switch must not
+  // renegotiate the playing stream; the next episode/version reads it afresh.
+  const preferences = useMemo(
+    () => ({
+      ...defaultPreferences,
+      subtitleChoice: readPlaybackPreferences({ server: currentServer, item: itemDetail })
+        .subtitleChoice,
+    }),
+    // Source changes deliberately refresh the snapshot as well.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      defaultPreferences,
+      currentServer?.id,
+      currentServer?.userId,
+      itemDetail?.id,
+      itemDetail?.seriesId,
+      streamInfoKeyOptions.mediaSourceId,
+    ],
+  );
+
   const { data: autoCommentsData } = useQuery(
     dandanplayCommentsQueryOptions({
       serverId: currentServer?.id,
@@ -81,10 +108,6 @@ export function usePlayerQueries({
 
   const { data: playbackInfo, isPending: tracksPending } = useQuery(
     mediaSourcesQueryOptions({ adapter: mediaAdapter, currentServer, itemId }),
-  );
-  // Segment metadata is optional and must never delay stream negotiation.
-  const { data: mediaSegments = EMPTY_SEGMENTS, isPending: segmentsPending } = useQuery(
-    mediaSegmentsQueryOptions({ adapter: mediaAdapter, currentServer, itemId }),
   );
   const playbackSelection = useMemo(() => {
     const preferred = resolvePreferredPlaybackTracks(
@@ -134,6 +157,27 @@ export function usePlayerQueries({
       (!needsPlaybackPreferenceTracks(streamInfoKeyOptions, preferences) || !tracksPending),
   });
 
+  // Jellyfin versions are separate library items. Read the selected file's
+  // markers and chapters, without changing the logical episode/resume query.
+  const sourceId = streamInfo?.mediaSource?.Id ?? playbackSelection.mediaSourceId;
+  const segmentItemId = currentServer?.type === 'jellyfin' ? sourceId : itemId;
+  const { data: mediaSegments = EMPTY_SEGMENTS, isPending: segmentsPending } = useQuery(
+    mediaSegmentsQueryOptions({ adapter: mediaAdapter, currentServer, itemId: segmentItemId }),
+  );
+  const { data: sourceItemDetail } = useQuery(
+    playbackItemDetailQueryOptions({
+      adapter: mediaAdapter,
+      currentServer,
+      itemId: segmentItemId !== itemId ? segmentItemId : undefined,
+    }),
+  );
+  // Emby source IDs may be opaque rather than item IDs. Never apply the main
+  // version's chapter timing to another version whose chapters are unknown.
+  const canUseItemChapters =
+    segmentItemId === itemId &&
+    (currentServer?.type !== 'emby' || sourceId === playbackInfo?.mediaSources[0]?.id);
+  const segmentItemDetail = canUseItemChapters ? itemDetail : sourceItemDetail;
+
   const { data: episodes = [] } = useQuery(
     episodesBySeasonQueryOptions({
       adapter: mediaAdapter,
@@ -152,6 +196,8 @@ export function usePlayerQueries({
     mediaSources: playbackInfo?.mediaSources ?? [],
     mediaSegments,
     segmentsPending,
+    segmentChapters: segmentItemDetail?.chapters ?? EMPTY_CHAPTERS,
+    segmentItemDetail,
     episodes,
   };
 }

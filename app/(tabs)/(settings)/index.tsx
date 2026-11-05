@@ -1,4 +1,4 @@
-import { OuterTitle } from '@/components/outer/OuterPrimitives';
+import { NativeScreenTitle } from '@/components/navigation/NativeScreenTitle';
 import {
   NativeSettingsForm,
   NativeSettingsItem,
@@ -19,7 +19,7 @@ export default function SettingsScreen() {
   const { languagePreference, setLanguagePreference } = useLanguagePreference();
   return (
     <>
-      <OuterTitle>{tr('navigation.settings')}</OuterTitle>
+      <NativeScreenTitle>{tr('navigation.settings')}</NativeScreenTitle>
       <NativeSettingsForm testID="settings-form">
         <NativeSettingsSection title={tr('settings.viewingExperience')}>
           <NativeSettingsItem

@@ -611,14 +611,14 @@ export function mediaSegmentsQueryOptions({
 }: {
   adapter: MediaAdapter;
   currentServer: MediaServerInfo | null;
-  itemId: string;
+  itemId: string | null | undefined;
 }) {
   return queryOptions({
     queryKey: mediaQueryKeys.mediaSegments(currentServer?.id, itemId, currentServer?.userId),
     enabled: !!currentServer && !!itemId,
     staleTime: 0,
     retry: false,
-    queryFn: () => adapter.getMediaSegments({ itemId }),
+    queryFn: () => (itemId ? adapter.getMediaSegments({ itemId }) : Promise.resolve([])),
   });
 }
 

@@ -1,4 +1,4 @@
-import { OuterTitle } from '@/components/outer/OuterPrimitives';
+import { NativeScreenTitle } from '@/components/navigation/NativeScreenTitle';
 import {
   NativeSettingsForm,
   NativeSettingsItem,
@@ -282,7 +282,7 @@ export default function CacheSettingsScreen() {
 
   return (
     <>
-      <OuterTitle>{tr('settings.storage')}</OuterTitle>
+      <NativeScreenTitle>{tr('settings.storage')}</NativeScreenTitle>
       <NativeSettingsForm testID="cache-settings-form">
         <NativeSettingsSection title={tr('cache.onDeviceStorage')}>
           <Column

@@ -2,7 +2,31 @@ import { t as tr } from '@/lib/i18n';
 import { MediaItem } from '@/services/media/types';
 
 export const getInitialSeasonId = (seasons: MediaItem[], seasonId?: string): string =>
-  seasonId || seasons[0]?.id || '';
+  seasonId || seasons.find((season) => season.indexNumber !== 0)?.id || seasons[0]?.id || '';
+
+export function getEpisodeSeasonId(episode: MediaItem | undefined, seasons: MediaItem[]) {
+  return (
+    episode?.seasonId ||
+    episode?.parentId ||
+    seasons.find(
+      (season) =>
+        episode?.parentIndexNumber != null && season.indexNumber === episode.parentIndexNumber,
+    )?.id
+  );
+}
+
+export function getInitialEpisodeChoice(
+  seasons: MediaItem[],
+  episode?: MediaItem,
+  seasonId?: string,
+) {
+  const episodeSeasonId = getEpisodeSeasonId(episode, seasons);
+  const selectedSeasonId = getInitialSeasonId(seasons, seasonId || episodeSeasonId);
+  return {
+    seasonId: selectedSeasonId,
+    episodeId: !episodeSeasonId || episodeSeasonId === selectedSeasonId ? episode?.id : undefined,
+  };
+}
 
 export const getDisplayEpisodes = ({
   selectedSeasonId,
@@ -16,14 +40,15 @@ export const getDisplayEpisodes = ({
 
 export const getSelectedEpisodeOrFallback = (
   episodes: MediaItem[],
-  selectedEpisode: MediaItem,
-): MediaItem => {
-  if (episodes.length === 0) return selectedEpisode;
-
-  return episodes.some((episode) => episode.id === selectedEpisode.id)
-    ? selectedEpisode
-    : episodes[0];
-};
+  selectedEpisode?: MediaItem,
+): MediaItem | undefined =>
+  episodes.find((episode) => episode.id === selectedEpisode?.id) ??
+  episodes.find(
+    (episode) => !episode.userData?.played && (episode.userData?.playbackPositionTicks ?? 0) > 0,
+  ) ??
+  episodes.find((episode) => !episode.userData?.played) ??
+  episodes[0] ??
+  selectedEpisode;
 
 export const findEpisodeIndex = (episodes: MediaItem[], selectedEpisodeId?: string): number => {
   if (!selectedEpisodeId) return -1;

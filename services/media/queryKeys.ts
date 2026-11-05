@@ -111,6 +111,17 @@ export const mediaQueryKeys = {
     itemId: string | null | undefined,
     userId: string | null | undefined,
   ) => [...mediaQueryKeys.server(serverId), 'item-detail', itemId ?? null, userId ?? null] as const,
+  playbackEpisode: (
+    serverId: string | null | undefined,
+    userId: string | null | undefined,
+    seriesId: string | null | undefined,
+  ) =>
+    [
+      ...mediaQueryKeys.server(serverId),
+      'playback-episode',
+      userId ?? null,
+      seriesId ?? null,
+    ] as const,
   episodes: (
     serverId: string | null | undefined,
     seasonId: string | null | undefined,
@@ -143,9 +154,10 @@ export const mediaQueryKeys = {
     [...mediaQueryKeys.server(serverId), 'media-sources', itemId ?? null, userId ?? null] as const,
   mediaSegments: (
     serverId: string | null | undefined,
-    itemId: string,
+    itemId: string | null | undefined,
     userId: string | undefined,
-  ) => [...mediaQueryKeys.server(serverId), 'media-segments', itemId, userId ?? null] as const,
+  ) =>
+    [...mediaQueryKeys.server(serverId), 'media-segments', itemId ?? null, userId ?? null] as const,
   comments: (
     serverId: string | null | undefined,
     itemId: string | null | undefined,

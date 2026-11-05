@@ -1,5 +1,5 @@
 import { usePlayerLab } from '@/components/dev/player-lab/PlayerLabEntry';
-import { OuterTitle } from '@/components/outer/OuterPrimitives';
+import { NativeScreenTitle } from '@/components/navigation/NativeScreenTitle';
 import {
   NativeSettingsForm,
   NativeSettingsItem,
@@ -74,7 +74,7 @@ export default function AboutScreen() {
 
   return (
     <>
-      <OuterTitle>{tr('about.helpAndAbout')}</OuterTitle>
+      <NativeScreenTitle>{tr('about.helpAndAbout')}</NativeScreenTitle>
       <NativeSettingsForm testID="settings-form">
         <NativeSettingsSection title={tr('about.appInformation')}>
           <NativeSettingsItem

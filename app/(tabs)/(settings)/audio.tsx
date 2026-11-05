@@ -1,4 +1,4 @@
-import { OuterTitle } from '@/components/outer/OuterPrimitives';
+import { NativeScreenTitle } from '@/components/navigation/NativeScreenTitle';
 import {
   NativeSettingsForm,
   NativeSettingsItem,
@@ -56,7 +56,7 @@ export default function AudioSettings() {
   const [enabled, setEnabled] = useState(storage.getBoolean('playback.subtitlesEnabled') ?? true);
   return (
     <>
-      <OuterTitle>{tr('settings.audioAndSubtitles')}</OuterTitle>
+      <NativeScreenTitle>{tr('settings.audioAndSubtitles')}</NativeScreenTitle>
       <NativeSettingsForm>
         <NativeSettingsSection title={tr('media.audio')}>
           <NativeSettingsPicker

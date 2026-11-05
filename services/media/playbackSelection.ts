@@ -2,6 +2,7 @@ import { t as tr } from '@/lib/i18n';
 import { preferredTrackId } from '@/lib/playbackPreferences';
 
 import { parsePlaybackQuality, type PlaybackQuality } from './playbackQuality';
+import { preferredSubtitleIndex, type SubtitlePreference } from './subtitlePreference';
 import type { MediaSource, MediaStream } from './types';
 
 export type PlaybackSelection = {
@@ -15,6 +16,7 @@ export type PlaybackPreferences = {
   audioLanguage: string;
   subtitleLanguage: string;
   subtitlesEnabled: boolean;
+  subtitleChoice?: SubtitlePreference;
 };
 
 export function needsPlaybackPreferenceTracks(
@@ -24,8 +26,8 @@ export function needsPlaybackPreferenceTracks(
   return (
     (selection.audioStreamIndex == null && preferences.audioLanguage !== 'auto') ||
     (selection.subtitleStreamIndex == null &&
-      preferences.subtitlesEnabled &&
-      preferences.subtitleLanguage !== 'auto')
+      ((preferences.subtitlesEnabled && preferences.subtitleLanguage !== 'auto') ||
+        !!preferences.subtitleChoice))
   );
 }
 
@@ -48,12 +50,12 @@ export function resolvePreferredPlaybackTracks(
   const preferredAudio =
     selection.audioStreamIndex == null ? preferred('Audio', preferences.audioLanguage) : undefined;
   const preferredSubtitle =
-    selection.subtitleStreamIndex == null && preferences.subtitlesEnabled
-      ? preferred('Subtitle', preferences.subtitleLanguage)
+    selection.subtitleStreamIndex == null
+      ? (preferredSubtitleIndex(source?.mediaStreams ?? [], preferences.subtitleChoice) ??
+        (preferences.subtitlesEnabled ? preferred('Subtitle', preferences.subtitleLanguage) : -1))
       : undefined;
   const audioStreamIndex = selection.audioStreamIndex ?? preferredAudio;
-  const subtitleStreamIndex =
-    selection.subtitleStreamIndex ?? (preferences.subtitlesEnabled ? preferredSubtitle : -1);
+  const subtitleStreamIndex = selection.subtitleStreamIndex ?? preferredSubtitle;
   return {
     ...selection,
     // Pin the version whose stream indices were used, without changing 'auto'.
@@ -132,6 +134,7 @@ export function resolvePlaybackSelection(
       scoped.subtitleStreamIndex === -1
         ? -1
         : (valid(subtitles, scoped.subtitleStreamIndex) ??
+          preferredSubtitleIndex(subtitles, preferences.subtitleChoice) ??
           (preferences.subtitlesEnabled
             ? (preferred(subtitles, preferences.subtitleLanguage) ??
               (source.defaultSubtitleStreamIndex === -1

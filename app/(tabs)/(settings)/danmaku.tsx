@@ -1,4 +1,4 @@
-import { OuterTitle } from '@/components/outer/OuterPrimitives';
+import { NativeScreenTitle } from '@/components/navigation/NativeScreenTitle';
 import {
   NativeSettingsForm,
   NativeSettingsItem,
@@ -63,7 +63,7 @@ export default function DanmakuSettingsScreen() {
 
   return (
     <>
-      <OuterTitle>{tr('danmaku.settings')}</OuterTitle>
+      <NativeScreenTitle>{tr('danmaku.settings')}</NativeScreenTitle>
       <NativeSettingsForm testID="danmaku-settings-form">
         <NativeSettingsSection title={tr('danmaku.apis')}>
           <NativeSettingsItem

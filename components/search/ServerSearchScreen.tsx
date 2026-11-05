@@ -1,7 +1,7 @@
 import { EpisodeCard, SeriesCard } from '@/components/media/Card';
 import { ItemGridScreen } from '@/components/media/ItemGridScreen';
 import { getMediaRailListConfig } from '@/components/media/railPerformanceConfig';
-import { NativeListTitle } from '@/components/navigation/NativeListTitle';
+import { NativeScreenTitle } from '@/components/navigation/NativeScreenTitle';
 import PageScrollView from '@/components/PageScrollView';
 import { SkeletonHorizontalSection } from '@/components/ui/Skeleton';
 import { useContentDimensions } from '@/hooks/useContentDimensions';
@@ -109,9 +109,9 @@ export default function ServerSearchScreen() {
 
   const header = (
     <>
-      <NativeListTitle>
+      <NativeScreenTitle>
         {effectiveKeyword.length === 0 ? tr('media.recommended') : tr('search.title')}
-      </NativeListTitle>
+      </NativeScreenTitle>
       <Stack.SearchBar
         {...searchHeader}
         ref={searchBarRef}
