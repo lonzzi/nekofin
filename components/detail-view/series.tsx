@@ -1,15 +1,18 @@
-import { getMediaRailListConfig } from '@/components/media/railPerformanceConfig';
-import { useContentDimensions, useLargeContentLayout } from '@/hooks/useContentDimensions';
-import { useTranslation } from '@/lib/i18n';
 import { useAppTheme } from '@/lib/theme';
-import { MediaItem, MediaPerson } from '@/services/media/types';
-import { FlatList, Text, View } from 'react-native';
+import type { MediaItem, MediaPerson } from '@/services/media/types';
+import { Text, View } from 'react-native';
 
-import { EpisodeCard, SeriesCard } from '../media/Card';
-import { detailViewStyles, ItemInfoList, ItemMeta, ItemOverview } from './common';
+import { getSubtitle } from '../media/cardHelpers';
+import { ItemInfoList, ItemMeta, ItemOverview } from './common';
 import { DeferredDetailSections } from './DeferredDetailSections';
 import { PeopleSection, SimilarItemsSection } from './DetailMediaSections';
+import {
+  DetailPlaybackControls,
+  DetailPlaybackControlsPlaceholder,
+} from './DetailPlaybackControls';
 import { DetailSummary } from './DetailSummary';
+import { EpisodeSelector } from './EpisodeSelector';
+import { useEpisodeSelection } from './useEpisodeSelection';
 
 export const SeriesModeContent = ({
   seasons,
@@ -24,75 +27,48 @@ export const SeriesModeContent = ({
   similarItems: MediaItem[];
   item: MediaItem;
 }) => {
-  const { t: tr } = useTranslation();
   const theme = useAppTheme();
-  const textColor = theme.colors.text;
-  const { width } = useContentDimensions();
-  const railBatching = (cardWidth: number) =>
-    getMediaRailListConfig({
-      cardWidth,
-      gap: theme.spacing.md,
-      horizontalPadding: theme.spacing.page + theme.spacing.sm,
-      viewportWidth: width,
-    });
-  const tablet = useLargeContentLayout();
+  const selection = useEpisodeSelection({ item, seasons, nextUpItems });
+  const { selectedEpisode } = selection;
   return (
     <>
       <DetailSummary
         item={item}
+        episodeTitle={selectedEpisode?.name}
         metadata={<ItemMeta item={item} />}
-        overview={<ItemOverview item={item} />}
-      >
-        {!tablet ? <ItemInfoList item={item} /> : null}
-      </DetailSummary>
+        controls={
+          selectedEpisode ? (
+            <View style={{ gap: theme.spacing.xs }}>
+              <Text
+                numberOfLines={2}
+                style={[theme.typography.footnote, { color: theme.colors.textSecondary }]}
+              >
+                {getSubtitle(selectedEpisode)}
+              </Text>
+              <DetailPlaybackControls item={selectedEpisode} />
+            </View>
+          ) : selection.isPending ? (
+            <DetailPlaybackControlsPlaceholder />
+          ) : null
+        }
+        overview={
+          selectedEpisode ? <ItemOverview item={selectedEpisode} showEmptyPlaceholder /> : null
+        }
+      />
 
       <DeferredDetailSections>
-        {nextUpItems.length > 0 && (
-          <View style={detailViewStyles.sectionBlock}>
-            <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>
-              {tr('home.upNext')}
-            </Text>
-            <FlatList
-              {...railBatching(theme.layout.mediaRail.episodeCardWidth - theme.spacing.xl)}
-              horizontal
-              removeClippedSubviews={false}
-              data={nextUpItems}
-              style={detailViewStyles.edgeToEdge}
-              renderItem={({ item }) => (
-                <EpisodeCard
-                  item={item}
-                  style={detailViewStyles.horizontalCard}
-                  imgType="Primary"
-                />
-              )}
-              keyExtractor={(item) => item.id!}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={detailViewStyles.horizontalList}
-            />
-          </View>
-        )}
-
-        {seasons && seasons.length > 0 && (
-          <View style={detailViewStyles.sectionBlock}>
-            <Text style={[detailViewStyles.sectionTitle, { color: textColor }]}>
-              {tr('media.seasonNumber')}
-            </Text>
-            <FlatList
-              {...railBatching(theme.layout.mediaRail.posterCardWidth)}
-              horizontal
-              removeClippedSubviews={false}
-              data={seasons}
-              style={detailViewStyles.edgeToEdge}
-              renderItem={({ item }) => <SeriesCard item={item} imgType="Primary" hideSubtitle />}
-              keyExtractor={(item) => item.id!}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={detailViewStyles.horizontalList}
-            />
-          </View>
-        )}
-
-        {tablet ? <ItemInfoList item={item} /> : null}
-
+        <EpisodeSelector
+          seasons={seasons}
+          selectedSeasonId={selection.selectedSeasonId}
+          selectedEpisodeId={selectedEpisode?.id}
+          episodes={selection.displayEpisodes}
+          onSelectSeason={selection.selectSeason}
+          onSelectEpisode={selection.selectEpisode}
+          isPending={selection.isPending}
+          isError={selection.isError}
+          onRetry={() => void selection.refetch()}
+        />
+        <ItemInfoList item={item} />
         <PeopleSection items={people} />
         <SimilarItemsSection items={similarItems} />
       </DeferredDetailSections>

@@ -225,6 +225,19 @@ describe('player derived state', () => {
     expect(deriveDurationMs(undefined, 10)).toBe(10_000);
   });
 
+  it('uses the selected file runtime instead of the main episode version', () => {
+    const item = {
+      id: 'episode',
+      name: 'Episode',
+      type: 'Episode' as const,
+      raw: {},
+      runTimeTicks: 1_400_000_000,
+    };
+    expect(deriveDurationMs(item, 150, 1_500_000_000)).toBe(150000);
+    expect(deriveDurationMs(undefined, 150)).toBe(150000);
+    expect(deriveDurationMs(item, 150, Number.NaN)).toBe(140000);
+  });
+
   it('derives absolute buffered progress with an Android-compatible fallback', () => {
     expect(
       deriveBufferedProgress({

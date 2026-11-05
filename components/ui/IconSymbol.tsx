@@ -30,9 +30,11 @@ const MAPPING = {
   'person.crop.rectangle': 'person',
   'backward.end.fill': 'skip-previous',
   'gobackward.10': 'replay-10',
+  gobackward: 'replay',
   'play.fill': 'play-arrow',
   'pause.fill': 'pause',
   'goforward.10': 'forward-10',
+  goforward: 'replay',
   'forward.end.fill': 'skip-next',
 } satisfies IconMapping;
 

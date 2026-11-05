@@ -1,4 +1,4 @@
-import { OuterTitle } from '@/components/outer/OuterPrimitives';
+import { NativeScreenTitle } from '@/components/navigation/NativeScreenTitle';
 import {
   NativeSettingsForm,
   NativeSettingsPicker,
@@ -8,7 +8,9 @@ import {
 import { SettingsSubtitle, SettingsTitle } from '@/components/ui/SettingsVisual';
 import { usePictureInPicture } from '@/hooks/usePictureInPicture';
 import { usePlayerGestureSettings } from '@/hooks/usePlayerGestureSettings';
+import { usePlayerSeekSettings } from '@/hooks/usePlayerSeekSettings';
 import { useTranslation } from '@/lib/i18n';
+import { PLAYER_SEEK_SECONDS } from '@/lib/playerSeekSettings';
 import { storage } from '@/lib/storage';
 import { useState } from 'react';
 import { Platform } from 'react-native';
@@ -38,6 +40,8 @@ const codecOptions = [
 export default function PlaybackSettings() {
   const { t: tr } = useTranslation();
   const pictureInPicture = usePictureInPicture();
+  const { backwardSeconds, forwardSeconds, setBackwardSeconds, setForwardSeconds } =
+    usePlayerSeekSettings();
   const {
     brightnessGestureEnabled,
     setBrightnessGestureEnabled,
@@ -53,6 +57,10 @@ export default function PlaybackSettings() {
   );
   const [autoSkipOutro = false, setAutoSkipOutro] = useMMKVBoolean(
     'playback.autoSkipOutro',
+    storage,
+  );
+  const [inferAnimeSegments = true, setInferAnimeSegments] = useMMKVBoolean(
+    'playback.inferAnimeSegments',
     storage,
   );
   const [orientation, setOrientation] = useState(
@@ -91,7 +99,7 @@ export default function PlaybackSettings() {
 
   return (
     <>
-      <OuterTitle>{tr('settings.playbackAndQuality')}</OuterTitle>
+      <NativeScreenTitle>{tr('settings.playbackAndQuality')}</NativeScreenTitle>
       <NativeSettingsForm testID="playback-settings-form">
         <NativeSettingsSection title={tr('settings.playbackDefaults')}>
           {Platform.OS === 'android' && (
@@ -132,6 +140,26 @@ export default function PlaybackSettings() {
             }}
           />
         </NativeSettingsSection>
+        <NativeSettingsSection title={tr('player.seekIntervals')}>
+          <NativeSettingsPicker
+            title={<SettingsTitle>{tr('player.seekBackwardInterval')}</SettingsTitle>}
+            value={String(backwardSeconds)}
+            options={PLAYER_SEEK_SECONDS.map((seconds) => ({
+              title: tr('time.secondsShort', { seconds }),
+              value: String(seconds),
+            }))}
+            onValueChange={(value) => setBackwardSeconds(Number(value))}
+          />
+          <NativeSettingsPicker
+            title={<SettingsTitle>{tr('player.seekForwardInterval')}</SettingsTitle>}
+            value={String(forwardSeconds)}
+            options={PLAYER_SEEK_SECONDS.map((seconds) => ({
+              title: tr('time.secondsShort', { seconds }),
+              value: String(seconds),
+            }))}
+            onValueChange={(value) => setForwardSeconds(Number(value))}
+          />
+        </NativeSettingsSection>
         <NativeSettingsSection title={tr('player.gestureControls')}>
           <NativeSettingsSwitch
             title={<SettingsTitle>{tr('player.brightnessGesture')}</SettingsTitle>}
@@ -165,6 +193,14 @@ export default function PlaybackSettings() {
             title={<SettingsTitle>{tr('player.autoSkipOutro')}</SettingsTitle>}
             value={autoSkipOutro}
             onValueChange={setAutoSkipOutro}
+          />
+          <NativeSettingsSwitch
+            title={<SettingsTitle>{tr('player.inferAnimeSegments')}</SettingsTitle>}
+            subtitle={
+              <SettingsSubtitle primary={tr('player.inferAnimeSegmentsDescription')} lines={3} />
+            }
+            value={inferAnimeSegments}
+            onValueChange={setInferAnimeSegments}
           />
         </NativeSettingsSection>
         <NativeSettingsSection

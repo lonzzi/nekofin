@@ -1,6 +1,6 @@
 import { HeaderButton, HeaderToolbar } from '@/components/navigation/HeaderToolbar';
+import { NativeScreenTitle } from '@/components/navigation/NativeScreenTitle';
 import { getNativeToolbarIcon } from '@/components/navigation/nativeToolbarIcons';
-import { OuterTitle } from '@/components/outer/OuterPrimitives';
 import {
   NativeSettingsForm,
   NativeSettingsItem,
@@ -53,7 +53,7 @@ export default function SubtitleFontUrl() {
   };
   return (
     <>
-      <OuterTitle>{tr('fonts.importFromUrl')}</OuterTitle>
+      <NativeScreenTitle>{tr('fonts.importFromUrl')}</NativeScreenTitle>
       <HeaderToolbar placement="right">
         <HeaderButton
           accessibilityLabel={tr('fonts.importFont')}

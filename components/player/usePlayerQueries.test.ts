@@ -1,4 +1,5 @@
-import type { MediaSource } from '@/services/media/types';
+import type { PlaybackPreferences } from '@/services/media/playbackSelection';
+import type { MediaItem, MediaSegment, MediaServerInfo, MediaSource } from '@/services/media/types';
 import { beforeEach, expect, it, vi } from 'vitest';
 
 import { usePlayerQueries } from './usePlayerQueries';
@@ -10,8 +11,18 @@ const state = vi.hoisted(() => ({
   sourcesPending: false,
   streamOptions: vi.fn(),
   streamEnabled: false,
+  subtitleChoice: undefined as PlaybackPreferences['subtitleChoice'],
+  item: undefined as MediaItem | undefined,
+  sourceItems: {} as Record<string, MediaItem>,
+  segmentSets: {} as Record<string, MediaSegment[]>,
+  server: null as MediaServerInfo | null,
+  segmentOptions: vi.fn(),
+  streamInfo: undefined as { mediaSource: { Id: string } } | undefined,
 }));
 vi.mock('react', () => ({ useMemo: (fn: () => unknown) => fn() }));
+vi.mock('@/hooks/usePlaybackPreferences', () => ({
+  readPlaybackPreferences: () => ({ subtitleChoice: state.subtitleChoice }),
+}));
 vi.mock('@/hooks/useSubtitlePrefetch', () => ({
   useSubtitlePrefetch: (...args: unknown[]) => {
     state.events.push('prefetch');
@@ -31,9 +42,14 @@ vi.mock('@/services/dandanplayQueryOptions', () => ({
 }));
 vi.mock('@/services/media/queryOptions', () => ({
   itemDetailQueryOptions: () => ({ queryKey: ['series'] }),
-  playbackItemDetailQueryOptions: () => ({ queryKey: ['item'] }),
+  playbackItemDetailQueryOptions: ({ itemId }: { itemId?: string }) => ({
+    queryKey: ['item', itemId ?? 'none'],
+  }),
   mediaSourcesQueryOptions: () => ({ queryKey: ['sources'] }),
-  mediaSegmentsQueryOptions: () => ({ queryKey: ['segments'] }),
+  mediaSegmentsQueryOptions: (options: { itemId?: string }) => {
+    state.segmentOptions(options);
+    return { queryKey: ['segments', options.itemId ?? 'none'] };
+  },
   streamInfoQueryOptions: (options: unknown) => {
     state.streamOptions(options);
     return { queryKey: ['stream'], enabled: true };
@@ -41,11 +57,22 @@ vi.mock('@/services/media/queryOptions', () => ({
   episodesBySeasonQueryOptions: () => ({ queryKey: ['episodes'] }),
 }));
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: ({ queryKey: [key], enabled }: { queryKey: string[]; enabled?: boolean }) => {
+  useQuery: ({ queryKey: [key, id], enabled }: { queryKey: string[]; enabled?: boolean }) => {
     state.events.push(key);
     if (key === 'stream') state.streamEnabled = enabled === true;
     return {
-      data: key === 'sources' ? { mediaSources: state.sources } : undefined,
+      data:
+        key === 'sources'
+          ? { mediaSources: state.sources }
+          : key === 'item'
+            ? id === 'movie'
+              ? state.item
+              : state.sourceItems[id]
+            : key === 'stream'
+              ? state.streamInfo
+              : key === 'segments'
+                ? state.segmentSets[id]
+                : undefined,
       isPending: key === 'sources' ? state.sourcesPending : true,
       isFetchedAfterMount: true,
     };
@@ -57,6 +84,12 @@ beforeEach(() => {
   state.events = [];
   state.sourcesPending = false;
   state.streamEnabled = false;
+  state.subtitleChoice = undefined;
+  state.item = undefined;
+  state.sourceItems = {};
+  state.segmentSets = {};
+  state.server = null;
+  state.streamInfo = undefined;
   state.sources = [
     {
       id: 'version',
@@ -76,7 +109,7 @@ const useQueries = (
   usePlayerQueries({
     itemId: 'movie',
     mediaAdapter: {} as Parameters<typeof usePlayerQueries>[0]['mediaAdapter'],
-    currentServer: null,
+    currentServer: state.server,
     useManualComments: false,
     streamInfoKeyOptions: {
       enableTranscoding: false,
@@ -168,4 +201,76 @@ it('keeps the player renderable before source metadata arrives', () => {
   expect(() => useQueries()).not.toThrow();
   expect(state.prefetch).toHaveBeenLastCalledWith('movie', undefined, undefined);
   expect(state.streamEnabled).toBe(true);
+});
+
+it('uses a remembered subtitle for both negotiation and prefetch on the next item', () => {
+  state.subtitleChoice = {
+    mode: 'track',
+    title: 'big5',
+    codec: 'ass',
+    forced: false,
+    external: true,
+  };
+  state.sources[0].mediaStreams[0] = {
+    type: 'Subtitle',
+    index: 8,
+    title: 'Big5',
+    codec: 'ass',
+    isExternal: true,
+  };
+  useQueries();
+  expect(state.prefetch).toHaveBeenCalledWith('movie', state.sources[0], 8);
+  expect(state.streamOptions).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      keyOptions: expect.objectContaining({ mediaSourceId: 'version', subtitleStreamIndex: 8 }),
+    }),
+  );
+});
+
+it('switches Jellyfin segment and chapter queries to the selected file, retaining episode resume data', () => {
+  state.server = { id: 'server', userId: 'user', type: 'jellyfin' } as MediaServerInfo;
+  state.item = {
+    id: 'movie',
+    type: 'Episode',
+    chapters: [{ name: 'OP', startTimeMs: 0 }],
+    userData: { playbackPositionTicks: 400000000 },
+  } as MediaItem;
+  state.sourceItems.alt = {
+    ...state.item,
+    id: 'alt',
+    chapters: [{ name: 'OP', startTimeMs: 20000 }],
+    userData: { playbackPositionTicks: 0 },
+  };
+  state.segmentSets.alt = [{ type: 'Intro', startTimeMs: 20000, endTimeMs: 110000 }];
+  const selected = useQueries({ mediaSourceId: 'alt' });
+  expect(state.segmentOptions).toHaveBeenLastCalledWith(expect.objectContaining({ itemId: 'alt' }));
+  expect(selected.segmentChapters).toBe(state.sourceItems.alt.chapters);
+  expect(selected.mediaSegments).toBe(state.segmentSets.alt);
+  expect(selected.itemDetail).toBe(state.item);
+
+  const pending = useQueries({ mediaSourceId: 'another-version' });
+  expect(pending.segmentChapters).toEqual([]);
+  expect(pending.mediaSegments).toEqual([]);
+  expect(pending.itemDetail?.userData?.playbackPositionTicks).toBe(400000000);
+});
+
+it('uses the negotiated Jellyfin resource ID and does not apply a primary source chapter fallback', () => {
+  state.server = { id: 'server', userId: 'user', type: 'jellyfin' } as MediaServerInfo;
+  state.item = { id: 'movie', chapters: [{ name: 'OP', startTimeMs: 0 }] } as MediaItem;
+  state.streamInfo = { mediaSource: { Id: 'negotiated-version' } };
+  const selected = useQueries();
+  expect(state.segmentOptions).toHaveBeenLastCalledWith(
+    expect.objectContaining({ itemId: 'negotiated-version' }),
+  );
+  expect(selected.segmentChapters).toEqual([]);
+});
+
+it('keeps the main Emby file chapters but never guesses item IDs from opaque alternate source IDs', () => {
+  state.server = { id: 'server', userId: 'user', type: 'emby' } as MediaServerInfo;
+  state.item = { id: 'movie', chapters: [{ name: 'OP', startTimeMs: 0 }] } as MediaItem;
+  expect(useQueries().segmentChapters).toBe(state.item.chapters);
+  expect(useQueries({ mediaSourceId: 'opaque-alternate' }).segmentChapters).toEqual([]);
+  expect(state.segmentOptions).toHaveBeenLastCalledWith(
+    expect.objectContaining({ itemId: 'movie' }),
+  );
 });

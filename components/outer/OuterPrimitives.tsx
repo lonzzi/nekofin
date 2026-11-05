@@ -1,10 +1,7 @@
-import {
-  TabletChromeContext,
-  TabletHeaderTitle,
-} from '@/components/navigation/TabletChromeContext';
+import { NativeScreenTitle } from '@/components/navigation/NativeScreenTitle';
 import { useAppTheme } from '@/lib/theme';
 import { Stack } from 'expo-router';
-import { useContext, type PropsWithChildren } from 'react';
+import type { PropsWithChildren } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export function OuterScreenOptions({
@@ -17,29 +14,20 @@ export function OuterScreenOptions({
   grouped?: boolean;
 }) {
   const t = useAppTheme();
-  const chrome = useContext(TabletChromeContext);
   const backgroundColor = grouped ? t.colors.backgroundGrouped : t.colors.background;
   return (
     <>
       <Stack.Screen
         options={{
-          title,
-          headerTitle:
-            Platform.OS === 'android' && chrome
-              ? () => <TabletHeaderTitle tintColor={t.colors.text}>{title}</TabletHeaderTitle>
-              : title,
-          headerLargeTitle: large && !(Platform.OS === 'ios' && Platform.isPad),
-          headerTitleStyle: { color: t.colors.text },
-          headerLargeTitleStyle: { color: t.colors.text },
           headerTintColor: t.colors.tint,
           // Android headers sit outside the content background during stack transitions.
           headerStyle: {
             backgroundColor: Platform.OS === 'ios' ? 'transparent' : backgroundColor,
           },
-          headerLargeStyle: undefined,
           contentStyle: { backgroundColor },
         }}
       />
+      <NativeScreenTitle large={large}>{title}</NativeScreenTitle>
     </>
   );
 }
@@ -129,29 +117,3 @@ const styles = StyleSheet.create({
   buttonText: { fontSize: 16, fontWeight: '600' },
   paper: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 18, gap: 12 },
 });
-
-export function OuterTitle({ children, large = true }: { children: string; large?: boolean }) {
-  const theme = useAppTheme();
-  const chrome = useContext(TabletChromeContext);
-  if (Platform.OS === 'android' && chrome) {
-    return (
-      <Stack.Screen
-        options={{
-          title: children,
-          headerTitle: () => (
-            <TabletHeaderTitle tintColor={theme.colors.text}>{children}</TabletHeaderTitle>
-          ),
-        }}
-      />
-    );
-  }
-  return (
-    <Stack.Title
-      large={large && !(Platform.OS === 'ios' && Platform.isPad)}
-      style={{ color: theme.colors.text }}
-      largeStyle={{ color: theme.colors.text }}
-    >
-      {children}
-    </Stack.Title>
-  );
-}

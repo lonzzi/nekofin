@@ -1,6 +1,7 @@
 import { t as tr } from '@/lib/i18n';
+import { DEFAULT_PLAYER_SEEK_SECONDS, parsePlayerSeekSeconds } from '@/lib/playerSeekSettings';
 
-export const PLAYER_SEEK_INTERVAL_MS = 10_000;
+export const PLAYER_SEEK_INTERVAL_MS = DEFAULT_PLAYER_SEEK_SECONDS * 1000;
 
 export type PlayerTransportActionKey =
   | 'previousEpisode'
@@ -29,6 +30,8 @@ type TransportActionOptions = {
   hasPreviousEpisode: boolean;
   isMovie: boolean;
   isPlaying: boolean;
+  backwardSeconds?: number;
+  forwardSeconds?: number;
 };
 
 type PlayerActionButtonOptions = {
@@ -61,14 +64,18 @@ export function deriveTransportActions({
   hasPreviousEpisode,
   isMovie,
   isPlaying,
+  backwardSeconds,
+  forwardSeconds,
 }: TransportActionOptions): PlayerTransportAction[] {
+  const backward = parsePlayerSeekSeconds(backwardSeconds);
+  const forward = parsePlayerSeekSeconds(forwardSeconds);
   const canSeek = Number.isFinite(durationMs) && durationMs > 0;
   const timeActions: PlayerTransportAction[] = [
     {
-      accessibilityLabel: tr('player.skipBackward'),
+      accessibilityLabel: tr('player.skipBackward', { seconds: backward }),
       disabled: !canSeek,
       key: 'rewind10',
-      seekOffsetMs: -PLAYER_SEEK_INTERVAL_MS,
+      seekOffsetMs: -backward * 1000,
     },
     {
       accessibilityLabel: isPlaying ? tr('player.pause') : tr('player.play'),
@@ -76,10 +83,10 @@ export function deriveTransportActions({
       key: 'playPause',
     },
     {
-      accessibilityLabel: tr('player.skipForward'),
+      accessibilityLabel: tr('player.skipForward', { seconds: forward }),
       disabled: !canSeek,
       key: 'forward10',
-      seekOffsetMs: PLAYER_SEEK_INTERVAL_MS,
+      seekOffsetMs: forward * 1000,
     },
   ];
 

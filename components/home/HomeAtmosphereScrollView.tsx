@@ -164,7 +164,7 @@ export function HomeAtmosphereScrollView({
         />
       </View>
 
-      {Platform.OS === 'ios' && Platform.isPad ? (
+      {Platform.OS === 'ios' ? (
         <ScrollViewMarker
           style={styles.scroller}
           scrollEdgeEffects={{ top: 'hidden', bottom: 'hidden' }}

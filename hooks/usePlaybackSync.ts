@@ -1,4 +1,5 @@
 import { invalidatePlaybackWatchState } from '@/services/media/cache';
+import { rememberPlaybackEpisode } from '@/services/media/playbackEpisode';
 import { MediaItem, MediaServerInfo } from '@/services/media/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
@@ -62,6 +63,14 @@ export const usePlaybackSync = ({
 
       const positionTicks = Math.round(positionMs);
       lastProgressReportRef.current = { position: positionMs, ts: Date.now() };
+      rememberPlaybackEpisode({
+        client: queryClient,
+        server: currentServer,
+        item: itemDetail,
+        playSessionId,
+        positionMs,
+        started: true,
+      });
       void sendPlaybackReport('start', () =>
         mediaAdapter.reportPlaybackStart({
           itemId: itemDetail.id!,
@@ -71,7 +80,7 @@ export const usePlaybackSync = ({
         }),
       );
     },
-    [mediaAdapter, currentServer, itemDetail, playSessionId, mediaSourceId],
+    [mediaAdapter, currentServer, itemDetail, playSessionId, mediaSourceId, queryClient],
   );
 
   const syncPlaybackStop = useCallback(
@@ -80,6 +89,13 @@ export const usePlaybackSync = ({
 
       lastProgressReportRef.current = { position: positionMs, ts: Date.now() };
       const positionTicks = Math.round(positionMs);
+      rememberPlaybackEpisode({
+        client: queryClient,
+        server: currentServer,
+        item: itemDetail,
+        playSessionId,
+        positionMs,
+      });
       void sendPlaybackReport('stop', async () => {
         await mediaAdapter.reportPlaybackStop({
           itemId: itemDetail.id!,

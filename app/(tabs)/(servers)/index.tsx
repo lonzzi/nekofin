@@ -8,7 +8,7 @@ import {
   getNativeToolbarIcon,
   getServerMenuIcon,
 } from '@/components/navigation/nativeToolbarIcons';
-import { OuterScreenOptions, OuterTitle } from '@/components/outer/OuterPrimitives';
+import { OuterScreenOptions } from '@/components/outer/OuterPrimitives';
 import PageScrollView from '@/components/PageScrollView';
 import { HomeServerCard } from '@/components/servers/HomeServerCard';
 import { ServerTypePicker } from '@/components/servers/ServerTypePicker';
@@ -40,7 +40,12 @@ function ServersScreen() {
     2,
     Math.floor((availableWidth + theme.spacing.md) / (158 + theme.spacing.md)),
   );
-  const cardWidth = (availableWidth - (columns - 1) * theme.spacing.md) / columns;
+  // Yoga can measure the container slightly narrower than the window's fractional
+  // dp width. Round down so a full row never wraps due to that precision difference.
+  const cardWidth = Math.max(
+    0,
+    Math.floor((availableWidth - (columns - 1) * theme.spacing.md) / columns),
+  );
   const androidCardStyle =
     Platform.OS === 'android'
       ? [styles.androidCard, { backgroundColor: theme.colors.surface }]
@@ -78,7 +83,6 @@ function ServersScreen() {
   return (
     <>
       <OuterScreenOptions title={tr('navigation.servers')} grouped />
-      <OuterTitle>{tr('navigation.servers')}</OuterTitle>
       <HeaderToolbar placement="right">
         <HeaderMenu
           accessibilityLabel={tr('server.addMediaAccount')}
@@ -166,7 +170,6 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   androidCard: {
     borderRadius: 22,
-    elevation: 3,
-    shadowColor: '#000000',
+    boxShadow: [{ offsetX: 0, offsetY: 2, blurRadius: 12, color: 'rgba(0,0,0,0.06)' }],
   },
 });

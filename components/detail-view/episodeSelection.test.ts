@@ -5,6 +5,8 @@ import {
   findEpisodeIndex,
   getDisplayEpisodes,
   getEpisodeHeaderText,
+  getEpisodeSeasonId,
+  getInitialEpisodeChoice,
   getInitialEpisodeScrollIndex,
   getInitialSeasonId,
   getSeasonActions,
@@ -25,6 +27,29 @@ describe('episodeSelection', () => {
     expect(getInitialSeasonId([item({ id: 'season-1' })], 'season-2')).toBe('season-2');
     expect(getInitialSeasonId([item({ id: 'season-1' })])).toBe('season-1');
     expect(getInitialSeasonId([])).toBe('');
+    expect(
+      getInitialSeasonId([
+        item({ id: 'specials', indexNumber: 0 }),
+        item({ id: 'season-1', indexNumber: 1 }),
+      ]),
+    ).toBe('season-1');
+  });
+
+  it('opens the season containing the resume episode and respects explicit season links', () => {
+    const seasons = [
+      item({ id: 'season-1', indexNumber: 1 }),
+      item({ id: 'season-2', indexNumber: 2 }),
+    ];
+    const episode = item({ id: 'episode-5', seasonId: 'season-2' });
+    expect(getInitialEpisodeChoice(seasons, episode)).toEqual({
+      seasonId: 'season-2',
+      episodeId: 'episode-5',
+    });
+    expect(getInitialEpisodeChoice(seasons, episode, 'season-1')).toEqual({
+      seasonId: 'season-1',
+      episodeId: undefined,
+    });
+    expect(getEpisodeSeasonId(item({ parentIndexNumber: 2 }), seasons)).toBe('season-2');
   });
 
   it('chooses fetched season episodes when a season is selected', () => {
@@ -54,6 +79,17 @@ describe('episodeSelection', () => {
     expect(getSelectedEpisodeOrFallback(episodes, selectedEpisode)).toBe(selectedEpisode);
     expect(getSelectedEpisodeOrFallback(episodes, item({ id: 'missing' }))).toBe(episodes[0]);
     expect(getSelectedEpisodeOrFallback([], selectedEpisode)).toBe(selectedEpisode);
+  });
+
+  it('prefers an unfinished episode and refreshes the selected episode from new server data', () => {
+    const watched = item({ id: 'episode-1', userData: { played: true } });
+    const unplayed = item({ id: 'episode-2' });
+    const resume = item({ id: 'episode-3', userData: { playbackPositionTicks: 300_000_000 } });
+    expect(getSelectedEpisodeOrFallback([watched, unplayed, resume])).toBe(resume);
+    expect(getSelectedEpisodeOrFallback([watched, unplayed])).toBe(unplayed);
+    expect(getSelectedEpisodeOrFallback([watched, unplayed, resume], unplayed)).toBe(unplayed);
+    expect(getSelectedEpisodeOrFallback([resume], item({ id: resume.id }))).toBe(resume);
+    expect(getSelectedEpisodeOrFallback([])).toBeUndefined();
   });
 
   it('finds the selected episode index', () => {

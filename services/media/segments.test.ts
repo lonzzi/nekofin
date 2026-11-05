@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { mapRawItemToMediaItem } from './mappers';
 import {
+  isAnimeEpisode,
   mapMediaChapters,
   mapMediaSegments,
   resolveMediaSegments,
@@ -131,5 +132,100 @@ describe('media chapters and skip ranges', () => {
       ),
     ).toEqual(chapters);
     expect(resolveMediaSegments(chapters, [], 0)).toEqual([]);
+  });
+
+  it('does not treat numbered chapters from the reported S1E8 resource as OP/ED markers', () => {
+    const numbered = [0, 23190, 112988, 715006, 1316023, 1406029].map((startTimeMs, index) => ({
+      name: `章节 ${index + 1}`,
+      startTimeMs,
+    }));
+    expect(resolveMediaSegments(numbered, [], 1423090)).toEqual([]);
+    expect(resolveMediaSegments(numbered, [], 1423090, { inferAnimeChapters: true })).toEqual([
+      { type: 'Intro', startTimeMs: 23190, endTimeMs: 112988 },
+      { type: 'Outro', startTimeMs: 1316023, endTimeMs: 1406029 },
+    ]);
+  });
+
+  it('recognizes animation episodes from the episode or its series, excluding movies and live action', () => {
+    expect(isAnimeEpisode({ type: 'Episode', genres: ['动画'] }, undefined)).toBe(true);
+    expect(isAnimeEpisode({ type: 'Episode' }, { genres: ['Animation'] })).toBe(true);
+    expect(isAnimeEpisode({ type: 'Episode' }, { tags: ['Anime'] })).toBe(true);
+    expect(isAnimeEpisode({ type: 'Movie', genres: ['动画'] }, undefined)).toBe(false);
+    expect(isAnimeEpisode({ type: 'Episode', genres: ['Drama'] }, undefined)).toBe(false);
+    expect(isAnimeEpisode(undefined, { genres: ['Animation'] })).toBe(false);
+  });
+
+  it('retains authoritative timings per type while filling only the missing outro', () => {
+    const numbered = [0, 23190, 112988, 715006, 1316023, 1406029].map((startTimeMs, index) => ({
+      name: `Chapter ${index + 1}`,
+      startTimeMs,
+    }));
+    const intro = { type: 'Intro' as const, startTimeMs: 30000, endTimeMs: 100000 };
+    expect(resolveMediaSegments(numbered, [intro], 1423090, { inferAnimeChapters: true })).toEqual([
+      intro,
+      { type: 'Outro', startTimeMs: 1316023, endTimeMs: 1406029 },
+    ]);
+  });
+
+  it('does not infer from scene titles or middle-of-episode chapters', () => {
+    expect(
+      resolveMediaSegments(
+        [
+          { name: 'Dialogue', startTimeMs: 0 },
+          { name: 'Chapter 2', startTimeMs: 90000 },
+          { name: 'Chapter 3', startTimeMs: 650000 },
+          { name: 'Chapter 4', startTimeMs: 740000 },
+          { name: 'Final Scene', startTimeMs: 1310000 },
+          { name: 'Preview', startTimeMs: 1400000 },
+        ],
+        [],
+        1430000,
+        { inferAnimeChapters: true },
+      ),
+    ).toEqual([]);
+  });
+
+  it('leaves ambiguous opening candidates intact and preserves a short preview after the outro', () => {
+    const numbered = [0, 90000, 180000, 1320000, 1410000].map((startTimeMs, index) => ({
+      name: `章节 ${index + 1}`,
+      startTimeMs,
+    }));
+    expect(resolveMediaSegments(numbered, [], 1430000, { inferAnimeChapters: true })).toEqual([
+      { type: 'Outro', startTimeMs: 1320000, endTimeMs: 1410000 },
+    ]);
+  });
+
+  it('supports one-minute short-form anime chapters and generated timestamp names', () => {
+    const numbered = [0, 30000, 90000, 820000, 880000].map((startTimeMs) => ({
+      name: '',
+      startTimeMs,
+    }));
+    expect(resolveMediaSegments(numbered, [], 900000, { inferAnimeChapters: true })).toEqual([
+      { type: 'Intro', startTimeMs: 30000, endTimeMs: 90000 },
+      { type: 'Outro', startTimeMs: 820000, endTimeMs: 880000 },
+    ]);
+    const timestamps = [
+      { name: '00:00:00.000', startTimeMs: 0 },
+      { name: '00:01:30.000', startTimeMs: 90000 },
+    ];
+    expect(resolveMediaSegments(timestamps, [], 1430000, { inferAnimeChapters: true })).toEqual([
+      { type: 'Intro', startTimeMs: 0, endTimeMs: 90000 },
+    ]);
+    expect(resolveMediaSegments(numbered, [], 600000, { inferAnimeChapters: true })).toEqual([]);
+  });
+
+  it('does not guess a replacement for incomplete explicit intro markers', () => {
+    expect(
+      resolveMediaSegments(
+        [
+          { name: 'Chapter 1', startTimeMs: 0 },
+          { name: '', markerType: 'IntroStart', startTimeMs: 0 },
+          { name: 'Chapter 2', startTimeMs: 90000 },
+        ],
+        [],
+        1430000,
+        { inferAnimeChapters: true },
+      ),
+    ).toEqual([]);
   });
 });

@@ -135,10 +135,13 @@ export function deriveEpisodeNavigation(itemId: string, episodes: MediaItem[]) {
 export function deriveDurationMs(
   item: MediaItem | null | undefined,
   fallbackDurationSeconds?: number | null,
+  sourceDurationTicks?: number | null,
 ): number {
-  return item?.runTimeTicks
-    ? ticksToMilliseconds(item.runTimeTicks)
-    : Math.max(0, (fallbackDurationSeconds ?? 0) * 1000);
+  const ticks =
+    sourceDurationTicks != null && Number.isFinite(sourceDurationTicks) && sourceDurationTicks > 0
+      ? sourceDurationTicks
+      : item?.runTimeTicks;
+  return ticks ? ticksToMilliseconds(ticks) : Math.max(0, (fallbackDurationSeconds ?? 0) * 1000);
 }
 
 /** Native loadfile expects seconds; preserve fractional resume positions. */

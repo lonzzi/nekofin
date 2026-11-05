@@ -57,7 +57,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const theme = useAppTheme();
   const backgroundColor = theme.colors.background;
   const textColor = theme.colors.text;
-  const { title, setItem, selectedItem } = useDetailView();
+  const { setItem, selectedItem } = useDetailView();
   const { data: previewArtwork } = useQuery(detailArtworkQueryOptions(currentServer, itemId));
 
   const [toolbarOverrides, setToolbarOverrides] = useState<DetailToolbarOverrides>({});
@@ -255,7 +255,8 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   };
 
   const logoImageUrl = useMemo(() => {
-    if (!item) return undefined;
+    if (!item || !(item.imageTags?.Logo || (item.parentLogoImageTag && item.parentLogoItemId)))
+      return undefined;
     return mediaAdapter.getImageInfo({ item, opts: { preferLogo: true, width: 400 } }).url;
   }, [item, mediaAdapter]);
 
@@ -278,7 +279,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
         contentFit="cover"
         allowDownscaling={!(Platform.OS === 'android' && tablet)}
       />
-      {!!logoImageUrl && (
+      {!!item && (
         <LinearGradient
           colors={[theme.colors.mediaScrimSoft, 'rgba(0,0,0,0.16)', theme.colors.mediaScrim]}
           locations={[0, 0.52, 1]}
@@ -341,7 +342,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
         isDark={theme.isDark}
         headerImage={headerMedia}
         headerOverlay={
-          !tablet && item && logoImageUrl ? (
+          !tablet && item ? (
             <ItemImage
               uri={logoImageUrl}
               style={[
@@ -363,7 +364,7 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
                     { color: theme.colors.inverseText, textAlign: 'center' },
                   ]}
                 >
-                  {title || item.name}
+                  {item.seriesName || item.name}
                 </Text>
               }
             />
@@ -379,8 +380,9 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
 }
 
 export default function DetailView({ itemId, mode, ...rest }: Omit<DetailViewProps, 'query'>) {
+  const { currentServer } = useMediaServers();
   const query = useDetailBundle(mode, itemId);
-  const detailViewKey = `${mode}:${itemId}:${rest.seasonId ?? ''}`;
+  const detailViewKey = `${currentServer?.id}:${currentServer?.userId}:${mode}:${itemId}:${rest.seasonId ?? ''}`;
 
   return (
     <DetailSectionsProvider key={detailViewKey}>

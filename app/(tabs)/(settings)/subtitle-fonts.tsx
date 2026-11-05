@@ -1,4 +1,4 @@
-import { OuterTitle } from '@/components/outer/OuterPrimitives';
+import { NativeScreenTitle } from '@/components/navigation/NativeScreenTitle';
 import {
   NativeSettingsButton,
   NativeSettingsForm,
@@ -116,7 +116,7 @@ export default function SubtitleFontSettings() {
     });
   return (
     <>
-      <OuterTitle>{tr('fonts.subtitleFonts')}</OuterTitle>
+      <NativeScreenTitle>{tr('fonts.subtitleFonts')}</NativeScreenTitle>
       <NativeSettingsForm testID="subtitle-font-settings">
         <NativeSettingsSection title={tr('fonts.playerFont')}>
           <NativeSettingsPicker

@@ -3,7 +3,10 @@
 import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { usePictureInPicture } from '@/hooks/usePictureInPicture';
-import { readPlaybackPreferences } from '@/hooks/usePlaybackPreferences';
+import {
+  readPlaybackPreferences,
+  rememberSubtitlePreference,
+} from '@/hooks/usePlaybackPreferences';
 import { useSubtitleFonts } from '@/hooks/useSubtitleFonts';
 import { useDanmakuSettings } from '@/lib/contexts/DanmakuSettingsContext';
 import { useDanmakuSources } from '@/lib/contexts/DanmakuSourcesContext';
@@ -23,7 +26,7 @@ import {
   resolvePlaybackSelection,
   type PlaybackSelection,
 } from '@/services/media/playbackSelection';
-import { resolveMediaSegments } from '@/services/media/segments';
+import { isAnimeEpisode, resolveMediaSegments } from '@/services/media/segments';
 import { BUNDLED_SUBTITLE_FONT_DIRECTORY } from '@/services/media/subtitleFonts';
 import { Directory, Paths } from 'expo-file-system';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
@@ -80,7 +83,7 @@ import {
 import { createPlayerLoadRecovery, playbackFailureMessage } from './playerLoadRecovery';
 import { PlayerProvider, type PlayerPlaybackInput } from './PlayerProvider';
 import { serverIndexForNativeTrack } from './playerQualitySelection';
-import { createPlayerSegmentSkip } from './playerSegmentSkip';
+import { automaticSegmentSeekTarget, createPlayerSegmentSkip } from './playerSegmentSkip';
 import {
   deriveNativeSubtitleState,
   deriveSubtitleMenuTracks,
@@ -245,6 +248,7 @@ export const VideoPlayer = ({
   const [autoPlayNext = true] = useMMKVBoolean('playback.autoPlayNext', storage);
   const [autoSkipIntro = false] = useMMKVBoolean('playback.autoSkipIntro', storage);
   const [autoSkipOutro = false] = useMMKVBoolean('playback.autoSkipOutro', storage);
+  const [inferAnimeSegments = true] = useMMKVBoolean('playback.inferAnimeSegments', storage);
   const [playbackCompletion, setPlaybackCompletion] = useState<PlaybackCompletion | null>(null);
   const [autoNext] = useState(createPlayerAutoNext);
   const [appActive, setAppActive] = useState(() => AppState.currentState === 'active');
@@ -308,6 +312,16 @@ export const VideoPlayer = ({
   const [isNativeSeeking, setIsNativeSeeking] = useState(false);
   const playbackSeekGateRef = useRef(createPlaybackSeekGateState());
   const playbackSeekWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const playbackSeekResultRef = useRef<{
+    generation: number;
+    onResult: (succeeded: boolean) => void;
+  } | null>(null);
+  const settlePlaybackSeekResult = useCallback((succeeded: boolean, generation?: number) => {
+    const pending = playbackSeekResultRef.current;
+    if (!pending || (generation != null && pending.generation !== generation)) return;
+    playbackSeekResultRef.current = null;
+    pending.onResult(succeeded);
+  }, []);
 
   const clearPlaybackSeekWatchdog = useCallback(() => {
     if (!playbackSeekWatchdogRef.current) return;
@@ -327,8 +341,7 @@ export const VideoPlayer = ({
       selectedCodec,
       mediaSourceId: selectedMediaSourceId,
       audioStreamIndex: activeServerTrackChoice?.audio,
-      subtitleStreamIndex:
-        activeServerTrackChoice?.subtitle ?? (preferences.subtitlesEnabled ? undefined : -1),
+      subtitleStreamIndex: activeServerTrackChoice?.subtitle,
     }),
     [
       enableTranscoding,
@@ -337,7 +350,6 @@ export const VideoPlayer = ({
       selectedCodec,
       selectedMediaSourceId,
       activeServerTrackChoice,
-      preferences.subtitlesEnabled,
     ],
   );
 
@@ -363,6 +375,7 @@ export const VideoPlayer = ({
 
   const {
     itemDetail,
+    seriesInfo,
     autoCommentsData,
     streamInfo,
     streamInfoError,
@@ -371,6 +384,8 @@ export const VideoPlayer = ({
     mediaSources,
     mediaSegments: serverSegments,
     segmentsPending,
+    segmentChapters,
+    segmentItemDetail,
   } = usePlayerQueries({
     itemId,
     mediaAdapter,
@@ -392,11 +407,12 @@ export const VideoPlayer = ({
   const segmentSkip = useMemo(
     () => ({
       serverId: currentServer?.id,
+      userId: currentServer?.userId,
       itemId,
       sourceId: streamInfo?.mediaSource?.Id,
       ...createPlayerSegmentSkip(),
     }),
-    [currentServer?.id, itemId, streamInfo?.mediaSource?.Id],
+    [currentServer?.id, currentServer?.userId, itemId, streamInfo?.mediaSource?.Id],
   );
   const usesServerTracks = !!streamInfo?.mediaSource?.TranscodingUrl;
   const subtitleSourceMetadata = streamInfo?.mediaSource;
@@ -743,6 +759,7 @@ export const VideoPlayer = ({
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      settlePlaybackSeekResult(false);
       clearPlaybackSeekWatchdog();
       const currentGate = playbackSeekGateRef.current;
       playbackSeekGateRef.current = createPlaybackSeekGateState(
@@ -751,10 +768,11 @@ export const VideoPlayer = ({
         currentGate.generation,
       );
     };
-  }, [clearPlaybackSeekWatchdog]);
+  }, [clearPlaybackSeekWatchdog, settlePlaybackSeekResult]);
 
   useEffect(() => {
     const sourceResumeTimeMs = currentTime.get();
+    settlePlaybackSeekResult(false);
     clearPlaybackSeekWatchdog();
     playbackSeekGateRef.current = createPlaybackSeekGateState(
       sourceResumeTimeMs,
@@ -785,7 +803,14 @@ export const VideoPlayer = ({
     setHdrState(null);
     setBufferInfo(null);
     isBufferingRef.current = false;
-  }, [clearPlaybackSeekWatchdog, currentTime, playbackSourceUrl, playbackAttempt, decodingMode]);
+  }, [
+    clearPlaybackSeekWatchdog,
+    currentTime,
+    playbackSourceUrl,
+    playbackAttempt,
+    decodingMode,
+    settlePlaybackSeekResult,
+  ]);
 
   const handleCommentsLoaded = (data: DanmakuCommentsData) => {
     setManualDanmaku(data);
@@ -883,7 +908,7 @@ export const VideoPlayer = ({
           const subtitle =
             chosenSubtitle != null
               ? serverTrackId('Subtitle', chosenSubtitle)
-              : (rememberedId('subtitle') ??
+              : ((hasServerSubtitleMenu ? undefined : rememberedId('subtitle')) ??
                 serverTrackId('Subtitle', playbackSelection.subtitleStreamIndex) ??
                 (!subtitlesEnabled
                   ? -1
@@ -959,7 +984,14 @@ export const VideoPlayer = ({
         console.warn('refreshMpvTracks error:', e);
       }
     },
-    [streamInfo, playbackSelection, preferences, itemId, recordPlaybackDiagnostic],
+    [
+      streamInfo,
+      playbackSelection,
+      preferences,
+      itemId,
+      recordPlaybackDiagnostic,
+      hasServerSubtitleMenu,
+    ],
   );
 
   const externalSubtitles = useMemo(() => {
@@ -1036,15 +1068,26 @@ export const VideoPlayer = ({
   }, [isBuffering, isLoaded, isStopped, playbackState, streamInfo?.url]);
 
   const duration = useMemo(() => {
-    return deriveDurationMs(itemDetail, mediaInfo?.duration);
-  }, [itemDetail, mediaInfo?.duration]);
+    return deriveDurationMs(
+      segmentItemDetail,
+      mediaInfo?.duration,
+      streamInfo?.mediaSource?.RunTimeTicks,
+    );
+  }, [segmentItemDetail, mediaInfo?.duration, streamInfo?.mediaSource?.RunTimeTicks]);
 
+  const canInferAnimeSegments = inferAnimeSegments && isAnimeEpisode(itemDetail, seriesInfo);
   const segments = useMemo(
     () =>
       segmentsPending
         ? []
-        : resolveMediaSegments(itemDetail?.chapters ?? [], serverSegments, duration),
-    [itemDetail?.chapters, serverSegments, duration, segmentsPending],
+        : resolveMediaSegments(segmentChapters, serverSegments, duration, {
+            inferAnimeChapters: canInferAnimeSegments,
+          }),
+    [segmentChapters, serverSegments, duration, segmentsPending, canInferAnimeSegments],
+  );
+  const playerItem = useMemo(
+    () => (itemDetail ? { ...itemDetail, chapters: segmentChapters } : itemDetail),
+    [itemDetail, segmentChapters],
   );
 
   const formattedTitle = useMemo(() => {
@@ -1283,7 +1326,8 @@ export const VideoPlayer = ({
   );
 
   const applyPlaybackSeekCompletion = useCallback(
-    (completion: PlaybackSeekCompletion) => {
+    (completion: PlaybackSeekCompletion, succeeded = true) => {
+      settlePlaybackSeekResult(succeeded, completion.generation);
       clearPlaybackSeekWatchdog();
       setIsNativeSeeking(false);
       if (resumePausedRef.current) {
@@ -1295,13 +1339,17 @@ export const VideoPlayer = ({
       danmakuLayer.current?.completeSeek(completion.playbackTimeMs, completion.cursorTimeMs);
       syncPlaybackProgress(completion.playbackTimeMs, false, { force: true });
     },
-    [clearPlaybackSeekWatchdog, currentTime, syncPlaybackProgress],
+    [clearPlaybackSeekWatchdog, currentTime, syncPlaybackProgress, settlePlaybackSeekResult],
   );
 
   const requestNativeSeek = useCallback(
-    (playerView: ExpoMpvViewRef, targetTimeMs: number) => {
+    (playerView: ExpoMpvViewRef, targetTimeMs: number, onResult?: (succeeded: boolean) => void) => {
       const requestContext = activePlaybackContextRef.current;
-      if (!requestContext || !isPlaybackContextActive(requestContext, playerView)) return;
+      if (!requestContext || !isPlaybackContextActive(requestContext, playerView)) {
+        onResult?.(false);
+        return;
+      }
+      settlePlaybackSeekResult(false);
 
       const now = performance.now();
       const requestedState = requestPlaybackSeek(playbackSeekGateRef.current, targetTimeMs, now, {
@@ -1310,7 +1358,12 @@ export const VideoPlayer = ({
       });
       playbackSeekGateRef.current = requestedState;
       const pendingSeek = requestedState.pendingSeek;
-      if (!pendingSeek) return;
+      if (!pendingSeek) {
+        onResult?.(false);
+        return;
+      }
+      if (onResult)
+        playbackSeekResultRef.current = { generation: pendingSeek.generation, onResult };
       recordPlaybackDiagnostic(
         'player.seek.started',
         { targetTimeMs, generation: pendingSeek.generation },
@@ -1333,7 +1386,11 @@ export const VideoPlayer = ({
           { trustResolvedCommand: playbackStateRef.current !== 'playing' },
         );
         playbackSeekGateRef.current = recovered.state;
-        if (recovered.completion) applyPlaybackSeekCompletion(recovered.completion);
+        if (recovered.completion)
+          applyPlaybackSeekCompletion(
+            recovered.completion,
+            recovered.completion.playbackTimeMs >= recovered.completion.targetTimeMs - 250,
+          );
         recordPlaybackDiagnostic(
           'player.seek.watchdog',
           { generation, recovered: !!recovered.completion },
@@ -1360,7 +1417,7 @@ export const VideoPlayer = ({
             performance.now(),
           );
           playbackSeekGateRef.current = failed.state;
-          if (failed.completion) applyPlaybackSeekCompletion(failed.completion);
+          if (failed.completion) applyPlaybackSeekCompletion(failed.completion, false);
         });
     },
     [
@@ -1370,6 +1427,7 @@ export const VideoPlayer = ({
       isPlaybackContextActive,
       rate,
       recordPlaybackDiagnostic,
+      settlePlaybackSeekResult,
     ],
   );
 
@@ -1382,7 +1440,7 @@ export const VideoPlayer = ({
       performance.now(),
     );
     playbackSeekGateRef.current = failed.state;
-    if (failed.completion) applyPlaybackSeekCompletion(failed.completion);
+    if (failed.completion) applyPlaybackSeekCompletion(failed.completion, false);
   }, [applyPlaybackSeekCompletion]);
 
   const handleSeek = useCallback(
@@ -1435,6 +1493,13 @@ export const VideoPlayer = ({
 
   const handleSubtitleTrackChange = useCallback(
     async (trackId: number) => {
+      if (subtitleMenuSource) {
+        rememberSubtitlePreference(
+          { server: currentServer, item: itemDetail },
+          subtitleMenuSource,
+          trackId,
+        );
+      }
       recordPlaybackDiagnostic(
         'subtitle.selection.requested',
         {
@@ -1501,6 +1566,8 @@ export const VideoPlayer = ({
       mpvTracks,
       hasServerSubtitleMenu,
       subtitleMenuSource,
+      currentServer,
+      itemDetail,
       menuTracks.subtitle,
       externalSubtitles,
       itemId,
@@ -1672,7 +1739,7 @@ export const VideoPlayer = ({
     onDanmakuSelectionChange: setDanmakuSelectionOverride,
     danmakuFailedSources: resolvedDanmaku.failedSources,
     episodes,
-    currentItem: itemDetail,
+    currentItem: playerItem,
     onEpisodeSelect: handleEpisodeSelect,
   } satisfies PlayerPlaybackInput;
 
@@ -1702,6 +1769,7 @@ export const VideoPlayer = ({
               : {})}
             onPlaybackStateChange={({ nativeEvent }) => {
               if (!isPlaybackContextActive(playbackContext)) return;
+              segmentSkip.defer();
               recordPlaybackDiagnostic('player.state', nativeEvent);
               playbackStateRef.current = nativeEvent.state;
               setPlaybackState(nativeEvent.state);
@@ -1748,6 +1816,7 @@ export const VideoPlayer = ({
                   !decision.completion &&
                   !playbackSeekGateRef.current.pendingSeek &&
                   playbackStateRef.current === 'playing' &&
+                  !isBuffering &&
                   isPlayerReadyRef.current &&
                   playerView
                 ) {
@@ -1756,7 +1825,23 @@ export const VideoPlayer = ({
                     outro: autoSkipOutro,
                   });
                   if (segment) {
-                    requestNativeSeek(playerView, segment.endTimeMs);
+                    const targetTimeMs = automaticSegmentSeekTarget(segment, duration);
+                    if (targetTimeMs <= positionMs + 250) {
+                      segmentSkip.confirm(segment);
+                    } else {
+                      recordPlaybackDiagnostic('player.segment.skip.requested', {
+                        segment,
+                        targetTimeMs,
+                      });
+                      requestNativeSeek(playerView, targetTimeMs, (succeeded) => {
+                        if (succeeded) segmentSkip.confirm(segment);
+                        else segmentSkip.fail(segment);
+                        recordPlaybackDiagnostic('player.segment.skip.settled', {
+                          segment,
+                          succeeded,
+                        });
+                      });
+                    }
                   }
                 }
               }
@@ -1799,6 +1884,7 @@ export const VideoPlayer = ({
             }}
             onLoad={({ nativeEvent }) => {
               if (!isPlaybackContextActive(playbackContext)) return;
+              segmentSkip.defer();
               recordPlaybackDiagnostic('player.loaded', nativeEvent);
               isPlayerReadyRef.current = true;
               loadedSourceRef.current = playbackSourceUrl;
@@ -1825,6 +1911,7 @@ export const VideoPlayer = ({
             }}
             onBuffer={({ nativeEvent }) => {
               if (!isPlaybackContextActive(playbackContext)) return;
+              segmentSkip.defer();
               recordPlaybackDiagnostic(
                 'player.buffer',
                 nativeEvent,

@@ -1,6 +1,6 @@
 import { HeaderButton, HeaderToolbar } from '@/components/navigation/HeaderToolbar';
+import { NativeScreenTitle } from '@/components/navigation/NativeScreenTitle';
 import { getNativeToolbarIcon } from '@/components/navigation/nativeToolbarIcons';
-import { OuterTitle } from '@/components/outer/OuterPrimitives';
 import {
   NativeSettingsForm,
   NativeSettingsItem,
@@ -19,7 +19,7 @@ export default function DanmakuSourcesScreen() {
   const { sourceSettings, setSourceSettings } = useDanmakuSources();
   return (
     <>
-      <OuterTitle>{tr('danmaku.apis')}</OuterTitle>
+      <NativeScreenTitle>{tr('danmaku.apis')}</NativeScreenTitle>
       <HeaderToolbar placement="right">
         <HeaderButton
           icon={getNativeToolbarIcon('add', 'plus')}

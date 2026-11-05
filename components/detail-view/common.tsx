@@ -54,7 +54,7 @@ export const PlayButton = ({
   const textColor = useLiquidGlass ? accentColor : theme.colors.inverseText;
   const durationLabel = formatChineseDurationFromTicks(item.runTimeTicks, { largest: 2 });
   const buttonLabel = durationLabel
-    ? tr('player.playWithDuration', { durationLabel: durationLabel })
+    ? tr('player.playWithDuration', { durationLabel })
     : tr('player.play');
 
   const progressPercent = useMemo(() => {
