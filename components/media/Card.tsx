@@ -151,6 +151,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   item,
   style,
   hideText,
+  hideSeriesName = false,
   imgType = 'Thumb',
   imgInfo,
   onPress,
@@ -164,6 +165,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
   item: MediaItem;
   style?: StyleProp<ViewStyle>;
   hideText?: boolean;
+  hideSeriesName?: boolean;
   imgType?: ImageType;
   imgInfo?: ImageUrlInfo;
   onPress?: () => void;
@@ -232,7 +234,8 @@ export const EpisodeCard = React.memo(function EpisodeCard({
       ? Math.max(0, Math.min(100, rawPlayedPercentage))
       : undefined;
 
-  const itemTitle = item.seriesName || item.name || tr('media.untitled');
+  const itemTitle =
+    (hideSeriesName ? getSubtitle(item) : item.seriesName || item.name) || tr('media.untitled');
 
   return (
     <CardActionMenu item={item} actionServer={actionServer}>
@@ -280,18 +283,20 @@ export const EpisodeCard = React.memo(function EpisodeCard({
                 ]}
                 numberOfLines={1}
               >
-                {item.seriesName || item.name || tr('media.untitled')}
+                {itemTitle}
               </Text>
-              <Text
-                style={[
-                  theme.typography.footnote,
-                  styles.subtitle,
-                  { color: theme.colors.textSecondary },
-                ]}
-                numberOfLines={1}
-              >
-                {getSubtitle(item)}
-              </Text>
+              {!hideSeriesName ? (
+                <Text
+                  style={[
+                    theme.typography.footnote,
+                    styles.subtitle,
+                    { color: theme.colors.textSecondary },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {getSubtitle(item)}
+                </Text>
+              ) : null}
               {showServerSource && source ? <ServerSourceLabel name={source.server.name} /> : null}
             </View>
           )}

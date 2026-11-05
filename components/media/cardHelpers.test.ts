@@ -49,7 +49,7 @@ describe('cardHelpers', () => {
           name: 'A Sunny Day',
         }),
       ),
-    ).toBe('S2E8 - A Sunny Day');
+    ).toBe('S2E8 · A Sunny Day');
 
     expect(getSubtitle(item({ type: 'Episode', name: 'Special' }))).toBe('Special');
   });
