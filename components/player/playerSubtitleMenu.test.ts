@@ -200,7 +200,7 @@ describe('subtitle menu before sidecars load', () => {
     });
   });
 
-  it('keeps failed sidecars selectable for retry rather than hiding them', () => {
+  it('keeps failed sidecars visible with their failure status', () => {
     const menu = deriveSubtitleMenuTracks(source, new Map(), 8, new Set([8]));
     expect(menu).toHaveLength(3);
     expect(menu[0]).toMatchObject({ index: 8, failed: true, loading: false });

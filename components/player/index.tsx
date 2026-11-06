@@ -67,7 +67,7 @@ import {
   type PlaybackSeekCompletion,
 } from './playbackSeekGate';
 import { createPlayerAutoNext, type PlaybackCompletion } from './playerAutoNext';
-import type { PlayerLifecycleState } from './PlayerContext';
+import type { MediaTracks, PlayerLifecycleState } from './PlayerContext';
 import { canSeekPlayback } from './playerControlModel';
 import {
   deriveBufferedProgress,
@@ -452,7 +452,7 @@ export const VideoPlayer = ({
       defaultIndex: defaultSubtitleIndex,
       nativeState: activeNativeSubtitles,
     });
-  const menuTracks = {
+  const menuTracks: Required<MediaTracks> = {
     audio: usesServerTracks
       ? deriveTracks(streamInfo?.mediaSource?.MediaStreams ?? []).audio
       : mpvTracks.audio,
@@ -1493,6 +1493,7 @@ export const VideoPlayer = ({
 
   const handleSubtitleTrackChange = useCallback(
     async (trackId: number) => {
+      if (menuTracks.subtitle?.some((track) => track.index === trackId && track.failed)) return;
       if (subtitleMenuSource) {
         rememberSubtitlePreference(
           { server: currentServer, item: itemDetail },
@@ -1520,21 +1521,9 @@ export const VideoPlayer = ({
       }
       if (hasServerSubtitleMenu && subtitleMenuSource) {
         if (trackId !== -1 && !menuTracks.subtitle.some((track) => track.index === trackId)) return;
-        const track = externalSubtitles.find((entry) => entry.index === trackId);
-        const loads = externalTrackLoads.current;
-        if (track && loads?.player === player.current && loads.source === loadedSourceRef.current) {
-          // An explicit menu selection retries this failed subtitle, preserving other attempts.
-          loads.requests.retry(externalTrackRequestKey('sub', track));
-        }
         const choice = { itemId, sourceId: subtitleMenuSource.id, index: trackId };
         subtitleChoiceRef.current = choice;
         setSubtitleChoice(choice);
-        setFailedSubtitleIndices((previous) => {
-          if (!previous.has(trackId)) return previous;
-          const next = new Set(previous);
-          next.delete(trackId);
-          return next;
-        });
         rememberedTrackChoice.current.subtitle =
           trackId === -1 ? 'off' : menuTracks.subtitle.find((track) => track.index === trackId);
         // The choice is kept until its server stream has a real native ID.
@@ -1569,7 +1558,6 @@ export const VideoPlayer = ({
       currentServer,
       itemDetail,
       menuTracks.subtitle,
-      externalSubtitles,
       itemId,
       recordPlaybackDiagnostic,
     ],

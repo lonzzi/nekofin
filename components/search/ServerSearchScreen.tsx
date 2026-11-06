@@ -1,270 +1,101 @@
-import { EpisodeCard, SeriesCard } from '@/components/media/Card';
 import { ItemGridScreen } from '@/components/media/ItemGridScreen';
-import { getMediaRailListConfig } from '@/components/media/railPerformanceConfig';
 import { NativeScreenTitle } from '@/components/navigation/NativeScreenTitle';
-import PageScrollView from '@/components/PageScrollView';
-import { SkeletonHorizontalSection } from '@/components/ui/Skeleton';
-import { useContentDimensions } from '@/hooks/useContentDimensions';
 import { useMediaAdapter } from '@/hooks/useMediaAdapter';
 import { useNativeSearchHeader } from '@/hooks/useNativeSearchHeader';
 import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
-import { useAppTheme } from '@/lib/theme';
 import {
   recommendedSearchItemsQueryOptions,
   searchItemsQueryOptions,
 } from '@/services/media/queryOptions';
-import { MediaItem } from '@/services/media/types';
 import { Stack } from 'expo-router';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import {
-  FlatList,
-  ListRenderItem,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInputChangeEvent,
-  View,
-} from 'react-native';
-import { SearchBarCommands } from 'react-native-screens';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { SearchBarCommands } from 'react-native-screens';
+
+import type { SearchMediaFilter } from './searchResultSections';
+import { SearchResultsGrid } from './SearchResultsGrid';
 
 export default function ServerSearchScreen() {
   const { t: tr } = useTranslation();
   const { currentServer } = useMediaServers();
-  const [keyword, setKeyword] = useState<string>('');
-  const [selected, setSelected] = useState<string>('');
-  const mediaAdapter = useMediaAdapter();
-  const theme = useAppTheme();
-  const backgroundColor = theme.colors.background;
-  const { width } = useContentDimensions();
-
-  const searchBarRef = useRef<SearchBarCommands>(null);
+  const adapter = useMediaAdapter();
+  const [keyword, setKeyword] = useState('');
+  const [debounced, setDebounced] = useState('');
+  const [filter, setFilter] = useState<SearchMediaFilter>('all');
+  const searchBar = useRef<SearchBarCommands>(null);
   const searchHeader = useNativeSearchHeader();
-
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(keyword.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [keyword]);
   const { data: recommendedData = [] } = useQueryWithFocus(
-    recommendedSearchItemsQueryOptions({
-      adapter: mediaAdapter,
-      currentServer,
-    }),
+    recommendedSearchItemsQueryOptions({ adapter, currentServer }),
   );
-
-  const debouncedKeyword = useDebouncedValue(keyword, 300);
-
-  const effectiveKeyword = useMemo(
-    () => selected || debouncedKeyword,
-    [selected, debouncedKeyword],
+  const hasKeyword = keyword.trim().length > 0;
+  const currentKeyword = hasKeyword && keyword.trim() === debounced;
+  const query = useQueryWithFocus(
+    searchItemsQueryOptions({ adapter, currentServer, keyword: currentKeyword ? debounced : '' }),
   );
-
-  const {
-    data: results = [],
-    isLoading: loadingResults,
-    isError: isResultsError,
-    refetch,
-  } = useQueryWithFocus(
-    searchItemsQueryOptions({
-      adapter: mediaAdapter,
-      currentServer,
-      keyword: effectiveKeyword,
-    }),
+  const groups = useMemo(
+    () =>
+      currentServer
+        ? [{ source: { server: currentServer, adapter }, items: query.data ?? [] }]
+        : [],
+    [currentServer, adapter, query.data],
   );
-
-  const groupedResults = useMemo(() => {
-    const typeToItems: Record<string, MediaItem[]> = {};
-    results.forEach((item) => {
-      const key = item.type || 'Other';
-      if (!typeToItems[key]) typeToItems[key] = [];
-      typeToItems[key].push(item);
-    });
-    const order = ['Series', 'Movie', 'Episode', 'MusicVideo', 'Other'];
-    const titleMap: Record<string, string> = {
-      Series: tr('media.series'),
-      Movie: tr('media.movies'),
-      Episode: tr('media.episodes'),
-      MusicVideo: tr('media.musicVideos'),
-      Other: tr('common.other'),
-    };
-    const entries = Object.entries(typeToItems);
-    entries.sort(
-      (a, b) =>
-        (order.indexOf(a[0]) === -1 ? 999 : order.indexOf(a[0])) -
-        (order.indexOf(b[0]) === -1 ? 999 : order.indexOf(b[0])),
-    );
-    return entries.map(([type, items]) => ({ key: type, title: titleMap[type] || type, items }));
-  }, [results, tr]);
-
-  const renderItem: ListRenderItem<MediaItem> = useCallback(({ item }) => {
-    if (item.type === 'Series') {
-      return <SeriesCard item={item} />;
-    }
-    return <EpisodeCard item={item} />;
-  }, []);
-
-  const keyExtractor = useCallback((item: MediaItem) => item.id!, []);
-  const itemSeparator = useCallback(
-    () => <View style={{ width: theme.spacing.lg }} />,
-    [theme.spacing.lg],
-  );
-
+  const pending = hasKeyword && (!currentKeyword || query.isLoading);
   const header = (
     <>
       <NativeScreenTitle>
-        {effectiveKeyword.length === 0 ? tr('media.recommended') : tr('search.title')}
+        {hasKeyword ? tr('search.title') : tr('media.recommended')}
       </NativeScreenTitle>
       <Stack.SearchBar
         {...searchHeader}
-        ref={searchBarRef}
+        ref={searchBar}
         placeholder={
           currentServer?.name
             ? tr('search.serverPlaceholder', { name: currentServer.name })
             : tr('search.placeholder')
         }
-        onChangeText={(event: TextInputChangeEvent) => {
-          const text = event.nativeEvent.text;
-          if (text.length === 0) {
-            setSelected('');
-          }
-          setKeyword(text);
-        }}
-        onCancelButtonPress={() => {
-          setKeyword('');
-          setSelected('');
-        }}
+        onChangeText={(event) => setKeyword(event.nativeEvent.text)}
+        onCancelButtonPress={() => setKeyword('')}
         hideWhenScrolling={false}
         cancelButtonText={tr('common.cancel')}
       />
     </>
   );
 
-  if (effectiveKeyword.length === 0) {
-    return (
-      <>
-        {header}
+  return (
+    <>
+      {header}
+      {hasKeyword ? (
+        <SearchResultsGrid
+          groups={groups}
+          filter={filter}
+          onFilterChange={setFilter}
+          state={pending ? 'loading' : 'ready'}
+          notice={
+            query.isError && (query.data?.length ?? 0) > 0
+              ? tr('search.failedCheckNetwork')
+              : undefined
+          }
+          emptyState={{
+            icon: 'search',
+            title: query.isError ? tr('common.loadFailed') : tr('search.noResults'),
+            description: query.isError
+              ? tr('search.failedCheckNetwork')
+              : tr('danmaku.searchKeywordHint'),
+          }}
+        />
+      ) : (
         <ItemGridScreen
           title={tr('media.recommended')}
           data={recommendedData}
           type="series"
           disableGrouping
         />
-      </>
-    );
-  }
-
-  return (
-    <>
-      {header}
-      <PageScrollView
-        removeClippedSubviews={Platform.OS === 'android'}
-        style={[styles.container, { backgroundColor }]}
-      >
-        {loadingResults && <SkeletonHorizontalSection />}
-
-        {groupedResults.length === 0 && !loadingResults && (
-          <View style={styles.emptyContainer}>
-            <Text
-              style={[
-                theme.typography.footnote,
-                styles.emptyText,
-                { color: theme.colors.textSecondary, marginBottom: theme.spacing.sm },
-              ]}
-            >
-              {tr('search.noMatchingContent')}
-            </Text>
-            {isResultsError && (
-              <Pressable
-                style={[
-                  styles.retryButton,
-                  {
-                    borderColor: theme.colors.tint,
-                    borderRadius: theme.radius.sm,
-                    paddingHorizontal: theme.spacing.lg,
-                    paddingVertical: theme.spacing.sm,
-                  },
-                ]}
-                onPress={() => refetch()}
-              >
-                <Text
-                  style={[
-                    theme.typography.footnote,
-                    styles.retryText,
-                    { color: theme.colors.tint },
-                  ]}
-                >
-                  {tr('common.retry')}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        )}
-
-        {groupedResults.map((group) => (
-          <View key={group.key} style={{ paddingTop: theme.spacing.sm }}>
-            <Text
-              style={[
-                theme.typography.bodyEmphasized,
-                styles.sectionTitle,
-                {
-                  color: theme.colors.text,
-                  marginBottom: theme.spacing.sm,
-                  paddingHorizontal: theme.spacing.lg,
-                },
-              ]}
-            >
-              {group.title}
-            </Text>
-            <FlatList
-              {...getMediaRailListConfig({
-                viewportWidth: width,
-                cardWidth:
-                  group.key === 'Series'
-                    ? theme.layout.mediaRail.posterCardWidth
-                    : theme.layout.mediaRail.episodeCardWidth - theme.spacing.xl,
-                gap: theme.spacing.lg,
-                horizontalPadding: theme.spacing.lg,
-              })}
-              data={group.items}
-              renderItem={renderItem}
-              keyExtractor={keyExtractor}
-              horizontal
-              removeClippedSubviews={false}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingHorizontal: theme.spacing.lg,
-                paddingVertical: theme.spacing.md,
-              }}
-              ItemSeparatorComponent={itemSeparator}
-            />
-          </View>
-        ))}
-      </PageScrollView>
+      )}
     </>
   );
 }
-
-function useDebouncedValue(value: string, delayMs: number) {
-  const [debounced, setDebounced] = React.useState<string>(value);
-  React.useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(id);
-  }, [value, delayMs]);
-  return debounced;
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  sectionTitle: {},
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {},
-  retryButton: {
-    borderWidth: 1,
-  },
-  retryText: {
-    fontWeight: '600',
-  },
-});

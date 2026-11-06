@@ -434,12 +434,14 @@ export class EmbyAdapter extends MediaAdapter {
     searchTerm,
     limit,
     includeItemTypes,
+    signal,
   }: SearchItemsParams): Promise<MediaItem[]> {
     const res = await embyItems.searchItems(this.getClient(), {
       userId,
       searchTerm,
       limit,
       includeItemTypes,
+      signal,
     });
     return await parseItems(res);
   }

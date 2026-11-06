@@ -160,6 +160,16 @@ describe('Jellyfin item requests', () => {
     await expect(searchItems(api, 'user-1', 'missing')).resolves.toEqual([]);
   });
 
+  it('forwards search cancellation to the Jellyfin transport', async () => {
+    const controller = new AbortController();
+    mocks.getItems.mockResolvedValue({ data: { Items: [] } });
+    await searchItems(api, 'user-1', 'film', 60, undefined, controller.signal);
+    expect(mocks.getItems).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'user-1', searchTerm: 'film', limit: 60 }),
+      { signal: controller.signal },
+    );
+  });
+
   it('builds episode-by-season requests with the season as parent id', async () => {
     mocks.getItems.mockResolvedValue({ data: { Items: [], TotalRecordCount: 0 } });
 

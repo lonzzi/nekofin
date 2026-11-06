@@ -20,7 +20,6 @@ import {
   ActivityIndicator,
   FlatList,
   Platform,
-  Pressable,
   ScrollView,
   SectionList,
   StyleSheet,
@@ -448,29 +447,15 @@ export function ItemGridScreen({
         <View style={[styles.container, { backgroundColor, paddingTop: insets.top }]}>
           <View style={styles.errorContainer}>
             <Text
+              accessibilityRole="alert"
               style={[
                 theme.typography.body,
                 styles.errorText,
-                { color: theme.colors.text, marginBottom: theme.spacing.xl },
+                { color: theme.colors.textSecondary },
               ]}
             >
-              {tr('common.loadFailedRetry')}
+              {tr('common.loadFailed')}
             </Text>
-            <Pressable
-              style={{
-                backgroundColor: theme.colors.tint,
-                borderRadius: theme.radius.sm,
-                paddingHorizontal: theme.spacing.xl,
-                paddingVertical: theme.spacing.md,
-              }}
-              onPress={() => {
-                refetch?.();
-              }}
-            >
-              <Text style={[theme.typography.bodyEmphasized, { color: theme.colors.inverseText }]}>
-                {tr('common.retry')}
-              </Text>
-            </Pressable>
           </View>
         </View>
       </>

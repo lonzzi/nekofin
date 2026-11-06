@@ -7,10 +7,9 @@ export type ExternalPlayerTrack = {
   url: string;
 };
 
-/** Retain failures only for tracks whose caller offers an explicit retry. */
+/** Keep failed subtitle requests cached for the current playback source. */
 export function createExternalTrackRequestCache() {
   const requests = new Map<string, Promise<number | undefined>>();
-  const failures = new Set<string>();
   return {
     load(
       key: string,
@@ -22,15 +21,9 @@ export function createExternalTrackRequestCache() {
       const request = Promise.resolve().then(start);
       requests.set(key, request);
       void request.catch(() => {
-        if (requests.get(key) !== request) return;
-        if (cacheFailures) failures.add(key);
-        else requests.delete(key);
+        if (!cacheFailures && requests.get(key) === request) requests.delete(key);
       });
       return request;
-    },
-    retry(key: string) {
-      if (!failures.delete(key)) return;
-      requests.delete(key);
     },
   };
 }

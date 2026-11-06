@@ -4,6 +4,7 @@ import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { fetchVisibleHomePage, nextVisibleHomePage, type HomeLibraryScope } from './homeVisibility';
 import { getNextMediaPageParam, type InfiniteMediaPage } from './pagination';
 import { mediaQueryKeys, type StreamInfoKeyOptions } from './queryKeys';
+import { searchWithDeadline } from './searchRequest';
 import type {
   MediaAdapter,
   MediaItem,
@@ -506,20 +507,27 @@ export function searchItemsQueryOptions({
   adapter,
   currentServer,
   keyword,
+  limit = 120,
 }: {
-  adapter: MediaAdapter;
+  adapter: Pick<MediaAdapter, 'searchItems'>;
   currentServer: MediaServerInfo | null;
   keyword: string;
+  limit?: number;
 }) {
+  const searchTerm = keyword.trim();
   return queryOptions({
-    enabled: !!currentServer?.userId && keyword.length > 0,
-    queryKey: mediaQueryKeys.searchItems(currentServer?.id, keyword),
-    queryFn: async () => {
-      if (!currentServer?.userId) return [];
-      return await adapter.searchItems({
+    enabled: !!currentServer?.userId && searchTerm.length > 0,
+    queryKey: [...mediaQueryKeys.searchItems(currentServer?.id, searchTerm), limit],
+    retry: false,
+    networkMode: 'always',
+    staleTime: 60 * 1000,
+    queryFn: async ({ signal }) => {
+      if (!currentServer?.userId || !searchTerm) return [];
+      return await searchWithDeadline(adapter, {
         userId: currentServer.userId,
-        searchTerm: keyword,
-        limit: 120,
+        searchTerm,
+        limit,
+        signal,
       });
     },
   });

@@ -319,6 +319,7 @@ export type GetSimilarShowsParams = WithItemId & WithUserId & WithLimit;
 export type GetSimilarMoviesParams = WithItemId & WithUserId & WithLimit;
 export type SearchItemsParams = WithUserId & { searchTerm: string } & WithLimit & {
     includeItemTypes?: MediaItemType[];
+    signal?: AbortSignal;
   };
 export type GetRecommendedSearchKeywordsParams = WithUserId & WithLimit;
 export type GetRandomItemsParams = WithUserId & WithLimit & { folderId?: string };

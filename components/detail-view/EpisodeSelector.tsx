@@ -53,7 +53,6 @@ export function EpisodeSelector({
   onSelectEpisode,
   isPending,
   isError,
-  onRetry,
 }: {
   seasons: MediaItem[];
   selectedSeasonId: string;
@@ -63,7 +62,6 @@ export function EpisodeSelector({
   onSelectEpisode: (episode: MediaItem) => void;
   isPending: boolean;
   isError: boolean;
-  onRetry: () => void;
 }) {
   const { t: tr } = useTranslation();
   const theme = useAppTheme();
@@ -155,11 +153,15 @@ export function EpisodeSelector({
       ) : isPending ? (
         <ActivityIndicator color={theme.colors.tint} accessibilityLabel={tr('common.loading')} />
       ) : isError ? (
-        <Pressable accessibilityRole="button" onPress={onRetry} style={styles.retry}>
-          <Text style={[theme.typography.body, { color: theme.colors.tint }]}>
-            {tr('media.episodeLoadFailed')} · {tr('common.retry')}
-          </Text>
-        </Pressable>
+        <Text
+          accessibilityRole="alert"
+          style={[
+            theme.typography.body,
+            { color: theme.colors.textSecondary, paddingVertical: 12 },
+          ]}
+        >
+          {tr('media.episodeLoadFailed')}
+        </Text>
       ) : (
         <Text style={[theme.typography.body, { color: theme.colors.textSecondary }]}>
           {tr('media.noEpisodes')}
@@ -172,5 +174,4 @@ export function EpisodeSelector({
 const styles = StyleSheet.create({
   unselected: { opacity: 0.8 },
   season: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
-  retry: { paddingVertical: 12 },
 });
