@@ -1,5 +1,5 @@
 name: Bilingual release notes
-description: Generate Chinese and English release notes from the version tag's commits.
+description: Generate bilingual release notes with the free Dots model on OpenRouter.
 inputs:
   tag:
     description: Native version tag
@@ -10,31 +10,19 @@ inputs:
 runs:
   using: composite
   steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
     - uses: oven-sh/setup-bun@v2
       with:
         bun-version: latest
     - shell: bash
       run: bun install --frozen-lockfile
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-        cache: pip
-        cache-dependency-path: .github/scripts/release-notes-requirements.txt
-    - uses: actions/cache@v4
-      with:
-        path: ~/.cache/huggingface
-        key: release-translation-opus-408d9bc-cf10909-v1
-    - name: Install CPU translation runtime
-      shell: bash
-      run: |
-        python -m pip install --index-url https://download.pytorch.org/whl/cpu 'torch==2.15.0'
-        python -m pip install -r .github/scripts/release-notes-requirements.txt
     - name: Generate both languages
       shell: bash
       env:
         RELEASE_TAG: ${{ inputs.tag }}
         PUBLISH_NOTES: ${{ inputs.publish }}
-        HF_HUB_DISABLE_TELEMETRY: '1'
       run: |
         if [[ "$PUBLISH_NOTES" == 'true' ]]; then
           node .github/scripts/release-notes.cjs "$RELEASE_TAG" release/notes.md --publish
