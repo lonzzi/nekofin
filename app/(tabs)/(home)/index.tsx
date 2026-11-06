@@ -12,7 +12,7 @@ import { useTranslation } from '@/lib/i18n';
 import { formatList } from '@/lib/i18n/formatters';
 import { useAppTheme } from '@/lib/theme';
 import { useMemo } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text } from 'react-native';
 
 export default function AggregateHomeScreen() {
   const { t: tr } = useTranslation();
@@ -96,23 +96,14 @@ export default function AggregateHomeScreen() {
         sections={sections}
         notice={
           home.failedServers.length ? (
-            <View
-              style={{
-                paddingHorizontal: theme.spacing.page,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-              }}
+            <Text
+              style={[
+                theme.typography.footnote,
+                { paddingHorizontal: theme.spacing.page, color: theme.colors.textSecondary },
+              ]}
             >
-              <Text
-                style={[theme.typography.footnote, { color: theme.colors.textSecondary, flex: 1 }]}
-              >
-                {tr('home.partialContentUnavailable', { value: formatList(home.failedServers) })}
-              </Text>
-              <Pressable onPress={() => void home.refetch()} style={{ paddingVertical: 12 }}>
-                <Text style={{ color: theme.colors.tint }}>{tr('common.retry')}</Text>
-              </Pressable>
-            </View>
+              {tr('home.partialContentUnavailable', { value: formatList(home.failedServers) })}
+            </Text>
           ) : undefined
         }
       />

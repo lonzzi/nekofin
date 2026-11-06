@@ -66,7 +66,6 @@ export const SeriesModeContent = ({
           onSelectEpisode={selection.selectEpisode}
           isPending={selection.isPending}
           isError={selection.isError}
-          onRetry={() => void selection.refetch()}
         />
         <ItemInfoList item={item} />
         <PeopleSection items={people} />

@@ -392,7 +392,7 @@ export class JellyfinAdapter extends MediaAdapter {
     return parseJellyfinItemsPage(result);
   }
 
-  async searchItems({ userId, searchTerm, limit, includeItemTypes }: SearchItemsParams) {
+  async searchItems({ userId, searchTerm, limit, includeItemTypes, signal }: SearchItemsParams) {
     const api = this.requireApi();
     const result = await searchItems(
       api,
@@ -400,6 +400,7 @@ export class JellyfinAdapter extends MediaAdapter {
       searchTerm,
       limit,
       includeItemTypes ? convertItemTypesToJellyfin(includeItemTypes) : undefined,
+      signal,
     );
     return result.map(mapRawItemToMediaItem);
   }

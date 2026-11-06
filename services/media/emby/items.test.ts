@@ -10,6 +10,7 @@ import {
   getRandomItems,
   getRecommendedSearchKeywords,
   getResumeItems,
+  searchItems,
 } from './items';
 
 const createClient = () =>
@@ -18,6 +19,22 @@ const createClient = () =>
   }) as unknown as ApiClient & { get: ReturnType<typeof vi.fn> };
 
 describe('emby items endpoints', () => {
+  it('forwards search cancellation separately from Emby query parameters', async () => {
+    const client = createClient();
+    const controller = new AbortController();
+    await searchItems(client, {
+      userId: 'user-1',
+      searchTerm: 'film',
+      limit: 60,
+      signal: controller.signal,
+    });
+    expect(client.get).toHaveBeenCalledWith(
+      '/Users/user-1/Items',
+      expect.objectContaining({ SearchTerm: 'film', Limit: 60 }),
+      { signal: controller.signal },
+    );
+    expect(client.get.mock.calls[0][1]).not.toHaveProperty('signal');
+  });
   it('forwards raw paging cursors for both home watch endpoints', async () => {
     const client = createClient();
     await getResumeItems(client, { userId: 'user-1', limit: 40, startIndex: 80 });

@@ -275,19 +275,23 @@ export async function searchItems(
   searchTerm: string,
   limit: number = 100,
   includeItemTypes: BaseItemKind[] = ['Movie', 'Series', 'Episode'],
+  signal?: AbortSignal,
 ): Promise<BaseItemDto[]> {
-  const res = await getItemsApi(api).getItems({
-    userId,
-    searchTerm,
-    limit,
-    recursive: true,
-    sortBy: ['SortName'],
-    sortOrder: ['Ascending'],
-    includeItemTypes,
-    fields: ['PrimaryImageAspectRatio'],
-    imageTypeLimit: 1,
-    enableImageTypes: ['Primary', 'Backdrop', 'Thumb'],
-  });
+  const res = await getItemsApi(api).getItems(
+    {
+      userId,
+      searchTerm,
+      limit,
+      recursive: true,
+      sortBy: ['SortName'],
+      sortOrder: ['Ascending'],
+      includeItemTypes,
+      fields: ['PrimaryImageAspectRatio'],
+      imageTypeLimit: 1,
+      enableImageTypes: ['Primary', 'Backdrop', 'Thumb'],
+    },
+    { signal },
+  );
   return res.data?.Items ?? [];
 }
 

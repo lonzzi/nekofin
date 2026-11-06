@@ -123,6 +123,5 @@ export function useEpisodeSelection({
     selectSeason,
     isPending: !!choice.seasonId && episodeQuery.isPending,
     isError: episodeQuery.isError,
-    refetch: episodeQuery.refetch,
   };
 }

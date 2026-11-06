@@ -231,20 +231,24 @@ export const getSimilarMovies = async (
 
 export const searchItems = async (
   client: ApiClient,
-  { userId, searchTerm, limit, includeItemTypes }: SearchItemsParams,
+  { userId, searchTerm, limit, includeItemTypes, signal }: SearchItemsParams,
 ) =>
-  await client.get<EmbyItemsResponse>(`/Users/${userId}/Items`, {
-    UserId: userId,
-    Recursive: true,
-    SearchTerm: searchTerm,
-    SortBy: 'SortName',
-    SortOrder: 'Ascending',
-    Fields: 'PrimaryImageAspectRatio',
-    ImageTypeLimit: 1,
-    EnableImageTypes: 'Primary,Backdrop,Thumb',
-    Limit: limit,
-    IncludeItemTypes: joinMediaItemTypes(includeItemTypes),
-  });
+  await client.get<EmbyItemsResponse>(
+    `/Users/${userId}/Items`,
+    {
+      UserId: userId,
+      Recursive: true,
+      SearchTerm: searchTerm,
+      SortBy: 'SortName',
+      SortOrder: 'Ascending',
+      Fields: 'PrimaryImageAspectRatio',
+      ImageTypeLimit: 1,
+      EnableImageTypes: 'Primary,Backdrop,Thumb',
+      Limit: limit,
+      IncludeItemTypes: joinMediaItemTypes(includeItemTypes),
+    },
+    { signal },
+  );
 
 export const getRecommendedSearchKeywords = async (
   client: ApiClient,

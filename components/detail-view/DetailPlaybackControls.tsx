@@ -83,18 +83,18 @@ function ItemPlaybackControls({ item }: { item: MediaItem }) {
   const menuRef = useRef<MenuComponentRef>(null);
   const actions = [
     ...menu.actions.map((action) => ({ ...action, imageColor: theme.colors.text })),
-    ...(query.isError
-      ? [{ id: 'retry', title: tr('player.reloadPlaybackOptions') }]
-      : !menu.actions.length
-        ? [
-            {
-              title: query.isPending
+    ...(!menu.actions.length
+      ? [
+          {
+            title: query.isError
+              ? tr('common.loadFailed')
+              : query.isPending
                 ? tr('player.loadingPlaybackOptions')
                 : tr('player.noPlaybackOptions'),
-              attributes: { disabled: true },
-            },
-          ]
-        : []),
+            attributes: { disabled: true },
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -135,10 +135,6 @@ function ItemPlaybackControls({ item }: { item: MediaItem }) {
           isAnchoredToRight
           shouldOpenOnLongPress={false}
           onPressAction={({ nativeEvent }) => {
-            if (nativeEvent.event === 'retry') {
-              void query.refetch();
-              return;
-            }
             const selection = menu.selections.get(nativeEvent.event);
             if (selection) {
               if (nativeEvent.event.startsWith('subtitle:')) {

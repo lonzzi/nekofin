@@ -123,7 +123,7 @@ describe('player native menu model', () => {
     ]);
   });
 
-  it('keeps pending subtitles selectable without a loading label', () => {
+  it('keeps pending subtitles selectable and disables failed subtitles without a retry action', () => {
     const pending = { index: 8, name: '简体中文', language: 'zh', loading: true };
     const actions = deriveTrackMenuActions(
       { subtitle: [pending, { index: 12, name: '繁體中文', failed: true }] },
@@ -133,9 +133,11 @@ describe('player native menu model', () => {
     expect(actions[0].subactions).toMatchObject([
       { id: 'track:subtitle:-1', state: 'off' },
       { id: 'track:subtitle:8', state: 'on', subtitle: 'ZH' },
-      { id: 'track:subtitle:12', subtitle: '加载失败，点按重试' },
+      { id: 'track:subtitle:12', subtitle: '加载失败', attributes: { disabled: true } },
     ]);
-    expect(actions[0].subactions?.every((entry) => !entry.attributes?.disabled)).toBe(true);
+    expect(actions[0].subactions?.slice(0, 2).every((entry) => !entry.attributes?.disabled)).toBe(
+      true,
+    );
   });
 
   it('models playback choices as selected native submenus', () => {

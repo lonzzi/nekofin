@@ -1,107 +1,21 @@
-import { ItemImage } from '@/components/ItemImage';
-import {
-  getEpisodeCardRoute,
-  getImagePreferenceOptions,
-  getSeriesCardRoute,
-} from '@/components/media/cardHelpers';
-import { useFloatingTabBarInset } from '@/components/navigation/FloatingTabBarInset';
 import { TabletChromeContext } from '@/components/navigation/TabletChromeContext';
 import { OuterScreenOptions } from '@/components/outer/OuterPrimitives';
-import { emptyListContentStyle, EmptyListViewport } from '@/components/ui/EmptyListViewport';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { FilterChoice, FilterRow } from '@/components/ui/FilterControls';
-import { useTracedRouter } from '@/hooks/performance/useTracedRouter';
+import type { SearchMediaFilter } from '@/components/search/searchResultSections';
+import { SearchResultsGrid } from '@/components/search/SearchResultsGrid';
+import { useMediaServerSources } from '@/hooks/useMediaServerSources';
 import { useNativeSearchHeader } from '@/hooks/useNativeSearchHeader';
-import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
+import { useRefetchOnScreenFocus } from '@/hooks/useRefetchOnScreenFocus';
 import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { useTranslation } from '@/lib/i18n';
 import { formatList } from '@/lib/i18n/formatters';
 import { useAppTheme } from '@/lib/theme';
 import { withOuterTheme } from '@/lib/theme/OuterTheme';
-import { createMediaAdapterWithApi, createMediaApiFromServerInfo } from '@/services/media';
-import { mediaQueryKeys } from '@/services/media/queryKeys';
-import type { MediaItem, MediaServerInfo } from '@/services/media/types';
-import { ImageType } from '@jellyfin/sdk/lib/generated-client/models';
-import { queryOptions } from '@tanstack/react-query';
+import { aggregateSearchQueries, aggregateSearchResults } from '@/services/media/aggregateSearch';
+import { useQueries } from '@tanstack/react-query';
 import { Stack, useFocusEffect } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
 import type { SearchBarCommands } from 'react-native-screens';
-
-type AggregateSearchResult = {
-  key: string;
-  item: MediaItem;
-  server: MediaServerInfo;
-  imageUrl?: string;
-  blurhash?: string;
-};
-function aggregateSearchQueryOptions({
-  servers,
-  keyword,
-}: {
-  servers: MediaServerInfo[];
-  keyword: string;
-}) {
-  const trimmedKeyword = keyword.trim();
-
-  return queryOptions({
-    enabled: servers.length > 0 && trimmedKeyword.length > 0,
-    queryKey: [
-      ...mediaQueryKeys.aggregateSearchItems(
-        servers.map((server) => server.id),
-        trimmedKeyword,
-      ),
-      'outer-list-v2',
-    ],
-    queryFn: async (): Promise<{ items: AggregateSearchResult[]; failedServers: string[] }> => {
-      if (trimmedKeyword.length === 0) return { items: [], failedServers: [] };
-
-      const settled = await Promise.allSettled(
-        servers.map(async (server) => {
-          const api = createMediaApiFromServerInfo(server);
-          const adapter = createMediaAdapterWithApi(server.type, api);
-          const items = await adapter.searchItems({
-            userId: server.userId,
-            searchTerm: trimmedKeyword,
-            limit: 60,
-          });
-
-          return items.map((item) => {
-            const imageInfo = adapter.getImageInfo({
-              item,
-              opts: getImagePreferenceOptions(ImageType.Primary),
-            });
-
-            return {
-              key: `${server.id}:${item.id}`,
-              item,
-              server,
-              imageUrl: imageInfo.url,
-              blurhash: imageInfo.blurhash,
-            };
-          });
-        }),
-      );
-
-      return {
-        items: settled.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])),
-        failedServers: settled.flatMap((result, index) =>
-          result.status === 'rejected' ? [servers[index].name] : [],
-        ),
-      };
-    },
-    staleTime: 60 * 1000,
-  });
-}
 
 function AggregateSearchScreen() {
   const { t: tr } = useTranslation();
@@ -120,36 +34,32 @@ function AggregateSearchScreen() {
       };
     }, [androidTablet]),
   );
-  const tabBarInset = useFloatingTabBarInset();
-  const { activeServers: servers, setCurrentServer } = useMediaServers();
-  const t = useAppTheme();
-  const router = useTracedRouter('aggregate-search');
+  const { activeServers: servers } = useMediaServers();
+  const sources = useMediaServerSources(servers);
+  const theme = useAppTheme();
   const [keyword, setKeyword] = useState('');
   const [debounced, setDebounced] = useState('');
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState<SearchMediaFilter>('all');
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(keyword.trim()), 300);
     return () => clearTimeout(timer);
   }, [keyword]);
-  const query = useQueryWithFocus(aggregateSearchQueryOptions({ servers, keyword: debounced }));
-  const results = useMemo(
-    () =>
-      query.data?.items.filter((result) => filter === 'all' || result.item.type === filter) ?? [],
-    [query.data, filter],
-  );
-  const open = (result: AggregateSearchResult) => {
-    const route =
-      result.item.type === 'Series' || result.item.type === 'Season'
-        ? getSeriesCardRoute(result.item)
-        : getEpisodeCardRoute(result.item);
-    if (route) {
-      setCurrentServer(result.server);
-      router.push(route);
-    }
-  };
-  const pending = keyword.trim() !== debounced || query.isLoading;
-  const hasKeyword = !!keyword.trim();
-  const isEmpty = !hasKeyword || pending || results.length === 0;
+  const hasKeyword = keyword.trim().length > 0;
+  const currentKeyword = hasKeyword && keyword.trim() === debounced;
+  // Removing the old observers cancels their requests immediately, including during debounce.
+  const queries = useQueries({
+    queries: aggregateSearchQueries({ sources, keyword: currentKeyword ? debounced : '' }),
+  });
+  const search = useMemo(() => aggregateSearchResults(sources, queries), [sources, queries]);
+  useRefetchOnScreenFocus({
+    isEnabled: currentKeyword && sources.length > 0,
+    isStale: queries.some((query) => query.isStale),
+    fetchStatus: queries.some((query) => query.isFetching) ? 'fetching' : 'idle',
+    refetch: () =>
+      Promise.allSettled(queries.filter((query) => query.isStale).map((query) => query.refetch())),
+  });
+  const pending = hasKeyword && (!currentKeyword || search.isLoading);
+  const allFailed = sources.length > 0 && search.failedServers.length === sources.length;
   return (
     <>
       <OuterScreenOptions title={tr('search.title')} />
@@ -157,176 +67,49 @@ function AggregateSearchScreen() {
         {...searchHeader}
         ref={searchBar}
         autoFocus={androidTablet && focused}
-        placeholder={tr('search.allServers')}
+        placeholder={
+          servers.length === 1
+            ? tr('search.serverPlaceholder', { name: servers[0].name })
+            : tr('search.allServers')
+        }
         hideWhenScrolling={false}
         cancelButtonText={tr('common.cancel')}
-        textColor={t.colors.text}
-        hintTextColor={t.colors.textSecondary}
-        headerIconColor={t.colors.text}
+        textColor={theme.colors.text}
+        hintTextColor={theme.colors.textSecondary}
+        headerIconColor={theme.colors.text}
         onChangeText={(e) => setKeyword(e.nativeEvent.text)}
         onCancelButtonPress={() => setKeyword('')}
       />
-      <FlatList
-        data={hasKeyword && !pending ? results : []}
-        keyExtractor={(item) => item.key}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-        style={{ backgroundColor: t.colors.background }}
-        contentContainerStyle={[
-          styles.list,
-          isEmpty && styles.emptyList,
-          isEmpty && emptyListContentStyle,
-          tabBarInset > 0 && { paddingBottom: tabBarInset },
-        ]}
-        ListHeaderComponentStyle={isEmpty ? styles.emptyHeader : undefined}
-        ListHeaderComponent={
-          <View style={isEmpty ? styles.emptyHeader : undefined}>
-            <View style={styles.filters}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <FilterRow>
-                  {[
-                    { label: tr('common.all'), value: 'all' },
-                    { label: tr('media.movies'), value: 'Movie' },
-                    { label: tr('media.series'), value: 'Series' },
-                    { label: tr('media.episodes'), value: 'Episode' },
-                  ].map((item) => (
-                    <FilterChoice
-                      key={item.value}
-                      label={item.label}
-                      active={filter === item.value}
-                      onPress={() => setFilter(item.value)}
-                    />
-                  ))}
-                </FilterRow>
-              </ScrollView>
-              {hasKeyword && query.data?.failedServers.length ? (
-                <View style={[styles.failure, { borderColor: t.colors.separator }]}>
-                  <Text style={{ color: t.colors.textSecondary, flex: 1, lineHeight: 21 }}>
-                    {tr('search.incomplete', { servers: formatList(query.data.failedServers) })}
-                  </Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => void query.refetch()}
-                    style={styles.retry}
-                  >
-                    <Text style={{ color: t.colors.tint }}>{tr('common.retry')}</Text>
-                  </Pressable>
-                </View>
-              ) : null}
-              {hasKeyword && !pending ? (
-                <Text style={[styles.count, { color: t.colors.textSecondary }]}>
-                  {tr('search.resultAndAccountCounts', {
-                    count: results.length,
-                    count2: servers.length,
-                  })}
-                </Text>
-              ) : null}
-            </View>
-            {isEmpty ? (
-              <EmptyListViewport bottomSpacing={22}>
-                {pending && hasKeyword ? (
-                  <ActivityIndicator color={t.colors.tint} />
-                ) : (
-                  <EmptyState
-                    icon={servers.length ? 'search' : 'server'}
-                    title={
-                      !servers.length
-                        ? tr('server.noneAdded')
-                        : hasKeyword
-                          ? tr('search.noResults')
-                          : tr('search.enterTitle')
-                    }
-                    description={
-                      !servers.length
-                        ? tr('server.addAccountFirst')
-                        : hasKeyword
-                          ? tr('danmaku.searchKeywordHint')
-                          : undefined
-                    }
-                  />
-                )}
-              </EmptyListViewport>
-            ) : null}
-          </View>
+      <SearchResultsGrid
+        groups={search.groups}
+        filter={filter}
+        onFilterChange={setFilter}
+        state={!hasKeyword ? 'idle' : pending ? 'loading' : 'ready'}
+        pendingServerCount={currentKeyword ? search.pendingServerCount : 0}
+        notice={
+          search.failedServers.length
+            ? tr('search.incomplete', { servers: formatList(search.failedServers) })
+            : undefined
         }
-        renderItem={({ item: result }) => (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={tr('media.sourceAttribution', {
-              name: result.item.name,
-              name2: result.server.name,
-            })}
-            onPress={() => open(result)}
-            style={({ pressed }) => [
-              styles.result,
-              { borderColor: t.colors.separator, opacity: pressed ? 0.65 : 1 },
-            ]}
-          >
-            <ItemImage
-              uri={result.imageUrl}
-              placeholderBlurhash={result.blurhash}
-              contentFit="cover"
-              style={[styles.poster, { backgroundColor: t.colors.surfaceMuted }]}
-            />
-            <View style={styles.resultText}>
-              <Text numberOfLines={2} style={[styles.name, { color: t.colors.text }]}>
-                {result.item.name}
-              </Text>
-              <Text style={{ color: t.colors.textSecondary, fontSize: 13 }}>
-                {[
-                  result.item.productionYear,
-                  result.item.type === 'Movie'
-                    ? tr('media.movies')
-                    : result.item.type === 'Series'
-                      ? tr('media.series')
-                      : result.item.type === 'Episode'
-                        ? tr('media.episodes')
-                        : result.item.type,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </Text>
-              <Text numberOfLines={1} style={{ color: t.colors.tint, fontSize: 12 }}>
-                {result.server.name} · {result.server.type}
-              </Text>
-            </View>
-            <Text style={{ color: t.colors.textTertiary, fontSize: 22 }}>›</Text>
-          </Pressable>
-        )}
+        emptyState={{
+          icon: servers.length ? 'search' : 'server',
+          title: !servers.length
+            ? tr('server.noneAdded')
+            : hasKeyword
+              ? allFailed
+                ? tr('common.loadFailed')
+                : tr('search.noResults')
+              : tr('search.enterTitle'),
+          description: !servers.length
+            ? tr('server.addAccountFirst')
+            : hasKeyword
+              ? allFailed
+                ? tr('search.failedCheckNetwork')
+                : tr('danmaku.searchKeywordHint')
+              : undefined,
+        }}
       />
     </>
   );
 }
 export default withOuterTheme(AggregateSearchScreen);
-const styles = StyleSheet.create({
-  list: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 120,
-    maxWidth: 840,
-    width: '100%',
-    alignSelf: 'center',
-    flexGrow: 1,
-  },
-  count: { fontSize: 12, paddingBottom: 8 },
-  emptyList: { paddingBottom: 22 },
-  emptyHeader: { flex: 1 },
-  filters: { gap: 12 },
-  result: {
-    flexDirection: 'row',
-    gap: 18,
-    alignItems: 'center',
-    paddingVertical: 18,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  poster: { width: 76, height: 112, borderRadius: 8 },
-  resultText: { flex: 1, gap: 10 },
-  name: { fontSize: 18, fontWeight: '600', lineHeight: 25 },
-  failure: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-  },
-  retry: { minWidth: 48, minHeight: 48, justifyContent: 'center' },
-});

@@ -95,8 +95,9 @@ const normalizeTracks = (tracks: TrackInfo[] | undefined, fallbackLabel: string)
 const trackAction = (prefix: string, track: TrackInfo, selectedTrack?: TrackInfo): MenuAction => ({
   id: `${prefix}${track.index}`,
   state: selectedState(track.index === selectedTrack?.index),
-  subtitle: track.failed ? tr('common.loadFailedTapToRetry') : track.language?.toUpperCase(),
+  subtitle: track.failed ? tr('common.loadFailed') : track.language?.toUpperCase(),
   title: track.name,
+  ...(track.failed ? { attributes: { disabled: true } } : {}),
 });
 
 export function deriveDanmakuMenuActions(
