@@ -1,5 +1,5 @@
 name: Bilingual release notes
-description: Generate bilingual release notes with the free Dots model on OpenRouter.
+description: Generate bilingual release notes with free models on OpenRouter.
 inputs:
   tag:
     description: Native version tag

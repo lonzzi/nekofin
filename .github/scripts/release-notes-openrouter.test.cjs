@@ -1,6 +1,11 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
-const { BATCH_SIZE, MODEL, generateBilingualEntries } = require('./release-notes-openrouter.cjs');
+const {
+  BATCH_SIZE,
+  MODEL,
+  FALLBACK_MODEL,
+  generateBilingualEntries,
+} = require('./release-notes-openrouter.cjs');
 
 const apiKey = 'test-openrouter-key-do-not-log';
 const commits = ['a', 'b'].map((letter) => ({
@@ -17,11 +22,11 @@ const context = {
   commits,
 };
 
-function catalog(overrides = {}) {
+function catalog(overrides = {}, id = MODEL) {
   return {
     data: [
       {
-        id: MODEL,
+        id,
         pricing: { prompt: '0', completion: '0', request: '0' },
         architecture: { output_modalities: ['text'] },
         supported_parameters: ['response_format', 'reasoning'],
@@ -30,6 +35,9 @@ function catalog(overrides = {}) {
     ],
   };
 }
+
+const routerCatalog = catalog({}, FALLBACK_MODEL);
+const bothModels = { data: [...catalog().data, ...routerCatalog.data] };
 
 function generated(source = commits) {
   return source.map((commit) => ({
@@ -66,8 +74,12 @@ function harness({ model = catalog(), completion = response(), inference } = {})
   return { options, calls, waits, logs };
 }
 
-test('generates contextual bilingual entries using only the selected free Dots model', async () => {
-  const { options, calls, logs } = harness();
+function requestedModels(calls) {
+  return calls.slice(1).map((call) => JSON.parse(call.init.body).model);
+}
+
+test('prefers Dots and requires zero-priced providers with JSON support', async () => {
+  const { options, calls, logs } = harness({ model: bothModels });
   assert.deepEqual(await generateBilingualEntries(context, options), generated());
   assert.equal(calls.length, 2);
   assert.equal(calls[0].url, 'https://openrouter.ai/api/v1/models');
@@ -81,6 +93,10 @@ test('generates contextual bilingual entries using only the selected free Dots m
   assert.equal(body.models, undefined);
   assert.deepEqual(body.reasoning, { effort: 'none', exclude: true });
   assert.deepEqual(body.response_format, { type: 'json_object' });
+  assert.deepEqual(body.provider, {
+    require_parameters: true,
+    max_price: { prompt: 0, completion: 0, request: 0 },
+  });
   assert.equal(body.max_tokens, 8_192);
   assert.deepEqual(JSON.parse(body.messages[1].content), context);
   assert.ok(!calls[1].init.body.includes(apiKey));
@@ -99,10 +115,51 @@ for (const [name, model] of [
 ]) {
   test(`refuses inference when the live catalog has ${name}`, async () => {
     const { options, calls } = harness({ model });
-    await assert.rejects(generateBilingualEntries(context, options), /free Dots model/);
+    await assert.rejects(generateBilingualEntries(context, options), /No eligible free/);
     assert.equal(calls.length, 1);
   });
 }
+
+test('uses the live free router when Dots disappears or its price changes', async () => {
+  const paidDots = catalog({ pricing: { prompt: '1', completion: '0' } });
+  for (const model of [routerCatalog, { data: [...paidDots.data, ...routerCatalog.data] }]) {
+    const { options, calls, logs } = harness({ model });
+    assert.deepEqual(await generateBilingualEntries(context, options), generated());
+    assert.deepEqual(requestedModels(calls), [FALLBACK_MODEL]);
+    assert.ok(logs.some((line) => line.includes(`Using ${FALLBACK_MODEL}`)));
+  }
+});
+
+test('switches to the free router after a Dots rate limit and bounds retries', async () => {
+  const { options, calls, waits, logs } = harness({
+    model: bothModels,
+    inference: () => new Response(apiKey, { status: 429, headers: { 'Retry-After': '2' } }),
+  });
+  await assert.rejects(generateBilingualEntries(context, options), /HTTP 429/);
+  assert.deepEqual(requestedModels(calls), [MODEL, FALLBACK_MODEL, FALLBACK_MODEL]);
+  assert.deepEqual(waits, [2_000]);
+  assert.ok(logs.every((line) => !line.includes(apiKey)));
+  for (const call of calls.slice(1)) {
+    assert.deepEqual(JSON.parse(call.init.body).provider.max_price, {
+      prompt: 0,
+      completion: 0,
+      request: 0,
+    });
+  }
+});
+
+test('rejects an ineligible router even when Dots fails', async () => {
+  const paidRouter = catalog(
+    { pricing: { prompt: '0', completion: '0', request: '1' } },
+    FALLBACK_MODEL,
+  );
+  const { options, calls } = harness({
+    model: { data: [...catalog().data, ...paidRouter.data] },
+    inference: () => new Response(null, { status: 404 }),
+  });
+  await assert.rejects(generateBilingualEntries(context, options), /HTTP 404/);
+  assert.deepEqual(requestedModels(calls), [MODEL]);
+});
 
 test('requires a key only when there are entries to generate', async () => {
   const { options, calls } = harness();
@@ -137,9 +194,17 @@ test('bounds retries and keeps authorization/network error details out of errors
   });
   assert.equal(unavailable.calls.length, 4);
   assert.equal(unavailable.waits.length, 2);
-  const unauthorized = harness({ inference: () => new Response(apiKey, { status: 401 }) });
-  await assert.rejects(generateBilingualEntries(context, unauthorized.options), /HTTP 401/);
-  assert.equal(unauthorized.calls.length, 2);
+  for (const status of [401, 402, 403]) {
+    const rejected = harness({
+      model: bothModels,
+      inference: () => new Response(apiKey, { status }),
+    });
+    await assert.rejects(
+      generateBilingualEntries(context, rejected.options),
+      new RegExp(`HTTP ${status}`),
+    );
+    assert.deepEqual(requestedModels(rejected.calls), [MODEL]);
+  }
   const network = harness();
   network.options.fetchImpl = async () => {
     throw new Error(apiKey);
@@ -193,22 +258,26 @@ test('rejects truncated, malformed, and unexpectedly billed responses', async ()
   );
   const billed = response();
   billed.usage.cost = 0.01;
-  await assert.rejects(
-    generateBilingualEntries(context, harness({ completion: billed }).options),
-    /non-zero/,
-  );
+  const charged = harness({ model: bothModels, completion: billed });
+  await assert.rejects(generateBilingualEntries(context, charged.options), /non-zero/);
+  assert.deepEqual(requestedModels(charged.calls), [MODEL]);
 });
 
-test('batches larger releases without losing or reordering commits', async () => {
-  const source = Array.from({ length: BATCH_SIZE + 2 }, (_, index) => ({
+test('switches after invalid output and regenerates only the failed batch', async () => {
+  const source = Array.from({ length: BATCH_SIZE * 2 + 1 }, (_, index) => ({
     ...commits[0],
     sha: index.toString(16).padStart(40, '0'),
   }));
   const batchSizes = [];
   const { options, calls } = harness({
+    model: bothModels,
     inference: (init) => {
-      const batch = JSON.parse(JSON.parse(init.body).messages[1].content).commits;
+      const body = JSON.parse(init.body);
+      const batch = JSON.parse(body.messages[1].content).commits;
       batchSizes.push(batch.length);
+      if (body.model === MODEL && batch[0].sha === source[BATCH_SIZE].sha) {
+        return Response.json(response([]));
+      }
       return Response.json(response(generated(batch)));
     },
   });
@@ -217,6 +286,7 @@ test('batches larger releases without losing or reordering commits', async () =>
     entries.map((entry) => entry.sha),
     source.map((commit) => commit.sha),
   );
-  assert.deepEqual(batchSizes, [BATCH_SIZE, 2]);
+  assert.deepEqual(batchSizes, [BATCH_SIZE, BATCH_SIZE, BATCH_SIZE, 1]);
+  assert.deepEqual(requestedModels(calls), [MODEL, MODEL, FALLBACK_MODEL, FALLBACK_MODEL]);
   assert.equal(calls.filter((call) => call.url.endsWith('/models')).length, 1);
 });

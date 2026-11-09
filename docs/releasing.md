@@ -52,7 +52,9 @@ tag 是发布版本号的来源。工作流会在计算运行时和构建两个�
 
 更新说明按当前 tag 与前一个已发布、且属于同一提交历史的版本 tag 之间的提交自动生成，包含中文和英文，按功能、修复、性能与其他改进分组。日志生成与 Android / iOS 构建在版本校验后并行运行；发布 job 等待三者成功，再读取日志产物，不重复生成。
 
-CI 使用 OpenRouter 的 `dots-studio/dots-3-note-preview:free`，需要 Actions secret `OPENROUTER_API_KEY`。程序读取目标 tag 的 README、提交正文、修改文件和有长度限制的代码差异摘要，整批生成缺失的语言条目，无需维护术语表、安装 Python / PyTorch 或下载模型。生成前查询实时模型目录，确认该型号仍为零价格并支持所需参数；关闭推理模式，使用简短的双语编辑提示，每批最多 12 条。限流、服务端或网络故障最多尝试三次，不切换到付费型号。模型下线、价格变化、截断或校验失败都会阻止发布，不会写入已有发布说明。
+CI 通过 OpenRouter 生成缺失的双语条目，需要 Actions secret `OPENROUTER_API_KEY`。程序读取目标 tag 的 README、提交正文、修改文件和有长度限制的代码差异摘要，使用简短的双语编辑提示，每批最多 12 条，无需维护术语表。
+
+生成前查询实时模型目录，优先使用 `dots-studio/dots-3-note-preview:free`。如果 Dots 下线、价格变化、调用失败或结果未通过校验，当前批次和后续批次改用 `openrouter/free`，由 OpenRouter 从当时可用的免费模型中选择。请求将输入、输出和按次计费的价格上限设为零。每批最多请求三次，限流、服务端和网络错误可重试。鉴权、账户或计费异常会立即停止。只有所有批次都通过双语、完整性和顺序校验后，才会写入发布说明。
 
 需要精确措辞时，仍可在提交正文中添加 `Release-Note-ZH: 中文条目` 和 `Release-Note-EN: English entry`，生成时优先采用；已有语言条目会保留。可在本地通过环境变量提供 `OPENROUTER_API_KEY`，运行 `node .github/scripts/release-notes.cjs v0.2.0-beta.1 /tmp/nekofin-notes.md` 仅生成预览；只有显式传入 `--publish` 才会更新公开版本。API 故障可重跑失败的日志生成任务，复用已完成的构建产物。
 

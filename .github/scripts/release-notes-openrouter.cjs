@@ -2,6 +2,7 @@ const { setTimeout: delay } = require('node:timers/promises');
 
 const API = 'https://openrouter.ai/api/v1';
 const MODEL = 'dots-studio/dots-3-note-preview:free';
+const FALLBACK_MODEL = 'openrouter/free';
 const BATCH_SIZE = 12;
 const PROMPT = `你是一名熟悉移动媒体播放器的中英双语发布说明编辑。输入 JSON 包含 NekoFin 的项目介绍，以及本版本真实的提交标题、正文、修改文件和部分代码差异。
 
@@ -24,8 +25,8 @@ const PROMPT = `你是一名熟悉移动媒体播放器的中英双语发布说�
 - 只概括本条最主要的变化，不逐项罗列代码差异中的零碎修改。
 - 不出现类名、函数名、变量名、上下文对象名、代码组件名或技术实现过程。内部重构可以用普通语言概括状态或流程的整理，但不能夸大成新增功能或已验证的性能提升。`;
 
-async function requestJson(endpoint, options, { fetchImpl, sleep }) {
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+async function requestJson(endpoint, options, { fetchImpl, sleep }, maxAttempts = 3) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     let response;
     try {
       response = await fetchImpl(`${API}/${endpoint}`, {
@@ -34,14 +35,15 @@ async function requestJson(endpoint, options, { fetchImpl, sleep }) {
         signal: AbortSignal.timeout(endpoint === 'models' ? 15_000 : 90_000),
       });
     } catch {
-      if (attempt === 3) throw new Error(`OpenRouter ${endpoint} network request failed.`);
+      if (attempt === maxAttempts)
+        throw new Error(`OpenRouter ${endpoint} network request failed.`);
       await sleep(1_000 * 2 ** (attempt - 1));
       continue;
     }
     if (!response.ok) {
       // Provider errors can contain credentials or request details; never log their bodies.
       await response.arrayBuffer().catch(() => {});
-      if (attempt < 3 && (response.status === 429 || response.status >= 500)) {
+      if (attempt < maxAttempts && (response.status === 429 || response.status >= 500)) {
         const retryAfter = response.headers.get('retry-after');
         const wait = retryAfter
           ? Number.isFinite(Number(retryAfter))
@@ -51,7 +53,9 @@ async function requestJson(endpoint, options, { fetchImpl, sleep }) {
         await sleep(Math.min(30_000, Math.max(1_000 * 2 ** (attempt - 1), wait || 0)));
         continue;
       }
-      throw new Error(`OpenRouter ${endpoint} failed (HTTP ${response.status}).`);
+      const error = new Error(`OpenRouter ${endpoint} failed (HTTP ${response.status}).`);
+      error.status = response.status;
+      throw error;
     }
     try {
       return await response.json();
@@ -68,38 +72,35 @@ function isZero(price) {
   );
 }
 
-function validateModel(catalog) {
+function isEligibleModel(catalog, id) {
   const model = Array.isArray(catalog?.data)
-    ? catalog.data.find((entry) => entry.id === MODEL)
+    ? catalog.data.find((entry) => entry?.id === id)
     : undefined;
-  if (
-    !MODEL.endsWith(':free') ||
-    !isZero(model?.pricing?.prompt) ||
-    !isZero(model?.pricing?.completion) ||
-    (model?.pricing?.request != null && !isZero(model.pricing.request))
-  ) {
-    throw new Error(`The free Dots model is unavailable or no longer zero-priced: ${MODEL}`);
-  }
-  if (
-    !model.architecture?.output_modalities?.includes('text') ||
-    !['response_format', 'reasoning'].every((name) => model.supported_parameters?.includes(name))
-  ) {
-    throw new Error('The free Dots model does not support the required output parameters.');
-  }
+  return (
+    (id.endsWith(':free') || id === FALLBACK_MODEL) &&
+    isZero(model?.pricing?.prompt) &&
+    isZero(model?.pricing?.completion) &&
+    (model.pricing.request == null || isZero(model.pricing.request)) &&
+    model.architecture?.output_modalities?.includes('text') &&
+    ['response_format', 'reasoning'].every((name) => model.supported_parameters?.includes(name))
+  );
 }
 
 function validateEntries(response, commits) {
-  if (response?.error || response?.choices?.[0]?.finish_reason !== 'stop') {
-    throw new Error('Dots returned an incomplete release-note response.');
+  const cost = response?.usage?.cost;
+  if (cost != null && !isZero(cost)) {
+    const error = new Error('OpenRouter reported a non-zero inference cost.');
+    error.code = 'OPENROUTER_NONZERO_COST';
+    throw error;
   }
-  const cost = response.usage?.cost;
-  if (cost != null && !isZero(cost))
-    throw new Error('OpenRouter reported a non-zero inference cost.');
+  if (response?.error || response?.choices?.[0]?.finish_reason !== 'stop') {
+    throw new Error('The model returned an incomplete release-note response.');
+  }
   let entries;
   try {
     entries = JSON.parse(response.choices[0].message.content).changes;
   } catch {
-    throw new Error('Dots did not return valid release-note JSON.');
+    throw new Error('The model did not return valid release-note JSON.');
   }
   if (!Array.isArray(entries) || entries.length !== commits.length) {
     throw new Error('Incomplete release-note generation.');
@@ -115,10 +116,43 @@ function validateEntries(response, commits) {
       throw new Error('Every generated release entry must contain Chinese and English.');
     }
     if ([...zh].length > 70 || en.split(/\s+/).length > 35) {
-      throw new Error('Dots returned an excessively long release entry.');
+      throw new Error('The model returned an excessively long release entry.');
     }
     return { sha: entry.sha, zh, en };
   });
+}
+
+async function generateBatch(model, context, options, maxAttempts) {
+  const started = Date.now();
+  const response = await requestJson(
+    'chat/completions',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${options.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: PROMPT },
+          { role: 'user', content: JSON.stringify(context) },
+        ],
+        response_format: { type: 'json_object' },
+        provider: { require_parameters: true, max_price: { prompt: 0, completion: 0, request: 0 } },
+        temperature: 0,
+        max_tokens: 8_192,
+        reasoning: { effort: 'none', exclude: true },
+      }),
+    },
+    options,
+    maxAttempts,
+  );
+  const entries = validateEntries(response, context.commits);
+  options.log(
+    `Generated ${entries.length} bilingual entries with ${response.model || model} in ${((Date.now() - started) / 1_000).toFixed(2)}s (cost: ${response.usage?.cost == null ? 'not reported' : 'USD 0'}).`,
+  );
+  return entries;
 }
 
 async function generateBilingualEntries(
@@ -134,40 +168,36 @@ async function generateBilingualEntries(
   if (typeof apiKey !== 'string' || !apiKey.trim()) {
     throw new Error('OPENROUTER_API_KEY must be set to generate release notes.');
   }
-  const dependencies = { fetchImpl, sleep };
-  validateModel(await requestJson('models', {}, dependencies));
+  const options = { apiKey: apiKey.trim(), fetchImpl, sleep, log };
+  const catalog = await requestJson('models', {}, options);
+  const fallbackAvailable = isEligibleModel(catalog, FALLBACK_MODEL);
+  let model = MODEL;
+  if (!isEligibleModel(catalog, MODEL)) {
+    if (!fallbackAvailable) throw new Error('No eligible free release-notes model on OpenRouter.');
+    log(`${MODEL} is unavailable or ineligible. Using ${FALLBACK_MODEL}.`);
+    model = FALLBACK_MODEL;
+  }
+
   const entries = [];
   for (let offset = 0; offset < context.commits.length; offset += BATCH_SIZE) {
-    const commits = context.commits.slice(offset, offset + BATCH_SIZE);
-    const started = Date.now();
-    const response = await requestJson(
-      'chat/completions',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey.trim()}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: MODEL,
-          messages: [
-            { role: 'system', content: PROMPT },
-            { role: 'user', content: JSON.stringify({ ...context, commits }) },
-          ],
-          response_format: { type: 'json_object' },
-          temperature: 0,
-          max_tokens: 8_192,
-          reasoning: { effort: 'none', exclude: true },
-        }),
-      },
-      dependencies,
-    );
-    entries.push(...validateEntries(response, commits));
-    log(
-      `Generated ${commits.length} bilingual entries with ${response.model || MODEL} in ${((Date.now() - started) / 1_000).toFixed(2)}s (cost: ${response.usage?.cost == null ? 'not reported' : 'USD 0'}).`,
-    );
+    const batch = { ...context, commits: context.commits.slice(offset, offset + BATCH_SIZE) };
+    const canFallback = model === MODEL && fallbackAvailable;
+    try {
+      entries.push(...(await generateBatch(model, batch, options, canFallback ? 1 : 3)));
+    } catch (error) {
+      if (
+        !canFallback ||
+        [401, 402, 403].includes(error.status) ||
+        error.code === 'OPENROUTER_NONZERO_COST'
+      ) {
+        throw error;
+      }
+      log(`${MODEL} failed (${error.message}). Switching to ${FALLBACK_MODEL}.`);
+      model = FALLBACK_MODEL;
+      entries.push(...(await generateBatch(model, batch, options, 2)));
+    }
   }
   return entries;
 }
 
-module.exports = { BATCH_SIZE, MODEL, generateBilingualEntries };
+module.exports = { BATCH_SIZE, MODEL, FALLBACK_MODEL, generateBilingualEntries };

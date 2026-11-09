@@ -68,7 +68,7 @@ test('generates the selected tag range and never edits releases if translation f
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const commands = [];
   let failTranslation = false;
-  const run = (command, args, options) => {
+  const run = (command, args) => {
     commands.push([command, args]);
     if (command === 'gh' && args[0] === 'api')
       return JSON.stringify([[{ tag_name: 'v0.1.0-beta.7' }]]);
