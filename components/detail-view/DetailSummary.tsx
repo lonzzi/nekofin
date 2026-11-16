@@ -7,7 +7,6 @@ import type { MediaItem } from '@/services/media/types';
 import { useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 
-import { InfoCard, InfoCardPlaceholderRows } from '../ui/InfoCard';
 import { SkeletonText } from '../ui/Skeleton';
 import { detailViewStyles } from './common';
 import { DetailPlaybackControlsPlaceholder } from './DetailPlaybackControls';
@@ -165,23 +164,17 @@ export function DetailSummaryPlaceholder({
           }
           controls={<DetailPlaybackControlsPlaceholder />}
           overview={
-            <View style={detailViewStyles.overviewContainer}>
-              <View>
-                {(['100%', '94%', '64%'] as const).map((width) => (
-                  <SkeletonText key={width} width={width} textStyle={detailViewStyles.overview} />
-                ))}
+            mode === 'movie' ? (
+              <View style={detailViewStyles.overviewContainer}>
+                <View>
+                  {(['100%', '94%', '64%'] as const).map((width) => (
+                    <SkeletonText key={width} width={width} textStyle={detailViewStyles.overview} />
+                  ))}
+                </View>
               </View>
-            </View>
+            ) : null
           }
-        >
-          {mode !== 'episode' && !tablet ? (
-            <View style={detailViewStyles.infoBlock}>
-              <InfoCard>
-                <InfoCardPlaceholderRows />
-              </InfoCard>
-            </View>
-          ) : null}
-        </DetailSummaryLayout>
+        />
       </View>
     </View>
   );

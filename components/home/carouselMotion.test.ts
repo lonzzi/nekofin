@@ -6,6 +6,7 @@ import {
   getCarouselSnapDuration,
   getCarouselSnapTarget,
   getMountedCarouselIndexes,
+  isCarouselSlideReady,
 } from './carouselMotion';
 
 const presentation = (
@@ -64,6 +65,19 @@ describe('carousel image continuity', () => {
     });
     expect(presentation(1, 0, -1, 0, 200, true, 2).offset).toBe(-200);
     expect(presentation(1, 0, -1, 0, -200, true, 2).offset).toBe(200);
+  });
+
+  it('keeps the current image and title visible when a swipe targets a cold slide', () => {
+    const keys = { hero: 'next-hero', atmosphere: 'next-backdrop' };
+    const ready = isCarouselSlideReady(keys, { 'next-hero': true });
+    expect(ready).toBe(false);
+    expect(getCarouselPresentation(0, 0, 6, -1, 0, -400, true, 400, ready)).toMatchObject({
+      opacity: 1,
+      textOpacity: 1,
+      textOffset: 0,
+    });
+    expect(getCarouselPresentation(1, 0, 6, -1, 0, -400, true, 400, ready).opacity).toBe(0);
+    expect(isCarouselSlideReady(keys, { 'next-hero': true, 'next-backdrop': true })).toBe(true);
   });
 
   it('restores the current image and hides neighbors after a cancelled gesture or fade', () => {

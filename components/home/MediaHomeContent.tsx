@@ -46,16 +46,18 @@ export function MediaHomeContent({
     ? Math.round(Math.min(400, Math.max(220, window.width * 0.45), viewportHeight * 0.48))
     : phoneCarouselHeight;
   const isFocused = useIsFocused();
-  const { backgroundImageInfo, headerImage, headerOverlay } = useCarouselHeaderLayers({
-    items: carouselItems,
-    height: carouselHeight,
-    width: tablet ? window.width : undefined,
-    isFocused,
-    isLoading: isCarouselLoading,
-    showLogo: true,
-    getItemSource,
-    showServerSource,
-  });
+  const { backgroundImageInfo, backgroundLayers, headerImage, headerOverlay } =
+    useCarouselHeaderLayers({
+      items: carouselItems,
+      height: carouselHeight,
+      width: tablet ? window.width : undefined,
+      isFocused,
+      isLoading: isCarouselLoading,
+      showLogo: true,
+      getItemSource,
+      showServerSource,
+      withBackdrop: true,
+    });
 
   return (
     <HomeAtmosphereScrollView
@@ -67,8 +69,8 @@ export function MediaHomeContent({
       headerImage={headerImage}
       headerOverlay={headerOverlay}
       imageInfo={backgroundImageInfo}
+      atmosphereImageLayers={backgroundLayers}
       isDark={theme.isDark}
-      optimizeAtmosphereImageLoading
       refreshControl={
         onRefresh ? (
           <SafeAreaRefreshControl

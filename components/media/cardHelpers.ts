@@ -14,7 +14,7 @@ export type CardRoute =
     }
   | {
       pathname: '/series/[id]';
-      params: { id: string };
+      params: { id: string; episodeId?: string; seasonId?: string };
     };
 
 export function getCardWatchStatusSuffix(item: MediaItem): string {
@@ -99,9 +99,17 @@ export const getEpisodeCardRoute = (item: MediaItem): CardRoute | null => {
     };
   }
 
+  const seasonId = item.seasonId ?? (item.type === 'Episode' ? item.parentId : null) ?? undefined;
+  if (item.type === 'Episode' && item.seriesId) {
+    return {
+      pathname: '/series/[id]',
+      params: { id: item.seriesId, episodeId: item.id, seasonId },
+    };
+  }
+
   return {
     pathname: '/episode',
-    params: { episodeId: item.id, seasonId: item.seasonId ?? undefined },
+    params: { episodeId: item.id, seasonId },
   };
 };
 

@@ -24,12 +24,14 @@ export function useEpisodeSelection({
   seasons,
   episodes = EMPTY_EPISODES,
   nextUpItems = EMPTY_EPISODES,
+  initialEpisode,
   seasonId,
 }: {
   item: MediaItem;
   seasons: MediaItem[];
   episodes?: MediaItem[];
   nextUpItems?: MediaItem[];
+  initialEpisode?: MediaItem;
   seasonId?: string;
 }) {
   const adapter = useMediaAdapter();
@@ -43,12 +45,16 @@ export function useEpisodeSelection({
     staleTime: Infinity,
     gcTime: QUERY_CACHE_MAX_AGE_MS,
   });
-  // Explicit episode links open that episode; series pages prefer the last played or next-up item.
-  const preferredEpisode = item.type === 'Episode' ? item : (playback.data?.item ?? nextUpItems[0]);
+  const explicitEpisode = initialEpisode ?? (item.type === 'Episode' ? item : undefined);
+  const preferredEpisode = explicitEpisode ?? playback.data?.item ?? nextUpItems[0];
   const [choice, setChoice] = useState(() =>
-    getInitialEpisodeChoice(seasons, preferredEpisode, seasonId),
+    getInitialEpisodeChoice(
+      seasons,
+      preferredEpisode,
+      getEpisodeSeasonId(explicitEpisode, seasons) ?? seasonId,
+    ),
   );
-  const selection = useRef({ playback: playback.data, manual: false });
+  const selection = useRef({ playback: playback.data, manual: !!(explicitEpisode || seasonId) });
 
   useEffect(() => {
     if (!focused) return;
@@ -58,14 +64,14 @@ export function useEpisodeSelection({
       return;
     }
     // Refresh the automatic next-up choice without replacing a manual or local playback choice.
-    if (selection.current.manual || item.type !== 'Series' || playback.data) return;
+    if (selection.current.manual || playback.data) return;
     const refreshed = getInitialEpisodeChoice(seasons, preferredEpisode, seasonId);
     setChoice((previous) =>
       previous.seasonId === refreshed.seasonId && previous.episodeId === refreshed.episodeId
         ? previous
         : refreshed,
     );
-  }, [focused, item.type, playback.data, preferredEpisode, seasonId, seasons]);
+  }, [focused, playback.data, preferredEpisode, seasonId, seasons]);
 
   const episodeQuery = useQueryWithFocus({
     ...episodesBySeasonQueryOptions({ adapter, currentServer, seasonId: choice.seasonId }),
@@ -84,10 +90,13 @@ export function useEpisodeSelection({
     [playback.data?.item, preferredEpisode, ...episodes].find(
       (episode) => episode?.id === choice.episodeId,
     );
-  let selectedEpisode = getSelectedEpisodeOrFallback(
-    displayEpisodes,
-    displayEpisodes.length || episodeQuery.isPending ? knownEpisode : undefined,
-  );
+  let selectedEpisode =
+    knownEpisode && knownEpisode.id === explicitEpisode?.id
+      ? knownEpisode
+      : getSelectedEpisodeOrFallback(
+          displayEpisodes,
+          displayEpisodes.length || episodeQuery.isPending ? knownEpisode : undefined,
+        );
   if (
     playback.data &&
     selectedEpisode?.id === playback.data.item.id &&

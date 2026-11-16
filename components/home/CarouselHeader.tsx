@@ -1,6 +1,8 @@
 import { HOME_CAROUSEL_IMAGE_WIDTHS } from '@/components/home/homePerformanceConfig';
 import { ItemImage } from '@/components/ItemImage';
+import { getEpisodeCardRoute, getSeriesCardRoute } from '@/components/media/cardHelpers';
 import { getSourcedMediaKey, type GetMediaItemSource } from '@/components/media/mediaSource';
+import { RetryableImage } from '@/components/RetryableImage';
 import { ThemedText } from '@/components/ThemedText';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -24,7 +26,9 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
   Easing,
+  useAnimatedReaction,
   useAnimatedStyle,
+  useDerivedValue,
   useSharedValue,
   withTiming,
   type SharedValue,
@@ -38,6 +42,8 @@ import {
   getCarouselSnapDuration,
   getCarouselSnapTarget,
   getMountedCarouselIndexes,
+  isCarouselSlideReady,
+  type CarouselImageKeys,
 } from './carouselMotion';
 
 interface CarouselHeaderProps {
@@ -49,9 +55,11 @@ interface CarouselHeaderProps {
   showLogo?: boolean;
   getItemSource?: GetMediaItemSource;
   showServerSource?: boolean;
+  withBackdrop?: boolean;
 }
 
 type CarouselImageInfo = {
+  key: string;
   atmosphere?: {
     blurhash?: string;
     imageUrl?: string;
@@ -78,7 +86,7 @@ function getRelativeIndex(index: number, direction: number, itemCount: number) {
 
 type CarouselImageLayerProps = {
   imageInfo?: CarouselImageInfo;
-  onImageReady?: (imageUrl: string) => void;
+  onImageReady: () => void;
 };
 
 function CarouselImageLayer({ imageInfo, onImageReady }: CarouselImageLayerProps) {
@@ -99,8 +107,8 @@ function CarouselImageLayer({ imageInfo, onImageReady }: CarouselImageLayerProps
         priority="high"
         placeholderBlurhash={imageInfo.blurhash}
         recyclingKey={imageUrl}
-        onError={() => onImageReady?.(imageUrl)}
-        onDisplay={() => onImageReady?.(imageUrl)}
+        onError={onImageReady}
+        onDisplay={onImageReady}
       />
     );
   }
@@ -127,9 +135,10 @@ type CarouselMotionProps = {
   autoProgress: SharedValue<number>;
   drag: SharedValue<number>;
   dragging: SharedValue<boolean>;
+  dragReady: SharedValue<{ previous: boolean; next: boolean }>;
 };
 
-function useCarouselSlideStyles({
+function useCarouselSlidePresentation({
   index,
   count,
   width,
@@ -138,76 +147,107 @@ function useCarouselSlideStyles({
   autoProgress,
   drag,
   dragging,
+  dragReady,
 }: CarouselMotionProps) {
-  const frame = useAnimatedStyle(() => {
-    const state = getCarouselPresentation(
+  return useDerivedValue(() => {
+    const current = activeIndex.value;
+    const offset = drag.value;
+    return getCarouselPresentation(
       index,
-      activeIndex.value,
+      current,
       count,
       autoTarget.value,
       autoProgress.value,
-      drag.value,
+      offset,
       dragging.value,
       width,
+      offset < 0 ? dragReady.value.next : dragReady.value.previous,
     );
-    return {
-      opacity: state.opacity,
-      zIndex: state.order,
-      transform: [{ translateX: state.offset }],
-    };
   });
-  const image = useAnimatedStyle(() => {
-    const state = getCarouselPresentation(
-      index,
-      activeIndex.value,
-      count,
-      autoTarget.value,
-      autoProgress.value,
-      drag.value,
-      dragging.value,
-      width,
-    );
-    return { transform: [{ translateX: -state.offset }] };
-  });
-  const text = useAnimatedStyle(() => {
-    const state = getCarouselPresentation(
-      index,
-      activeIndex.value,
-      count,
-      autoTarget.value,
-      autoProgress.value,
-      drag.value,
-      dragging.value,
-      width,
-    );
-    return { opacity: state.textOpacity, transform: [{ translateX: state.textOffset }] };
-  });
-  return { frame, image, text };
+}
+
+type CarouselImageStatus = (key: string, ready: boolean) => void;
+
+function useCarouselImageReady(imageKey: string | undefined, setImageReady: CarouselImageStatus) {
+  useEffect(
+    () => () => {
+      if (imageKey) setImageReady(imageKey, false);
+    },
+    [imageKey, setImageReady],
+  );
+  return useCallback(() => {
+    if (imageKey) setImageReady(imageKey, true);
+  }, [imageKey, setImageReady]);
 }
 
 function CarouselSlide({
   imageInfo,
-  onImageReady,
-  onImageUnmount,
+  imageKey,
+  setImageReady,
   ...motion
 }: CarouselMotionProps & {
   imageInfo?: CarouselImageInfo;
-  onImageReady: (url: string) => void;
-  onImageUnmount: (url: string) => void;
+  imageKey?: string;
+  setImageReady: CarouselImageStatus;
 }) {
-  const animated = useCarouselSlideStyles(motion);
-  const imageUrl = imageInfo?.imageUrl;
-  useEffect(
-    () => () => {
-      if (imageUrl) onImageUnmount(imageUrl);
-    },
-    [imageUrl, onImageUnmount],
-  );
+  const presentation = useCarouselSlidePresentation(motion);
+  const frameStyle = useAnimatedStyle(() => {
+    const { opacity, order, offset } = presentation.value;
+    return { opacity, zIndex: order, transform: [{ translateX: offset }] };
+  });
+  const imageStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: -presentation.value.offset }],
+  }));
+  const markReady = useCarouselImageReady(imageKey, setImageReady);
   return (
-    <Animated.View pointerEvents="none" style={[styles.revealClip, animated.frame]}>
-      <Animated.View style={[styles.revealImage, animated.image]}>
-        <CarouselImageLayer imageInfo={imageInfo} onImageReady={onImageReady} />
+    <Animated.View pointerEvents="none" style={[styles.revealClip, frameStyle]}>
+      <Animated.View style={[styles.revealImage, imageStyle]}>
+        <CarouselImageLayer imageInfo={imageInfo} onImageReady={markReady} />
       </Animated.View>
+    </Animated.View>
+  );
+}
+
+function CarouselBackdropSlide({
+  imageInfo,
+  imageKey,
+  setImageReady,
+  ...motion
+}: CarouselMotionProps & {
+  imageInfo?: CarouselImageInfo['atmosphere'];
+  imageKey?: string;
+  setImageReady: CarouselImageStatus;
+}) {
+  const theme = useAppTheme();
+  const large = useLargeContentLayout();
+  const presentation = useCarouselSlidePresentation(motion);
+  const backdropStyle = useAnimatedStyle(() => {
+    const { opacity, offset, order, textOpacity } = presentation.value;
+    return { opacity: offset === 0 ? opacity : textOpacity, zIndex: order };
+  });
+  const markReady = useCarouselImageReady(imageKey, setImageReady);
+  const blurhash = imageInfo?.blurhash;
+  const placeholder = useMemo(() => (blurhash ? { blurhash } : undefined), [blurhash]);
+  return (
+    <Animated.View
+      style={[StyleSheet.absoluteFill, { backgroundColor: theme.colors.background }, backdropStyle]}
+    >
+      {imageInfo?.imageUrl || placeholder ? (
+        <RetryableImage
+          uri={imageInfo?.imageUrl}
+          style={StyleSheet.absoluteFill}
+          placeholder={placeholder}
+          contentFit="cover"
+          placeholderContentFit="cover"
+          blurRadius={60}
+          priority="low"
+          enforceEarlyResizing
+          allowDownscaling={!(Platform.OS === 'android' && large)}
+          cachePolicy="memory-disk"
+          onDisplay={markReady}
+          onError={markReady}
+        />
+      ) : null}
     </Animated.View>
   );
 }
@@ -222,9 +262,13 @@ function CarouselTextSlide({
   imageInfo?: CarouselImageInfo;
   showLogo: boolean;
 }) {
-  const animated = useCarouselSlideStyles(motion);
+  const presentation = useCarouselSlidePresentation(motion);
+  const textStyle = useAnimatedStyle(() => {
+    const { textOpacity, textOffset } = presentation.value;
+    return { opacity: textOpacity, transform: [{ translateX: textOffset }] };
+  });
   return (
-    <Animated.View pointerEvents="none" style={[styles.overlayFrame, animated.text]}>
+    <Animated.View pointerEvents="none" style={[styles.overlayFrame, textStyle]}>
       <CarouselOverlay
         item={item}
         imageInfo={imageInfo}
@@ -345,18 +389,11 @@ export function useCarouselHeaderLayers({
   showLogo = false,
   getItemSource,
   showServerSource = true,
+  withBackdrop = false,
 }: CarouselHeaderProps) {
   const { t: tr } = useTranslation();
   const [carouselIndex, setCarouselIndex] = useState(0);
-  const [autoTargetIndex, setAutoTargetIndex] = useState<number | null>(null);
-  const [pendingAutoAdvance, setPendingAutoAdvance] = useState<{
-    fromIndex: number;
-    targetIndex: number;
-  } | null>(null);
-  const currentIndexRef = useRef(0);
   const prefetchedImageUrlsRef = useRef(new Set<string>());
-  const readyImageUrlsRef = useRef(new Set<string>());
-  const [readyImageUrls, setReadyImageUrls] = useState<ReadonlySet<string>>(() => new Set());
   const router = useTracedRouter('carousel');
   const queryClient = useQueryClient();
   const currentAdapter = useMediaAdapter();
@@ -365,9 +402,12 @@ export function useCarouselHeaderLayers({
   const { width: viewportWidth } = useContentDimensions();
   const dragX = useSharedValue(0);
   const dragStartX = useSharedValue(0);
+  const dragReady = useSharedValue({ previous: false, next: false });
   const panActive = useSharedValue(false);
   const autoProgress = useSharedValue(0);
   const autoTargetValue = useSharedValue(-1);
+  const pendingTarget = useSharedValue(-1);
+  const readyImages = useSharedValue<Record<string, boolean>>({});
   const activeIndexValue = useSharedValue(0);
   const tapStartIndexValue = useSharedValue(0);
   const isGestureAnimating = useSharedValue(false);
@@ -380,20 +420,8 @@ export function useCarouselHeaderLayers({
   const canReveal = items.length > 1;
   const cardWidth = Math.max(width ?? viewportWidth, 1);
 
-  const itemIdentity = useMemo(
-    () =>
-      items
-        .map((item, index) =>
-          getItemSource
-            ? getSourcedMediaKey(item, getItemSource(item))
-            : getCarouselItemKey(item, index),
-        )
-        .join('|'),
-    [items, getItemSource],
-  );
-
   const carouselImageInfos = useMemo(() => {
-    return items.map((item) => {
+    return items.map((item, index) => {
       const source = getItemSource?.(item);
       const mediaAdapter = source?.adapter ?? currentAdapter;
       const imageInfo = mediaAdapter.getImageInfo({
@@ -424,6 +452,7 @@ export function useCarouselHeaderLayers({
             })
           : null;
       return {
+        key: getItemSource ? getSourcedMediaKey(item, source) : getCarouselItemKey(item, index),
         atmosphere: {
           blurhash: atmosphereImageInfo.blurhash ?? imageInfo.blurhash,
           imageUrl: atmosphereImageInfo.url || imageInfo.url,
@@ -435,6 +464,18 @@ export function useCarouselHeaderLayers({
       };
     });
   }, [items, currentAdapter, getItemSource, showLogo, showServerSource]);
+  const itemIdentity = carouselImageInfos.map(({ key }) => key).join('|');
+  const imageKeys = useMemo<CarouselImageKeys[]>(
+    () =>
+      carouselImageInfos.map(({ key, imageUrl, atmosphere }) => ({
+        hero: imageUrl ? JSON.stringify([key, 'hero', imageUrl]) : undefined,
+        atmosphere:
+          withBackdrop && atmosphere.imageUrl
+            ? JSON.stringify([key, 'atmosphere', atmosphere.imageUrl])
+            : undefined,
+      })),
+    [carouselImageInfos, withBackdrop],
+  );
 
   const handleCarouselItemPress = useCallback(
     (item: MediaItem) => {
@@ -449,29 +490,11 @@ export function useCarouselHeaderLayers({
       });
       if (source && currentServer?.id !== source.server.id) setCurrentServer(source.server);
 
-      switch (item.type) {
-        case 'Movie':
-          router.push({ pathname: '/movie/[id]', params: { id: item.id } });
-          return;
-        case 'Series':
-          router.push({ pathname: '/series/[id]', params: { id: item.id } });
-          return;
-        case 'Season':
-          router.push({
-            pathname: '/episode',
-            params: { seasonId: item.id },
-          });
-          return;
-        case 'Episode':
-          router.push({
-            pathname: '/episode',
-            params: { episodeId: item.id, seasonId: item.seasonId },
-          });
-          return;
-        default:
-          if (item.seriesId) {
-            router.push({ pathname: '/series/[id]', params: { id: item.seriesId } });
-          }
+      const route = item.type === 'Episode' ? getEpisodeCardRoute(item) : getSeriesCardRoute(item);
+      if (route) {
+        router.push(route);
+      } else if (item.seriesId) {
+        router.push({ pathname: '/series/[id]', params: { id: item.seriesId } });
       }
     },
     [router, getItemSource, currentServer, currentAdapter, queryClient, setCurrentServer],
@@ -485,116 +508,47 @@ export function useCarouselHeaderLayers({
     [handleCarouselItemPress, items],
   );
 
-  const markCarouselImageReady = useCallback((imageUrl: string) => {
-    if (readyImageUrlsRef.current.has(imageUrl)) return;
-    const nextReadyUrls = new Set(readyImageUrlsRef.current);
-    nextReadyUrls.add(imageUrl);
-    readyImageUrlsRef.current = nextReadyUrls;
-    setReadyImageUrls(nextReadyUrls);
-  }, []);
+  const setImageReady = useCallback<CarouselImageStatus>(
+    (key, ready) => {
+      scheduleOnUI(() => {
+        'worklet';
+        const images = { ...readyImages.value };
+        if (ready) images[key] = true;
+        else delete images[key];
+        readyImages.value = images;
+      });
+    },
+    [readyImages],
+  );
 
-  const markCarouselImageUnmounted = useCallback((imageUrl: string) => {
-    if (!readyImageUrlsRef.current.has(imageUrl)) return;
-    const next = new Set(readyImageUrlsRef.current);
-    next.delete(imageUrl);
-    readyImageUrlsRef.current = next;
-    setReadyImageUrls(next);
-  }, []);
-
-  // UI worklets commit the visual state atomically. A delayed React update must
-  // never reset the offset or index of a newer gesture.
-  const syncCarouselIndex = useCallback((nextIndex: number) => {
-    currentIndexRef.current = nextIndex;
-    setCarouselIndex(nextIndex);
-    setAutoTargetIndex(null);
-  }, []);
-
-  const clearAutoTarget = useCallback(() => {
-    setAutoTargetIndex(null);
-  }, []);
-
-  const startAutoAdvance = useCallback(() => {
-    if (!isFocused || !canReveal || !items.length) return;
-    const requestedIndex = currentIndexRef.current;
-    const nextIndex = getRelativeIndex(requestedIndex, 1, items.length);
-    const nextImageUrl = carouselImageInfos[nextIndex]?.imageUrl;
-    const isNextImageReady = !nextImageUrl || readyImageUrlsRef.current.has(nextImageUrl);
-
-    if (!isNextImageReady) {
-      setPendingAutoAdvance({ fromIndex: requestedIndex, targetIndex: nextIndex });
-      return;
-    }
-
-    setPendingAutoAdvance(null);
-    setAutoTargetIndex(nextIndex);
-  }, [canReveal, carouselImageInfos, isFocused, items.length]);
-
-  useEffect(() => {
-    if (!pendingAutoAdvance) return;
-
-    const targetImageUrl = carouselImageInfos[pendingAutoAdvance.targetIndex]?.imageUrl;
-    if (targetImageUrl && !readyImageUrls.has(targetImageUrl)) return;
-
-    if (!isFocused || currentIndexRef.current !== pendingAutoAdvance.fromIndex) {
-      setPendingAutoAdvance(null);
-      return;
-    }
-
-    if (
-      isGestureAnimating.value ||
-      autoTargetIndex != null ||
-      Math.abs(dragX.value) > 1 ||
-      autoProgress.value > 0
-    )
-      return;
-
-    setAutoTargetIndex(pendingAutoAdvance.targetIndex);
-    setPendingAutoAdvance(null);
-  }, [
-    autoProgress,
-    autoTargetIndex,
-    carouselImageInfos,
-    dragX,
-    isFocused,
-    isGestureAnimating,
-    pendingAutoAdvance,
-    readyImageUrls,
-  ]);
-
-  useEffect(() => {
-    if (autoTargetIndex == null) return;
-
-    scheduleOnUI(() => {
-      'worklet';
-      // Image readiness can reach React just as a drag begins.
-      if (isGestureAnimating.value) return;
-      cancelAnimation(autoProgress);
+  // One fade drives the artwork, caption, and backdrop after both images settle.
+  useAnimatedReaction(
+    () => {
+      const target = pendingTarget.value;
+      return isFocused &&
+        !isGestureAnimating.value &&
+        isCarouselSlideReady(imageKeys[target], readyImages.value)
+        ? target
+        : -1;
+    },
+    (target) => {
+      if (target < 0) return;
+      pendingTarget.value = -1;
       autoProgress.value = 0;
-      autoTargetValue.value = autoTargetIndex;
+      autoTargetValue.value = target;
       autoProgress.value = withTiming(
         1,
-        { duration: CAROUSEL_FADE_MS, easing: Easing.inOut(Easing.cubic) },
+        { duration: CAROUSEL_FADE_MS, easing: Easing.inOut(Easing.sin) },
         (finished) => {
           if (!finished) return;
-          activeIndexValue.value = autoTargetIndex;
+          activeIndexValue.value = target;
           autoTargetValue.value = -1;
           autoProgress.value = 0;
-          scheduleOnRN(syncCarouselIndex, autoTargetIndex);
+          scheduleOnRN(setCarouselIndex, target);
         },
       );
-    });
-
-    return () => {
-      cancelAnimation(autoProgress);
-    };
-  }, [
-    activeIndexValue,
-    autoProgress,
-    autoTargetIndex,
-    autoTargetValue,
-    isGestureAnimating,
-    syncCarouselIndex,
-  ]);
+    },
+  );
 
   useEffect(() => {
     if (isFocused) return;
@@ -603,11 +557,10 @@ export function useCarouselHeaderLayers({
     cancelAnimation(dragX);
     autoProgress.value = 0;
     autoTargetValue.value = -1;
+    pendingTarget.value = -1;
     dragX.value = 0;
     isGestureAnimating.value = false;
-    setAutoTargetIndex(null);
-    setPendingAutoAdvance(null);
-  }, [autoProgress, autoTargetValue, dragX, isFocused, isGestureAnimating]);
+  }, [autoProgress, autoTargetValue, dragX, isFocused, isGestureAnimating, pendingTarget]);
 
   const panGesture = useMemo(() => {
     const settle = (target: number) => {
@@ -622,7 +575,7 @@ export function useCarouselHeaderLayers({
         activeIndexValue.value = nextIndex;
         dragX.value = 0;
         isGestureAnimating.value = false;
-        if (target !== 0) scheduleOnRN(syncCarouselIndex, nextIndex);
+        if (target !== 0) scheduleOnRN(setCarouselIndex, nextIndex);
       };
       const duration = getCarouselSnapDuration(dragX.value, target, cardWidth);
       // Repeated swipes can already reveal the entire destination. Commit now
@@ -646,10 +599,22 @@ export function useCarouselHeaderLayers({
         cancelAnimation(autoProgress);
         autoProgress.value = 0;
         autoTargetValue.value = -1;
-        scheduleOnRN(clearAutoTarget);
-        scheduleOnRN(setPendingAutoAdvance, null);
+        pendingTarget.value = -1;
         cancelAnimation(dragX);
         dragStartX.value = dragX.value;
+        const current = activeIndexValue.value;
+        // Keep a cold destination hidden throughout this gesture, even when
+        // its image arrives midway through the swipe.
+        dragReady.value = {
+          previous: isCarouselSlideReady(
+            imageKeys[getRelativeIndex(current, -1, itemCount)],
+            readyImages.value,
+          ),
+          next: isCarouselSlideReady(
+            imageKeys[getRelativeIndex(current, 1, itemCount)],
+            readyImages.value,
+          ),
+        };
       })
       .onUpdate((event) => {
         dragX.value = getCarouselDragOffset(dragStartX.value, event.translationX, cardWidth);
@@ -657,7 +622,18 @@ export function useCarouselHeaderLayers({
       .onEnd((event) => {
         // A quick flick may end before its last move is delivered as onUpdate.
         dragX.value = getCarouselDragOffset(dragStartX.value, event.translationX, cardWidth);
-        settle(getCarouselSnapTarget(dragX.value, event.velocityX, cardWidth));
+        const target = getCarouselSnapTarget(dragX.value, event.velocityX, cardWidth);
+        const canRevealTarget = target < 0 ? dragReady.value.next : dragReady.value.previous;
+        const next = getRelativeIndex(activeIndexValue.value, target < 0 ? 1 : -1, itemCount);
+        if (target !== 0 && !canRevealTarget) {
+          // The destination has stayed hidden during the drag. Leave the current
+          // image in place and fade when the requested images can be displayed.
+          dragX.value = 0;
+          isGestureAnimating.value = false;
+          pendingTarget.value = next;
+        } else {
+          settle(target);
+        }
       })
       .onFinalize((_event, success) => {
         if (!success && panActive.value) settle(0);
@@ -669,13 +645,15 @@ export function useCarouselHeaderLayers({
     autoTargetValue,
     canReveal,
     cardWidth,
-    clearAutoTarget,
+    dragReady,
     dragStartX,
     dragX,
     isGestureAnimating,
+    imageKeys,
     itemCount,
     panActive,
-    syncCarouselIndex,
+    pendingTarget,
+    readyImages,
   ]);
 
   const tapGesture = useMemo(
@@ -692,8 +670,7 @@ export function useCarouselHeaderLayers({
             cancelAnimation(autoProgress);
             autoProgress.value = 0;
             autoTargetValue.value = -1;
-            scheduleOnRN(clearAutoTarget);
-            scheduleOnRN(setPendingAutoAdvance, null);
+            pendingTarget.value = -1;
             scheduleOnRN(handleCarouselItemPressAtIndex, tapStartIndexValue.value);
           }
         }),
@@ -701,8 +678,8 @@ export function useCarouselHeaderLayers({
       activeIndexValue,
       autoProgress,
       autoTargetValue,
-      clearAutoTarget,
       handleCarouselItemPressAtIndex,
+      pendingTarget,
       tapStartIndexValue,
     ],
   );
@@ -713,41 +690,46 @@ export function useCarouselHeaderLayers({
   );
 
   useEffect(() => {
-    currentIndexRef.current = 0;
     prefetchedImageUrlsRef.current = new Set();
-    // Reordered lists can retain keyed, already-displayed slides. Their readiness
-    // belongs to the mounted image, and is cleared by that slide's cleanup.
+    cancelAnimation(autoProgress);
+    cancelAnimation(dragX);
     activeIndexValue.value = 0;
     autoProgress.value = 0;
     autoTargetValue.value = -1;
+    pendingTarget.value = -1;
     dragX.value = 0;
     isGestureAnimating.value = false;
-    setAutoTargetIndex(null);
-    setPendingAutoAdvance(null);
     setCarouselIndex(0);
-  }, [activeIndexValue, autoProgress, autoTargetValue, dragX, isGestureAnimating, itemIdentity]);
+  }, [
+    activeIndexValue,
+    autoProgress,
+    autoTargetValue,
+    dragX,
+    isGestureAnimating,
+    itemIdentity,
+    pendingTarget,
+  ]);
 
   useEffect(() => {
     if (!isFocused || !canReveal) return;
     const timer = setInterval(() => {
-      if (
-        isGestureAnimating.value ||
-        autoTargetIndex != null ||
-        Math.abs(dragX.value) > 1 ||
-        autoProgress.value > 0
-      )
-        return;
-      startAutoAdvance();
+      scheduleOnUI(() => {
+        'worklet';
+        if (isGestureAnimating.value || autoTargetValue.value >= 0 || pendingTarget.value >= 0)
+          return;
+        pendingTarget.value = getRelativeIndex(activeIndexValue.value, 1, itemCount);
+      });
     }, CAROUSEL_AUTO_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [
-    autoProgress,
-    autoTargetIndex,
+    activeIndexValue,
+    autoTargetValue,
     canReveal,
-    dragX,
+    carouselIndex,
     isFocused,
     isGestureAnimating,
-    startAutoAdvance,
+    itemCount,
+    pendingTarget,
   ]);
 
   useEffect(() => {
@@ -785,11 +767,9 @@ export function useCarouselHeaderLayers({
     autoProgress,
     drag: dragX,
     dragging: isGestureAnimating,
+    dragReady,
   };
-  const slideKey = (index: number) =>
-    getItemSource
-      ? getSourcedMediaKey(items[index], getItemSource(items[index]))
-      : getCarouselItemKey(items[index], index);
+  const slideKey = (index: number) => carouselImageInfos[index].key;
   const showSkeleton = isLoading && !hasImages;
 
   const headerImage = (
@@ -821,8 +801,8 @@ export function useCarouselHeaderLayers({
                 {...motion}
                 index={index}
                 imageInfo={carouselImageInfos[index]}
-                onImageReady={markCarouselImageReady}
-                onImageUnmount={markCarouselImageUnmounted}
+                imageKey={imageKeys[index].hero}
+                setImageReady={setImageReady}
               />
             ))}
 
@@ -860,7 +840,20 @@ export function useCarouselHeaderLayers({
     ) : null;
 
   return {
-    backgroundImageInfo: carouselImageInfos[autoTargetIndex ?? carouselIndex]?.atmosphere,
+    backgroundImageInfo: carouselImageInfos[carouselIndex]?.atmosphere,
+    backgroundLayers:
+      withBackdrop && hasImages
+        ? mountedIndexes.map((index) => (
+            <CarouselBackdropSlide
+              key={slideKey(index)}
+              {...motion}
+              index={index}
+              imageInfo={carouselImageInfos[index].atmosphere}
+              imageKey={imageKeys[index].atmosphere}
+              setImageReady={setImageReady}
+            />
+          ))
+        : undefined,
     headerImage,
     headerOverlay,
   };

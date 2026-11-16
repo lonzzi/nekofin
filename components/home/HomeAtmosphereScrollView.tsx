@@ -15,6 +15,7 @@ import {
   type ComponentProps,
   type PropsWithChildren,
   type ReactElement,
+  type ReactNode,
 } from 'react';
 import {
   Easing,
@@ -43,7 +44,7 @@ type HomeAtmosphereScrollViewProps = PropsWithChildren<{
   headerOverlay?: ReactElement | null;
   imageInfo?: HomeAtmosphereImageInfo;
   isDark: boolean;
-  optimizeAtmosphereImageLoading?: boolean;
+  atmosphereImageLayers?: ReactNode;
   atmosphereImageTransitionDuration?: number;
   refreshControl?: ComponentProps<typeof ParallaxScrollView>['refreshControl'];
   style?: ComponentProps<typeof ParallaxScrollView>['style'];
@@ -60,7 +61,7 @@ export function HomeAtmosphereScrollView({
   headerOverlay,
   imageInfo,
   isDark,
-  optimizeAtmosphereImageLoading = false,
+  atmosphereImageLayers,
   atmosphereImageTransitionDuration,
   refreshControl,
   style,
@@ -159,7 +160,7 @@ export function HomeAtmosphereScrollView({
           blurhash={imageInfo?.blurhash}
           imageUrl={imageInfo?.imageUrl}
           isDark={isDark}
-          optimizeImageLoading={optimizeAtmosphereImageLoading}
+          imageLayers={atmosphereImageLayers}
           imageTransitionDuration={atmosphereImageTransitionDuration}
         />
       </View>

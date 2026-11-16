@@ -1,5 +1,9 @@
+import { useMediaAdapter } from '@/hooks/useMediaAdapter';
+import { useQueryWithFocus } from '@/hooks/useQueryWithFocus';
+import { useMediaServers } from '@/lib/contexts/MediaServerContext';
 import { t as tr, useTranslation } from '@/lib/i18n';
 import { layout, useAppTheme } from '@/lib/theme';
+import { mediaSourcesQueryOptions } from '@/services/media/queryOptions';
 import { MediaSource } from '@/services/media/types';
 import { Button, FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -30,22 +34,22 @@ export const SourceMediaInfoCard = ({ source }: { source: MediaSource }) => (
   </View>
 );
 
-export const EpisodeMediaInfoList = ({
-  mediaSources,
-  isPending = false,
-  isError = false,
-  onRetry,
-}: {
-  mediaSources: MediaSource[];
-  isPending?: boolean;
-  isError?: boolean;
-  onRetry?: () => void;
-}) => {
+export function EpisodeMediaInfoList({ episodeId }: { episodeId: string }) {
+  const adapter = useMediaAdapter();
+  const { currentServer } = useMediaServers();
+  const mediaSources = useQueryWithFocus(
+    mediaSourcesQueryOptions({ adapter, currentServer, itemId: episodeId }),
+  );
   const { t: tr } = useTranslation();
   const theme = useAppTheme();
   const textColor = theme.colors.text;
 
-  const displayState = getMediaInfoDisplayState({ mediaSources, isPending, isError });
+  const sources = mediaSources.data?.mediaSources ?? [];
+  const displayState = getMediaInfoDisplayState({
+    mediaSources: sources,
+    isPending: mediaSources.isPending,
+    isError: mediaSources.isError,
+  });
 
   return (
     <View style={detailViewStyles.sectionBlock}>
@@ -56,7 +60,7 @@ export const EpisodeMediaInfoList = ({
         <FlatList
           horizontal
           removeClippedSubviews={false}
-          data={mediaSources}
+          data={sources}
           style={[detailViewStyles.edgeToEdge, styles.mediaInfoList]}
           renderItem={({ item }) => <SourceMediaInfoCard source={item} />}
           keyExtractor={(item, index) => item.id || `source-${index}`}
@@ -99,14 +103,18 @@ export const EpisodeMediaInfoList = ({
                 : tr('media.episodeTracksUnavailable')
             }
           />
-          {displayState === 'error' && onRetry ? (
-            <Button title={tr('common.retry')} onPress={onRetry} color={theme.colors.tint} />
+          {displayState === 'error' ? (
+            <Button
+              title={tr('common.retry')}
+              onPress={() => void mediaSources.refetch()}
+              color={theme.colors.tint}
+            />
           ) : null}
         </View>
       )}
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   mediaInfoList: {

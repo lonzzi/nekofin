@@ -125,6 +125,14 @@ describe('cardHelpers', () => {
       params: { episodeId: 'ep-1', seasonId: 'season-1' },
     });
     expect(getEpisodeCardRoute(item({ type: 'Episode', id: '' }))).toBeNull();
+    expect(
+      getEpisodeCardRoute(
+        item({ type: 'Episode', id: 'ep-1', seriesId: 'series-1', parentId: 'season-1' }),
+      ),
+    ).toEqual({
+      pathname: '/series/[id]',
+      params: { id: 'series-1', episodeId: 'ep-1', seasonId: 'season-1' },
+    });
   });
 
   it('builds routes for series cards', () => {

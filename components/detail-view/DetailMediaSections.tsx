@@ -7,7 +7,7 @@ import { memo } from 'react';
 import { FlatList, Text, View, type ListRenderItemInfo } from 'react-native';
 
 import { SeriesCard } from '../media/Card';
-import { detailViewStyles } from './common';
+import { detailViewStyles, ItemOverview } from './common';
 import { PersonItem } from './PersonItem';
 
 function renderPerson({ item }: ListRenderItemInfo<MediaPerson>) {
@@ -24,6 +24,24 @@ function renderSimilarItem({ item }: ListRenderItemInfo<MediaItem>) {
 
 function getMediaItemKey(item: MediaItem) {
   return item.id ?? `${item.type ?? 'media'}-${item.name ?? 'untitled'}`;
+}
+
+export function EpisodeOverviewSection({ episode }: { episode?: MediaItem }) {
+  const { t: tr } = useTranslation();
+  const theme = useAppTheme();
+  if (!episode) return null;
+
+  return (
+    <View style={detailViewStyles.sectionBlock}>
+      <Text
+        accessibilityRole="header"
+        style={[detailViewStyles.sectionTitle, { color: theme.colors.text }]}
+      >
+        {tr('media.overview')}
+      </Text>
+      <ItemOverview item={episode} collapsedLines={4} showEmptyPlaceholder />
+    </View>
+  );
 }
 
 export const PeopleSection = memo(function PeopleSection({ items }: { items: MediaPerson[] }) {

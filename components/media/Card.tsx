@@ -207,7 +207,7 @@ export const EpisodeCard = React.memo(function EpisodeCard({
         server: actionServer ?? currentServer,
         adapter: mediaAdapter,
         item,
-        targetItemId: route.pathname === '/episode' ? route.params.episodeId : route.params.id,
+        targetItemId: item.id,
       });
       if (actionServer && actionServer.id !== currentServer?.id) setCurrentServer(actionServer);
       router.push(route);
