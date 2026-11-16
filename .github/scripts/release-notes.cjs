@@ -4,6 +4,7 @@ const path = require('node:path');
 const { lt, rcompare } = require('semver');
 const { parseReleaseTag } = require('./release-metadata.cjs');
 const { createClient, withoutMirrorNotes } = require('./cnb-release.cjs');
+const { generateBilingualEntries } = require('./release-notes-openrouter.cjs');
 
 const START = '<!-- nekofin:changelog:start -->';
 const END = '<!-- nekofin:changelog:end -->';
@@ -46,6 +47,8 @@ function changeFromCommit(sha, subject, body = '') {
   const en = /^Release-Note-EN:\s*(.+)$/im.exec(body)?.[1]?.trim();
   return {
     sha,
+    subject,
+    body,
     title,
     group: ['feat', 'fix', 'perf'].includes(type) ? type : 'other',
     url: `https://github.com/${REPOSITORY}/${pull ? `pull/${pull}` : `commit/${sha}`}`,
@@ -142,7 +145,7 @@ async function generateNotes(
   filename,
   {
     run = execFileSync,
-    python = process.env.RELEASE_NOTES_PYTHON || 'python3',
+    generateEntries = generateBilingualEntries,
     publish = false,
     env = process.env,
     isAncestor = (candidate) =>
@@ -177,12 +180,43 @@ async function generateNotes(
     .filter(Boolean);
   const pending = changes.filter((change) => !change.zh || !change.en);
   if (pending.length) {
-    const translated = JSON.parse(
-      run(python, [path.join(__dirname, 'translate-release-notes.py')], {
-        encoding: 'utf8',
-        input: JSON.stringify(pending),
-        maxBuffer: 4_000_000,
-      }),
+    const readGit = (args) => run('git', args, { encoding: 'utf8', maxBuffer: 8_000_000 });
+    const translated = await generateEntries(
+      {
+        tag,
+        previous,
+        project_context: readGit(['show', `refs/tags/${tag}:README.md`]).slice(0, 2_500),
+        commits: pending.map((change) => ({
+          sha: change.sha,
+          subject: change.subject,
+          body: change.body.slice(0, 2_000),
+          changed_files: readGit([
+            'diff-tree',
+            '--root',
+            '--no-commit-id',
+            '--name-only',
+            '-r',
+            change.sha,
+          ])
+            .trim()
+            .split('\n')
+            .filter(Boolean)
+            .slice(0, 80),
+          diff_excerpt: readGit([
+            'show',
+            '--format=',
+            '--no-ext-diff',
+            '--no-color',
+            '--unified=2',
+            change.sha,
+            '--',
+            '.',
+            ':(exclude)*.test.*',
+            ':(exclude)bun.lock',
+          ]).slice(0, 4_000),
+        })),
+      },
+      { apiKey: env.OPENROUTER_API_KEY },
     );
     if (!Array.isArray(translated) || translated.length !== pending.length)
       throw new Error('Incomplete changelog translation');

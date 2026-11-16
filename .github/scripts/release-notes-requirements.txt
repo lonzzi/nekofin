@@ -1,3 +1,0 @@
-transformers==5.22.1
-sentencepiece==0.2.2
-sacremoses==0.2.0

@@ -50,7 +50,13 @@ tag 是发布版本号的来源。工作流会在计算运行时和构建两个�
 - `nekofin-v0.2.0-beta.1-ios-source.json`：从实际 IPA 提取的侧载源元数据。
 - `SHA256SUMS`
 
-更新说明按当前 tag 与前一个已发布、且属于同一提交历史的版本 tag 之间的提交自动生成，包含中文和英文，按功能、修复、性能与其他改进分组。CI 使用固定版本的 Helsinki-NLP OPUS 模型在 runner 本地翻译，无需额外 AI API Key；模型来源和许可见 `.github/scripts/translate-release-notes.py`。需要精确措辞时，可在提交正文中添加 `Release-Note-ZH: 中文条目` 和 `Release-Note-EN: English entry`，生成时优先采用。翻译或校验失败会阻止发布说明写入。
+更新说明按当前 tag 与前一个已发布、且属于同一提交历史的版本 tag 之间的提交自动生成，包含中文和英文，按功能、修复、性能与其他改进分组。日志生成与 Android / iOS 构建在版本校验后并行运行；发布 job 等待三者成功，再读取日志产物，不重复生成。
+
+CI 通过 OpenRouter 生成缺失的双语条目，需要 Actions secret `OPENROUTER_API_KEY`。程序读取目标 tag 的 README、提交正文、修改文件和有长度限制的代码差异摘要，使用简短的双语编辑提示，每批最多 12 条，无需维护术语表。
+
+生成前查询实时模型目录，优先使用 `dots-studio/dots-3-note-preview:free`。如果 Dots 下线、价格变化、调用失败或结果未通过校验，当前批次和后续批次改用 `openrouter/free`，由 OpenRouter 从当时可用的免费模型中选择。请求将输入、输出和按次计费的价格上限设为零。每批最多请求三次，限流、服务端和网络错误可重试。鉴权、账户或计费异常会立即停止。只有所有批次都通过双语、完整性和顺序校验后，才会写入发布说明。
+
+需要精确措辞时，仍可在提交正文中添加 `Release-Note-ZH: 中文条目` 和 `Release-Note-EN: English entry`，生成时优先采用；已有语言条目会保留。可在本地通过环境变量提供 `OPENROUTER_API_KEY`，运行 `node .github/scripts/release-notes.cjs v0.2.0-beta.1 /tmp/nekofin-notes.md` 仅生成预览；只有显式传入 `--publish` 才会更新公开版本。API 故障可重跑失败的日志生成任务，复用已完成的构建产物。
 
 已公开版本可运行 **Update bilingual release notes**，填写已有 tag，补齐双语说明并刷新两处侧载源；安装包和 tag 不会被重建或替换。生成区以注释标记，重复运行保留区外的人工说明和已验证的 CNB 下载链接。
 
@@ -133,7 +139,7 @@ OTA 工作流同样会先把构建工作区版本同步到目标安装包的 tag
 
 ## 仓库配置与检查
 
-沿用现有仓库 Secrets：`EXPO_TOKEN`（Android EAS 本地构建）和 `EXPO_PUBLIC_DANDANPLAY_API_URL`。创建 Release 使用 GitHub 自动提供的 `GITHUB_TOKEN`，只有发布 job 需要 `contents: write`，无需另配 PAT。
+沿用现有仓库 Secrets：`EXPO_TOKEN`（Android EAS 本地构建）和 `EXPO_PUBLIC_DANDANPLAY_API_URL`。双语日志另需 `OPENROUTER_API_KEY`，仅提供给日志生成步骤。创建 Release 使用 GitHub 自动提供的 `GITHUB_TOKEN`，只有发布 job 需要 `contents: write`，无需另配 PAT。
 
 热更新需要 Actions variable `NEKOFIN_OTA_URL`（与 `config/updates.json` 中的接口地址一致）和 secret `OTA_SIGNING_PRIVATE_KEY`。私钥必须与公开证书 `updates/server/ota-certificate.crt` 匹配，不能提交私钥。更换证书或更新接口地址后需要重新构建安装包。
 
