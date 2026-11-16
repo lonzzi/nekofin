@@ -110,6 +110,12 @@ jobs:
           echo "Disk after cleanup:"
           df -h
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - name: Install Android NDK
         shell: bash
         run: |
