@@ -21,6 +21,7 @@ import { toast } from '@/lib/toast';
 import { detailArtworkQueryOptions, getDetailArtwork } from '@/services/media/detailArtwork';
 import { mediaQueryKeys } from '@/services/media/queryKeys';
 import { itemDetailQueryOptions } from '@/services/media/queryOptions';
+import type { MediaItem } from '@/services/media/types';
 import { useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { openBrowserAsync } from 'expo-web-browser';
@@ -39,7 +40,6 @@ import {
   type DetailToolbarOverrides,
 } from './detailToolbarState';
 import { DetailViewProvider, useDetailView } from './DetailViewContext';
-import { EpisodeModeContent } from './episode';
 import { MovieModeContent } from './movie';
 import { SeriesModeContent } from './series';
 
@@ -47,10 +47,19 @@ export type DetailViewProps = {
   itemId: string;
   mode: 'series' | 'movie' | 'episode';
   query: UseQueryResult<DetailBundle, Error>;
+  episodeId?: string;
+  initialEpisode?: MediaItem;
   seasonId?: string;
 };
 
-function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
+function DetailViewContent({
+  itemId,
+  mode,
+  query,
+  episodeId,
+  initialEpisode,
+  seasonId,
+}: DetailViewProps) {
   const { t: tr } = useTranslation();
   const { currentServer } = useMediaServers();
   const queryClient = useQueryClient();
@@ -58,7 +67,9 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const backgroundColor = theme.colors.background;
   const textColor = theme.colors.text;
   const { setItem, selectedItem } = useDetailView();
-  const { data: previewArtwork } = useQuery(detailArtworkQueryOptions(currentServer, itemId));
+  const { data: previewArtwork } = useQuery(
+    detailArtworkQueryOptions(currentServer, episodeId ?? initialEpisode?.id ?? itemId),
+  );
 
   const [toolbarOverrides, setToolbarOverrides] = useState<DetailToolbarOverrides>({});
   const [pendingFavoriteItemIds, setPendingFavoriteItemIds] = useState<ReadonlySet<string>>(
@@ -77,6 +88,15 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   const detailLogoWidth = Math.min(windowWidth * 0.72, 300);
 
   const mediaAdapter = useMediaAdapter();
+  const linkedEpisode = useQuery(
+    itemDetailQueryOptions({ adapter: mediaAdapter, currentServer, itemId: episodeId }),
+  );
+  const requestedEpisode = initialEpisode ?? linkedEpisode.data;
+  const episodeToSelect =
+    requestedEpisode?.type === 'Episode' &&
+    (mode === 'episode' || !requestedEpisode.seriesId || requestedEpisode.seriesId === itemId)
+      ? requestedEpisode
+      : undefined;
 
   const item = bundle?.item;
   const people = useMemo(() => (item?.people ?? []).slice(0, 20), [item?.people]);
@@ -291,41 +311,40 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
   );
 
   const renderModeContent = () => {
-    if (!item) {
+    const waitingForEpisode = !!episodeId && !linkedEpisode.data;
+    if (!item || waitingForEpisode) {
       return (
         <DetailRequestState
           title={previewArtwork?.title}
           mode={mode}
-          isError={isError}
-          onRetry={() => void refetch()}
+          isError={
+            (!item && isError) ||
+            (waitingForEpisode && (linkedEpisode.isError || linkedEpisode.isSuccess))
+          }
+          onRetry={() => {
+            if (!item) void refetch();
+            if (waitingForEpisode) void linkedEpisode.refetch();
+          }}
         />
       );
     }
 
-    const modeComponents = {
-      series: (
-        <SeriesModeContent
-          seasons={seasons}
-          nextUpItems={nextUpItems}
-          people={people}
-          similarItems={similarShows}
-          item={item}
-        />
-      ),
-      movie: <MovieModeContent people={people} similarItems={similarMovies} item={item} />,
-      episode: (
-        <EpisodeModeContent
-          seasons={seasons}
-          episodes={episodes}
-          item={item}
-          people={people}
-          similarItems={similarMovies}
-          seasonId={seasonId}
-        />
-      ),
-    };
+    if (mode === 'movie') {
+      return <MovieModeContent people={people} similarItems={similarMovies} item={item} />;
+    }
 
-    return modeComponents[mode];
+    return (
+      <SeriesModeContent
+        seasons={seasons}
+        nextUpItems={nextUpItems}
+        episodes={episodes}
+        initialEpisode={episodeToSelect}
+        seasonId={episodeId && !episodeToSelect ? undefined : seasonId}
+        people={people}
+        similarItems={mode === 'series' ? similarShows : similarMovies}
+        item={item}
+      />
+    );
   };
 
   return (
@@ -382,7 +401,8 @@ function DetailViewContent({ itemId, mode, query, seasonId }: DetailViewProps) {
 export default function DetailView({ itemId, mode, ...rest }: Omit<DetailViewProps, 'query'>) {
   const { currentServer } = useMediaServers();
   const query = useDetailBundle(mode, itemId);
-  const detailViewKey = `${currentServer?.id}:${currentServer?.userId}:${mode}:${itemId}:${rest.seasonId ?? ''}`;
+  const initialEpisodeId = rest.episodeId ?? rest.initialEpisode?.id ?? '';
+  const detailViewKey = `${currentServer?.id}:${currentServer?.userId}:${mode}:${itemId}:${initialEpisodeId}:${rest.seasonId ?? ''}`;
 
   return (
     <DetailSectionsProvider key={detailViewKey}>

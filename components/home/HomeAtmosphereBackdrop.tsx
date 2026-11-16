@@ -1,7 +1,7 @@
 import { RetryableImage } from '@/components/RetryableImage';
 import { useLargeContentLayout } from '@/hooks/useContentDimensions';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Easing, Platform, StyleSheet, View } from 'react-native';
 import { easeGradient } from 'react-native-easing-gradient';
 
@@ -20,7 +20,7 @@ type HomeAtmosphereBackdropProps = {
   blurhash?: string;
   imageUrl?: string;
   isDark: boolean;
-  optimizeImageLoading?: boolean;
+  imageLayers?: ReactNode;
   imageTransitionDuration?: number;
 };
 
@@ -29,15 +29,12 @@ export function HomeAtmosphereBackdrop({
   blurhash,
   imageUrl,
   isDark,
-  optimizeImageLoading = false,
+  imageLayers,
   imageTransitionDuration = CAROUSEL_FADE_MS,
 }: HomeAtmosphereBackdropProps) {
   const imageOpacity = isDark ? 0.42 : 0.58;
   const large = useLargeContentLayout();
   const placeholder = useMemo(() => (blurhash ? { blurhash } : undefined), [blurhash]);
-  const imageLoadingProps = optimizeImageLoading
-    ? ({ enforceEarlyResizing: true, priority: 'low' } as const)
-    : {};
 
   const atmosphereGradient = useMemo(
     () =>
@@ -63,7 +60,12 @@ export function HomeAtmosphereBackdrop({
 
   return (
     <View style={[styles.backdrop, { backgroundColor }]}>
-      {(!!imageUrl || !!blurhash) && (
+      {imageLayers ? (
+        <>
+          {imageLayers}
+          <View style={[styles.tint, { backgroundColor, opacity: 1 - imageOpacity }]} />
+        </>
+      ) : imageUrl || blurhash ? (
         <RetryableImage
           uri={imageUrl}
           style={[styles.baseImage, { opacity: imageOpacity }]}
@@ -75,13 +77,12 @@ export function HomeAtmosphereBackdrop({
           contentPosition="center"
           blurRadius={60}
           transition={{ duration: imageTransitionDuration, timing: 'ease-in-out' }}
-          {...imageLoadingProps}
         />
-      )}
+      ) : null}
       <LinearGradient
         colors={getGradientColors(atmosphereGradient.colors)}
         locations={getGradientLocations(atmosphereGradient.locations)}
-        style={StyleSheet.absoluteFill}
+        style={styles.gradient}
       />
     </View>
   );
@@ -103,4 +104,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
   },
+  tint: { ...StyleSheet.absoluteFill, zIndex: 2 },
+  gradient: { ...StyleSheet.absoluteFill, zIndex: 3 },
 });

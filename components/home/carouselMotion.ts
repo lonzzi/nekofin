@@ -1,4 +1,5 @@
-export const CAROUSEL_FADE_MS = 650;
+// The full-page backdrop needs a gradual brightness change between covers.
+export const CAROUSEL_FADE_MS = 1000;
 const CAROUSEL_GESTURE_SETTLE_MS = 240;
 const CAROUSEL_CANCEL_SETTLE_MS = 180;
 
@@ -29,6 +30,20 @@ export function getMountedCarouselIndexes(current: number, count: number) {
   );
 }
 
+export type CarouselImageKeys = { hero?: string; atmosphere?: string };
+
+export function isCarouselSlideReady(
+  keys: CarouselImageKeys | undefined,
+  readyImages: Readonly<Record<string, boolean>>,
+) {
+  'worklet';
+  return (
+    !!keys &&
+    (!keys.hero || readyImages[keys.hero] === true) &&
+    (!keys.atmosphere || readyImages[keys.atmosphere] === true)
+  );
+}
+
 export function getCarouselPresentation(
   index: number,
   current: number,
@@ -38,21 +53,23 @@ export function getCarouselPresentation(
   drag: number,
   dragging: boolean,
   width: number,
+  destinationReady = true,
 ) {
   'worklet';
+  const revealing = dragging && destinationReady;
   const fade = autoTarget >= 0 && autoTarget !== current ? autoProgress : 0;
-  const progress = dragging ? Math.min(Math.abs(drag) / width, 1) : 0;
+  const progress = revealing ? Math.min(Math.abs(drag) / width, 1) : 0;
   if (index === current) {
     return {
       opacity: 1,
       offset: 0,
       order: 0,
       textOpacity: (1 - progress) * (1 - fade),
-      textOffset: dragging ? drag : 0,
+      textOffset: revealing ? drag : 0,
     };
   }
   const direction = drag < 0 ? 1 : -1;
-  if (dragging && drag !== 0 && index === (current + direction + count) % count) {
+  if (revealing && drag !== 0 && index === (current + direction + count) % count) {
     const offset = direction * width + drag;
     return { opacity: 1, offset, order: 1, textOpacity: progress, textOffset: offset };
   }

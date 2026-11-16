@@ -22,13 +22,12 @@ export const MovieModeContent = ({
         metadata={<ItemMeta item={item} />}
         controls={item.id ? <DetailPlaybackControls item={item} /> : null}
         overview={<ItemOverview item={item} />}
-      >
-        <ItemInfoList item={item} />
-      </DetailSummary>
+      />
 
       <DeferredDetailSections>
         <PeopleSection items={people} />
         <SimilarItemsSection items={similarItems} />
+        <ItemInfoList item={item} />
       </DeferredDetailSections>
     </>
   );

@@ -26,8 +26,6 @@ import { GlassCard, ShadowedGlassCard } from '../ui/GlassCard';
 import { InfoCard, InfoCardRows } from '../ui/InfoCard';
 import { OverviewSheet } from './OverviewSheet';
 
-const OVERVIEW_COLLAPSED_LINES = 5;
-
 function compactList(values?: (string | null | undefined)[] | null, limit = 4) {
   const clean = values?.map((value) => value?.trim()).filter((value): value is string => !!value);
   if (!clean?.length) return '';
@@ -168,9 +166,11 @@ export const ItemMeta = ({ item }: { item: MediaItem }) => {
 
 export const ItemOverview = ({
   item,
+  collapsedLines = 5,
   showEmptyPlaceholder = false,
 }: {
   item: MediaItem;
+  collapsedLines?: number;
   showEmptyPlaceholder?: boolean;
 }) => {
   const { t: tr } = useTranslation();
@@ -220,11 +220,11 @@ export const ItemOverview = ({
         </Text>
         <Text
           style={[detailViewStyles.overview, { color: textColor }]}
-          numberOfLines={OVERVIEW_COLLAPSED_LINES}
+          numberOfLines={collapsedLines}
         >
           {overview}
         </Text>
-        {textLines > OVERVIEW_COLLAPSED_LINES ? (
+        {textLines > collapsedLines ? (
           <Pressable
             onPress={handleShowMore}
             accessibilityRole="button"

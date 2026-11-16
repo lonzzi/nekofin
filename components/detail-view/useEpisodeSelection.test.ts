@@ -210,7 +210,7 @@ describe('detail episode selection flow', () => {
   });
 
   it('keeps an explicit episode link when next-up refreshes', () => {
-    const props = { item: first, seasons, nextUpItems: [next] };
+    const props = { item: series, initialEpisode: first, seasons, nextUpItems: [next] };
     render(props);
     expect(render({ ...props, nextUpItems: [secondSeason] }).selectedEpisode?.id).toBe(first.id);
   });
@@ -268,7 +268,17 @@ describe('detail episode selection flow', () => {
 
   it('honors explicit episode links even with an older resume choice for the series', () => {
     play(next);
-    expect(render({ item: first, seasons }).selectedEpisode?.id).toBe(first.id);
+    const detail = render({ item: series, initialEpisode: secondSeason, seasons });
+    expect(detail.selectedSeasonId).toBe('season-2');
+    expect(detail.selectedEpisode?.id).toBe(secondSeason.id);
+  });
+
+  it('keeps the linked episode while a cached season list omits it', () => {
+    cacheEpisodes('season-1', [next]);
+    const props = { item: series, initialEpisode: first, seasons };
+    expect(render(props).selectedEpisode?.id).toBe(first.id);
+    render(props).selectEpisode(next);
+    expect(render(props).selectedEpisode?.id).toBe(next.id);
   });
 
   it('refreshes selected episode progress when a newer server response arrives', () => {
